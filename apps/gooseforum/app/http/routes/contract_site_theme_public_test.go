@@ -59,13 +59,3 @@ func serveSiteThemeTokens(router *gin.Engine) *httptest.ResponseRecorder {
 	router.ServeHTTP(rec, req)
 	return rec
 }
-
-// contractSiteThemeConfigJSON 解码 page_config SiteTheme 的确定性发布态配置
-// （与 admin 契约测试同源常量）。
-func decodeSiteThemeConfigJSON() pageConfig.SiteThemeConfig {
-	var config pageConfig.SiteThemeConfig
-	if err := json.Unmarshal([]byte(contractSiteThemeConfigJSON), &config); err != nil {
-		panic("decode contractSiteThemeConfigJSON: " + err.Error())
-	}
-	return config
-}
