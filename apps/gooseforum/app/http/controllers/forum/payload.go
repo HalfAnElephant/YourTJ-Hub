@@ -1734,9 +1734,15 @@ func buildUserProfileProps(c *gin.Context, user users.EntityComplete, section st
 		userCard = &vo.UserCard{}
 	}
 	userBadges := userCard.Badges
+	if userBadges == nil {
+		// 空切片而非 nil：契约（payload.ts）声明非空数组，nil 会序列化为 JSON null。
+		userBadges = []badgeservice.UserBadge{}
+	}
 	card := *userCard
 	userCard = &card
-	userCard.Badges = nil
+	// 空切片而非 nil：契约（payload.ts UserCardPayload.badges）声明非空数组，
+	// Go nil 切片会序列化为 JSON null，移动端非空镜像解析失败（2026-09-06 生产回归）。
+	userCard.Badges = []badgeservice.UserBadge{}
 	userCard.IsFollowing = isFollowing
 	userCard.IsSelf = currentUserID == user.Id
 
@@ -1917,7 +1923,10 @@ func buildUserProfileTabs(userID uint64, active string, isOwnProfile bool) []Tab
 
 func buildUserProfileActivityTabs(userID uint64, section string, active string) []TabPayload {
 	if section != userProfileSectionActivity {
-		return nil
+		// 空切片而非 nil：契约（payload.ts UserProfileProps.activityTabs）声明
+		// 非空数组，nil 会序列化为 JSON null，移动端非空镜像解析失败
+		// （2026-09-06 生产回归：Profile 页「Failed to parse page data」）。
+		return []TabPayload{}
 	}
 	baseURL := "/u/" + strconv.FormatUint(userID, 10) + "/" + userProfileSectionActivity
 	return []TabPayload{

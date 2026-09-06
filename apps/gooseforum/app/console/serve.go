@@ -31,6 +31,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/dataservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/filemigrateservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/mailservice"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/nativepushservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/oauthservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/oidcservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/searchservice"
@@ -59,6 +60,7 @@ func runWeb(_ *cobra.Command, _ []string) error {
 
 	warnInsecureServerURL()
 	webpushservice.LogConfigStatus()
+	nativepushservice.LogConfigStatus()
 	startDebugServices()
 	return ginServe()
 }
@@ -317,6 +319,12 @@ func startBusinessServices() {
 	// 置 Success（dev 从 main 快照同步的任务行绝不会外发）。
 	_ = webpushservice.RecoverStaleTasks()
 	backgroundservice.RunWorker("webpush_worker", webpushservice.TaskTypePush, webpushservice.RunPushTask)
+	// 原生推送 worker（mobile Route A）：消费 nativepush. 前缀 outbox 任务，
+	// 向用户已注册的 iOS/Android 设备发送系统推送。实例未配置 [push.apns] /
+	// [push.fcm] 时任务直接 no-op 置 Success（dev 从 main 快照同步的任务行
+	// 绝不会外发——与 webpush worker 同语义）。
+	_ = nativepushservice.RecoverStaleTasks()
+	backgroundservice.RunWorker("nativepush_worker", nativepushservice.TaskTypeNativePush, nativepushservice.RunPushTask)
 	sessionservice.CleanupExpired()
 	oidcservice.CleanupExpired()
 	job.Run()

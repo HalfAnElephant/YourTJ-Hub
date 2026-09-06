@@ -21,6 +21,7 @@ const Map<String, Map<String, String>> _serverMessages = {
     'oauth.process.failed': '第三方账号登录处理失败，请稍后重试。',
     'oauth.activation.updateFailed': '登录账号激活状态更新失败，请稍后重试。',
     'oauth.token.failed': '登录凭据生成失败，请稍后重试。',
+    'pk.requestFailed': '教务数据请求失败，请稍后重试。',
   },
   'en': <String, String>{
     'page.notFound': 'The page does not exist or has been deleted.',
@@ -38,6 +39,7 @@ const Map<String, Map<String, String>> _serverMessages = {
         'Failed to update the account activation status. Please try again later.',
     'oauth.token.failed':
         'Failed to create sign-in credentials. Please try again later.',
+    'pk.requestFailed': 'Course data request failed. Please try again later.',
   },
 };
 

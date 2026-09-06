@@ -9,6 +9,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/contentDeleteEvent"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/posts"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pushDevice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pushSubscription"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/topics"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/users"
@@ -265,6 +266,13 @@ func AccountClose(req component.BetterRequest[AccountCloseReq]) component.Respon
 	// 残留订阅由发送侧 IsAccountClosed 检查兜底，绝不外发。
 	if err := pushSubscription.DeleteByUser(req.UserId); err != nil {
 		slog.Error("delete push subscriptions on account close failed", "userId", req.UserId, "err", err)
+	}
+	// 清空移动端原生推送设备注册：注销后不得再向该用户的 iOS/Android 设备
+	// 发送推送（anonymize 与 delete 两 mode 共用；device token 等同会话凭据）。
+	// best-effort：清理失败仅记日志不阻断响应——残留注册由发送侧
+	// IsAccountClosed 检查兜底，绝不外发。
+	if err := pushDevice.DeleteByUser(req.UserId); err != nil {
+		slog.Error("delete push devices on account close failed", "userId", req.UserId, "err", err)
 	}
 	slog.Info("account closed", "userId", req.UserId, "mode", req.Params.Mode)
 	return component.SuccessResponse(true)

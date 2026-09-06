@@ -37,9 +37,11 @@ _$UserCardPayloadImpl _$$UserCardPayloadImplFromJson(
   isOnline: json['isOnline'] as bool,
   isFollowing: json['isFollowing'] as bool,
   isSelf: json['isSelf'] as bool,
-  badges: (json['badges'] as List<dynamic>)
-      .map((e) => UserBadgePayload.fromJson(e as Map<String, dynamic>))
-      .toList(),
+  badges:
+      (json['badges'] as List<dynamic>?)
+          ?.map((e) => UserBadgePayload.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      [],
   wornBadge: json['wornBadge'] == null
       ? null
       : UserBadgePayload.fromJson(json['wornBadge'] as Map<String, dynamic>),
@@ -191,15 +193,19 @@ _$UserProfilePropsImpl _$$UserProfilePropsImplFromJson(
   tabs: (json['tabs'] as List<dynamic>)
       .map((e) => TabItemPayload.fromJson(e as Map<String, dynamic>))
       .toList(),
-  activityTabs: (json['activityTabs'] as List<dynamic>)
-      .map((e) => TabItemPayload.fromJson(e as Map<String, dynamic>))
-      .toList(),
+  activityTabs:
+      (json['activityTabs'] as List<dynamic>?)
+          ?.map((e) => TabItemPayload.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      [],
   pagination: PaginationPayload.fromJson(
     json['pagination'] as Map<String, dynamic>,
   ),
-  badges: (json['badges'] as List<dynamic>)
-      .map((e) => UserBadgePayload.fromJson(e as Map<String, dynamic>))
-      .toList(),
+  badges:
+      (json['badges'] as List<dynamic>?)
+          ?.map((e) => UserBadgePayload.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      [],
   topics: (json['topics'] as List<dynamic>)
       .map((e) => TopicPayload.fromJson(e as Map<String, dynamic>))
       .toList(),

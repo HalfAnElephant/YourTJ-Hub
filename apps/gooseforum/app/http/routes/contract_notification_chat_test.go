@@ -13,6 +13,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/chat/imUserChatConfigs"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/chat/messages"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/eventNotification"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pushDevice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pushSubscription"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -27,6 +28,7 @@ func setupNotificationChatContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 	if err := conn.AutoMigrate(
 		&eventNotification.Entity{},
 		&pushSubscription.Entity{},
+		&pushDevice.Entity{},
 		&imConversations.Entity{},
 		&imUserChatConfigs.Entity{},
 		&messages.Entity{},
@@ -43,6 +45,8 @@ func setupNotificationChatContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 	forumLoginAPI.GET("/push/config", middleware.NoUpdateUserActivity, UpButterReq(api.GetPushConfig))
 	forumLoginAPI.POST("/push/subscribe", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.SubscribePush))
 	forumLoginAPI.POST("/push/unsubscribe", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.UnsubscribePush))
+	forumLoginAPI.POST("/push/device/register", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.RegisterPushDevice))
+	forumLoginAPI.POST("/push/device/unregister", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.UnregisterPushDevice))
 
 	chatAPI := forumAPI.Group("/chat", middleware.JWTAuthCheck)
 	chatAPI.POST("/send", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitMessageSend), UpButterReq(api.SendMessage))
@@ -541,5 +545,111 @@ func TestPushUnsubscribeHTTPContract(t *testing.T) {
 	t.Run("frozen account returns 403", func(t *testing.T) {
 		conn, router := setupNotificationChatContractTest(t)
 		assertInteractionForbidden(t, conn, router, "/api/forum/push/unsubscribe", `{}`, "account-frozen.json")
+	})
+}
+func TestPushDeviceRegisterHTTPContract(t *testing.T) {
+	t.Run("success persists native device for the caller", func(t *testing.T) {
+		conn, router := setupNotificationChatContractTest(t)
+		user := createHTTPContractUser(t, conn, contractTestID())
+		body := `{"platform":"ios","token":"contract-apns-device-token-0001"}`
+		recorder := serveJSON(router, "/api/forum/push/device/register", body, contractSessionToken(t, user))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("push device register status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "push-device-register-success.json"))
+		devices := pushDevice.ListByUser(user.Id)
+		if len(devices) != 1 || devices[0].Token != "contract-apns-device-token-0001" || devices[0].Platform != pushDevice.PlatformIOS {
+			t.Fatalf("device not persisted for caller: %+v", devices)
+		}
+	})
+
+	t.Run("same token from another account converges ownership", func(t *testing.T) {
+		conn, router := setupNotificationChatContractTest(t)
+		owner := createHTTPContractUser(t, conn, contractTestID())
+		caller := createHTTPContractUser(t, conn, contractTestID())
+		if _, err := pushDevice.UpsertCapped(owner.Id, pushDevice.PlatformAndroid, "contract-fcm-device-token-0002", 20, time.Now()); err != nil {
+			t.Fatalf("seed owner device: %v", err)
+		}
+		recorder := serveJSON(router, "/api/forum/push/device/register",
+			`{"platform":"android","token":"contract-fcm-device-token-0002"}`, contractSessionToken(t, caller))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("push device re-register status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "push-device-register-success.json"))
+		if devices := pushDevice.ListByUser(owner.Id); len(devices) != 0 {
+			t.Fatalf("device stayed on previous owner: %+v", devices)
+		}
+		if devices := pushDevice.ListByUser(caller.Id); len(devices) != 1 || devices[0].Platform != pushDevice.PlatformAndroid {
+			t.Fatalf("device not converged to caller: %+v", devices)
+		}
+	})
+
+	t.Run("invalid platform fails legacy validation", func(t *testing.T) {
+		conn, router := setupNotificationChatContractTest(t)
+		user := createHTTPContractUser(t, conn, contractTestID())
+		recorder := serveJSON(router, "/api/forum/push/device/register", `{"platform":"web","token":"x"}`, contractSessionToken(t, user))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("invalid params status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "invalid-params.json"))
+		if devices := pushDevice.ListByUser(user.Id); len(devices) != 0 {
+			t.Fatalf("invalid device persisted: %+v", devices)
+		}
+	})
+
+	t.Run("missing session returns 401", func(t *testing.T) {
+		_, router := setupNotificationChatContractTest(t)
+		assertInteractionUnauthenticated(t, router, "/api/forum/push/device/register", `{}`, "auth-required.json")
+	})
+
+	t.Run("frozen account returns 403", func(t *testing.T) {
+		conn, router := setupNotificationChatContractTest(t)
+		assertInteractionForbidden(t, conn, router, "/api/forum/push/device/register", `{}`, "account-frozen.json")
+	})
+}
+
+func TestPushDeviceUnregisterHTTPContract(t *testing.T) {
+	t.Run("removes owned device", func(t *testing.T) {
+		conn, router := setupNotificationChatContractTest(t)
+		user := createHTTPContractUser(t, conn, contractTestID())
+		if err := pushDevice.Upsert(user.Id, pushDevice.PlatformIOS, "contract-apns-device-token-0003", time.Now()); err != nil {
+			t.Fatalf("seed device: %v", err)
+		}
+		recorder := serveJSON(router, "/api/forum/push/device/unregister", `{"token":"contract-apns-device-token-0003"}`, contractSessionToken(t, user))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("push device unregister status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "push-device-unregister-success.json"))
+		if devices := pushDevice.ListByUser(user.Id); len(devices) != 0 {
+			t.Fatalf("device not removed: %+v", devices)
+		}
+	})
+
+	t.Run("foreign token is idempotent success", func(t *testing.T) {
+		conn, router := setupNotificationChatContractTest(t)
+		owner := createHTTPContractUser(t, conn, contractTestID())
+		caller := createHTTPContractUser(t, conn, contractTestID())
+		if err := pushDevice.Upsert(owner.Id, pushDevice.PlatformAndroid, "contract-fcm-device-token-0004", time.Now()); err != nil {
+			t.Fatalf("seed foreign device: %v", err)
+		}
+		recorder := serveJSON(router, "/api/forum/push/device/unregister", `{"token":"contract-fcm-device-token-0004"}`, contractSessionToken(t, caller))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("foreign unregister status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "push-device-unregister-success.json"))
+		// 他人设备未被删除（越权防护）。
+		if devices := pushDevice.ListByUser(owner.Id); len(devices) != 1 {
+			t.Fatalf("foreign device was removed: %+v", devices)
+		}
+	})
+
+	t.Run("missing session returns 401", func(t *testing.T) {
+		_, router := setupNotificationChatContractTest(t)
+		assertInteractionUnauthenticated(t, router, "/api/forum/push/device/unregister", `{}`, "auth-required.json")
+	})
+
+	t.Run("frozen account returns 403", func(t *testing.T) {
+		conn, router := setupNotificationChatContractTest(t)
+		assertInteractionForbidden(t, conn, router, "/api/forum/push/device/unregister", `{}`, "account-frozen.json")
 	})
 }

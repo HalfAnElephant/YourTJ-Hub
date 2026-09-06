@@ -3245,6 +3245,47 @@ PkReviewBriefResponse:
       properties:
         data:
           $ref: '#/PkReviewBrief'
+PkSectionTimeItem:
+  type: object
+  required: [section, start, end]
+  properties:
+    section:
+      type: integer
+      minimum: 1
+      description: 节次序号（1-based）。
+    start:
+      type: string
+      pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+      description: 开始时间 HH:MM。
+    end:
+      type: string
+      pattern: "^([01]\\d|2[0-3]):[0-5]\\d$"
+      description: 结束时间 HH:MM。
+  additionalProperties: false
+
+PkSectionTimesResult:
+  type: object
+  required: [sectionTimes, maxRowsDefault]
+  properties:
+    sectionTimes:
+      type: array
+      items:
+        $ref: '#/PkSectionTimeItem'
+      description: 作息表（现行 11 节编号；未配置时为内置默认 11 节表，旧 12 节存量经归一重映射）。
+    maxRowsDefault:
+      type: integer
+      const: 11
+      description: 默认最大行数（现行 11 节制）；历史 12 节制学期（calendarId<120）由客户端内置历史表渲染，不消费本响应。
+  additionalProperties: false
+
+PkSectionTimesResponse:
+  allOf:
+    - $ref: '#/PkSuccess'
+    - type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/PkSectionTimesResult'
 RegisterRequest:
   type: object
   description: |
@@ -4478,7 +4519,7 @@ NotificationMarkAllReadResponse:
 
 PushConfigResult:
   type: object
-  required: [configured]
+  required: [configured, native]
   properties:
     configured:
       type: boolean
@@ -4486,6 +4527,21 @@ PushConfigResult:
     applicationServerKey:
       type: string
       description: VAPID public key (65-byte P-256 uncompressed point, base64url) to pass as PushManager.subscribe applicationServerKey; present only when configured is true.
+    native:
+      $ref: '#/NativePushChannels'
+      description: Native (mobile APNs/FCM) channel states; always present.
+  additionalProperties: false
+
+NativePushChannels:
+  type: object
+  required: [apnsEnabled, fcmEnabled]
+  properties:
+    apnsEnabled:
+      type: boolean
+      description: True when [push.apns] credentials are configured so the iOS APNs channel is enabled.
+    fcmEnabled:
+      type: boolean
+      description: True when [push.fcm] credentials are configured so the Android FCM channel is enabled.
   additionalProperties: false
 
 PushConfigSuccess:
@@ -4576,6 +4632,61 @@ PushUnsubscribeSuccess:
 PushUnsubscribeResponse:
   oneOf:
     - $ref: '#/PushUnsubscribeSuccess'
+    - $ref: '#/ApiFailure'
+PushDeviceRegisterRequest:
+  type: object
+  required: [platform, token]
+  properties:
+    platform:
+      type: string
+      enum: [ios, android]
+      description: ios routes to APNs, android to FCM.
+    token:
+      type: string
+      minLength: 1
+      maxLength: 512
+      description: Push-service device token (APNs device token or FCM registration token); globally unique — re-registering from the same device converges the row to the current user.
+  additionalProperties: false
+
+PushDeviceRegisterSuccess:
+  allOf:
+    - $ref: '#/ApiSuccess'
+    - type: object
+      required: [result]
+      properties:
+        result:
+          type: boolean
+          const: true
+
+PushDeviceRegisterResponse:
+  oneOf:
+    - $ref: '#/PushDeviceRegisterSuccess'
+    - $ref: '#/ApiFailure'
+
+PushDeviceUnregisterRequest:
+  type: object
+  required: [token]
+  properties:
+    token:
+      type: string
+      minLength: 1
+      maxLength: 512
+      description: Device token to remove; must belong to the caller (foreign tokens silently succeed, never revealing other users' devices).
+  additionalProperties: false
+
+PushDeviceUnregisterSuccess:
+  allOf:
+    - $ref: '#/ApiSuccess'
+    - type: object
+      required: [result]
+      properties:
+        result:
+          type: boolean
+          const: true
+
+PushDeviceUnregisterResponse:
+  oneOf:
+    - $ref: '#/PushDeviceUnregisterSuccess'
     - $ref: '#/ApiFailure'
 
 SendChatMessageRequest:
@@ -6924,6 +7035,53 @@ AdminSiteThemeConfig:
       type: string
       description: RFC 3339 timestamp stamped by adminPublishSiteTheme; omitted when never published.
   additionalProperties: false
+PublicSiteThemeDefinition:
+  type: object
+  required: [mode, tokens]
+  properties:
+    mode:
+      type: string
+      enum: [light, dark]
+      description: Color scheme of the published theme.
+    tokens:
+      $ref: '#/AdminSiteThemeTokens'
+      description: Design tokens keyed by token name (e.g. color-primary); values are the published, normalized token values.
+  additionalProperties: false
+
+PublicSiteThemeTokensResult:
+  type: object
+  required: [enabled, version, publishedAt, themes]
+  properties:
+    enabled:
+      type: boolean
+      description: False when site theming is disabled or nothing has been published; clients then fall back to their built-in theme.
+    version:
+      type: integer
+      description: Published configuration schema version; 0 when disabled/unpublished.
+    publishedAt:
+      type: [string, 'null']
+      format: date-time
+      description: RFC 3339 timestamp stamped by the last publish; null when disabled/unpublished.
+    themes:
+      type: array
+      items:
+        $ref: '#/PublicSiteThemeDefinition'
+      description: Published themes; empty when disabled/unpublished. Admin-only metadata (theme name/label, staged draft) is never exposed.
+  additionalProperties: false
+
+PublicSiteThemeTokensSuccess:
+  allOf:
+    - $ref: '#/ApiSuccess'
+    - type: object
+      required: [result]
+      properties:
+        result:
+          $ref: '#/PublicSiteThemeTokensResult'
+
+PublicSiteThemeTokensResponse:
+  oneOf:
+    - $ref: '#/PublicSiteThemeTokensSuccess'
+    - $ref: '#/ApiFailure'
 
 AdminSiteThemeResponse:
   allOf:

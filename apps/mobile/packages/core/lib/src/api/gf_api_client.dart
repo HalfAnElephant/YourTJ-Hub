@@ -96,6 +96,62 @@ class GfApiClient {
     return _resolve(response, parser);
   }
 
+  /// PK 域信封分支：`/api/pk/*` 使用 `{code,msg,data}` 信封（业务失败 =
+  /// 非 2xx + code>=1，与 forum 域的 `{code,result,messageCode,params}` 不同）。
+  /// 成功时解析响应的 `data` 字段，失败抛 [ApiException]（msg 放 params.detail）。
+  Future<T> getPk<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    required JsonParser<T> parser,
+  }) async {
+    final response = await _request(
+      () => dio.get(path, queryParameters: queryParameters),
+    );
+    return _resolvePk(response, parser);
+  }
+
+  /// [getPk] 的 POST 形态。
+  Future<T> postPk<T>(
+    String path, {
+    Object? body,
+    required JsonParser<T> parser,
+  }) async {
+    final response = await _request(() => dio.post(path, data: body));
+    return _resolvePk(response, parser);
+  }
+
+  Future<T> put<T>(
+    String path, {
+    Object? body,
+    Map<String, dynamic>? headers,
+    JsonParser<T>? parser,
+  }) async {
+    final response = await _request(
+      () => dio.put(
+        path,
+        data: body,
+        options: Options(headers: headers),
+      ),
+    );
+    return _resolve(response, parser);
+  }
+
+  Future<T> delete<T>(
+    String path, {
+    Object? body,
+    Map<String, dynamic>? headers,
+    JsonParser<T>? parser,
+  }) async {
+    final response = await _request(
+      () => dio.delete(
+        path,
+        data: body,
+        options: Options(headers: headers),
+      ),
+    );
+    return _resolve(response, parser);
+  }
+
   Future<Response<dynamic>> _request(
     Future<Response<dynamic>> Function() run,
   ) async {
@@ -229,7 +285,8 @@ class GfApiClient {
     return ApiException(
       fallbackMessage: 'Failed to load',
       messageCode: code,
-      params: (props['params'] as Map<String, dynamic>?)?.cast<String, dynamic>(),
+      params: (props['params'] as Map<String, dynamic>?)
+          ?.cast<String, dynamic>(),
       statusCode: statusCode,
     );
   }
@@ -257,5 +314,34 @@ class GfApiClient {
     final value = response?.headers.value('Retry-After');
     final seconds = int.tryParse(value ?? '');
     return (seconds != null && seconds > 0) ? seconds : null;
+  }
+
+  /// 解析 PK 域 `{code,msg,data}` 信封。
+  /// 2xx + code==0 → parser(data)；非 2xx 或 code!=0 → [ApiException]
+  /// （PK 域无 messageCode 体系，msg 放 params.detail 供调试）。
+  Future<T> _resolvePk<T>(
+    Response<dynamic> response,
+    JsonParser<T> parser,
+  ) async {
+    await _handleTokenRenewal(response);
+    final statusCode = response.statusCode;
+    final data = response.data;
+    final isMap = data is Map<String, dynamic>;
+    final code = isMap ? (data['code'] as num?)?.toInt() : null;
+    final ok =
+        statusCode != null &&
+        statusCode >= 200 &&
+        statusCode < 300 &&
+        code == 0;
+    if (!ok) {
+      final msg = isMap ? data['msg']?.toString() : null;
+      throw ApiException(
+        fallbackMessage: 'Request failed',
+        messageCode: 'pk.requestFailed',
+        params: msg == null || msg.isEmpty ? null : {'detail': msg},
+        statusCode: statusCode,
+      );
+    }
+    return parser(isMap ? data['data'] : null);
   }
 }
