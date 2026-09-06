@@ -719,8 +719,9 @@ function replyTargetFor(post: PostPayload) {
   return post.replyToPostId ? replyTargetMap.value.get(post.replyToPostId) : undefined
 }
 
-// 楼层平铺：全部楼层按 postNo 升序线性展示；replyToPostId 仅用于引用条、通知路由与 Q&A 回答
-// 标记，不再用于分组嵌套。跨窗口加载的楼层天然按楼号归位，树跨窗的孤儿引用问题随之消失。
+// 楼层流：普通话题纯平铺（按 postNo 升序，引用条承接上下文）；Q&A 话题两层布局——
+// 回复 #1 的回答与无目标评论平铺下铺，链内子回复堆叠在链根楼层卡内（见下方 Q&A 逻辑）。
+// 跨窗口加载的楼层天然按楼号归位，树跨窗的孤儿引用问题随之消失。
 const sortedPosts = computed<PostPayload[]>(() => {
   const list = [...posts.value]
   list.sort((a, b) => (a.postNo || 0) - (b.postNo || 0))
@@ -772,21 +773,54 @@ function renderedPostContent(post: PostPayload) {
   return html
 }
 
-const answerPosts = computed<PostPayload[]>(() => {
-  if (!isQuestionTopic.value) return []
-  return sortedPosts.value.filter((post) => post.isAnswer && post.postNo > 1)
+// Q&A 两层布局：主流平铺层 = 首楼提问 + 回复 #1 的回答 + 无目标的评论（标准平铺，往下铺）；
+// 堆叠层 = 回复链内楼层（回复某回答/回复某条回复）的子回复，按链根聚合后直接堆叠在
+// 所属楼层的卡片内。链根不在已加载窗口时（深链场景）退回主流平铺，避免内容丢失。
+const qaPostsById = computed(() => {
+  const map = new Map<number, PostPayload>()
+  for (const post of posts.value) map.set(post.id, post)
+  return map
 })
 
-const commentPosts = computed<PostPayload[]>(() => {
-  if (!isQuestionTopic.value) return sortedPosts.value
-  // For Q&A: show question (postNo=1) and comments (non-answer posts)
-  return sortedPosts.value.filter((post) => !post.isAnswer || post.postNo === 1)
-})
+// 返回 post 所属回复链的根楼层 id；回复 #1 或无目标 → null（主流平铺层）；
+// 链根未加载 → null（平铺兜底）。
+function qaChainRootId(post: PostPayload): number | null {
+  if (!post.replyToPostId) return null
+  const firstId = firstPost.value?.id
+  if (firstId && post.replyToPostId === firstId) return null
+  const byId = qaPostsById.value
+  let current: PostPayload | undefined = byId.get(post.replyToPostId)
+  let guard = 0
+  while (current?.replyToPostId && current.replyToPostId !== firstId && guard++ < 64) {
+    current = byId.get(current.replyToPostId)
+    if (!current) return null
+  }
+  return current?.id ?? null
+}
 
-// Choose which posts to render based on content type
 const renderPosts = computed<PostPayload[]>(() => {
-  return isQuestionTopic.value ? commentPosts.value : sortedPosts.value
+  if (!isQuestionTopic.value) return sortedPosts.value
+  return sortedPosts.value.filter((post) => qaChainRootId(post) === null)
 })
+
+// 楼内堆叠分组：链根楼层 id → 该链的全部子回复（按楼号升序），渲染在链根卡片内。
+const stackedRepliesByRoot = computed<Map<number, PostPayload[]>>(() => {
+  const map = new Map<number, PostPayload[]>()
+  if (!isQuestionTopic.value) return map
+  for (const post of sortedPosts.value) {
+    const rootId = qaChainRootId(post)
+    if (rootId == null) continue
+    const list = map.get(rootId)
+    if (list) list.push(post)
+    else map.set(rootId, [post])
+  }
+  for (const list of map.values()) list.sort((a, b) => (a.postNo || 0) - (b.postNo || 0))
+  return map
+})
+
+function stackedRepliesFor(post: PostPayload) {
+  return stackedRepliesByRoot.value.get(post.id) ?? []
+}
 
 // 引用条规则：回复话题首楼（或无目标）视为话题级回复，不重复引用首楼正文；
 // 回复其他楼层才显示可折叠引用消息。目标不在当前窗口时由 replyTargets 兜底渲染
@@ -1895,9 +1929,11 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                 <div class="flex min-w-0 items-center gap-2">
                   <a :href="`/u/${post.author.id}`" class="min-w-0 truncate font-semibold text-base-content hover:text-primary">{{ authorDisplayName(post.author) }}</a>
                   <span v-if="post.postNo" class="hidden shrink-0 text-xs font-semibold tabular-nums text-base-content/55 sm:inline">#{{ formatNumber(post.postNo) }}</span>
+                  <span v-if="isQuestionTopic && post.isAnswer" class="shrink-0 rounded bg-success/20 px-1.5 py-0.5 text-[11px] font-semibold text-success">{{ t('topic.answer') }}</span>
                 </div>
                 <div class="mt-0.5 flex items-center gap-2 text-xs text-base-content/55 sm:hidden">
                   <span v-if="post.postNo" class="font-semibold tabular-nums text-base-content/55">#{{ formatNumber(post.postNo) }}</span>
+                  <span v-if="isQuestionTopic && post.isAnswer" class="shrink-0 rounded bg-success/20 px-1.5 py-0.5 text-[11px] font-semibold text-success">{{ t('topic.answer') }}</span>
                   <time class="truncate">{{ formatDateTime(post.createdAt) }}</time>
                 </div>
               </div>
@@ -2376,136 +2412,68 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
             </div>
 
           </div>
-        </article>
-
-        <!-- Q&A Answers Section -->
-        <div v-if="isQuestionTopic && answerPosts.length > 0" class="border-t border-line px-4 py-5 xl:border-t-transparent">
-          <div class="mb-4 flex items-center gap-2">
-            <h3 class="text-base font-semibold text-base-content">{{ t('topic.answers') }}</h3>
-            <span class="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{{ answerPosts.length }}</span>
-          </div>
-          <div class="space-y-4">
-            <article
-              v-for="(post, answerIndex) in answerPosts"
-              :id="`post-${post.id}`"
-              :key="post.id"
-              :data-post-no="post.postNo"
-              class="group relative rounded-lg border border-primary/30 bg-primary/5 p-4 transition-[background-color] hover:border-primary/50 hover:bg-primary/10"
-              :class="{ 'bg-info/10': highlightedPostId === post.id }"
+          <!-- Q&A 楼内堆叠：回复本楼回复链的子回复（回复回答/回复回复），按楼号堆叠在楼层卡片内 -->
+          <div
+            v-if="isQuestionTopic && stackedRepliesFor(post).length"
+            class="col-span-2 mt-1 space-y-2.5 border-l-2 border-line/70 pl-3 sm:pl-4"
+          >
+            <div
+              v-for="reply in stackedRepliesFor(post)"
+              :id="`post-${reply.id}`"
+              :key="reply.id"
+              :data-post-no="reply.postNo"
+              class="scroll-mt-20 rounded-lg bg-base-200/45 p-3 transition-[background-color]"
+              :class="{ 'bg-info/10': highlightedPostId === reply.id }"
             >
-              <div class="mb-3 flex min-w-0 items-start justify-between gap-2">
-                <div class="min-w-0">
-                  <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <a :href="`/u/${post.author.id}`" class="min-w-0 flex items-center gap-2" @click="showUserCard(post.author, $event)">
-                      <UserAvatar :src="post.author.avatarUrl" :alt="post.author.username" :badge="post.author.wornBadge" class="h-6 w-6 rounded-full ring-1 ring-line" img-class="rounded-full" />
-                      <span class="min-w-0 truncate text-sm font-semibold text-base-content hover:text-primary">{{ authorDisplayName(post.author) }}</span>
-                    </a>
-                    <span class="shrink-0 text-xs font-semibold tabular-nums text-base-content/55">#{{ formatNumber(post.postNo) }}</span>
-                    <time class="shrink-0 text-xs text-base-content/55">{{ formatDateTime(post.createdAt) }}</time>
-                    <span class="shrink-0 rounded bg-success/20 px-1.5 py-0.5 text-[11px] font-semibold text-success">{{ t('topic.answer') }}</span>
-                  </div>
-                </div>
-                <div class="flex shrink-0 items-center gap-1">
-                  <button
-                    v-if="canEditPost(post)"
-                    type="button"
-                    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="savingEditPostId === post.id || deletingPostId === post.id"
-                    :title="t('common.edit')"
-                    @click="startEditPost(post)"
-                  >
+              <div class="mb-2 flex min-w-0 items-center gap-2">
+                <a :href="`/u/${reply.author.id}`" class="shrink-0" @click="showUserCard(reply.author, $event)">
+                  <UserAvatar :src="reply.author.avatarUrl" :alt="reply.author.username" :badge="reply.author.wornBadge" class="h-6 w-6 rounded-full ring-1 ring-line" img-class="rounded-full" />
+                </a>
+                <a :href="`/u/${reply.author.id}`" class="min-w-0 truncate text-sm font-semibold text-base-content hover:text-primary" @click="showUserCard(reply.author, $event)">{{ authorDisplayName(reply.author) }}</a>
+                <span class="shrink-0 text-xs font-semibold tabular-nums text-base-content/55">#{{ formatNumber(reply.postNo) }}</span>
+                <time class="shrink-0 text-xs text-base-content/55">{{ formatDateTime(reply.createdAt) }}</time>
+                <span class="ml-auto flex shrink-0 items-center gap-1">
+                  <button v-if="canEditPost(reply)" type="button" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50" :disabled="savingEditPostId === reply.id || deletingPostId === reply.id" :title="t('common.edit')" @click="startEditPost(reply)">
                     <PencilLine class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('common.edit') }}</span>
                   </button>
-                  <button
-                    v-if="canDeleteRenderedPost(post)"
-                    type="button"
-                    class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="deletingPostId === post.id"
-                    :title="deletingPostId === post.id ? t('topic.deleting') : t('topic.delete')"
-                    @click="requestDeletePost(post)"
-                  >
+                  <button v-if="canDeleteRenderedPost(reply)" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-error/10 hover:text-error disabled:cursor-not-allowed disabled:opacity-50" :disabled="deletingPostId === reply.id" :title="deletingPostId === reply.id ? t('topic.deleting') : t('topic.delete')" @click="requestDeletePost(reply)">
                     <Trash2 class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ deletingPostId === post.id ? t('topic.deleting') : t('topic.delete') }}</span>
+                    <span class="sr-only">{{ deletingPostId === reply.id ? t('topic.deleting') : t('topic.delete') }}</span>
                   </button>
-                  <button
-                    v-if="(!viewer.isAuthenticated || canPost) && !post.isHidden && !isPostRemoved(post)"
-                    type="button"
-                    class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:h-8 sm:w-8"
-                    :title="t('topic.reply')"
-                    @click="replyTo(post)"
-                  >
+                  <button v-if="(!viewer.isAuthenticated || canPost) && !reply.isHidden && !isPostRemoved(reply)" type="button" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary" :title="t('topic.reply')" @click="replyTo(reply)">
                     <CornerDownLeft class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('topic.reply') }}</span>
                   </button>
-                  <button
-                    v-if="viewer.isAuthenticated && !post.isHidden && !isPostRemoved(post)"
-                    type="button"
-                    class="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1 text-icon-muted transition hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:px-1.5"
-                    :class="{ 'text-error hover:text-error': postActionState(post).isLiked }"
-                    :title="t('topic.like')"
-                    :disabled="postActionState(post).actingLike"
-                    @click="togglePostLike(post)"
-                  >
-                    <Heart class="h-3.5 w-3.5" :fill="postActionState(post).isLiked ? 'currentColor' : 'none'" />
-                    <span v-if="postActionState(post).likeCount" class="hidden text-xs font-semibold tabular-nums sm:inline">{{ formatNumber(postActionState(post).likeCount) }}</span>
+                  <button v-if="viewer.isAuthenticated && !reply.isHidden && !isPostRemoved(reply)" type="button" class="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1 text-icon-muted transition hover:bg-error/10 hover:text-error disabled:cursor-not-allowed disabled:opacity-50" :class="{ 'text-error hover:text-error': postActionState(reply).isLiked }" :title="t('topic.like')" :disabled="postActionState(reply).actingLike" @click="togglePostLike(reply)">
+                    <Heart class="h-3.5 w-3.5" :fill="postActionState(reply).isLiked ? 'currentColor' : 'none'" />
+                    <span v-if="postActionState(reply).likeCount" class="hidden text-xs font-semibold tabular-nums sm:inline">{{ formatNumber(postActionState(reply).likeCount) }}</span>
                     <span class="sr-only">{{ t('topic.like') }}</span>
                   </button>
-                  <button
-                    v-if="viewer.isAuthenticated && !post.isHidden && !isPostRemoved(post)"
-                    type="button"
-                    class="gf-icon-button h-7 w-7 shrink-0 hover:bg-info/10 hover:text-primary"
-                    :class="{ 'text-primary hover:text-primary': postActionState(post).isBookmarked }"
-                    :title="postActionState(post).isBookmarked ? t('topic.bookmarked') : t('topic.bookmark')"
-                    :disabled="postActionState(post).actingBookmark"
-                    @click="togglePostBookmark(post)"
-                  >
-                    <Bookmark class="h-3.5 w-3.5" :fill="postActionState(post).isBookmarked ? 'currentColor' : 'none'" />
-                    <span class="sr-only">{{ t('topic.bookmark') }}</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                    :title="t('topic.share')"
-                    @click="sharePost(post)"
-                  >
+                  <button type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-base-200 hover:text-base-content" :title="t('topic.share')" @click="sharePost(reply)">
                     <Share2 class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('topic.share') }}</span>
                   </button>
-                  <button
-                    v-if="!post.isOwnPost && !post.isHidden && !isPostRemoved(post)"
-                    type="button"
-                    class="gf-icon-button h-7 w-7 shrink-0 hover:bg-warning/10 hover:text-warning"
-                    :title="t('topic.report')"
-                    @click="requestPostReport(post)"
-                  >
+                  <button v-if="!reply.isOwnPost && !reply.isHidden && !isPostRemoved(reply)" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-warning/10 hover:text-warning" :title="t('topic.report')" @click="requestPostReport(reply)">
                     <Flag class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('topic.report') }}</span>
                   </button>
-                </div>
+                </span>
               </div>
-              <PostReplyReference v-if="showReplyReference(post)" :target="replyTargetFor(post)" />
-              <div v-if="post.isAuthorDeleted" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
-                <div class="font-semibold text-base-content/70">{{ t('topic.authorDeletedTitle') }}</div>
-                <div class="mt-1 leading-6">{{ t('topic.authorDeletedPlaceholder') }}</div>
+              <PostReplyReference v-if="showReplyReference(reply)" :target="replyTargetFor(reply)" />
+              <div v-if="reply.isAuthorDeleted" class="mt-2 rounded border border-dashed border-line bg-base-100/60 px-3 py-2 text-sm text-base-content/55">
+                {{ t('topic.authorDeletedPlaceholder') }}
               </div>
-              <div v-else-if="post.isModeratorRemoved" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
-                <div class="font-semibold text-base-content/70">{{ t('topic.moderatorRemovedTitle') }}</div>
-                <div class="mt-1 leading-6">{{ t('topic.moderatorRemovedPlaceholder') }}</div>
+              <div v-else-if="reply.isModeratorRemoved" class="mt-2 rounded border border-dashed border-line bg-base-100/60 px-3 py-2 text-sm text-base-content/55">
+                {{ t('topic.moderatorRemovedPlaceholder') }}
               </div>
-              <div v-else-if="post.isHidden && !post.canModerate" class="rounded border border-line bg-base-200/60 px-3 py-2 text-sm text-base-content/45">
+              <div v-else-if="reply.isHidden && !reply.canModerate" class="mt-2 rounded border border-line bg-base-100/60 px-3 py-2 text-sm text-base-content/45">
                 {{ t('topic.hiddenReplyPlaceholder') }}
               </div>
-              <div v-else v-code-copy v-code-highlight v-math-render class="gf-prose gf-prose-post" :class="{ 'gf-prose-article': isBlogLikeTopic && isFirstPost(post), 'gf-prose-thought': props.contentType === 2 && isFirstPost(post) }" v-html="post.renderedContent" />
-              <div v-if="!post.lastEditedAt && post.updatedAt && post.updatedAt !== post.createdAt" class="mt-2 text-xs font-medium text-base-content/55">
-                {{ t('topic.editedAt', { time: formatDateTime(post.updatedAt) }) }}
-              </div>
-              <div v-if="post.lastEditedAt && post.lastEditor" class="mt-2 text-xs font-medium text-base-content/55">
-                {{ lastEditedLabel(post) }}
-              </div>
-            </article>
+              <div v-else v-code-copy v-code-highlight v-math-render class="gf-prose gf-prose-post mt-1" v-html="reply.renderedContent" />
+            </div>
           </div>
-        </div>
+        </article>
 
         <div v-if="postHasAfter || loadingPostDirection === 'after' || postWindowError || (!postHasAfter && posts.length)" ref="postLoadMoreEl" class="relative border-t border-line px-4 py-3 text-center xl:border-t-transparent">
           <div class="pointer-events-none absolute left-5 right-5 top-0 hidden border-t border-line xl:block" aria-hidden="true" />
