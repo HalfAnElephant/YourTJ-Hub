@@ -5,8 +5,6 @@
   </picture>
 </p>
 
-<h1 align="center">YourTJ Hub</h1>
-
 <p align="center">
   面向同济校园的社区平台，以论坛沉淀长期有价值的信息与讨论。<br>
   <sub>A community platform for Tongji University, built around durable, searchable conversations.</sub>
