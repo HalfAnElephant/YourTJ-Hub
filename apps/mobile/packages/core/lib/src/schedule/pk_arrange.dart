@@ -242,8 +242,9 @@ List<PkArrangementParse> parseArrangeInfoText(String? text) {
 /// 课表行数：新 11 节制（calendarId >= 120）vs 旧 12 节制。
 /// 数据不足（null）时按 12 节处理。
 int maxRowsForCalendar(int? calendarId) {
-  if (calendarId != null && calendarId >= kNewSectionSystemMinCalendarId)
+  if (calendarId != null && calendarId >= kNewSectionSystemMinCalendarId) {
     return 11;
+  }
   return 12;
 }
 
@@ -257,11 +258,6 @@ class PkDayCluster<T> {
   /// 簇内最晚节次（rowspan 覆盖到该行）。
   final int end;
   final List<T> items;
-}
-
-extension _OccupyTimeX on List<int> {
-  int get firstSection => isEmpty ? 0 : this[0];
-  int get lastSection => isEmpty ? 0 : this[length - 1];
 }
 
 /// 把同一天的课程按节次区间聚类：区间相交（含包含、部分重叠）的课归为同格。

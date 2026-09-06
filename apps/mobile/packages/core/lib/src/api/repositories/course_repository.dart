@@ -99,7 +99,7 @@ class CourseRepository {
   }) => _client.get<ReviewListResult>(
     '$_base/courses/$courseId/reviews',
     queryParameters: {
-      if (offeringId != null) 'offeringId': offeringId,
+      'offeringId': ?offeringId,
       if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
       'pageSize': pageSize,
     },

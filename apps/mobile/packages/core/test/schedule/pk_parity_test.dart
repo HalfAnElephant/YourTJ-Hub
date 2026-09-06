@@ -412,7 +412,7 @@ void main() {
 
     test('formatDisplayWeeks 单双周精简', () {
       String parityLabel(PkWeekParity p) => p == PkWeekParity.odd ? '单周' : '双周';
-      String weeksTemplate(String range) => '共${range}周';
+      String weeksTemplate(String range) => '共$range周';
       expect(
         formatDisplayWeeks(
           [1, 3, 5, 7, 9, 11, 13, 15],

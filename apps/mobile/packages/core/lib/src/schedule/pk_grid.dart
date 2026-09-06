@@ -73,15 +73,17 @@ int _cellCount(GridLayout grid, int row, int day) {
 }
 
 int _cellSpan(GridLayout grid, int row, int day) {
-  if (row >= grid.cellSpans.length || day >= grid.cellSpans[row].length)
+  if (row >= grid.cellSpans.length || day >= grid.cellSpans[row].length) {
     return 1;
+  }
   final span = grid.cellSpans[row][day];
   return span == 0 ? 1 : span;
 }
 
 bool _cellOccupied(GridLayout grid, int row, int day) {
-  if (row >= grid.occupiedGrid.length || day >= grid.occupiedGrid[row].length)
+  if (row >= grid.occupiedGrid.length || day >= grid.occupiedGrid[row].length) {
     return false;
+  }
   return grid.occupiedGrid[row][day];
 }
 

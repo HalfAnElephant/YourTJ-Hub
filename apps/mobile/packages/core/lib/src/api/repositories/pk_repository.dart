@@ -57,7 +57,7 @@ class PkRepository {
         '$_base/majors',
         body: {
           'grade': grade,
-          if (calendarId != null) 'calendarId': calendarId,
+          'calendarId': ?calendarId,
         },
         parser: (json) => (json as List<dynamic>? ?? const [])
             .map((e) => PkMajor.fromJson(Map<String, dynamic>.from(e as Map)))
@@ -186,7 +186,7 @@ class PkRepository {
   /// P11 最近一系统同步日期（YYYY-MM-DD 或 null）。
   Future<String?> latestUpdate() => _client.getPk<String?>(
     '$_base/latest-update',
-    parser: (json) => json is String? ? json : json?.toString(),
+    parser: (json) => json is String? ? json : json.toString(),
   );
 
   /// P12 「同步最新」：全方案并集的课程码 → 教学班详情字典。
@@ -230,8 +230,8 @@ class PkRepository {
       'courseCode': courseCode,
       if (teacherName != null && teacherName.isNotEmpty)
         'teacherName': teacherName,
-      if (calendarId != null) 'calendarId': calendarId,
-      if (teachingClassId != null) 'teachingClassId': teachingClassId,
+      'calendarId': ?calendarId,
+      'teachingClassId': ?teachingClassId,
     },
     parser: (json) =>
         PkReviewBrief.fromJson(Map<String, dynamic>.from(json as Map)),
