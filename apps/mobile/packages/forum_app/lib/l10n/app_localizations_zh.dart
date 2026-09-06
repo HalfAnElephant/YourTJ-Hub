@@ -842,4 +842,267 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get topicNewTopic => '新建话题';
+
+  @override
+  String get scheduleTitle => '课表';
+
+  @override
+  String get scheduleTabTimetable => '课表';
+
+  @override
+  String get scheduleTabPick => '选课';
+
+  @override
+  String get scheduleTerm => '学期';
+
+  @override
+  String get scheduleGrade => '年级';
+
+  @override
+  String get scheduleMajor => '专业';
+
+  @override
+  String get scheduleSyncLatest => '同步最新';
+
+  @override
+  String get scheduleDataOutdated => '教务数据已更新，点击同步';
+
+  @override
+  String scheduleSyncedTo(String date) {
+    return '已同步至 $date';
+  }
+
+  @override
+  String get scheduleWeekAll => '全部周次';
+
+  @override
+  String scheduleWeekN(int week) {
+    return '第 $week 周';
+  }
+
+  @override
+  String get scheduleCurrentWeek => '当前周次';
+
+  @override
+  String get schedulePlanNew => '新建方案';
+
+  @override
+  String get schedulePlanRename => '重命名方案';
+
+  @override
+  String get schedulePlanDelete => '删除方案';
+
+  @override
+  String get schedulePlanClear => '清空课程';
+
+  @override
+  String schedulePlanN(int n) {
+    return '方案 $n';
+  }
+
+  @override
+  String scheduleStatsCourses(int count) {
+    return '$count 门';
+  }
+
+  @override
+  String get scheduleStatsCredits => '学分';
+
+  @override
+  String get scheduleStatsHours => '学时';
+
+  @override
+  String get scheduleStatsConflicts => '冲突';
+
+  @override
+  String get scheduleConflictBadge => '冲突';
+
+  @override
+  String get scheduleAddCustomEvent => '添加占位';
+
+  @override
+  String get scheduleCustomEventLabel => '有事';
+
+  @override
+  String get scheduleExportPng => '导出图片';
+
+  @override
+  String get scheduleExportCsv => '导出 CSV';
+
+  @override
+  String get scheduleDegraded => '检索降级中，结果可能不全';
+
+  @override
+  String get scheduleNoReviewData => '暂无课评数据';
+
+  @override
+  String get schedulePickClass => '选择教学班';
+
+  @override
+  String get scheduleCompulsory => '必修';
+
+  @override
+  String get scheduleOptional => '选修';
+
+  @override
+  String get scheduleSearchHint => '搜索课名/课号/教师';
+
+  @override
+  String get scheduleStaged => '备选';
+
+  @override
+  String get scheduleSelected => '已选';
+
+  @override
+  String get scheduleRemoveCourse => '退课';
+
+  @override
+  String get scheduleParityOdd => '单周';
+
+  @override
+  String get scheduleParityEven => '双周';
+
+  @override
+  String scheduleWeeksN(String range) {
+    return '共$range周';
+  }
+
+  @override
+  String get scheduleDayMon => '周一';
+
+  @override
+  String get scheduleDayTue => '周二';
+
+  @override
+  String get scheduleDayWed => '周三';
+
+  @override
+  String get scheduleDayThu => '周四';
+
+  @override
+  String get scheduleDayFri => '周五';
+
+  @override
+  String get scheduleDaySat => '周六';
+
+  @override
+  String get scheduleDaySun => '周日';
+
+  @override
+  String get scheduleMorning => '上午';
+
+  @override
+  String get scheduleAfternoon => '下午';
+
+  @override
+  String get scheduleEvening => '晚上';
+
+  @override
+  String get coursesTitle => '课程目录';
+
+  @override
+  String get coursesSearchHint => '搜索课程';
+
+  @override
+  String get coursesFilterDepartment => '院系';
+
+  @override
+  String get coursesFilterTerm => '学期';
+
+  @override
+  String get coursesFilterCampus => '校区';
+
+  @override
+  String get coursesFilterInstructor => '教师';
+
+  @override
+  String get coursesOnlyWithReviews => '只看有评价';
+
+  @override
+  String coursesRatingCount(int count) {
+    return '$count 条评价';
+  }
+
+  @override
+  String get coursesNoRating => '暂无评分';
+
+  @override
+  String get courseDetailReviews => '课评';
+
+  @override
+  String get courseDetailOfferings => '开课班级';
+
+  @override
+  String get courseDetailLineage => '课程沿革';
+
+  @override
+  String get courseDetailRelated => '相关课程';
+
+  @override
+  String get courseDetailAiSummary => 'AI 总结';
+
+  @override
+  String get courseDetailAiSummaryEmpty => '暂无 AI 总结';
+
+  @override
+  String get courseBookmark => '收藏';
+
+  @override
+  String get courseBookmarked => '已收藏';
+
+  @override
+  String get courseWriteReview => '写课评';
+
+  @override
+  String get reviewAnonymous => '匿名评价';
+
+  @override
+  String get reviewSubmit => '发布评价';
+
+  @override
+  String get reviewHelpful => '有用';
+
+  @override
+  String get reviewsEmpty => '还没有评价';
+
+  @override
+  String get wikiTitle => 'Wiki';
+
+  @override
+  String get wikiRecent => '最近更新';
+
+  @override
+  String get wikiEditOnGithub => '在 GitHub 编辑';
+
+  @override
+  String get wikiToc => '目录';
+
+  @override
+  String get wikiNamespaces => '命名空间';
+
+  @override
+  String wikiViewCount(int count) {
+    return '$count 次浏览';
+  }
+
+  @override
+  String get settingsPush => '推送通知';
+
+  @override
+  String get settingsPushDenied => '系统通知权限未授予，点击前往设置';
+
+  @override
+  String get settingsFollowSiteTheme => '跟随站点主题';
+
+  @override
+  String get settingsFollowSiteThemeDesc => '使用服务器下发的站点配色';
+
+  @override
+  String get entryCourses => '课程';
+
+  @override
+  String get entrySchedule => '课表';
+
+  @override
+  String get entryWiki => 'Wiki';
 }

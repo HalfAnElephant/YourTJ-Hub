@@ -473,5 +473,137 @@
   "sortPopular": "Popular",
   "topicFeedModeList": "List",
   "topicFeedModeCard": "Cards",
-  "topicNewTopic": "New topic"
+  "topicNewTopic": "New topic",
+  "scheduleTitle": "Schedule",
+  "scheduleTabTimetable": "Timetable",
+  "scheduleTabPick": "Pick courses",
+  "scheduleTerm": "Term",
+  "scheduleGrade": "Grade",
+  "scheduleMajor": "Major",
+  "scheduleSyncLatest": "Sync latest",
+  "scheduleDataOutdated": "Course data updated, tap to sync",
+  "scheduleSyncedTo": "Synced to {date}",
+  "@scheduleSyncedTo": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleWeekAll": "All weeks",
+  "scheduleWeekN": "Week {week}",
+  "@scheduleWeekN": {
+    "placeholders": {
+      "week": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleCurrentWeek": "Current week",
+  "schedulePlanNew": "New plan",
+  "schedulePlanRename": "Rename plan",
+  "schedulePlanDelete": "Delete plan",
+  "schedulePlanClear": "Clear courses",
+  "schedulePlanN": "Plan {n}",
+  "@schedulePlanN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleStatsCourses": "{count} courses",
+  "@scheduleStatsCourses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleStatsCredits": "Credits",
+  "scheduleStatsHours": "Hours",
+  "scheduleStatsConflicts": "Conflicts",
+  "scheduleConflictBadge": "Conflict",
+  "scheduleAddCustomEvent": "Add placeholder",
+  "scheduleCustomEventLabel": "Busy",
+  "scheduleExportPng": "Export image",
+  "scheduleExportCsv": "Export CSV",
+  "scheduleDegraded": "Degraded search, results may be incomplete",
+  "scheduleNoReviewData": "No review data yet",
+  "schedulePickClass": "Pick class",
+  "scheduleCompulsory": "Compulsory",
+  "scheduleOptional": "Elective",
+  "scheduleSearchHint": "Search name/code/teacher",
+  "scheduleStaged": "Staged",
+  "scheduleSelected": "Selected",
+  "scheduleRemoveCourse": "Remove",
+  "scheduleParityOdd": "odd weeks",
+  "scheduleParityEven": "even weeks",
+  "scheduleWeeksN": "{range} weeks",
+  "@scheduleWeeksN": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleDayMon": "Mon",
+  "scheduleDayTue": "Tue",
+  "scheduleDayWed": "Wed",
+  "scheduleDayThu": "Thu",
+  "scheduleDayFri": "Fri",
+  "scheduleDaySat": "Sat",
+  "scheduleDaySun": "Sun",
+  "scheduleMorning": "Morning",
+  "scheduleAfternoon": "Afternoon",
+  "scheduleEvening": "Evening",
+  "coursesTitle": "Courses",
+  "coursesSearchHint": "Search courses",
+  "coursesFilterDepartment": "Department",
+  "coursesFilterTerm": "Term",
+  "coursesFilterCampus": "Campus",
+  "coursesFilterInstructor": "Instructor",
+  "coursesOnlyWithReviews": "With reviews only",
+  "coursesRatingCount": "{count} reviews",
+  "@coursesRatingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coursesNoRating": "No rating",
+  "courseDetailReviews": "Reviews",
+  "courseDetailOfferings": "Classes",
+  "courseDetailLineage": "History",
+  "courseDetailRelated": "Related courses",
+  "courseDetailAiSummary": "AI summary",
+  "courseDetailAiSummaryEmpty": "No AI summary",
+  "courseBookmark": "Bookmark",
+  "courseBookmarked": "Bookmarked",
+  "courseWriteReview": "Write review",
+  "reviewAnonymous": "Anonymous",
+  "reviewSubmit": "Submit",
+  "reviewHelpful": "Helpful",
+  "reviewsEmpty": "No reviews yet",
+  "wikiTitle": "Wiki",
+  "wikiRecent": "Recently updated",
+  "wikiEditOnGithub": "Edit on GitHub",
+  "wikiToc": "Contents",
+  "wikiNamespaces": "Namespaces",
+  "wikiViewCount": "{count} views",
+  "@wikiViewCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsPush": "Push notifications",
+  "settingsPushDenied": "Notification permission denied, tap to open Settings",
+  "settingsFollowSiteTheme": "Follow site theme",
+  "settingsFollowSiteThemeDesc": "Use server-issued site colors",
+  "entryCourses": "Courses",
+  "entrySchedule": "Schedule",
+  "entryWiki": "Wiki"
 }

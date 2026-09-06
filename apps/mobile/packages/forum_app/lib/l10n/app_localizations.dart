@@ -1633,6 +1633,504 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New topic'**
   String get topicNewTopic;
+
+  /// No description provided for @scheduleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get scheduleTitle;
+
+  /// No description provided for @scheduleTabTimetable.
+  ///
+  /// In en, this message translates to:
+  /// **'Timetable'**
+  String get scheduleTabTimetable;
+
+  /// No description provided for @scheduleTabPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick courses'**
+  String get scheduleTabPick;
+
+  /// No description provided for @scheduleTerm.
+  ///
+  /// In en, this message translates to:
+  /// **'Term'**
+  String get scheduleTerm;
+
+  /// No description provided for @scheduleGrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Grade'**
+  String get scheduleGrade;
+
+  /// No description provided for @scheduleMajor.
+  ///
+  /// In en, this message translates to:
+  /// **'Major'**
+  String get scheduleMajor;
+
+  /// No description provided for @scheduleSyncLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync latest'**
+  String get scheduleSyncLatest;
+
+  /// No description provided for @scheduleDataOutdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Course data updated, tap to sync'**
+  String get scheduleDataOutdated;
+
+  /// No description provided for @scheduleSyncedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Synced to {date}'**
+  String scheduleSyncedTo(String date);
+
+  /// No description provided for @scheduleWeekAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All weeks'**
+  String get scheduleWeekAll;
+
+  /// No description provided for @scheduleWeekN.
+  ///
+  /// In en, this message translates to:
+  /// **'Week {week}'**
+  String scheduleWeekN(int week);
+
+  /// No description provided for @scheduleCurrentWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Current week'**
+  String get scheduleCurrentWeek;
+
+  /// No description provided for @schedulePlanNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New plan'**
+  String get schedulePlanNew;
+
+  /// No description provided for @schedulePlanRename.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename plan'**
+  String get schedulePlanRename;
+
+  /// No description provided for @schedulePlanDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete plan'**
+  String get schedulePlanDelete;
+
+  /// No description provided for @schedulePlanClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear courses'**
+  String get schedulePlanClear;
+
+  /// No description provided for @schedulePlanN.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan {n}'**
+  String schedulePlanN(int n);
+
+  /// No description provided for @scheduleStatsCourses.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} courses'**
+  String scheduleStatsCourses(int count);
+
+  /// No description provided for @scheduleStatsCredits.
+  ///
+  /// In en, this message translates to:
+  /// **'Credits'**
+  String get scheduleStatsCredits;
+
+  /// No description provided for @scheduleStatsHours.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours'**
+  String get scheduleStatsHours;
+
+  /// No description provided for @scheduleStatsConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts'**
+  String get scheduleStatsConflicts;
+
+  /// No description provided for @scheduleConflictBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict'**
+  String get scheduleConflictBadge;
+
+  /// No description provided for @scheduleAddCustomEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Add placeholder'**
+  String get scheduleAddCustomEvent;
+
+  /// No description provided for @scheduleCustomEventLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Busy'**
+  String get scheduleCustomEventLabel;
+
+  /// No description provided for @scheduleExportPng.
+  ///
+  /// In en, this message translates to:
+  /// **'Export image'**
+  String get scheduleExportPng;
+
+  /// No description provided for @scheduleExportCsv.
+  ///
+  /// In en, this message translates to:
+  /// **'Export CSV'**
+  String get scheduleExportCsv;
+
+  /// No description provided for @scheduleDegraded.
+  ///
+  /// In en, this message translates to:
+  /// **'Degraded search, results may be incomplete'**
+  String get scheduleDegraded;
+
+  /// No description provided for @scheduleNoReviewData.
+  ///
+  /// In en, this message translates to:
+  /// **'No review data yet'**
+  String get scheduleNoReviewData;
+
+  /// No description provided for @schedulePickClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick class'**
+  String get schedulePickClass;
+
+  /// No description provided for @scheduleCompulsory.
+  ///
+  /// In en, this message translates to:
+  /// **'Compulsory'**
+  String get scheduleCompulsory;
+
+  /// No description provided for @scheduleOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Elective'**
+  String get scheduleOptional;
+
+  /// No description provided for @scheduleSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search name/code/teacher'**
+  String get scheduleSearchHint;
+
+  /// No description provided for @scheduleStaged.
+  ///
+  /// In en, this message translates to:
+  /// **'Staged'**
+  String get scheduleStaged;
+
+  /// No description provided for @scheduleSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get scheduleSelected;
+
+  /// No description provided for @scheduleRemoveCourse.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get scheduleRemoveCourse;
+
+  /// No description provided for @scheduleParityOdd.
+  ///
+  /// In en, this message translates to:
+  /// **'odd weeks'**
+  String get scheduleParityOdd;
+
+  /// No description provided for @scheduleParityEven.
+  ///
+  /// In en, this message translates to:
+  /// **'even weeks'**
+  String get scheduleParityEven;
+
+  /// No description provided for @scheduleWeeksN.
+  ///
+  /// In en, this message translates to:
+  /// **'{range} weeks'**
+  String scheduleWeeksN(String range);
+
+  /// No description provided for @scheduleDayMon.
+  ///
+  /// In en, this message translates to:
+  /// **'Mon'**
+  String get scheduleDayMon;
+
+  /// No description provided for @scheduleDayTue.
+  ///
+  /// In en, this message translates to:
+  /// **'Tue'**
+  String get scheduleDayTue;
+
+  /// No description provided for @scheduleDayWed.
+  ///
+  /// In en, this message translates to:
+  /// **'Wed'**
+  String get scheduleDayWed;
+
+  /// No description provided for @scheduleDayThu.
+  ///
+  /// In en, this message translates to:
+  /// **'Thu'**
+  String get scheduleDayThu;
+
+  /// No description provided for @scheduleDayFri.
+  ///
+  /// In en, this message translates to:
+  /// **'Fri'**
+  String get scheduleDayFri;
+
+  /// No description provided for @scheduleDaySat.
+  ///
+  /// In en, this message translates to:
+  /// **'Sat'**
+  String get scheduleDaySat;
+
+  /// No description provided for @scheduleDaySun.
+  ///
+  /// In en, this message translates to:
+  /// **'Sun'**
+  String get scheduleDaySun;
+
+  /// No description provided for @scheduleMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Morning'**
+  String get scheduleMorning;
+
+  /// No description provided for @scheduleAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Afternoon'**
+  String get scheduleAfternoon;
+
+  /// No description provided for @scheduleEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Evening'**
+  String get scheduleEvening;
+
+  /// No description provided for @coursesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Courses'**
+  String get coursesTitle;
+
+  /// No description provided for @coursesSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search courses'**
+  String get coursesSearchHint;
+
+  /// No description provided for @coursesFilterDepartment.
+  ///
+  /// In en, this message translates to:
+  /// **'Department'**
+  String get coursesFilterDepartment;
+
+  /// No description provided for @coursesFilterTerm.
+  ///
+  /// In en, this message translates to:
+  /// **'Term'**
+  String get coursesFilterTerm;
+
+  /// No description provided for @coursesFilterCampus.
+  ///
+  /// In en, this message translates to:
+  /// **'Campus'**
+  String get coursesFilterCampus;
+
+  /// No description provided for @coursesFilterInstructor.
+  ///
+  /// In en, this message translates to:
+  /// **'Instructor'**
+  String get coursesFilterInstructor;
+
+  /// No description provided for @coursesOnlyWithReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'With reviews only'**
+  String get coursesOnlyWithReviews;
+
+  /// No description provided for @coursesRatingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} reviews'**
+  String coursesRatingCount(int count);
+
+  /// No description provided for @coursesNoRating.
+  ///
+  /// In en, this message translates to:
+  /// **'No rating'**
+  String get coursesNoRating;
+
+  /// No description provided for @courseDetailReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews'**
+  String get courseDetailReviews;
+
+  /// No description provided for @courseDetailOfferings.
+  ///
+  /// In en, this message translates to:
+  /// **'Classes'**
+  String get courseDetailOfferings;
+
+  /// No description provided for @courseDetailLineage.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get courseDetailLineage;
+
+  /// No description provided for @courseDetailRelated.
+  ///
+  /// In en, this message translates to:
+  /// **'Related courses'**
+  String get courseDetailRelated;
+
+  /// No description provided for @courseDetailAiSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'AI summary'**
+  String get courseDetailAiSummary;
+
+  /// No description provided for @courseDetailAiSummaryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No AI summary'**
+  String get courseDetailAiSummaryEmpty;
+
+  /// No description provided for @courseBookmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark'**
+  String get courseBookmark;
+
+  /// No description provided for @courseBookmarked.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmarked'**
+  String get courseBookmarked;
+
+  /// No description provided for @courseWriteReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Write review'**
+  String get courseWriteReview;
+
+  /// No description provided for @reviewAnonymous.
+  ///
+  /// In en, this message translates to:
+  /// **'Anonymous'**
+  String get reviewAnonymous;
+
+  /// No description provided for @reviewSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get reviewSubmit;
+
+  /// No description provided for @reviewHelpful.
+  ///
+  /// In en, this message translates to:
+  /// **'Helpful'**
+  String get reviewHelpful;
+
+  /// No description provided for @reviewsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviews yet'**
+  String get reviewsEmpty;
+
+  /// No description provided for @wikiTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Wiki'**
+  String get wikiTitle;
+
+  /// No description provided for @wikiRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently updated'**
+  String get wikiRecent;
+
+  /// No description provided for @wikiEditOnGithub.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit on GitHub'**
+  String get wikiEditOnGithub;
+
+  /// No description provided for @wikiToc.
+  ///
+  /// In en, this message translates to:
+  /// **'Contents'**
+  String get wikiToc;
+
+  /// No description provided for @wikiNamespaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Namespaces'**
+  String get wikiNamespaces;
+
+  /// No description provided for @wikiViewCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} views'**
+  String wikiViewCount(int count);
+
+  /// No description provided for @settingsPush.
+  ///
+  /// In en, this message translates to:
+  /// **'Push notifications'**
+  String get settingsPush;
+
+  /// No description provided for @settingsPushDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Notification permission denied, tap to open Settings'**
+  String get settingsPushDenied;
+
+  /// No description provided for @settingsFollowSiteTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow site theme'**
+  String get settingsFollowSiteTheme;
+
+  /// No description provided for @settingsFollowSiteThemeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Use server-issued site colors'**
+  String get settingsFollowSiteThemeDesc;
+
+  /// No description provided for @entryCourses.
+  ///
+  /// In en, this message translates to:
+  /// **'Courses'**
+  String get entryCourses;
+
+  /// No description provided for @entrySchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get entrySchedule;
+
+  /// No description provided for @entryWiki.
+  ///
+  /// In en, this message translates to:
+  /// **'Wiki'**
+  String get entryWiki;
 }
 
 class _AppLocalizationsDelegate

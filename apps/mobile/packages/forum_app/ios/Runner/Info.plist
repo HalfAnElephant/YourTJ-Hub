@@ -84,5 +84,9 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于选择图片上传到帖子与回复</string>
+	<key>NSCameraUsageDescription</key>
+	<string>用于拍摄照片上传到帖子与回复</string>
 </dict>
 </plist>
