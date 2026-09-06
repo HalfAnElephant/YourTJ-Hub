@@ -1145,7 +1145,6 @@ export default {
     loadMoreReplies: 'さらに返信を読み込む',
     loadingMoreReplies: 'さらに返信を読み込み中...',
     allRepliesShown: 'すべての返信を表示しました',
-    answers: '回答',
     answer: '回答',
     writeAnswer: '回答を書く',
     earliestContent: '最初の内容',

@@ -1145,7 +1145,6 @@ export default {
     loadMoreReplies: 'Weitere Antworten laden',
     loadingMoreReplies: 'Weitere Antworten werden geladen...',
     allRepliesShown: 'Alle Antworten werden angezeigt',
-    answers: 'Antworten',
     answer: 'Antwort',
     writeAnswer: 'Antwort schreiben',
     earliestContent: 'Ältester Inhalt',

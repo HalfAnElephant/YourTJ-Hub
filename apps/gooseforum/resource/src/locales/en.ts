@@ -1145,7 +1145,6 @@ export default {
     loadMoreReplies: 'Load more replies',
     loadingMoreReplies: 'Loading more replies...',
     allRepliesShown: 'All replies shown',
-    answers: 'Answers',
     answer: 'Answer',
     writeAnswer: 'Write Answer',
     earliestContent: 'Earliest content',
