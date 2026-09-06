@@ -15,6 +15,7 @@ import 'pages/messages/messages_page.dart';
 import 'pages/notifications/notifications_page.dart';
 import 'pages/profile/profile_page.dart';
 import 'pages/publish/publish_page.dart';
+import 'pages/schedule/schedule_page.dart';
 import 'pages/search/search_page.dart';
 import 'pages/settings/settings_page.dart';
 import 'pages/topic/topic_page.dart';
@@ -249,5 +250,6 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
     GoRoute(path: '/drafts', builder: (_, _) => const DraftsPage()),
+    GoRoute(path: '/schedule', builder: (_, _) => const SchedulePage()),
   ],
 );

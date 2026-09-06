@@ -337,7 +337,7 @@ class GfApiClient {
       final msg = isMap ? data['msg']?.toString() : null;
       throw ApiException(
         fallbackMessage: 'Request failed',
-        messageCode: 'server.pk.requestFailed',
+        messageCode: 'pk.requestFailed',
         params: msg == null || msg.isEmpty ? null : {'detail': msg},
         statusCode: statusCode,
       );
