@@ -20,6 +20,7 @@ import { currentLocale } from '@/runtime/i18n'
 import { loadRuntimeScript } from '@/runtime/runtime-script'
 import { loadMermaid, nextMermaidDiagramId, renderDiagram } from '@/runtime/content-enhancements/mermaid'
 import { useSiteTheme } from '@/runtime/site-theme'
+import { containsSensitiveText } from '@/site/utils/sensitive-highlight'
 import { useI18n } from 'vue-i18n'
 
 /**
@@ -68,6 +69,8 @@ const props = defineProps<{
   /** 移动端 toggle 挂载容器：窄屏下悬浮开关移入宿主提供的行内容器（如「正文」label 行），
    *  避免占用工具栏宽度导致横向挤压；桌面忽略此值（保持悬浮布局） */
   toggleHost?: HTMLElement | null
+  /** 后端命中敏感词时，仅用于编辑区定位，不展示敏感词本身 */
+  sensitiveWords?: string[]
 }>()
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -88,6 +91,64 @@ let destroyed = false
 let ready = false
 /** 监听全屏按钮 childList：官方用 innerHTML 换图标会冲掉按钮内小字 */
 let fullscreenLabelObserver: MutationObserver | null = null
+let sensitiveModeRefreshHandler: ((event: Event) => void) | null = null
+const SENSITIVE_BLOCK_CLASS = 'gf-sensitive-block'
+const EDITOR_BLOCK_SELECTOR = '[data-block="0"], p, h1, h2, h3, h4, h5, h6, li, blockquote, pre'
+
+function clearSensitiveHighlights() {
+  root.value?.querySelectorAll<HTMLElement>(`.${SENSITIVE_BLOCK_CLASS}`).forEach((element) => {
+    element.classList.remove(SENSITIVE_BLOCK_CLASS)
+  })
+}
+
+function highlightSensitiveText(words: readonly string[]) {
+  clearSensitiveHighlights()
+  const queries = words.map(word => word.trim()).filter(Boolean)
+  if (queries.length === 0 || !editor || !ready || destroyed) return
+
+  const mode = editor.vditor.currentMode
+  const editorElement = mode === 'ir'
+    ? editor.vditor.ir?.element
+    : mode === 'sv'
+      ? editor.vditor.sv?.element
+      : editor.vditor.wysiwyg?.element
+  if (!editorElement) return
+
+  const blocks = new Set<HTMLElement>()
+  const walker = document.createTreeWalker(editorElement, NodeFilter.SHOW_TEXT)
+  let node: Node | null
+  while ((node = walker.nextNode())) {
+    const block = node.parentElement?.closest<HTMLElement>(EDITOR_BLOCK_SELECTOR)
+    if (block && block !== editorElement && containsSensitiveText(block.textContent ?? '', queries)) {
+      blocks.add(block)
+    }
+  }
+
+  blocks.forEach((block) => block.classList.add(SENSITIVE_BLOCK_CLASS))
+  blocks.values().next().value?.scrollIntoView?.({ block: 'nearest' })
+}
+
+function attachSensitiveModeRefresh() {
+  const editorRoot = root.value
+  if (!editorRoot || sensitiveModeRefreshHandler) return
+  sensitiveModeRefreshHandler = (event) => {
+    const target = event.target
+    if (!(target instanceof Element) || !target.closest('button[data-mode]')) return
+    requestAnimationFrame(() => {
+      if (props.sensitiveWords?.length) highlightSensitiveText(props.sensitiveWords)
+    })
+  }
+  editorRoot.addEventListener('click', sensitiveModeRefreshHandler, true)
+  editorRoot.addEventListener('touchstart', sensitiveModeRefreshHandler, true)
+}
+
+function detachSensitiveModeRefresh() {
+  const editorRoot = root.value
+  if (!editorRoot || !sensitiveModeRefreshHandler) return
+  editorRoot.removeEventListener('click', sensitiveModeRefreshHandler, true)
+  editorRoot.removeEventListener('touchstart', sensitiveModeRefreshHandler, true)
+  sensitiveModeRefreshHandler = null
+}
 
 /**
  * 官方默认工具栏（vditor src/ts/util/Options.ts），调整：
@@ -1448,9 +1509,12 @@ onMounted(async () => {
         }
         initPopoverPositionCorrection(nextEditor!)
         initToolbarPanelPositionCorrection(nextEditor!)
+        attachSensitiveModeRefresh()
       },
       input(value) {
+        clearSensitiveHighlights()
         emit('update:modelValue', value)
+        emit('input')
         // 字数变化改变工具栏末位 counter 宽度，RO 只测 border-box，需显式重测
         scheduleMeasure()
       },
@@ -1467,6 +1531,16 @@ watch(() => props.modelValue, (value) => {
   if (!editor || !ready || value === editor.getValue()) return
   editor.setValue(value, true)
 })
+
+watch(
+  () => [props.sensitiveWords, editorReady.value] as const,
+  ([words, isReady]) => {
+    if (!isReady) return
+    if (words?.length) highlightSensitiveText(words)
+    else clearSensitiveHighlights()
+  },
+  { immediate: true },
+)
 
 watch(isDark, syncEditorTheme)
 
@@ -1487,6 +1561,7 @@ watch(() => props.placeholder, () => { refreshPlaceholder() })
 
 onBeforeUnmount(() => {
   destroyed = true
+  detachSensitiveModeRefresh()
   fullscreenLabelObserver?.disconnect()
   fullscreenLabelObserver = null
   for (const obs of popoverObservers) obs.disconnect()
@@ -1533,6 +1608,7 @@ function setHeight(height: number) {
 }
 
 function insertMarkdown(markdown: string) {
+  clearSensitiveHighlights()
   if (!editor || !ready) {
     emit('update:modelValue', props.modelValue ? `${props.modelValue}\n${markdown}` : markdown)
     return
@@ -1548,6 +1624,7 @@ function getValue() {
 
 function setValue(value: string) {
   if (!editor || !ready) return
+  clearSensitiveHighlights()
   editor.setValue(value, true)
   if (value !== props.modelValue) emit('update:modelValue', value)
 }
@@ -1593,6 +1670,17 @@ defineExpose({ editorFailed, editorReady, focus, getValue, setValue, insertMarkd
  */
 .vditor-official .vditor-reset {
   color: var(--textarea-text-color);
+}
+
+/* 敏感词命中时只给现有段落着色，不包裹文本节点，避免破坏 Vditor 选区与序列化。 */
+.vditor-official .gf-sensitive-block {
+  background-color: color-mix(in oklch, var(--gf-color-error) 14%, var(--gf-color-base-100));
+  box-shadow: inset 0 -1px 0 color-mix(in oklch, var(--gf-color-error) 64%, transparent);
+}
+
+[data-theme="gf-dark"] .vditor-official .gf-sensitive-block {
+  background-color: color-mix(in oklch, var(--gf-color-error) 26%, var(--gf-color-base-100));
+  box-shadow: inset 0 -1px 0 color-mix(in oklch, var(--gf-color-error) 82%, transparent);
 }
 
 /*

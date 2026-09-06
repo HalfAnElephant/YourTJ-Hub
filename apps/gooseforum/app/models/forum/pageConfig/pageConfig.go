@@ -708,10 +708,21 @@ type MCPSettingsConfig struct {
 	Writes  bool `json:"writes"`  // 写工具（create_topic / create_post）开关
 }
 
-// ScheduleSettingsConfig 排课器节次作息表配置（12 节上课时间），可在管理面板热修改；
-// SSR 透传给 /schedule 页面 props，未配置时回退内置默认作息。
+// 节次作息编号体系标识：写入侧（默认值/管理端保存）恒为 ScheduleNumberingCurrent，
+// 缺省（空）表示 PR #496 之前的存量行，按旧 12 节编号解释（review P1：
+// 节次时间值本身无法无歧义区分新旧编号，必须显式标记）。
+const (
+	ScheduleNumberingCurrent  = "11" // 现行 11 节编号（白天 1-8 节 + 晚间 9/10/11 节 18:30 起）
+	ScheduleNumberingLegacy12 = "12" // 旧 12 节编号（第 9 节 17:10、晚间 10/11/12 节）
+)
+
+// ScheduleSettingsConfig 排课器节次作息表配置（上课时间 + 节次编号体系），可在管理面板
+// 热修改；SSR 透传给 /schedule 页面 props，未配置时回退内置默认作息。
 type ScheduleSettingsConfig struct {
 	SectionTimes []ScheduleSectionTime `json:"sectionTimes"`
+	// Numbering 节次编号体系（ScheduleNumberingCurrent / ScheduleNumberingLegacy12）；
+	// 缺省为存量旧 12 节编号。保存路径由服务端盖章，客户端可省略。
+	Numbering string `json:"numbering,omitempty"`
 }
 
 // ScheduleSectionTime 单个节次的开始/结束时间（HH:MM）。

@@ -10,6 +10,7 @@ import {
   reportCourseReview,
   setReviewDislike,
   setReviewHelpful,
+  sensitiveWordsFromError,
   updateCourseReview,
   uploadImage,
   type CourseLineageItem,
@@ -288,6 +289,7 @@ const formSubmitState = ref<'idle' | 'submitting' | 'success' | 'error'>('idle')
 // 新建评价成功后定位高亮：表单收起后平滑滚动到该条评论并短暂标记，锚定用户视线。
 const highlightedReviewId = ref<number | null>(null)
 const formError = ref('')
+const sensitiveWords = ref<string[]>([])
 const editingReviewId = ref<number | null>(null)
 const templateSelectorOpen = ref(false)
 const formTemplateId = ref('')
@@ -310,9 +312,14 @@ function reviewImageAlt(filename: string) {
   return filename.replace(/\.[^.]+$/, '').replace(/[[\]\n\r]/g, ' ').trim() || 'image'
 }
 
+function clearSensitiveHighlight() {
+  sensitiveWords.value = []
+}
+
 // 粘贴/拖拽图片：与发布页同款流程（校验 → 压缩 → 上传 → 插入 Markdown）。
 async function uploadReviewImages(files: File[]) {
   if (!files.length || uploadingReviewImages.value) return
+  clearSensitiveHighlight()
   uploadingReviewImages.value = true
   const markdownImages: string[] = []
   const failed: string[] = []
@@ -355,6 +362,7 @@ function onReviewEditorError(editorError: Error) {
 
 function openCreateForm() {
   editingReviewId.value = null
+  clearSensitiveHighlight()
   // 聚焦教学班时写评默认选该班，否则回退第一个开课实例。
   formOfferingId.value = activeOfferingId() || (page.props.course.offerings?.[0]?.id ?? 0)
   formRating.value = 0
@@ -369,6 +377,7 @@ function openCreateForm() {
 
 function startEdit(review: ReviewPayload) {
   editingReviewId.value = review.id
+  clearSensitiveHighlight()
   formOfferingId.value = review.offeringId
   formRating.value = review.rating ?? 0
   // 预填原始 Markdown 正文：列表 DTO 携带 content 字段（服务端返回），
@@ -386,6 +395,7 @@ function cancelForm() {
   formVisible.value = false
   editingReviewId.value = null
   formError.value = ''
+  clearSensitiveHighlight()
   templateSelectorOpen.value = false
   formSubmitState.value = 'idle'
 }
@@ -398,6 +408,7 @@ function applyTemplate(id: string, content: string) {
   }
   formTemplateId.value = id
   formContent.value = content
+  clearSensitiveHighlight()
   templateSelectorOpen.value = false
 }
 
@@ -408,6 +419,7 @@ function templateName(id: string) {
 
 async function submitForm() {
   formError.value = ''
+  clearSensitiveHighlight()
   if (!formOfferingId.value) {
     formError.value = t('courseDetailPage.selectOfferingRequired')
     return
@@ -458,6 +470,7 @@ async function submitForm() {
     await new Promise((resolve) => setTimeout(resolve, 900))
     formVisible.value = false
     editingReviewId.value = null
+    clearSensitiveHighlight()
     // 新建评价：等表单退场后平滑滚动到该条并短暂高亮，锚定用户视线（避免"凭空出现在列表顶部"）。
     if (createdReviewId) {
       const scrollTarget = () => document.querySelector<HTMLElement>(`#course-review-${createdReviewId}`)
@@ -473,6 +486,7 @@ async function submitForm() {
       }
     }
   } catch (error) {
+    sensitiveWords.value = sensitiveWordsFromError(error)
     formError.value = error instanceof Error ? error.message : t('courseDetailPage.reviewSaveFailed')
     // 失败反馈：按钮抖动提示后回 idle，错误信息就地位于表单下方。
     formSubmitState.value = 'error'
@@ -1016,7 +1030,9 @@ onBeforeUnmount(() => {
                 :height="380"
                 :compact="true"
                 :slim-mobile="true"
+                :sensitive-words="sensitiveWords"
                 :placeholder="t('courseDetailPage.contentPlaceholder')"
+                @input="clearSensitiveHighlight"
                 @upload="uploadReviewImages"
                 @error="onReviewEditorError"
               />

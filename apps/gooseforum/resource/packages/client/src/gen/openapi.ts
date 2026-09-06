@@ -1045,7 +1045,7 @@ export interface paths {
          *     the reserved/banned lists fails with `auth.nickname.reserved` /
          *     `auth.nickname.banned`; profile free text (bio/signature/website/websiteName)
          *     hitting the sensitive-word list fails with `content.sensitive.blocked`
-         *     (params carries the matched word). Business failures: `user.fetchFailed`,
+         *     (params carries the first matched word as `word` and all matched words as `words`). Business failures: `user.fetchFailed`,
          *     `user.updateFailed`.
          */
         post: operations["setUserInfo"];
@@ -1554,7 +1554,7 @@ export interface paths {
          *     a `required` validate tag, omitting it binds 0 and the `oneof=1 2 3` check
          *     fails with `common.request.invalidParams` (HTTP 200). Content hitting the
          *     sensitive-word list is blocked outright with `chat.sensitive.blocked`
-         *     (params word) — chat has no delayed-visibility state. Messaging oneself and
+         *     (params `word` plus all matches in `words`) — chat has no delayed-visibility state. Messaging oneself and
          *     other service failures surface as `chat.send.failed` (params error). JSON
          *     binding is lenient: a malformed body binds to zero values and fails
          *     validation as `common.request.invalidParams` (HTTP 200). The success
@@ -4516,10 +4516,10 @@ export interface paths {
          * @description Admin console operation gated by the `SiteManager` role permission
          *     (Admin role is a superset); callers without it fail with HTTP 403 and
          *     `permission.denied` (params permission=<localized permission name>,
-         *     `站点管理` in zh). Returns the stored section times (the 12 class
-         *     periods shown on the /schedule timetable), or the built-in default
-         *     table when nothing has been saved yet. JSON binding is lenient: query
-         *     string and body are ignored.
+         *     `站点管理` in zh). Returns the stored section times (the class
+         *     periods of the current 11-period /schedule timetable), or the
+         *     built-in default table when nothing has been saved yet. JSON binding
+         *     is lenient: query string and body are ignored.
          */
         get: operations["adminGetScheduleSettings"];
         put?: never;
@@ -4545,7 +4545,9 @@ export interface paths {
          *     callers without it fail with HTTP 403 and `permission.denied`.
          *     Replaces the whole section-times configuration, clears the
          *     schedule-settings cache, and the new table takes effect on the next
-         *     /schedule SSR render. Validation: every entry must name a section in
+         *     /schedule SSR render. The configuration describes the current
+         *     11-period system (evening sections 9..11 start 18:30). Validation:
+         *     every entry must name a section in
          *     1..12 with strict `HH:MM` start/end clock values where start is
          *     strictly earlier than end; any invalid entry rejects the whole
          *     submission with HTTP 200 `common.request.invalidParams`
@@ -6755,7 +6757,7 @@ export interface components {
              * @description Recipient user id; messaging oneself fails with `chat.send.failed` (HTTP 200).
              */
             peerId: number;
-            /** @description Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params word). */
+            /** @description Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params `word` plus all matches in `words`). */
             content: string;
             /**
              * @description 1 text, 2 image, 3 voice. Effectively required — omitting it binds 0 and fails validation with `common.request.invalidParams` (HTTP 200).
@@ -8835,7 +8837,7 @@ export interface components {
             settings?: components["schemas"]["AdminMcpSettingsConfig"];
         };
         AdminScheduleSectionTime: {
-            /** @description Class-period number (第 N 节), 1..12. */
+            /** @description Class-period number (第 N 节). The current timetable uses sections 1..11; 1..12 stays accepted for compatibility with previously stored legacy entries. */
             section: number;
             /** @description Period start as strict 24-hour `HH:MM` (clock values validated server-side). */
             start: string;
@@ -8843,8 +8845,13 @@ export interface components {
             end: string;
         };
         AdminScheduleSettingsConfig: {
-            /** @description The 12 class periods shown on the /schedule timetable, sorted by section ascending and deduplicated per section. */
+            /** @description The class periods of the current 11-period /schedule timetable (2025-2026 academic year onward: daytime sections 1..8, evening sections 9..11 starting 18:30), sorted by section ascending and deduplicated per section. Historical 12-period timetables (calendarId below 120) render the built-in legacy table and are not affected by this configuration. */
             sectionTimes: components["schemas"]["AdminScheduleSectionTime"][];
+            /**
+             * @description Class-period numbering stamp of this table. `'11'` is the current numbering; rows stored without the stamp predate the 11-period migration and are normalized on read (legacy `'12'` numbering: evening sections 10..12 remapped to 9..11). Saves always stamp `'11'` server-side; clients may omit the field.
+             * @enum {string}
+             */
+            numbering?: "11" | "12";
         };
         AdminScheduleSettingsResponse: components["schemas"]["ApiSuccess"] & {
             /** @description Stored section times, or the built-in default table when nothing has been saved. */
@@ -14203,7 +14210,7 @@ export interface operations {
              *     with `common.request.invalidParams` (issue #176 B4: the contract documents the actual
              *     route behavior). Content hitting the sensitive-word list is blocked with
              *     `course.review.sensitiveBlocked` in the same legacy HTTP 200 envelope (params
-             *     carries the matched word). Over-long content is NOT a request-level failure: it
+             *     carries the first matched word as `word` and all matched words as `words`). Over-long content is NOT a request-level failure: it
              *     passes the request validator and is rejected by the service layer as 400
              *     `review.content.tooLong` (see below). Service-level errors use their own status
              *     codes below.
@@ -14356,7 +14363,7 @@ export interface operations {
              * @description The updated review payload, or a legacy business failure envelope for validation
              *     failures. Editing content that hits the sensitive-word list is blocked with
              *     `course.review.sensitiveBlocked` in the legacy HTTP 200 envelope (params carries
-             *     the matched word).
+             *     the first matched word as `word` and all matched words as `words`).
              */
             200: {
                 headers: {

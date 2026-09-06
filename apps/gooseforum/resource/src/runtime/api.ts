@@ -15,14 +15,25 @@ interface ApiResponse<T> {
 
 export class ApiResponseError extends Error {
   readonly messageCode?: string
+  readonly params?: Record<string, unknown>
   readonly retryAfterSeconds?: number
 
-  constructor(message: string, messageCode?: string, retryAfterSeconds?: number) {
+  constructor(message: string, messageCode?: string, retryAfterSeconds?: number, params?: Record<string, unknown>) {
     super(message)
     this.name = 'ApiResponseError'
     this.messageCode = messageCode
     this.retryAfterSeconds = retryAfterSeconds
+    this.params = params
   }
+}
+
+export function sensitiveWordsFromError(error: unknown): string[] {
+  if (!(error instanceof ApiResponseError)) return []
+  const words = Array.isArray(error.params?.words)
+    ? error.params.words.filter((word): word is string => typeof word === 'string')
+    : []
+  const legacyWord = typeof error.params?.word === 'string' ? [error.params.word] : []
+  return [...new Set([...words, ...legacyWord].map(word => word.trim()).filter(Boolean))]
 }
 
 function rateLimitMessage(data: ApiResponse<unknown>, fallback: string, retryAfterSeconds?: number) {
@@ -47,7 +58,7 @@ async function assertHttpOk(response: Response, fallback: string): Promise<void>
   }
   const data = await response.json().catch(() => undefined) as ApiResponse<unknown> | undefined
   if (data?.messageCode) {
-    throw new ApiResponseError(responseMessage(data, fallback), data.messageCode)
+    throw new ApiResponseError(responseMessage(data, fallback), data.messageCode, undefined, data.params)
   }
   throw new Error(`HTTP ${response.status}`)
 }
@@ -67,10 +78,11 @@ async function readApiResponse<T>(response: Response, fallback: string): Promise
       data?.messageCode ? rateLimitMessage(data, fallback, retryAfterSeconds) : fallback,
       data?.messageCode,
       retryAfterSeconds,
+      data?.params,
     )
   }
   if (data?.code !== undefined && data.code !== 0) {
-    throw new ApiResponseError(responseMessage(data, fallback), data.messageCode)
+    throw new ApiResponseError(responseMessage(data, fallback), data.messageCode, undefined, data.params)
   }
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`)
@@ -87,7 +99,7 @@ async function readApiSuccessMessage(response: Response, successFallback: string
   }
   const data = (await response.json()) as ApiResponse<unknown>
   if (data.code !== undefined && data.code !== 0) {
-    throw new ApiResponseError(responseMessage(data, errorFallback), data.messageCode)
+    throw new ApiResponseError(responseMessage(data, errorFallback), data.messageCode, undefined, data.params)
   }
   return responseMessage(data, successFallback)
 }
@@ -660,7 +672,7 @@ export async function submitTopic(topic: SubmitTopicInput): Promise<number> {
 
   const data = (await response.json()) as ApiResponse<number>
   if (data.code !== undefined && data.code !== 0) {
-    throw new ApiResponseError(responseMessage(data, t('api.topicSaveFailed')), data.messageCode)
+    throw new ApiResponseError(responseMessage(data, t('api.topicSaveFailed')), data.messageCode, undefined, data.params)
   }
   return data.result ?? data.data ?? topic.topicId
 }
@@ -853,7 +865,7 @@ export async function sendChatMessage(peerId: number, content: string): Promise<
 
   const data = (await response.json()) as ApiResponse<{ convId: number }>
   if (data.code !== undefined && data.code !== 0) {
-    throw new Error(responseMessage(data, t('api.sendFailed')))
+    throw new ApiResponseError(responseMessage(data, t('api.sendFailed')), data.messageCode, undefined, data.params)
   }
   return data.result?.convId ?? data.data?.convId ?? 0
 }

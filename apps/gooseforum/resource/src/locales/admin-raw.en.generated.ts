@@ -853,7 +853,7 @@ export default {
   "k00tv": "OneSystem cookie saved",
   "k00tw": "OneSystem cookie cleared",
   "k00u1": "Class Period Times",
-  "k00u2": "Set start/end times for the 12 class periods shown next to each period on the /schedule timetable; morning/afternoon/evening grouping is derived from them.",
+  "k00u2": "Set start/end times for the 11 class periods of the current timetable shown next to each period on the /schedule timetable; morning/afternoon/evening grouping is derived from them.",
   "k00u3": "Period",
   "k00u4": "Start",
   "k00u5": "End",

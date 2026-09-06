@@ -170,6 +170,7 @@
     }
   },
   "topicReplyHint": "Write a comment…",
+  "topicReplyTargetUnavailable": "The original reply is unavailable",
   "topicReplying": "Replying… (tap to cancel)",
   "topicReport": "Report post",
   "topicReportHint": "Describe the reason",

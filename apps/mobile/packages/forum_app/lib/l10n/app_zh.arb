@@ -170,6 +170,7 @@
     }
   },
   "topicReplyHint": "写下你的评论…",
+  "topicReplyTargetUnavailable": "原回复不可见",
   "topicReplying": "回复中…(点击取消)",
   "topicReport": "举报帖子",
   "topicReportHint": "请描述举报原因",

@@ -656,6 +656,12 @@ abstract class AppLocalizations {
   /// **'Write a comment…'**
   String get topicReplyHint;
 
+  /// No description provided for @topicReplyTargetUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The original reply is unavailable'**
+  String get topicReplyTargetUnavailable;
+
   /// No description provided for @topicReplying.
   ///
   /// In en, this message translates to:

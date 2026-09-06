@@ -853,7 +853,7 @@ export default {
   "k00tv": "OneSystem-Cookie gespeichert",
   "k00tw": "OneSystem-Cookie gelöscht",
   "k00u1": "Vorlesungszeiten",
-  "k00u2": "Lege die Start-/Endzeiten der 12 Perioden fest, die neben jeder Periode im Stundenplan /schedule angezeigt werden; die Gruppierung Vormittag/Nachmittag/Abend ergibt sich aus diesen Zeiten.",
+  "k00u2": "Lege die Start-/Endzeiten der 11 Perioden des aktuellen Stundenplans fest, die neben jeder Periode im Stundenplan /schedule angezeigt werden; die Gruppierung Vormittag/Nachmittag/Abend ergibt sich aus diesen Zeiten.",
   "k00u3": "Periode",
   "k00u4": "Start",
   "k00u5": "Ende",

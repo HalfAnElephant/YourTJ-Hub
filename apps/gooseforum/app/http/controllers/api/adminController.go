@@ -1593,9 +1593,12 @@ func SaveMCPSettings(req component.BetterRequest[SaveMCPSettingsReq]) component.
 	return savePageConfig(pageConfig.MCPSettings, req.Params.Settings, hotdataserve.ClearMCPSettingsConfigCache)
 }
 
-// GetScheduleSettings 获取排课器节次作息表设置（未保存过时回内置默认 12 节作息）
+// GetScheduleSettings 获取排课器节次作息表设置（未保存过时回内置默认 11 节作息；
+// 存量旧 12 节配置读取侧归一为现行语义，管理端回显正确值，保存后存储自愈）
 func GetScheduleSettings(req component.BetterRequest[component.Null]) component.Response {
-	config := pageConfig.GetConfigByPageType(pageConfig.ScheduleSettings, defaultconfig.GetDefaultScheduleSettingsConfig())
+	config := defaultconfig.NormalizeStoredScheduleSettings(
+		pageConfig.GetConfigByPageType(pageConfig.ScheduleSettings, defaultconfig.GetDefaultScheduleSettingsConfig()),
+	)
 	return component.SuccessResponse(config)
 }
 
@@ -1613,7 +1616,11 @@ func SaveScheduleSettings(req component.BetterRequest[SaveScheduleSettingsReq]) 
 	}
 	// 排课器作息已无缓存读方（SSR 直读 DB，scheduleSettingsConfigCache 已删除），
 	// 保存无需清缓存回调（review：GetScheduleSettingsConfigCache 全仓无调用方）。
-	return savePageConfig(pageConfig.ScheduleSettings, pageConfig.ScheduleSettingsConfig{SectionTimes: sectionTimes}, nil)
+	// 保存恒以现行 11 节编号盖章（review P1：存储版本标记，读取侧据此免猜测归一）。
+	return savePageConfig(pageConfig.ScheduleSettings, pageConfig.ScheduleSettingsConfig{
+		Numbering:    pageConfig.ScheduleNumberingCurrent,
+		SectionTimes: sectionTimes,
+	}, nil)
 }
 
 // isValidScheduleClockTime 校验严格 HH:MM（两位小时/分钟 + 冒号）且时钟值合法
