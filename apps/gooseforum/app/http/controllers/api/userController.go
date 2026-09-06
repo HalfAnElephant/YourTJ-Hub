@@ -274,9 +274,6 @@ func EditUserProfileCover(req component.BetterRequest[EditUserProfileCoverReq]) 
 	if err != nil {
 		return component.FailResponseCode(component.MessageUserFetchFailed, nil)
 	}
-	if userEntity.RoleId == 0 {
-		return component.FailResponseCode(component.MessagePermissionDenied, nil)
-	}
 
 	userEntity.ProfileCoverUrl = strings.TrimSpace(req.Params.ProfileCoverUrl)
 	err = userservice.SaveUser(&userEntity)

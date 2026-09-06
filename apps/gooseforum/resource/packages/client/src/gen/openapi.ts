@@ -1067,10 +1067,10 @@ export interface paths {
         /**
          * Update the caller's profile cover image
          * @description Sets the profile cover URL (trimmed server-side; an empty string clears the
-         *     cover). Accounts with RoleId 0 are rejected with `permission.denied` (HTTP
-         *     200). JSON binding is lenient: a malformed body binds to zero values and
-         *     clears the cover. Other business failures: `user.fetchFailed`,
-         *     `user.updateFailed`.
+         *     cover). Any authenticated, writable account may update its own cover;
+         *     ordinary accounts with RoleId 0 are included. JSON binding is lenient: a
+         *     malformed body binds to zero values and clears the cover. Other business
+         *     failures: `user.fetchFailed`, `user.updateFailed`.
          */
         post: operations["setUserProfileCover"];
         delete?: never;
