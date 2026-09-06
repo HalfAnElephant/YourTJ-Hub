@@ -254,7 +254,8 @@ support.
   HMAC token signing plus a synchronous `email.noop` task, silently consumed and dropped by the
   mail worker so it never accumulates), so probing an email's registration status via response
   time is not reliable (issue #124).
-- Session revocation is implemented as `jti` + `user_sessions` table (decision recorded in ADR note);
+- Session revocation is implemented as `jti` + `user_sessions` table
+  (decision: [0002](../decisions/0002-jwt-session-revocation-user-sessions.md));
   TokenVersion remains as a global invalidation fallback.
 - TOTP secrets and recovery codes never leave the server in plaintext (secret encrypted at rest,
   recovery codes hashed, codes shown exactly once during setup).

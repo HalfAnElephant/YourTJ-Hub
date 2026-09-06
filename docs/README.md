@@ -86,5 +86,7 @@ status. Do not use PR-relative "shipped this / later" labels as long-term status
 
 ### Decision records
 
-- Architecture decision records (ADR) live in the project note (yourtj-hub ADR note), **not in git**;
-  new decisions append a number, append-only, history never rewritten.
+- MADR decision log lives in [decisions/](decisions/) — in git, append-only numbering,
+  supersede instead of rewrite, enforced by `node scripts/verify-decisions.mjs`
+  (gate in `node scripts/run-gates.mjs`). The legacy host-note ADR archive is frozen:
+  read-only history, no new records.

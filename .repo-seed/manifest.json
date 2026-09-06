@@ -16,10 +16,6 @@
       "postmortems": "docs/postmortems"
     },
     "externalSources": {
-      "decisions": {
-        "type": "link",
-        "location": "https://github.com/YourTongji/YourTJ-Hub/blob/dev/AGENTS.md"
-      },
       "specs": {
         "type": "link",
         "location": "https://github.com/YourTongji/YourTJ-Hub/blob/dev/docs/development/pull-requests.md"
@@ -40,7 +36,7 @@
         }
       },
       "decisions": {
-        "state": "external",
+        "state": "enabled",
         "source": {
           "type": "link",
           "location": "https://github.com/YourTongji/YourTJ-Hub/blob/dev/AGENTS.md"
@@ -79,7 +75,7 @@
   "files": [
     {
       "path": "AGENTS.md",
-      "sha256": "8fb496e6f0e6e4f51801ab294edc2fd399ded664d536a44ccafe7d61ec1b85a2",
+      "sha256": "80dd5409fc611ecee6d5cc66cf2523f377c33a35256f56e1e183a7424a9f3a18",
       "category": "instruction",
       "capability": "baseline",
       "userModified": true
@@ -92,7 +88,7 @@
     },
     {
       "path": "docs/AGENTS.md",
-      "sha256": "2a75e6abc1b57761c0318cdae00610752b4e3d47c857c3a24acde5482118d1eb",
+      "sha256": "923d8936b1f0bcda538d84e3a4a2d04896637ead9eca774bbdbc6929676eab69",
       "category": "docs",
       "capability": "baseline",
       "userModified": true
@@ -207,15 +203,17 @@
     },
     {
       "path": "docs/decisions/README.md",
-      "sha256": "f5c9b06bf37962c1d119cfa58ff005cc55aa5386ca90cd53df41dcda9af05b4c",
+      "sha256": "e926f90ee830e8edd84360add7c53e0e8e1a21b3ac85aff649af5b3632d0864e",
       "category": "docs",
-      "capability": "decisions"
+      "capability": "decisions",
+      "userModified": true
     },
     {
       "path": ".agents/skills/repo-decisions/SKILL.md",
-      "sha256": "634b295cdc66d2c69ddf0ea87372552c07b3dbc8667340e87ebd2ebccd6eb027",
+      "sha256": "48e3cd7b510d91f2dcacabfe062c6bb94acdf9adbcb73d9e3c9cdc6a456b27f9",
       "category": "skill",
-      "capability": "decisions"
+      "capability": "decisions",
+      "userModified": true
     },
     {
       "path": "docs/postmortems/README.md",
@@ -229,6 +227,12 @@
       "sha256": "9d8d6332aea3e6010fda2c6d5f0715d62ef08e2b0d54734bf0cdde67dbd0e9a2",
       "category": "gate",
       "capability": "postmortems"
+    },
+    {
+      "path": "scripts/verify-decisions.mjs",
+      "sha256": "2e100efd61d5b16bbd559988f36e205352716c55662ce4d38d6b9933df1e9ac8",
+      "category": "gate",
+      "capability": "decisions"
     }
   ],
   "artifactPolicy": {

@@ -782,7 +782,8 @@ curl -fsS -H "Host: f.yourtj.de" http://127.0.0.1/ | head -5   # 经 1Panel 反�
   3. 把新机 `storage/database/file.db` 拷回旧机对应路径并 `chown 1000:1000`；
   4. 再切 DNS 回旧机。
   - 若回滚发生在切换后很短时间内且写入量可忽略，可接受不回灌，但文档不承诺"数据无损"。
-- Meilisearch 索引不迁移，首次启动后由 `rebuild-search-index` 重建（ADR-003：索引是可重建投影）。
+- Meilisearch 索引不迁移，首次启动后由 `rebuild-search-index` 重建（决策
+  [0003](../decisions/0003-aggregate-search-multi-index-pinyin.md)：索引是可重建投影）。
 - 搜索投影任务采用有界重试；Meilisearch 短时不可用时，`topic-search.*`、
   `user-search.*` 或 `category-search.*` 任务可能进入 `failed`，不会自动无限重试。
   Meilisearch 恢复后检查 `task_queue`，并运行 `rebuild-search-index` 做一次全量对账；
