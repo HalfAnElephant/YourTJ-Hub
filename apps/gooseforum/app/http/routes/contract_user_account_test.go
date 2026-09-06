@@ -244,10 +244,7 @@ func TestSetUserProfileCoverHTTPContract(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		conn, router := setupAccountContractTest(t)
 		user := createHTTPContractUser(t, conn, contractTestID())
-		// 个人封面要求已分配角色（RoleId != 0）。
-		if err := conn.Model(user).Update("role_id", 1).Error; err != nil {
-			t.Fatalf("grant role to contract user: %v", err)
-		}
+		// 新注册用户默认 RoleId=0，仍应允许设置个人封面。
 		body := `{"profileCoverUrl":"/static/pic/cover.webp"}`
 		recorder := serveJSON(router, "/api/set-user-profile-cover", body, contractSessionToken(t, user))
 		if recorder.Code != http.StatusOK {
