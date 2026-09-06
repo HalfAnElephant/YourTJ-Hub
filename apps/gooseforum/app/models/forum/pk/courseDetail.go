@@ -1,12 +1,20 @@
 package pk
 
 import (
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 const courseDetailTableName = "pk_course_detail"
+
+// 一系统保留原始 courseCode/code，并用 newCourseCode/newCode 表示改码结果。
+// PK 对外查询统一使用有效码；原始列继续保留，供课程沿革与旧码兼容查询使用。
+const (
+	effectiveCourseCodeSQL = "COALESCE(NULLIF(TRIM(pk_course_detail.new_course_code), ''), pk_course_detail.course_code)"
+	effectiveClassCodeSQL  = "COALESCE(NULLIF(TRIM(pk_course_detail.new_code), ''), pk_course_detail.code)"
+)
 
 // CourseDetailEntity 一系统排课（教学班）主表：id 即一系统 teachingClassId。
 // 字段名与一系统 manualArrange/page 返回逐项对齐（见 pk-login-and-export-sql.py 的列映射）。
@@ -40,4 +48,20 @@ type CourseDetailEntity struct {
 
 func (itself *CourseDetailEntity) TableName() string {
 	return courseDetailTableName
+}
+
+// EffectiveCourseCode 返回一系统改码后的课程码；无改码时回退原始课程码。
+func (itself CourseDetailEntity) EffectiveCourseCode() string {
+	if code := strings.TrimSpace(itself.NewCourseCode); code != "" {
+		return code
+	}
+	return strings.TrimSpace(itself.CourseCode)
+}
+
+// EffectiveClassCode 返回一系统改码后的教学班号；无法派生时回退原始班号。
+func (itself CourseDetailEntity) EffectiveClassCode() string {
+	if code := strings.TrimSpace(itself.NewCode); code != "" {
+		return code
+	}
+	return strings.TrimSpace(itself.Code)
 }

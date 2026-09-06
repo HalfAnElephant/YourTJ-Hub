@@ -149,8 +149,8 @@ func seedPkContractData(t *testing.T, conn *gorm.DB) {
 		&course.Entity{Id: 1, PrimaryCode: "CS101", Name: "计算机程序设计", Department: "计算机", CreditX10: 30, NormalizedName: "计算机程序设计", Status: course.StatusVisible},
 		&course.CourseStatsEntity{CourseId: 1, RatingCount: 1, RatingSum: 4, ReviewCount: 1},
 		&course.TermEntity{Id: 1, Code: "2025-2026-2", Name: "2025-2026 第二学期", Status: 0},
-		&course.OfferingEntity{Id: 1, CourseId: 1, TermId: 1, Campus: "四平路校区", Faculty: "计算机", ClassCode: "TJCS10101", ClassName: "计算机程序设计-1班", Status: course.OfferingStatusVisible},
-		&course.OfferingEntity{Id: 2, CourseId: 1, TermId: 1, Campus: "四平路校区", Faculty: "计算机", ClassCode: "TJCS10102", ClassName: "计算机程序设计-2班", Status: course.OfferingStatusVisible},
+		&course.OfferingEntity{Id: 1, CourseId: 1, TermId: 1, Campus: "四平路校区", Faculty: "计算机", ClassCode: "CS10101", ClassName: "计算机程序设计-1班", Status: course.OfferingStatusVisible},
+		&course.OfferingEntity{Id: 2, CourseId: 1, TermId: 1, Campus: "四平路校区", Faculty: "计算机", ClassCode: "CS10102", ClassName: "计算机程序设计-2班", Status: course.OfferingStatusVisible},
 		&course.InstructorEntity{Id: 1, Name: "张伟", NormalizedName: "张伟"},
 		&course.InstructorEntity{Id: 2, Name: "李娜", NormalizedName: "李娜"},
 		&course.OfferingInstructorEntity{OfferingId: 1, InstructorId: 1},
@@ -363,7 +363,7 @@ func TestPkCourseDetailsHTTPContract(t *testing.T) {
 	seedPkContractData(t, conn)
 
 	t.Run("single courseCode returns array", func(t *testing.T) {
-		rec := servePkJSON(router, "/api/pk/course-details", `{"calendarId":99999,"courseCode":"TJCS101"}`)
+		rec := servePkJSON(router, "/api/pk/course-details", `{"calendarId":99999,"courseCode":"CS101"}`)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("course-details single status = %d, want 200: %s", rec.Code, rec.Body.String())
 		}
@@ -371,7 +371,7 @@ func TestPkCourseDetailsHTTPContract(t *testing.T) {
 	})
 
 	t.Run("batch courseCodes returns dict", func(t *testing.T) {
-		rec := servePkJSON(router, "/api/pk/course-details", `{"calendarId":99999,"courseCodes":["TJCS101","TJCS201"]}`)
+		rec := servePkJSON(router, "/api/pk/course-details", `{"calendarId":99999,"courseCodes":["CS101","CS201"]}`)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("course-details batch status = %d, want 200: %s", rec.Code, rec.Body.String())
 		}
@@ -447,7 +447,7 @@ func TestPkCourseInfoSyncHTTPContract(t *testing.T) {
 	conn, router := setupPkContractTest(t)
 	seedPkContractData(t, conn)
 
-	rec := servePkJSON(router, "/api/pk/course-info-sync", `{"calendarId":99999,"majorCourseCodes":["TJCS101"],"otherCourseCodes":["TJCS201"],"majorInfo":{"grade":2025,"code":"03074"}}`)
+	rec := servePkJSON(router, "/api/pk/course-info-sync", `{"calendarId":99999,"majorCourseCodes":["CS101"],"otherCourseCodes":["CS201"],"majorInfo":{"grade":2025,"code":"03074"}}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("course-info-sync status = %d, want 200: %s", rec.Code, rec.Body.String())
 	}
@@ -465,7 +465,7 @@ func TestPkCourseReviewBriefHTTPContract(t *testing.T) {
 	conn, router := setupPkContractTest(t)
 	seedPkContractData(t, conn)
 
-	rec := servePkGET(router, "/api/pk/course-review-brief?courseCode=TJCS101&teacherName=张伟")
+	rec := servePkGET(router, "/api/pk/course-review-brief?courseCode=CS101&teacherName=张伟")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("course-review-brief status = %d, want 200: %s", rec.Code, rec.Body.String())
 	}
@@ -657,10 +657,10 @@ func TestPkCourseReviewBriefTeachingClassHTTPContract(t *testing.T) {
 		// course-scope 特判卡：课程级评价目标（专业导论类），无身份教师。
 		&course.Entity{Id: 61, PrimaryCode: "CS200", Name: "专业导论", NormalizedName: "专业导论", ReviewScope: "course", Status: course.StatusVisible},
 		&course.TermEntity{Id: 60, Code: "2025-2026-2", Name: "t2", Status: 0},
-		&course.OfferingEntity{Id: 60, CourseId: 60, TermId: 60, TeachingClassId: 900001, ClassCode: "TJCS10101", Status: course.OfferingStatusVisible},
-		&course.OfferingEntity{Id: 61, CourseId: 61, TermId: 60, TeachingClassId: 900002, ClassCode: "TJCS10102", Status: course.OfferingStatusVisible},
+		&course.OfferingEntity{Id: 60, CourseId: 60, TermId: 60, TeachingClassId: 900001, ClassCode: "CS10101", Status: course.OfferingStatusVisible},
+		&course.OfferingEntity{Id: 61, CourseId: 61, TermId: 60, TeachingClassId: 900002, ClassCode: "CS10102", Status: course.OfferingStatusVisible},
 		// 隐藏 offering：teaching_class_id 命中但不可见 → 回退旧路径。
-		&course.OfferingEntity{Id: 62, CourseId: 60, TermId: 60, TeachingClassId: 900003, ClassCode: "TJCS10103", Status: course.OfferingStatusHidden},
+		&course.OfferingEntity{Id: 62, CourseId: 60, TermId: 60, TeachingClassId: 900003, ClassCode: "CS10103", Status: course.OfferingStatusHidden},
 		&course.CourseStatsEntity{CourseId: 60, RatingCount: 1, RatingSum: 4, ReviewCount: 1},
 		&course.CourseStatsEntity{CourseId: 61, RatingCount: 2, RatingSum: 8, ReviewCount: 2},
 		&course.InstructorEntity{Id: 60, Name: "张伟", NormalizedName: "张伟"},
@@ -685,8 +685,8 @@ func TestPkCourseReviewBriefTeachingClassHTTPContract(t *testing.T) {
 	if brief.ReviewCount != 1 || brief.RatingAvg == nil || *brief.RatingAvg != 4 {
 		t.Fatalf("direct brief stats = reviewCount %d ratingAvg %v, want 1 / 4", brief.ReviewCount, brief.RatingAvg)
 	}
-	if len(brief.Classes) != 1 || brief.Classes[0].OfferingId != 60 || brief.Classes[0].ClassCode != "TJCS10101" {
-		t.Fatalf("direct classes = %+v, want single offering 60 TJCS10101", brief.Classes)
+	if len(brief.Classes) != 1 || brief.Classes[0].OfferingId != 60 || brief.Classes[0].ClassCode != "CS10101" {
+		t.Fatalf("direct classes = %+v, want single offering 60 CS10101", brief.Classes)
 	}
 	if len(brief.Classes[0].Teachers) != 1 || brief.Classes[0].Teachers[0] != "张伟" {
 		t.Fatalf("direct class teachers = %v, want [张伟]", brief.Classes[0].Teachers)
@@ -715,7 +715,7 @@ func TestPkCourseReviewBriefTeachingClassHTTPContract(t *testing.T) {
 
 	// 3) 未命中（teaching_class_id 不存在）→ 回退旧路径：courseCode+teacherName 解析到卡 60，
 	//    classes 按班号匹配全部可见 offering（两个班），而非直查的单班。
-	rec = servePkGET(router, "/api/pk/course-review-brief?courseCode=TJCS101&teacherName=张伟&teachingClassId=999999")
+	rec = servePkGET(router, "/api/pk/course-review-brief?courseCode=CS101&teacherName=张伟&teachingClassId=999999")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("miss-fallback status = %d, want 200: %s", rec.Code, rec.Body.String())
 	}
@@ -728,7 +728,7 @@ func TestPkCourseReviewBriefTeachingClassHTTPContract(t *testing.T) {
 	}
 
 	// 4) teaching_class_id 命中隐藏 offering → 回退旧路径。
-	rec = servePkGET(router, "/api/pk/course-review-brief?courseCode=TJCS101&teacherName=张伟&teachingClassId=900003")
+	rec = servePkGET(router, "/api/pk/course-review-brief?courseCode=CS101&teacherName=张伟&teachingClassId=900003")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("hidden-offering fallback status = %d, want 200: %s", rec.Code, rec.Body.String())
 	}

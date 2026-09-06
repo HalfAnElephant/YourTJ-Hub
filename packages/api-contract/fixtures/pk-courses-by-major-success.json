@@ -3,7 +3,7 @@
   "msg": "查询成功",
   "data": [
     {
-      "courseCode": "TJCS101",
+      "courseCode": "CS101",
       "courseName": "计算机程序设计",
       "faculty": "计算机科学与技术系",
       "facultyI18n": "计算机科学与技术系",
@@ -14,7 +14,7 @@
       ],
       "courses": [
         {
-          "code": "TJCS10101",
+          "code": "CS10101",
           "teachers": [
             {
               "teacherCode": "T001",
@@ -84,7 +84,7 @@
           "isExclusive": true
         },
         {
-          "code": "TJCS10102",
+          "code": "CS10102",
           "teachers": [
             {
               "teacherCode": "T006",

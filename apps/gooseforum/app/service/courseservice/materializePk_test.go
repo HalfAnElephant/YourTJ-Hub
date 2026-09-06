@@ -88,7 +88,7 @@ func TestMaterializeFromPkCreatesCatalog(t *testing.T) {
 
 	conn := db.Connect()
 	var courses []course.Entity
-	if err := conn.Where("primary_code = ?", "A001").Find(&courses).Error; err != nil {
+	if err := conn.Where("primary_code = ?", "A001N").Find(&courses).Error; err != nil {
 		t.Fatalf("find course: %v", err)
 	}
 	if len(courses) != 1 {
@@ -138,13 +138,60 @@ func TestMaterializeFromPkIdempotent(t *testing.T) {
 	}
 	conn := db.Connect()
 	var courseCount int64
-	if err := conn.Model(&course.Entity{}).Where("primary_code = ?", "A001").Count(&courseCount).Error; err != nil {
+	if err := conn.Model(&course.Entity{}).Where("primary_code = ?", "A001N").Count(&courseCount).Error; err != nil {
 		t.Fatalf("count courses: %v", err)
 	}
 	if courseCount != 1 {
 		t.Errorf("courses after 2nd run = %d, want 1", courseCount)
 	}
 	_ = first
+}
+
+func TestMaterializeFromPkPromotesReplacementCodeWithoutDuplicate(t *testing.T) {
+	migrateMaterializeTables(t)
+	seedPkForMaterialize(t)
+	conn := db.Connect()
+	if err := conn.Model(&pk.CourseDetailEntity{}).Where("id = ?", 1).Updates(map[string]any{
+		"new_course_code": "",
+		"new_code":        "",
+	}).Error; err != nil {
+		t.Fatalf("clear replacement codes: %v", err)
+	}
+	if _, err := MaterializeFromPk(context.Background(), []uint64{1}); err != nil {
+		t.Fatalf("materialize old code: %v", err)
+	}
+	var original course.Entity
+	if err := conn.Where("primary_code = ?", "A001").First(&original).Error; err != nil {
+		t.Fatalf("find original course: %v", err)
+	}
+
+	if err := conn.Model(&pk.CourseDetailEntity{}).Where("id = ?", 1).Updates(map[string]any{
+		"new_course_code": "A001N",
+		"new_code":        "A001N01",
+	}).Error; err != nil {
+		t.Fatalf("set replacement codes: %v", err)
+	}
+	report, err := MaterializeFromPk(context.Background(), []uint64{1})
+	if err != nil {
+		t.Fatalf("materialize replacement code: %v", err)
+	}
+	if report.CoursesInserted != 0 {
+		t.Fatalf("coursesInserted = %d, want 0", report.CoursesInserted)
+	}
+	var courses []course.Entity
+	if err := conn.Find(&courses).Error; err != nil {
+		t.Fatalf("find courses: %v", err)
+	}
+	if len(courses) != 1 || courses[0].Id != original.Id || courses[0].PrimaryCode != "A001N" {
+		t.Fatalf("courses = %+v, want original card %d promoted to A001N", courses, original.Id)
+	}
+	var offering course.OfferingEntity
+	if err := conn.Where("teaching_class_id = ?", 1).First(&offering).Error; err != nil {
+		t.Fatalf("find offering: %v", err)
+	}
+	if offering.ClassCode != "A001N01" {
+		t.Fatalf("class_code = %q, want A001N01", offering.ClassCode)
+	}
 }
 
 // TestMaterializeFromPkInstructorNormalizedNameIdempotent 回归 #199：教师名含空格/中点/全角字符时
@@ -243,7 +290,7 @@ func TestMaterializeFromPkSplitsByIdentityTeacher(t *testing.T) {
 	}
 
 	var courses []course.Entity
-	if err := conn.Where("primary_code = ?", "A001").Find(&courses).Error; err != nil {
+	if err := conn.Where("primary_code = ?", "A001N").Find(&courses).Error; err != nil {
 		t.Fatalf("find courses: %v", err)
 	}
 	if len(courses) != 2 {
@@ -296,8 +343,8 @@ func TestMaterializeFromPkCreatesOfferingAtClassGranularity(t *testing.T) {
 		t.Fatalf("offerings = %d, want 1", len(offerings))
 	}
 	o := offerings[0]
-	if o.ClassCode != "A00101" {
-		t.Errorf("class_code = %q, want A00101", o.ClassCode)
+	if o.ClassCode != "A001N01" {
+		t.Errorf("class_code = %q, want A001N01", o.ClassCode)
 	}
 	if o.Status != course.OfferingStatusVisible {
 		t.Errorf("status = %d, want visible", o.Status)
@@ -320,7 +367,7 @@ func TestMaterializeFromPkCreatesOfferingAtClassGranularity(t *testing.T) {
 	}
 	// 课程卡身份教师 = 教学班首位教师（张三）。
 	var courses []course.Entity
-	if err := conn.Where("primary_code = ?", "A001").Find(&courses).Error; err != nil {
+	if err := conn.Where("primary_code = ?", "A001N").Find(&courses).Error; err != nil {
 		t.Fatalf("find courses: %v", err)
 	}
 	if len(courses) != 1 || courses[0].TeacherId == 0 {
@@ -433,7 +480,7 @@ func TestMaterializeFromPkRedirectsOfferingToMergedTarget(t *testing.T) {
 		t.Fatalf("first materialize: %v", err)
 	}
 	var oldCard course.Entity
-	if err := conn.Where("primary_code = ?", "A001").First(&oldCard).Error; err != nil {
+	if err := conn.Where("primary_code = ?", "A001N").First(&oldCard).Error; err != nil {
 		t.Fatalf("find old card: %v", err)
 	}
 	var offering course.OfferingEntity
@@ -445,7 +492,7 @@ func TestMaterializeFromPkRedirectsOfferingToMergedTarget(t *testing.T) {
 	if err := conn.Create(&ins).Error; err != nil {
 		t.Fatalf("create target instructor: %v", err)
 	}
-	targetCard := course.Entity{PrimaryCode: "A001", TeacherId: ins.Id, Name: "高等数学(A)上", Department: "数学科学学院", Status: course.StatusVisible}
+	targetCard := course.Entity{PrimaryCode: "A001N", TeacherId: ins.Id, Name: "高等数学(A)上", Department: "数学科学学院", Status: course.StatusVisible}
 	if err := conn.Create(&targetCard).Error; err != nil {
 		t.Fatalf("create target card: %v", err)
 	}
@@ -646,6 +693,13 @@ func TestImportReusesMaterializedOffering(t *testing.T) {
 	}
 	if report.Inserted != 0 {
 		t.Fatalf("inserted = %d, want 0（复用物化行，不插入新行）", report.Inserted)
+	}
+	var catalogCourses []course.Entity
+	if err := conn.Find(&catalogCourses).Error; err != nil {
+		t.Fatalf("find courses: %v", err)
+	}
+	if len(catalogCourses) != 1 || catalogCourses[0].PrimaryCode != "A001N" {
+		t.Fatalf("courses = %+v, want one course with replacement primary code A001N", catalogCourses)
 	}
 	// 只有物化链那一行 offering（唯一索引未被撞）。
 	var offerings []course.OfferingEntity

@@ -155,7 +155,7 @@ func ListCourseNatureRowsByLabelIds(calendarId int, ids []int) ([]CourseNatureRo
 		var batch []CourseNatureRow
 		if err := courseDetailBuilder().
 			Select(
-				`pk_course_detail.course_code, pk_course_detail.course_name,
+				effectiveCourseCodeSQL+` AS course_code, pk_course_detail.course_name,
 				 pk_course_detail.course_label_id, pk_course_detail.credit,
 				 f.faculty_i18n, n.course_label_name, ca.campus_i18n`).
 			Joins("LEFT JOIN pk_course_nature_by_calendar n ON n.course_label_id = pk_course_detail.course_label_id AND n.calendar_id = pk_course_detail.calendar_id").
@@ -163,7 +163,7 @@ func ListCourseNatureRowsByLabelIds(calendarId int, ids []int) ([]CourseNatureRo
 			Joins("LEFT JOIN pk_campus ca ON ca.campus = pk_course_detail.campus").
 			Where("pk_course_detail.calendar_id = ?", calendarId).
 			Where("pk_course_detail.course_label_id IN ?", part).
-			Order("pk_course_detail.course_label_id DESC, pk_course_detail.course_code ASC").
+			Order("pk_course_detail.course_label_id DESC, " + effectiveCourseCodeSQL + " ASC").
 			Scan(&batch).Error; err != nil {
 			return nil, err
 		}
