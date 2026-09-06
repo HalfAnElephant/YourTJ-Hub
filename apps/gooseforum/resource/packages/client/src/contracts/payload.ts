@@ -49,6 +49,8 @@ export interface LoginPageProps {
   githubUrl: string
   googleUrl: string
   googleReady: boolean
+  termsOfServiceEnabled: boolean
+  privacyPolicyEnabled: boolean
 }
 
 export interface ResetPasswordPageProps {
@@ -63,6 +65,7 @@ export interface LayoutPayload {
   footer: FooterPayload
   unread: UnreadStatusPayload
   theme: ThemePayload
+  insightFlareEnabled: boolean
 }
 
 export interface ThemePayload {

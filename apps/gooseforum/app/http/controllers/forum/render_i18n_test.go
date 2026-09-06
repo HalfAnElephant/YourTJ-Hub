@@ -12,6 +12,41 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/resource"
 )
 
+func TestAppTemplateInsightFlareRendering(t *testing.T) {
+	reg, err := newRegistry(resource.GetTemplateFS())
+	if err != nil {
+		t.Fatalf("newRegistry: %v", err)
+	}
+	payload := PagePayload{
+		Layout: LayoutPayload{
+			Site:                SitePayload{Name: "GooseForum"},
+			InsightFlareEnabled: true,
+		},
+		Props: HomeProps{},
+	}
+
+	for _, tc := range []struct {
+		name    string
+		enabled bool
+		want    bool
+	}{
+		{name: "enabled", enabled: true, want: true},
+		{name: "disabled", enabled: false, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			payload.Layout.InsightFlareEnabled = tc.enabled
+			var buf bytes.Buffer
+			if err := reg.render(&buf, "home.gohtml", templateData{Payload: payload, Lang: "en"}); err != nil {
+				t.Fatalf("render home template: %v", err)
+			}
+			got := strings.Contains(buf.String(), "https://ana.yourtj.de/script.js?siteId=")
+			if got != tc.want {
+				t.Fatalf("InsightFlare script rendered with enabled=%t, want %t", tc.enabled, tc.want)
+			}
+		})
+	}
+}
+
 // TestServerTemplatesParse ensures every server-rendered template parses with
 // the shared FuncMap (notably the "t" translator and sprig's "dict").
 func TestServerTemplatesParse(t *testing.T) {

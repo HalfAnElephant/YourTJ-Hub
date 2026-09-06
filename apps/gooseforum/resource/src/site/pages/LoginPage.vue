@@ -172,8 +172,12 @@ async function handleRegister() {
     error.value = t('auth.validation.passwordMismatch')
     return
   }
-  if (!registerForm.agree) {
-    error.value = t('auth.validation.termsRequired')
+  if ((page.props.termsOfServiceEnabled || page.props.privacyPolicyEnabled) && !registerForm.agree) {
+    error.value = page.props.termsOfServiceEnabled && page.props.privacyPolicyEnabled
+      ? t('auth.validation.termsRequired')
+      : page.props.termsOfServiceEnabled
+        ? t('auth.validation.termsOnlyRequired')
+        : t('auth.validation.privacyOnlyRequired')
     return
   }
   loading.register = true
@@ -414,13 +418,15 @@ function onToggleTheme() {
                 <img v-else :src="captchaImg" :alt="t('auth.captchaAlt')" class="gf-captcha-image h-full w-full object-cover" />
               </button>
             </div>
-            <label class="flex items-start gap-2 text-sm leading-5 text-base-content/55">
+            <label v-if="page.props.termsOfServiceEnabled || page.props.privacyPolicyEnabled" class="flex items-start gap-2 text-sm leading-5 text-base-content/55">
               <input v-model="registerForm.agree" type="checkbox" class="mt-1 h-4 w-4 rounded border-line text-primary focus:ring-primary" />
               <span>
-                {{ t('auth.agreeTerms') }}
-                <a href="/terms" target="_blank" rel="noopener noreferrer" class="font-medium text-primary hover:text-primary">{{ t('auth.termsLink') }}</a>
-                <span class="mx-1 text-base-content/40">·</span>
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" class="font-medium text-primary hover:text-primary">{{ t('auth.privacyLink') }}</a>
+                {{ page.props.termsOfServiceEnabled && page.props.privacyPolicyEnabled ? t('auth.agreeTerms') : page.props.termsOfServiceEnabled ? t('auth.agreeTermsOnly') : t('auth.agreePrivacyOnly') }}
+                <a v-if="page.props.termsOfServiceEnabled" href="/terms" target="_blank" rel="noopener noreferrer" class="font-medium text-primary hover:text-primary">{{ t('auth.termsLink') }}</a>
+                <template v-if="page.props.termsOfServiceEnabled && page.props.privacyPolicyEnabled">
+                  <span class="mx-1 text-base-content/40">·</span>
+                </template>
+                <a v-if="page.props.privacyPolicyEnabled" href="/privacy" target="_blank" rel="noopener noreferrer" class="font-medium text-primary hover:text-primary">{{ t('auth.privacyLink') }}</a>
               </span>
             </label>
             <input v-model="registerForm.website" type="text" class="hidden" tabindex="-1" autocomplete="off" aria-hidden="true" />
