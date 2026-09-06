@@ -8688,6 +8688,11 @@ export interface components {
         AdminScheduleSettingsConfig: {
             /** @description The class periods of the current 11-period /schedule timetable (2025-2026 academic year onward: daytime sections 1..8, evening sections 9..11 starting 18:30), sorted by section ascending and deduplicated per section. Historical 12-period timetables (calendarId below 120) render the built-in legacy table and are not affected by this configuration. */
             sectionTimes: components["schemas"]["AdminScheduleSectionTime"][];
+            /**
+             * @description Class-period numbering stamp of this table. `'11'` is the current numbering; rows stored without the stamp predate the 11-period migration and are normalized on read (legacy `'12'` numbering: evening sections 10..12 remapped to 9..11). Saves always stamp `'11'` server-side; clients may omit the field.
+             * @enum {string}
+             */
+            numbering?: "11" | "12";
         };
         AdminScheduleSettingsResponse: components["schemas"]["ApiSuccess"] & {
             /** @description Stored section times, or the built-in default table when nothing has been saved. */

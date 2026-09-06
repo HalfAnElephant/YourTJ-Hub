@@ -154,6 +154,7 @@ func GetDefaultMCPSettingsConfig() pageConfig.MCPSettingsConfig {
 // 历史 12 节制学期（calendarId<120）课表由前端内置历史表渲染，不受此配置影响。
 func GetDefaultScheduleSettingsConfig() pageConfig.ScheduleSettingsConfig {
 	return pageConfig.ScheduleSettingsConfig{
+		Numbering: pageConfig.ScheduleNumberingCurrent,
 		SectionTimes: []pageConfig.ScheduleSectionTime{
 			{Section: 1, Start: "08:00", End: "08:45"},
 			{Section: 2, Start: "08:50", End: "09:35"},
@@ -170,23 +171,23 @@ func GetDefaultScheduleSettingsConfig() pageConfig.ScheduleSettingsConfig {
 	}
 }
 
-// legacyScheduleSection9Start/End 是旧 12 节制默认表的第 9 节（17:10-17:55），
-// 该节次在现行 11 节制中不存在，其出现即标识存储行为旧编号配置。
-const (
-	legacyScheduleSection9Start = "17:10"
-	legacyScheduleSection9End   = "17:55"
-)
-
-// NormalizeStoredScheduleSettings 读取侧归一存量节次作息配置（review P1）：
-// PR #496 之前保存的配置为旧 12 节编号（第 9 节 17:10、晚间 10/11/12 节），
-// 直接按节次号合并进现行 11 节视图会把晚间整体错位一格，且管理端回显
-// 旧值后保存会把错值再次持久化。判定存储行第 9 节为旧制 17:10-17:55 时
-// 按旧编号解释：白天 1-8 节照搬，新 9/10/11 节取旧 10/11/12 节（晚间物理
-// 时段未变，仅编号前移，旧第 9 节时段已取消故丢弃）；其余配置按现行语义
-// 读取并丢弃 >11 节的行（如旧表单强制写入的重复第 12 行）。读取侧归一
-// 使 SSR 与管理端 GET 均得到现行语义，管理端保存后存储自然自愈，
-// 无需数据迁移或人工修复。
+// NormalizeStoredScheduleSettings 读取侧归一节次作息配置（review P1）：
+// PR #496 之前保存的配置没有 numbering 标记且为旧 12 节编号（第 9 节 17:10、
+// 晚间 10/11/12 节），直接按节次号合并进现行 11 节视图会把晚间整体错位一格，
+// 且管理端回显旧值后保存会把错值再次持久化。归一规则：
+//
+//   - Numbering == 现行（"11"）：完全透传——现行语义下第 9 节允许被管理员合法
+//     设为任意时间（含 17:10-17:55），不得基于时间值猜测编号体系；
+//   - 其余（缺省 = PR #496 之前写入的存量行，或显式旧标记）：按旧 12 节编号
+//     解释——白天 1-8 节照搬，新 9/10/11 节取旧 10/11/12 节（晚间物理时段未变，
+//     仅编号前移，旧第 9 节时段已取消故丢弃），即使第 9 节被管理员自定义过。
+//
+// 归一结果恒以现行编号盖章返回，SSR 与管理端 GET 均得到现行语义；管理端
+// 保存（服务端盖章现行编号）后存储自愈，无需数据迁移或人工修复。
 func NormalizeStoredScheduleSettings(cfg pageConfig.ScheduleSettingsConfig) pageConfig.ScheduleSettingsConfig {
+	if cfg.Numbering == pageConfig.ScheduleNumberingCurrent {
+		return cfg
+	}
 	if len(cfg.SectionTimes) == 0 {
 		return cfg
 	}
@@ -200,31 +201,23 @@ func NormalizeStoredScheduleSettings(cfg pageConfig.ScheduleSettingsConfig) page
 		return cfg
 	}
 
-	// 旧编号：新 9/10/11 节 ← 旧 10/11/12 节。
-	if nine, ok := bySection[9]; ok && nine.Start == legacyScheduleSection9Start && nine.End == legacyScheduleSection9End {
-		normalized := make([]pageConfig.ScheduleSectionTime, 0, 11)
-		for section := 1; section <= 8; section++ {
-			if item, ok := bySection[section]; ok {
-				normalized = append(normalized, item)
-			}
-		}
-		for section := 10; section <= 12; section++ {
-			if item, ok := bySection[section]; ok {
-				item.Section = section - 1
-				normalized = append(normalized, item)
-			}
-		}
-		return pageConfig.ScheduleSettingsConfig{SectionTimes: normalized}
-	}
-
-	// 现行编号：仅保留 1..11 节。
+	// 未版本化（存量）或显式旧标记：按旧编号重映射，新 9/10/11 节 ← 旧 10/11/12 节。
 	normalized := make([]pageConfig.ScheduleSectionTime, 0, 11)
-	for section := 1; section <= 11; section++ {
+	for section := 1; section <= 8; section++ {
 		if item, ok := bySection[section]; ok {
 			normalized = append(normalized, item)
 		}
 	}
-	return pageConfig.ScheduleSettingsConfig{SectionTimes: normalized}
+	for section := 10; section <= 12; section++ {
+		if item, ok := bySection[section]; ok {
+			item.Section = section - 1
+			normalized = append(normalized, item)
+		}
+	}
+	return pageConfig.ScheduleSettingsConfig{
+		Numbering:    pageConfig.ScheduleNumberingCurrent,
+		SectionTimes: normalized,
+	}
 }
 
 func GetDefaultAiSummaryConfig() pageConfig.AiSummaryConfig {
