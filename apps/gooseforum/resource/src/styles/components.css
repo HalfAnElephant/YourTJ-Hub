@@ -20,6 +20,18 @@
     background: var(--gf-color-base-100);
   }
 
+  /* 敏感词命中时标记整段输入，保留正文色保证明暗主题下都可读。 */
+  .gf-sensitive-field {
+    border-color: color-mix(in oklch, var(--gf-color-error) 68%, var(--gf-color-line)) !important;
+    background-color: color-mix(in oklch, var(--gf-color-error) 12%, var(--gf-color-base-100)) !important;
+    color: var(--gf-color-base-content) !important;
+  }
+
+  [data-theme="gf-dark"] .gf-sensitive-field {
+    border-color: color-mix(in oklch, var(--gf-color-error) 76%, var(--gf-color-line)) !important;
+    background-color: color-mix(in oklch, var(--gf-color-error) 20%, var(--gf-color-base-100)) !important;
+  }
+
   .gf-card {
     border: var(--gf-border) solid var(--gf-color-line);
     border-radius: var(--gf-radius-box);

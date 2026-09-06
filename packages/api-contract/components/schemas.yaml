@@ -4590,7 +4590,7 @@ SendChatMessageRequest:
     content:
       type: string
       minLength: 1
-      description: Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params word).
+      description: Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params `word` plus all matches in `words`).
     msgType:
       type: integer
       enum: [1, 2, 3]
@@ -7786,7 +7786,10 @@ AdminScheduleSectionTime:
       type: integer
       minimum: 1
       maximum: 12
-      description: Class-period number (第 N 节), 1..12.
+      description: >-
+        Class-period number (第 N 节). The current timetable uses sections
+        1..11; 1..12 stays accepted for compatibility with previously stored
+        legacy entries.
     start:
       type: string
       pattern: '^\d{2}:\d{2}$'
@@ -7805,7 +7808,22 @@ AdminScheduleSettingsConfig:
       type: array
       items:
         $ref: '#/AdminScheduleSectionTime'
-      description: The 12 class periods shown on the /schedule timetable, sorted by section ascending and deduplicated per section.
+      description: >-
+        The class periods of the current 11-period /schedule timetable
+        (2025-2026 academic year onward: daytime sections 1..8, evening
+        sections 9..11 starting 18:30), sorted by section ascending and
+        deduplicated per section. Historical 12-period timetables
+        (calendarId below 120) render the built-in legacy table and are not
+        affected by this configuration.
+    numbering:
+      type: string
+      enum: ['11', '12']
+      description: >-
+        Class-period numbering stamp of this table. `'11'` is the current
+        numbering; rows stored without the stamp predate the 11-period
+        migration and are normalized on read (legacy `'12'` numbering:
+        evening sections 10..12 remapped to 9..11). Saves always stamp
+        `'11'` server-side; clients may omit the field.
   additionalProperties: false
 
 AdminScheduleSettingsResponse:

@@ -19,6 +19,7 @@ const props = defineProps<{
   captchaRequired?: boolean
   captchaImg?: string
   captchaLoading?: boolean
+  sensitiveWords?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -285,6 +286,7 @@ function submit() {
                 :height="isMobileComposer() ? 320 : '100%'"
                 :compact="true"
                 :placeholder="composerPlaceholder"
+                :sensitive-words="sensitiveWords"
                 @input="emit('clearValidation')"
                 @upload="uploadImageFiles"
                 @error="handleEditorError"

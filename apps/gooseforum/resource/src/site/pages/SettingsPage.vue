@@ -52,6 +52,7 @@ import {
   saveUserInfo,
   saveUserName,
   saveUserProfileCover,
+  sensitiveWordsFromError,
   unbindOAuth,
   wearBadge,
   type OAuthBindingsPayload,
@@ -66,6 +67,7 @@ import {
 import { formatDate, formatNumber } from '@/runtime/format'
 import { useFlashMessages, type FlashMessageType } from '@/runtime/flash-message'
 import { ApiResponseError } from '@/runtime/api'
+import { containsSensitiveText } from '@/site/utils/sensitive-highlight'
 import { useSiteTheme } from '@/runtime/site-theme'
 import {
   currentPushSubscription,
@@ -119,6 +121,7 @@ type TabKey = (typeof tabKeys)[number]
 const activeTab = ref<TabKey>('profile')
 const status = ref('')
 const error = ref('')
+const sensitiveWords = ref<string[]>([])
 const savingProfile = ref(false)
 const savingUsername = ref(false)
 const savingEmail = ref(false)
@@ -687,6 +690,10 @@ function showError(message: string) {
   error.value = message
 }
 
+function clearSensitiveHighlight() {
+  sensitiveWords.value = []
+}
+
 function selectPresetAvatar(url: string) {
   if (savingPresetAvatar.value || uploadingAvatar.value) return
   presetAvatarDraft.value = url
@@ -732,6 +739,7 @@ async function applyWornBadge() {
 
 function beginInlineEdit(field: InlineProfileField) {
   if (savingInlineProfile.value || savingProfile.value) return
+  clearSensitiveHighlight()
   inlineEditingField.value = field
   inlineConfirmClear.value = null
   inlineDraft.value = field === 'bio' ? profileForm.bio : profileForm.signature
@@ -746,6 +754,7 @@ function beginInlineEdit(field: InlineProfileField) {
 
 function cancelInlineEdit() {
   if (savingInlineProfile.value) return
+  clearSensitiveHighlight()
   inlineEditingField.value = null
   inlineConfirmClear.value = null
   inlineDraft.value = ''
@@ -778,6 +787,7 @@ function clampNewlines(value: string): string {
 }
 
 function onInlineInput(event: Event) {
+  clearSensitiveHighlight()
   const nextValue = clampNewlines((event.target as HTMLTextAreaElement).value)
   inlineDraft.value = nextValue
   // 重新输入内容时退出清空确认态
@@ -815,6 +825,7 @@ async function saveInlineEdit() {
   }
 
   savingInlineProfile.value = true
+  clearSensitiveHighlight()
   try {
     await saveUserInfo({ ...profileForm, externalInformation: normalized })
     inlineEditingField.value = null
@@ -825,6 +836,7 @@ async function saveInlineEdit() {
     if (field === 'bio') profileForm.bio = previousValue
     else profileForm.signature = previousValue
     inlineConfirmClear.value = null
+    sensitiveWords.value = sensitiveWordsFromError(err)
     showError(err instanceof Error ? err.message : t('api.profileSaveFailed'))
   } finally {
     savingInlineProfile.value = false
@@ -840,10 +852,12 @@ async function saveProfile() {
   if (!normalized) return
 
   savingProfile.value = true
+  clearSensitiveHighlight()
   try {
     await saveUserInfo({ ...profileForm, externalInformation: normalized })
     showStatus(t('settings.status.profileSaved'))
   } catch (err) {
+    sensitiveWords.value = sensitiveWordsFromError(err)
     showError(err instanceof Error ? err.message : t('api.profileSaveFailed'))
   } finally {
     savingProfile.value = false
@@ -1455,7 +1469,10 @@ async function toggleBinding(provider: string) {
                     >
                       <p
                         class="gf-profile-bio"
-                        :class="{ 'gf-profile-bio--empty': profileBioIsEmpty }"
+                        :class="{
+                          'gf-profile-bio--empty': profileBioIsEmpty,
+                          'gf-sensitive-field': containsSensitiveText(profileForm.bio, sensitiveWords),
+                        }"
                       >
                         {{ profileBioIsEmpty ? t('settings.profile.addBio') : profileForm.bio }}
                       </p>
@@ -1475,6 +1492,7 @@ async function toggleBinding(provider: string) {
                       ref="inlineFieldRef"
                       :value="inlineDraft"
                       class="gf-profile-inline__textarea"
+                      :class="{ 'gf-sensitive-field': containsSensitiveText(inlineDraft, sensitiveWords) }"
                       rows="3"
                       :maxlength="BIO_MAX_LENGTH"
                       :disabled="savingInlineProfile"
@@ -1546,7 +1564,10 @@ async function toggleBinding(provider: string) {
                       <aside v-if="showSignatureQuote" class="gf-profile-signature !mt-0" :aria-label="t('user.signatureLabel')">
                         <div class="gf-profile-signature__row">
                           <Feather class="gf-profile-signature__icon" aria-hidden="true" />
-                          <p class="gf-profile-signature__text">{{ profileForm.signature }}</p>
+                          <p
+                            class="gf-profile-signature__text"
+                            :class="{ 'gf-sensitive-field': containsSensitiveText(profileForm.signature, sensitiveWords) }"
+                          >{{ profileForm.signature }}</p>
                         </div>
                         <svg class="gf-profile-signature__squiggle" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
                           <path
@@ -1580,6 +1601,7 @@ async function toggleBinding(provider: string) {
                       ref="inlineFieldRef"
                       :value="inlineDraft"
                       class="gf-profile-inline__textarea gf-profile-inline__textarea--quote"
+                      :class="{ 'gf-sensitive-field': containsSensitiveText(inlineDraft, sensitiveWords) }"
                       rows="2"
                       :maxlength="SIGNATURE_MAX_LENGTH"
                       :disabled="savingInlineProfile"
@@ -1888,11 +1910,22 @@ async function toggleBinding(provider: string) {
                 </label>
                 <label class="block">
                   <span class="text-sm font-medium text-base-content/75">{{ t('settings.profile.websiteName') }}</span>
-                  <input v-model="profileForm.websiteName" class="gf-input mt-1" />
+                  <input
+                    v-model="profileForm.websiteName"
+                    class="gf-input mt-1"
+                    :class="{ 'gf-sensitive-field': containsSensitiveText(profileForm.websiteName, sensitiveWords) }"
+                    @input="clearSensitiveHighlight"
+                  />
                 </label>
                 <label class="block">
                   <span class="text-sm font-medium text-base-content/75">{{ t('settings.profile.website') }}</span>
-                  <input v-model="profileForm.website" class="gf-input mt-1" placeholder="https://example.com" />
+                  <input
+                    v-model="profileForm.website"
+                    class="gf-input mt-1"
+                    :class="{ 'gf-sensitive-field': containsSensitiveText(profileForm.website, sensitiveWords) }"
+                    placeholder="https://example.com"
+                    @input="clearSensitiveHighlight"
+                  />
                 </label>
               </div>
 

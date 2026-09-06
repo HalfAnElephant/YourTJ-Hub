@@ -9,10 +9,12 @@ import (
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/i18n"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/course"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/moderationLog"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/reports"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/users"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/hotdataserve"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/courseservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/moderationservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/optlogger"
@@ -32,14 +34,22 @@ type CreateCourseReviewReq struct {
 }
 
 // checkCourseReviewSensitive 课评内容敏感词检查（block 语义，不引入 pending/hidden）：
-// 命中即写审核日志（subject=course_review，create 时 subjectId=0）并返回命中词。
-func checkCourseReviewSensitive(userId uint64, reviewId uint64, content string) (word string, hit bool) {
-	hit, word = moderationservice.CheckContentAllowed(content)
-	if !hit {
-		return "", false
+// 命中即写审核日志（subject=course_review，create 时 subjectId=0），返回首个词与完整列表。
+func checkCourseReviewSensitive(userId uint64, reviewId uint64, content string) (word string, words []string, hit bool) {
+	securityConfig := hotdataserve.GetSecuritySettingsConfigCache()
+	if len(securityConfig.SensitiveWords) == 0 {
+		return "", nil, false
 	}
+	words = moderationservice.FindSensitiveWordsInTextsWithConfig(
+		[]string{content, markdown2html.ExtractVisibleText(content)},
+		securityConfig,
+	)
+	if len(words) == 0 {
+		return "", nil, false
+	}
+	word = words[0]
 	moderationservice.SensitiveContentBlocked(userId, moderationLog.SubjectCourseReview, reviewId, word, reviewExcerpt(content))
-	return word, true
+	return word, words, true
 }
 
 // reviewExcerpt 截断课评内容为审核日志摘要（100 个 rune，rune 边界安全）。
@@ -59,10 +69,10 @@ func reviewExcerpt(content string) string {
 func CreateCourseReview(req component.BetterRequest[CreateCourseReviewReq]) component.Response {
 	// 敏感词拦截（controller 预检，与 topic/chat 模式一致；课评命中即 block，
 	// 不进入 pending——课评表状态机/统计/唯一键保持不变）。
-	if word, hit := checkCourseReviewSensitive(req.UserId, 0, req.Params.Content); hit {
+	if word, words, hit := checkCourseReviewSensitive(req.UserId, 0, req.Params.Content); hit {
 		return component.FailResponseCode(
 			component.MessageCourseReviewSensitiveBanned,
-			component.MessageParams{"word": word},
+			component.MessageParams{"word": word, "words": words},
 		)
 	}
 	payload, err := courseservice.CreateReview(req.UserId, courseservice.CreateReviewInput{
@@ -109,10 +119,10 @@ func UpdateCourseReview(req component.BetterRequest[UpdateCourseReviewReq]) comp
 		if err := precheckReviewOwnedBy(req.Params.ReviewId, req.UserId); err != nil {
 			return reviewErrorResponse(err)
 		}
-		if word, hit := checkCourseReviewSensitive(req.UserId, req.Params.ReviewId, *req.Params.Content); hit {
+		if word, words, hit := checkCourseReviewSensitive(req.UserId, req.Params.ReviewId, *req.Params.Content); hit {
 			return component.FailResponseCode(
 				component.MessageCourseReviewSensitiveBanned,
-				component.MessageParams{"word": word},
+				component.MessageParams{"word": word, "words": words},
 			)
 		}
 	}

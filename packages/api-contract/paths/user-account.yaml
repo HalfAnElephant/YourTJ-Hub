@@ -79,7 +79,7 @@ setUserInfo:
       the reserved/banned lists fails with `auth.nickname.reserved` /
       `auth.nickname.banned`; profile free text (bio/signature/website/websiteName)
       hitting the sensitive-word list fails with `content.sensitive.blocked`
-      (params carries the matched word). Business failures: `user.fetchFailed`,
+      (params carries the first matched word as `word` and all matched words as `words`). Business failures: `user.fetchFailed`,
       `user.updateFailed`.
     security:
       - bearerAuth: []

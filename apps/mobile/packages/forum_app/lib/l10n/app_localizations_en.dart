@@ -316,6 +316,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get topicReplyHint => 'Write a comment…';
 
   @override
+  String get topicReplyTargetUnavailable => 'The original reply is unavailable';
+
+  @override
   String get topicReplying => 'Replying… (tap to cancel)';
 
   @override
