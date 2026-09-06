@@ -877,16 +877,9 @@ void main() {
     final ScheduleStoreNotifier notifier = ScheduleStoreNotifier();
     await notifier.ready;
     // 同步清空持久化队列（页面加载仍走 mock prefs 读取，覆盖内部状态）。
-    await notifier.flush;
-    // 手动对齐持久化选择态（仓库 fake 返回 130 学期 + 专业字典）。
-    notifier.setMajorSelection(
-      PkMajorSelection(
-        calendarId: 130,
-        grade: 2025,
-        major: 'm1',
-        majorName: '软件工程',
-      ),
-    );
+    // 注意：不要在这里调 setMajorSelection —— 该方法带「换学期/换专业清空
+    // 全方案」语义，会把 prefs 种子的已排课程清空（网格变空、统计归零）；
+    // majorSelected 已随 SharedPreferences 种子写入，notifier.ready 直接加载。
     await notifier.flush;
     final ProviderContainer container = await makeRouteAContainer(
       notifier: notifier,
