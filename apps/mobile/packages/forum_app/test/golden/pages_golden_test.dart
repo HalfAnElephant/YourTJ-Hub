@@ -63,7 +63,8 @@ class OneNotificationRepository extends NotificationRepository {
 
 /// Page-level golden baselines (390x844 mobile surface, Roboto, zh locale).
 ///
-/// Regenerate intentionally after a visual change:
+/// Tagged `golden` and excluded from `melos run test` (the CI gate) via
+/// `--exclude-tags=golden`. Regenerate intentionally after a visual change:
 /// `flutter test --update-goldens test/golden/pages_golden_test.dart`
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -114,7 +115,9 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('home page golden', skip: skipGoldens, (tester) async {
+  testWidgets('home page golden', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     final container = await makeContainer();
     await pumpPageGolden(
       tester,
@@ -127,7 +130,9 @@ void main() {
     );
   });
 
-  testWidgets('home page list golden', skip: skipGoldens, (tester) async {
+  testWidgets('home page list golden', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'goose:home-feed-mode': 'list',
     });
@@ -143,7 +148,9 @@ void main() {
     );
   });
 
-  testWidgets('topic page golden', skip: skipGoldens, (tester) async {
+  testWidgets('topic page golden', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     final container = await makeContainer();
     await pumpPageGolden(
       tester,
@@ -162,7 +169,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
   });
 
-  testWidgets('notifications page golden', skip: skipGoldens, (tester) async {
+  testWidgets('notifications page golden', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     final container = await makeContainer();
     await pumpPageGolden(
       tester,
@@ -177,7 +186,9 @@ void main() {
     );
   });
 
-  testWidgets('messages page golden', skip: skipGoldens, (tester) async {
+  testWidgets('messages page golden', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     final container = await makeContainer();
     await pumpPageGolden(
       tester,
@@ -192,46 +203,54 @@ void main() {
     );
   });
 
-  testWidgets('messages new chat sheet golden', skip: skipGoldens, (
+  testWidgets(
+    'messages new chat sheet golden',
+    skip: skipGoldens,
+    tags: 'golden',
+    (tester) async {
+      final container = await makeContainer();
+      await pumpPageGolden(
+        tester,
+        UncontrolledProviderScope(
+          container: container,
+          child: const MessagesPage(),
+        ),
+      );
+      await tester.tap(find.byTooltip('新私信'));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(Overlay).first,
+        matchesGoldenFile('golden/pages/messages_new_chat.png'),
+      );
+    },
+  );
+
+  testWidgets(
+    'search page grouped results golden',
+    skip: skipGoldens,
+    tags: 'golden',
+    (tester) async {
+      final container = await makeContainer();
+      await pumpPageGolden(
+        tester,
+        UncontrolledProviderScope(
+          container: container,
+          child: const SearchPage(),
+        ),
+      );
+      await tester.enterText(find.byType(TextField), '同济');
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pumpAndSettle();
+      await expectLater(
+        find.byType(Scaffold).first,
+        matchesGoldenFile('golden/pages/search_page.png'),
+      );
+    },
+  );
+
+  testWidgets('login page golden', skip: skipGoldens, tags: 'golden', (
     tester,
   ) async {
-    final container = await makeContainer();
-    await pumpPageGolden(
-      tester,
-      UncontrolledProviderScope(
-        container: container,
-        child: const MessagesPage(),
-      ),
-    );
-    await tester.tap(find.byTooltip('新私信'));
-    await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(Overlay).first,
-      matchesGoldenFile('golden/pages/messages_new_chat.png'),
-    );
-  });
-
-  testWidgets('search page grouped results golden', skip: skipGoldens, (
-    tester,
-  ) async {
-    final container = await makeContainer();
-    await pumpPageGolden(
-      tester,
-      UncontrolledProviderScope(
-        container: container,
-        child: const SearchPage(),
-      ),
-    );
-    await tester.enterText(find.byType(TextField), '同济');
-    await tester.tap(find.byIcon(Icons.search));
-    await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(Scaffold).first,
-      matchesGoldenFile('golden/pages/search_page.png'),
-    );
-  });
-
-  testWidgets('login page golden', skip: skipGoldens, (tester) async {
     final container = await makeContainer();
     await pumpPageGolden(
       tester,
