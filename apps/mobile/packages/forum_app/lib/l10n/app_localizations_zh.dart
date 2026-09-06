@@ -310,6 +310,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get topicReplyHint => '写下你的评论…';
 
   @override
+  String get topicReplyTargetUnavailable => '原回复不可见';
+
+  @override
   String get topicReplying => '回复中…(点击取消)';
 
   @override

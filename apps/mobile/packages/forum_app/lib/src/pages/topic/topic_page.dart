@@ -53,6 +53,10 @@ class _TopicPageState extends ConsumerState<TopicPage> {
   bool _composerOpen = false;
   bool _railOpen = false;
 
+  // 引用目标缓存:post id → replyTarget,供平铺引用块渲染被引用内容。
+  final Map<int, ReplyTargetPayload> _replyTargets =
+      <int, ReplyTargetPayload>{};
+
   @override
   void initState() {
     super.initState();
@@ -96,6 +100,13 @@ class _TopicPageState extends ConsumerState<TopicPage> {
         _page = AsyncValue.data(props);
         _posts.clear();
         _posts.addAll(props.postStream.posts);
+        _replyTargets
+          ..clear()
+          ..addEntries(
+            props.postStream.replyTargets.map(
+              (ReplyTargetPayload t) => MapEntry(t.id, t),
+            ),
+          );
         _afterPostNo = props.postStream.afterPostNo;
         _hasMorePosts = props.postStream.hasAfter;
         _liked = props.topic.isLiked;
@@ -170,6 +181,9 @@ class _TopicPageState extends ConsumerState<TopicPage> {
         _posts.addAll(
           window.posts.where((PostPayload post) => existingIds.add(post.id)),
         );
+        for (final ReplyTargetPayload target in window.replyTargets) {
+          _replyTargets[target.id] = target;
+        }
         final int? nextAfterPostNo = window.afterPostNo ?? previousAfterPostNo;
         _afterPostNo = nextAfterPostNo;
         _hasMorePosts =
@@ -477,6 +491,17 @@ class _TopicPageState extends ConsumerState<TopicPage> {
     return replyPosts;
   }
 
+  /// 引用块显隐与 web showReplyReference 对齐:回复主帖不显示引用块;
+  /// 主帖不在已加载窗口时(深链/离线缓存)用 replyTargets.postNo 判定首楼目标。
+  bool _showReplyQuote(PostPayload post, PostPayload? mainPost) {
+    final int? targetId = post.replyToPostId;
+    if (targetId == null || targetId == 0) return false;
+    if (mainPost != null) return targetId != mainPost.id;
+    final ReplyTargetPayload? target = _replyTargets[targetId];
+    if (target == null) return true;
+    return target.postNo != 1;
+  }
+
   void _goBack() {
     if (context.canPop()) {
       context.pop();
@@ -565,9 +590,12 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                     children: <Widget>[
                                       _PostCard(
                                         post: post,
-                                        showReplyQuote:
-                                            post.replyToPostId != null &&
-                                            post.replyToPostId != mainPost?.id,
+                                        showReplyQuote: _showReplyQuote(
+                                          post,
+                                          mainPost,
+                                        ),
+                                        quoteTarget:
+                                            _replyTargets[post.replyToPostId],
                                         onReply: () =>
                                             _openComposer(replyTo: post),
                                         onReport: () => _reportPost(post),
@@ -950,6 +978,7 @@ class _PostCard extends StatelessWidget {
   const _PostCard({
     required this.post,
     required this.showReplyQuote,
+    required this.quoteTarget,
     required this.onReply,
     required this.onReport,
   });
@@ -958,6 +987,9 @@ class _PostCard extends StatelessWidget {
 
   /// 平铺模式下的引用块开关：回复其他楼层显示引用块，回复主帖保持轻量文本。
   final bool showReplyQuote;
+
+  /// 被引用楼层的 replyTarget（可空：目标信息缺失时按 unavailable 降级）。
+  final ReplyTargetPayload? quoteTarget;
   final VoidCallback onReply;
   final VoidCallback onReport;
 
@@ -996,7 +1028,15 @@ class _PostCard extends StatelessWidget {
           if (post.replyToUsername != null) ...[
             const SizedBox(height: 6),
             if (showReplyQuote)
-              _ReplyReference(username: post.replyToUsername!)
+              _ReplyQuote(
+                username: post.replyToUsername!,
+                postNo: quoteTarget?.postNo,
+                contentPreview: _plainTextFromHtml(
+                  quoteTarget?.renderedContent,
+                ),
+                unavailable:
+                    quoteTarget == null || quoteTarget?.unavailable == true,
+              )
             else
               Text(
                 '${l10n.topicReply} @${post.replyToUsername}',
@@ -1054,14 +1094,54 @@ class _PostCard extends StatelessWidget {
   }
 }
 
-class _ReplyReference extends StatelessWidget {
-  const _ReplyReference({required this.username});
+/// 去除服务端渲染 HTML 的标签，取纯文本预览（移动端引用块轻量展示用）。
+String _plainTextFromHtml(String? html) {
+  if (html == null || html.isEmpty) return '';
+  return html
+      .replaceAll(RegExp(r'<br\s*/?>'), '\n')
+      .replaceAll(RegExp(r'</(p|div|li|h[1-6]|blockquote|tr)>'), '\n')
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+}
+
+/// 平铺回复的引用块：被引用楼层作者/楼号 + 纯文本预览，长内容可展开收起。
+class _ReplyQuote extends StatefulWidget {
+  const _ReplyQuote({
+    required this.username,
+    required this.unavailable,
+    this.postNo,
+    this.contentPreview,
+  });
 
   final String username;
+  final int? postNo;
+  final String? contentPreview;
+  final bool unavailable;
+
+  @override
+  State<_ReplyQuote> createState() => _ReplyQuoteState();
+}
+
+class _ReplyQuoteState extends State<_ReplyQuote> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final String header = widget.postNo == null
+        ? '${l10n.topicReply} @${widget.username}'
+        : '${l10n.topicReply} @${widget.username} #${widget.postNo}';
+    final String preview = widget.contentPreview ?? '';
+    final bool hasPreview = !widget.unavailable && preview.isNotEmpty;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -1070,12 +1150,52 @@ class _ReplyReference extends StatelessWidget {
         border: Border(left: BorderSide(color: colors.primary, width: 2)),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(
-        '${AppLocalizations.of(context).topicReply} @$username',
-        style: TextStyle(
-          color: colors.baseContent.withValues(alpha: 0.55),
-          fontSize: 12,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            header,
+            style: TextStyle(
+              color: colors.baseContent.withValues(alpha: 0.55),
+              fontSize: 12,
+            ),
+          ),
+          if (widget.unavailable) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(
+              l10n.topicReplyTargetUnavailable,
+              style: TextStyle(
+                color: colors.baseContent.withValues(alpha: 0.45),
+                fontSize: 12,
+              ),
+            ),
+          ] else if (hasPreview) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(
+              preview,
+              maxLines: _expanded ? null : 3,
+              overflow: _expanded ? TextOverflow.clip : TextOverflow.ellipsis,
+              style: TextStyle(
+                color: colors.baseContent.withValues(alpha: 0.75),
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+            if (preview.length > 120)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: colors.baseContent.withValues(alpha: 0.45),
+                  ),
+                ),
+              ),
+          ],
+        ],
       ),
     );
   }

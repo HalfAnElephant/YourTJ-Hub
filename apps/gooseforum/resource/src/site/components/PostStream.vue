@@ -789,9 +789,14 @@ const renderPosts = computed<PostPayload[]>(() => {
 
 // 引用条规则：回复话题首楼（或无目标）视为话题级回复，不重复引用首楼正文；
 // 回复其他楼层才显示可折叠引用消息。目标不在当前窗口时由 replyTargets 兜底渲染
-// （含 unavailable 降级态）。
+// （含 unavailable 降级态）。深链打开后段楼层时首楼可能不在当前窗口，
+// 此时用 replyTargets.postNo 判定目标是否首楼，不能依赖当前窗口的 firstPost。
 function showReplyReference(post: PostPayload) {
-  return Boolean(post.replyToPostId) && post.replyToPostId !== firstPost.value?.id
+  if (!post.replyToPostId) return false
+  if (firstPost.value?.id) return post.replyToPostId !== firstPost.value.id
+  const target = replyTargetMap.value.get(post.replyToPostId)
+  if (!target) return true
+  return target.postNo !== 1
 }
 
 function applyPostWindowPayload(payload: Awaited<ReturnType<typeof getPostWindow>>, mergeMode: 'replace' | 'prepend' | 'append') {
@@ -2435,6 +2440,18 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                     <span class="sr-only">{{ t('topic.like') }}</span>
                   </button>
                   <button
+                    v-if="viewer.isAuthenticated && !post.isHidden && !isPostRemoved(post)"
+                    type="button"
+                    class="gf-icon-button h-7 w-7 shrink-0 hover:bg-info/10 hover:text-primary"
+                    :class="{ 'text-primary hover:text-primary': postActionState(post).isBookmarked }"
+                    :title="postActionState(post).isBookmarked ? t('topic.bookmarked') : t('topic.bookmark')"
+                    :disabled="postActionState(post).actingBookmark"
+                    @click="togglePostBookmark(post)"
+                  >
+                    <Bookmark class="h-3.5 w-3.5" :fill="postActionState(post).isBookmarked ? 'currentColor' : 'none'" />
+                    <span class="sr-only">{{ t('topic.bookmark') }}</span>
+                  </button>
+                  <button
                     type="button"
                     class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     :title="t('topic.share')"
@@ -2442,6 +2459,16 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                   >
                     <Share2 class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('topic.share') }}</span>
+                  </button>
+                  <button
+                    v-if="!post.isOwnPost && !post.isHidden && !isPostRemoved(post)"
+                    type="button"
+                    class="gf-icon-button h-7 w-7 shrink-0 hover:bg-warning/10 hover:text-warning"
+                    :title="t('topic.report')"
+                    @click="requestPostReport(post)"
+                  >
+                    <Flag class="h-3.5 w-3.5" />
+                    <span class="sr-only">{{ t('topic.report') }}</span>
                   </button>
                 </div>
               </div>
