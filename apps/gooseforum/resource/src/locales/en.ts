@@ -1137,8 +1137,6 @@ export default {
     shareFailed: 'Share failed',
     expandReply: 'Show all',
     collapseReply: 'Show less',
-    expandReplies: 'Show {count} more replies',
-    collapseReplies: 'Show fewer replies',
     replyPlaceholder: 'Write your reply...',
     publishing: 'Publishing...',
     delete: 'Delete',

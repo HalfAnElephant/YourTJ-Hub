@@ -24,7 +24,7 @@ export interface PostStreamTopicActions {
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, Teleport, useSlots, watch } from 'vue'
-import { AlertTriangle, Ban, Bell, BookOpen, Bookmark, ChevronDown, ChevronUp, ChevronsUp, Clock, CornerDownLeft, Flag, Heart, HelpCircle, History, Loader2, MoreHorizontal, PencilLine, RotateCcw, Share2, Sparkles, Trash2, X } from '@lucide/vue'
+import { AlertTriangle, Ban, Bell, BookOpen, Bookmark, ChevronsUp, Clock, CornerDownLeft, Flag, Heart, HelpCircle, History, Loader2, MoreHorizontal, PencilLine, RotateCcw, Share2, Sparkles, Trash2, X } from '@lucide/vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { bookmarkTopic, deletePost, deleteTopic, getPostRevisions, getPostWindow, likeTopic, createPost, submitReport, updateModerationTopicStatus, updateModerationPostStatus, updatePost, watchTopic, likePost, bookmarkPost, reportContentEvent, privacyEraseContent, type PostRevisionResult } from '@/runtime/api'
 import { formatDateTime, formatNumber } from '@/runtime/format'
@@ -74,7 +74,7 @@ const props = withDefaults(defineProps<{
 
 const slots = useSlots()
 const hasAside = computed(() => Boolean(props.topicActions) || Boolean(slots.aside))
-// Wiki 文章页（initialPostStreamHidden）只保留回复栏：首楼楼层已被 postGroups 过滤，
+// Wiki 文章页（initialPostStreamHidden）只保留回复栏：首楼楼层已被 sortedPosts 过滤，
 // 这里同时隐藏底部「热门内容」内容列表，避免正文下方残留内容列表区块。
 const hasHotTopics = computed(() => Boolean(props.hotTopics?.length) && !props.initialPostStreamHidden)
 
@@ -687,16 +687,6 @@ async function syncPostHash() {
 
 function highlightPost(postId: number) {
   highlightedPostId.value = postId
-  // 深层链接：若目标回复被折叠在"前 3 条预览"之外，自动展开所在分组
-  const group = postGroups.value.find((g) => g.root.id === postId || g.replies.some((reply) => reply.id === postId))
-  if (group && group.root.id !== postId) {
-    const replyIndex = group.replies.findIndex((reply) => reply.id === postId)
-    if (replyIndex >= nestedRepliesPreviewCount) {
-      const next = new Set(expandedReplyGroups.value)
-      next.add(group.root.id)
-      expandedReplyGroups.value = next
-    }
-  }
   window.clearTimeout(highlightTimer)
   highlightTimer = window.setTimeout(() => {
     highlightedPostId.value = null
@@ -728,72 +718,31 @@ function replyTargetFor(post: PostPayload) {
   return post.replyToPostId ? replyTargetMap.value.get(post.replyToPostId) : undefined
 }
 
-interface NestedPostGroup {
-  root: PostPayload
-  replies: PostPayload[]
-}
-
-const nestedRepliesPreviewCount = 3
-const expandedReplyGroups = ref<Set<number>>(new Set())
-
-// 楼层分组：回复其目标楼层在当前窗口内可见的帖子，收进目标楼层的嵌套回复区展示
-// （限制一层缩进；任意深度的嵌套回复持续上溯挂到真实 root 下，用引用条保留对话脉络）
-const postGroups = computed<NestedPostGroup[]>(() => {
-  const byId = new Map(posts.value.map((post) => [post.id, post]))
-  const childrenByParent = new Map<number, PostPayload[]>()
-  const roots: PostPayload[] = []
-
-  // 沿 replyToPostId 链持续上溯到真实 root（防环：已访问节点直接截断）
-  const resolveRoot = (post: PostPayload): PostPayload => {
-    const visited = new Set<number>()
-    let cursor: PostPayload = post
-    while (cursor.replyToPostId) {
-      if (visited.has(cursor.id)) break
-      visited.add(cursor.id)
-      const next = byId.get(cursor.replyToPostId)
-      if (!next) break
-      cursor = next
-    }
-    return cursor
-  }
-
-  for (const post of posts.value) {
-    const parent = post.replyToPostId ? byId.get(post.replyToPostId) : undefined
-    if (!parent) {
-      roots.push(post)
-      continue
-    }
-    // 持续上溯至真实 root：A→B→C→D 时 D 也必须挂到 A 下，保证有渲染出口
-    const effectiveParent = resolveRoot(post)
-    const siblings = childrenByParent.get(effectiveParent.id)
-    if (siblings) siblings.push(post)
-    else childrenByParent.set(effectiveParent.id, [post])
-  }
-
-  let groups = roots.map((root) => ({
-    root,
-    replies: (childrenByParent.get(root.id) ?? []).sort((a, b) => a.postNo - b.postNo),
-  }))
-
-  // 隐藏首楼（Wiki 正文已在页面上方渲染）：首楼本身不渲染，挂在首楼下的回复提升为独立楼层。
-  // 提升后与其余 root 楼合并，按 postNo 升序重排，避免首楼回复（postNo > 1）插到更小的楼号之前。
-  // initialPostStreamHidden 时连首楼回复也一并隐藏（Wiki 页只留回复栏，不展示内容列表楼层）。
-  if (props.hideFirstPost) {
-    const firstGroup = groups.find((group) => group.root.postNo === 1)
-    if (firstGroup) {
-      if (props.initialPostStreamHidden) {
-        groups = groups.filter((group) => group.root.postNo !== 1)
-      } else {
-        const promotedReplies = firstGroup.replies.map((reply) => ({ root: reply, replies: [] as PostPayload[] }))
-        groups = [
-          ...promotedReplies,
-          ...groups.filter((group) => group.root.postNo !== 1),
-        ].sort((a, b) => (a.root.postNo || 0) - (b.root.postNo || 0))
+// 楼层平铺：全部楼层按 postNo 升序线性展示；replyToPostId 仅用于引用条、通知路由与 Q&A 回答
+// 标记，不再用于分组嵌套。跨窗口加载的楼层天然按楼号归位，树跨窗的孤儿引用问题随之消失。
+const sortedPosts = computed<PostPayload[]>(() => {
+  const list = [...posts.value]
+  list.sort((a, b) => (a.postNo || 0) - (b.postNo || 0))
+  if (!props.hideFirstPost) return list
+  // Wiki 页（hideFirstPost）：首楼正文已在页面上方渲染，楼层流不再重复首楼本身。
+  // initialPostStreamHidden 时连首楼的整棵回复链也一并隐藏（Wiki 页只留评论流），
+  // 保留话题级回复（reply_to=0）。
+  if (props.initialPostStreamHidden) {
+    const hiddenIds = new Set<number>()
+    const first = list.find((post) => post.postNo === 1)
+    if (first?.id) hiddenIds.add(first.id)
+    for (let grew = true; grew; ) {
+      grew = false
+      for (const post of list) {
+        if (!hiddenIds.has(post.id) && post.replyToPostId && hiddenIds.has(post.replyToPostId)) {
+          hiddenIds.add(post.id)
+          grew = true
+        }
       }
     }
+    return list.filter((post) => !hiddenIds.has(post.id))
   }
-
-  return groups
+  return list.filter((post) => post.postNo !== 1)
 })
 
 // For Q&A topics, separate answers from comments
@@ -822,35 +771,27 @@ function renderedPostContent(post: PostPayload) {
   return html
 }
 
-const answerGroups = computed<NestedPostGroup[]>(() => {
+const answerPosts = computed<PostPayload[]>(() => {
   if (!isQuestionTopic.value) return []
-  return postGroups.value.filter((group) => group.root.isAnswer && group.root.postNo > 1)
+  return sortedPosts.value.filter((post) => post.isAnswer && post.postNo > 1)
 })
 
-const commentGroups = computed<NestedPostGroup[]>(() => {
-  if (!isQuestionTopic.value) return postGroups.value
+const commentPosts = computed<PostPayload[]>(() => {
+  if (!isQuestionTopic.value) return sortedPosts.value
   // For Q&A: show question (postNo=1) and comments (non-answer posts)
-  return postGroups.value.filter((group) => !group.root.isAnswer || group.root.postNo === 1)
+  return sortedPosts.value.filter((post) => !post.isAnswer || post.postNo === 1)
 })
 
-// Choose which groups to render based on content type
-const renderGroups = computed<NestedPostGroup[]>(() => {
-  return isQuestionTopic.value ? commentGroups.value : postGroups.value
+// Choose which posts to render based on content type
+const renderPosts = computed<PostPayload[]>(() => {
+  return isQuestionTopic.value ? commentPosts.value : sortedPosts.value
 })
 
-function visibleReplies(group: NestedPostGroup) {
-  return expandedReplyGroups.value.has(group.root.id) ? group.replies : group.replies.slice(0, nestedRepliesPreviewCount)
-}
-
-function groupRepliesExpanded(group: NestedPostGroup) {
-  return expandedReplyGroups.value.has(group.root.id)
-}
-
-function toggleGroupReplies(rootId: number) {
-  const next = new Set(expandedReplyGroups.value)
-  if (next.has(rootId)) next.delete(rootId)
-  else next.add(rootId)
-  expandedReplyGroups.value = next
+// 引用条规则：回复话题首楼（或无目标）视为话题级回复，不重复引用首楼正文；
+// 回复其他楼层才显示可折叠引用消息。目标不在当前窗口时由 replyTargets 兜底渲染
+// （含 unavailable 降级态）。
+function showReplyReference(post: PostPayload) {
+  return Boolean(post.replyToPostId) && post.replyToPostId !== firstPost.value?.id
 }
 
 function applyPostWindowPayload(payload: Awaited<ReturnType<typeof getPostWindow>>, mergeMode: 'replace' | 'prepend' | 'append') {
@@ -1831,18 +1772,18 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
         </div>
 
         <article
-          v-for="(group, index) in renderGroups"
-          :id="`post-${group.root.id}`"
-          :key="group.root.id"
-          :data-post-no="group.root.postNo"
+          v-for="(post, index) in renderPosts"
+          :id="`post-${post.id}`"
+          :key="post.id"
+          :data-post-no="post.postNo"
           class="group relative scroll-mt-20 transition-[background-color]"
           :class="[
-            isFirstPost(group.root) && hasShortFormImages
+            isFirstPost(post) && hasShortFormImages
               ? 'flex flex-col px-3 pt-0 pb-4 sm:grid sm:grid-cols-[52px_minmax(0,1fr)] sm:gap-4 sm:p-5'
               : 'grid grid-cols-[40px_minmax(0,1fr)] gap-2.5 px-3 py-4 sm:grid-cols-[52px_minmax(0,1fr)] sm:gap-4 sm:p-5',
             {
               'border-t border-line xl:border-t-transparent': index > 0,
-              'bg-info/10': highlightedPostId === group.root.id,
+              'bg-info/10': highlightedPostId === post.id,
               '[border-top-left-radius:calc(var(--gf-radius-box)-var(--gf-border))] [border-top-right-radius:calc(var(--gf-radius-box)-var(--gf-border))]': index === 0 && !postHasBefore,
             },
           ]"
@@ -1851,7 +1792,7 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
 
           <!-- 移动端短文置顶多图轮播视窗（小红书/现代社媒图文风格：图窗在最上，满宽展开） -->
           <div
-            v-if="isFirstPost(group.root) && hasShortFormImages"
+            v-if="isFirstPost(post) && hasShortFormImages"
             class="block sm:hidden -mx-3 mb-3.5 overflow-hidden [border-top-left-radius:calc(var(--gf-radius-box)-var(--gf-border))] [border-top-right-radius:calc(var(--gf-radius-box)-var(--gf-border))]"
           >
             <TopicImageGallery
@@ -1862,19 +1803,19 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
 
           <!-- 移动端短文作者与头像栏（图窗下方，正文上方） -->
           <div
-            v-if="isFirstPost(group.root) && hasShortFormImages"
+            v-if="isFirstPost(post) && hasShortFormImages"
             class="flex sm:hidden items-center justify-between gap-2.5 mb-2.5"
           >
             <div class="flex items-center gap-2.5 min-w-0">
               <a
-                :href="`/u/${group.root.author.id}`"
+                :href="`/u/${post.author.id}`"
                 class="shrink-0 pt-0.5"
-                @click="showUserCard(group.root.author, $event)"
+                @click="showUserCard(post.author, $event)"
               >
                 <UserAvatar
-                  :src="group.root.author.avatarUrl"
-                  :alt="group.root.author.username"
-                  :badge="group.root.author.wornBadge"
+                  :src="post.author.avatarUrl"
+                  :alt="post.author.username"
+                  :badge="post.author.wornBadge"
                   class="h-9 w-9 rounded-full ring-1 ring-line"
                   img-class="rounded-full"
                 />
@@ -1882,10 +1823,10 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
               <div class="min-w-0 flex flex-col">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <a
-                    :href="`/u/${group.root.author.id}`"
+                    :href="`/u/${post.author.id}`"
                     class="min-w-0 truncate font-semibold text-sm text-base-content hover:text-primary"
                   >
-                    {{ authorDisplayName(group.root.author) }}
+                    {{ authorDisplayName(post.author) }}
                   </a>
                   <span
                     v-if="props.contentType === 1"
@@ -1902,17 +1843,17 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                     {{ t('publish.contentTypes.thought') }}
                   </span>
                 </div>
-                <time class="text-xs text-base-content/55">{{ formatDateTime(group.root.createdAt) }}</time>
+                <time class="text-xs text-base-content/55">{{ formatDateTime(post.createdAt) }}</time>
               </div>
             </div>
             <div class="flex items-center gap-1 shrink-0">
               <button
-                v-if="canEditPost(group.root)"
+                v-if="canEditPost(post)"
                 type="button"
                 class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                :disabled="savingEditPostId === group.root.id || deletingPostId === group.root.id"
+                :disabled="savingEditPostId === post.id || deletingPostId === post.id"
                 :title="t('common.edit')"
-                @click="startEditPost(group.root)"
+                @click="startEditPost(post)"
               >
                 <PencilLine class="h-3.5 w-3.5" />
                 <span class="sr-only">{{ t('common.edit') }}</span>
@@ -1921,37 +1862,37 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
           </div>
 
           <a
-            :href="`/u/${group.root.author.id}`"
+            :href="`/u/${post.author.id}`"
             class="sticky top-19 self-start pt-1"
-            :class="isFirstPost(group.root) && hasShortFormImages ? 'hidden sm:block' : 'block'"
-            @click="showUserCard(group.root.author, $event)"
+            :class="isFirstPost(post) && hasShortFormImages ? 'hidden sm:block' : 'block'"
+            @click="showUserCard(post.author, $event)"
           >
-            <UserAvatar :src="group.root.author.avatarUrl" :alt="group.root.author.username" :badge="group.root.author.wornBadge" class="h-9 w-9 rounded-full ring-1 ring-line sm:h-10 sm:w-10" img-class="rounded-full" />
+            <UserAvatar :src="post.author.avatarUrl" :alt="post.author.username" :badge="post.author.wornBadge" class="h-9 w-9 rounded-full ring-1 ring-line sm:h-10 sm:w-10" img-class="rounded-full" />
           </a>
           <div class="min-w-0">
             <div
               class="mb-1.5 min-w-0 items-start justify-between gap-2"
-              :class="isFirstPost(group.root) && hasShortFormImages ? 'hidden sm:flex' : 'flex'"
+              :class="isFirstPost(post) && hasShortFormImages ? 'hidden sm:flex' : 'flex'"
             >
               <div class="min-w-0">
                 <div class="flex min-w-0 items-center gap-2">
-                  <a :href="`/u/${group.root.author.id}`" class="min-w-0 truncate font-semibold text-base-content hover:text-primary">{{ authorDisplayName(group.root.author) }}</a>
-                  <span v-if="group.root.postNo" class="hidden shrink-0 text-xs font-semibold tabular-nums text-base-content/55 sm:inline">#{{ formatNumber(group.root.postNo) }}</span>
+                  <a :href="`/u/${post.author.id}`" class="min-w-0 truncate font-semibold text-base-content hover:text-primary">{{ authorDisplayName(post.author) }}</a>
+                  <span v-if="post.postNo" class="hidden shrink-0 text-xs font-semibold tabular-nums text-base-content/55 sm:inline">#{{ formatNumber(post.postNo) }}</span>
                 </div>
                 <div class="mt-0.5 flex items-center gap-2 text-xs text-base-content/55 sm:hidden">
-                  <span v-if="group.root.postNo" class="font-semibold tabular-nums text-base-content/55">#{{ formatNumber(group.root.postNo) }}</span>
-                  <time class="truncate">{{ formatDateTime(group.root.createdAt) }}</time>
+                  <span v-if="post.postNo" class="font-semibold tabular-nums text-base-content/55">#{{ formatNumber(post.postNo) }}</span>
+                  <time class="truncate">{{ formatDateTime(post.createdAt) }}</time>
                 </div>
               </div>
               <div class="flex shrink-0 items-center gap-1 sm:gap-1.5">
                 <!-- 1. 编辑按钮：作者/可编辑者可见（首楼与回复楼层均可用） -->
                 <button
-                  v-if="canEditPost(group.root)"
+                  v-if="canEditPost(post)"
                   type="button"
                   class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  :disabled="savingEditPostId === group.root.id || deletingPostId === group.root.id"
+                  :disabled="savingEditPostId === post.id || deletingPostId === post.id"
                   :title="t('common.edit')"
-                  @click="startEditPost(group.root)"
+                  @click="startEditPost(post)"
                 >
                   <PencilLine class="h-3.5 w-3.5" />
                   <span class="sr-only">{{ t('common.edit') }}</span>
@@ -1959,110 +1900,110 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
 
                 <!-- 2. 操作按钮组：非首楼移动+桌面均展示；首楼仅在桌面端展示快捷按钮，移动端收纳到首楼底部避免昵称被截断 -->
                 <button
-                  v-if="canDeleteRenderedPost(group.root)"
+                  v-if="canDeleteRenderedPost(post)"
                   type="button"
                   class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  :class="isFirstPost(group.root) ? 'hidden sm:inline-flex' : 'inline-flex'"
-                  :disabled="deletingPostId === group.root.id"
-                  :title="deletingPostId === group.root.id ? t('topic.deleting') : t('topic.delete')"
-                  @click="requestDeletePost(group.root)"
+                  :class="isFirstPost(post) ? 'hidden sm:inline-flex' : 'inline-flex'"
+                  :disabled="deletingPostId === post.id"
+                  :title="deletingPostId === post.id ? t('topic.deleting') : t('topic.delete')"
+                  @click="requestDeletePost(post)"
                 >
                   <Trash2 class="h-3.5 w-3.5" />
-                  <span class="sr-only">{{ deletingPostId === group.root.id ? t('topic.deleting') : t('topic.delete') }}</span>
+                  <span class="sr-only">{{ deletingPostId === post.id ? t('topic.deleting') : t('topic.delete') }}</span>
                 </button>
                 <button
-                  v-if="(!viewer.isAuthenticated || canPost) && !group.root.isHidden && !isPostRemoved(group.root)"
+                  v-if="(!viewer.isAuthenticated || canPost) && !post.isHidden && !isPostRemoved(post)"
                   type="button"
                   class="h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:h-8 sm:w-8"
-                  :class="isFirstPost(group.root) ? 'hidden sm:inline-flex' : 'inline-flex'"
+                  :class="isFirstPost(post) ? 'hidden sm:inline-flex' : 'inline-flex'"
                   :title="t('topic.reply')"
-                  @click="replyTo(group.root)"
+                  @click="replyTo(post)"
                 >
                   <CornerDownLeft class="h-3.5 w-3.5" />
                   <span class="sr-only">{{ t('topic.reply') }}</span>
                 </button>
                 <button
-                  v-if="viewer.isAuthenticated && !group.root.isHidden && !isPostRemoved(group.root)"
+                  v-if="viewer.isAuthenticated && !post.isHidden && !isPostRemoved(post)"
                   type="button"
                   class="h-7 shrink-0 items-center gap-1 rounded-md px-1 text-icon-muted transition hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:px-1.5"
                   :class="[
-                    isFirstPost(group.root) ? 'hidden sm:inline-flex' : 'inline-flex',
-                    { 'text-error hover:text-error': postActionState(group.root).isLiked },
+                    isFirstPost(post) ? 'hidden sm:inline-flex' : 'inline-flex',
+                    { 'text-error hover:text-error': postActionState(post).isLiked },
                   ]"
                   :title="t('topic.like')"
-                  :disabled="postActionState(group.root).actingLike"
-                  @click="togglePostLike(group.root)"
+                  :disabled="postActionState(post).actingLike"
+                  @click="togglePostLike(post)"
                 >
-                  <Heart class="h-3.5 w-3.5" :fill="postActionState(group.root).isLiked ? 'currentColor' : 'none'" />
-                  <span v-if="postActionState(group.root).likeCount" class="hidden text-xs font-semibold tabular-nums sm:inline">{{ formatNumber(postActionState(group.root).likeCount) }}</span>
+                  <Heart class="h-3.5 w-3.5" :fill="postActionState(post).isLiked ? 'currentColor' : 'none'" />
+                  <span v-if="postActionState(post).likeCount" class="hidden text-xs font-semibold tabular-nums sm:inline">{{ formatNumber(postActionState(post).likeCount) }}</span>
                   <span class="sr-only">{{ t('topic.like') }}</span>
                 </button>
                 <button
-                  v-if="viewer.isAuthenticated && !group.root.isHidden && !isPostRemoved(group.root)"
+                  v-if="viewer.isAuthenticated && !post.isHidden && !isPostRemoved(post)"
                   type="button"
                   class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   :class="[
-                    isFirstPost(group.root) ? 'hidden sm:inline-flex' : 'inline-flex',
-                    { 'text-primary hover:text-primary': postActionState(group.root).isBookmarked },
+                    isFirstPost(post) ? 'hidden sm:inline-flex' : 'inline-flex',
+                    { 'text-primary hover:text-primary': postActionState(post).isBookmarked },
                   ]"
-                  :title="postActionState(group.root).isBookmarked ? t('topic.bookmarked') : t('topic.bookmark')"
-                  :disabled="postActionState(group.root).actingBookmark"
-                  @click="togglePostBookmark(group.root)"
+                  :title="postActionState(post).isBookmarked ? t('topic.bookmarked') : t('topic.bookmark')"
+                  :disabled="postActionState(post).actingBookmark"
+                  @click="togglePostBookmark(post)"
                 >
-                  <Bookmark class="h-3.5 w-3.5" :fill="postActionState(group.root).isBookmarked ? 'currentColor' : 'none'" />
+                  <Bookmark class="h-3.5 w-3.5" :fill="postActionState(post).isBookmarked ? 'currentColor' : 'none'" />
                   <span class="sr-only">{{ t('topic.bookmark') }}</span>
                 </button>
                 <button
                   type="button"
                   class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  :class="isFirstPost(group.root) ? 'hidden sm:inline-flex' : 'inline-flex'"
+                  :class="isFirstPost(post) ? 'hidden sm:inline-flex' : 'inline-flex'"
                   :title="t('topic.share')"
-                  @click="sharePost(group.root)"
+                  @click="sharePost(post)"
                 >
                   <Share2 class="h-3.5 w-3.5" />
                   <span class="sr-only">{{ t('topic.share') }}</span>
                 </button>
                 <button
-                  v-if="!group.root.isOwnPost && !group.root.isHidden && !isPostRemoved(group.root)"
+                  v-if="!post.isOwnPost && !post.isHidden && !isPostRemoved(post)"
                   type="button"
                   class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-warning/10 hover:text-warning focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning focus-visible:ring-offset-2"
-                  :class="isFirstPost(group.root) ? 'hidden sm:inline-flex' : 'inline-flex'"
+                  :class="isFirstPost(post) ? 'hidden sm:inline-flex' : 'inline-flex'"
                   :title="t('topic.report')"
-                  @click="requestPostReport(group.root)"
+                  @click="requestPostReport(post)"
                 >
                   <Flag class="h-3.5 w-3.5" />
                   <span class="sr-only">{{ t('topic.report') }}</span>
                 </button>
                 <button
-                  v-if="group.root.canModerate && group.root.processStatus === 0"
+                  v-if="post.canModerate && post.processStatus === 0"
                   type="button"
                   class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2 disabled:opacity-50"
-                  :class="isFirstPost(group.root) ? 'hidden sm:inline-flex' : 'inline-flex'"
-                  :disabled="postModerationBusy(group.root.id)"
+                  :class="isFirstPost(post) ? 'hidden sm:inline-flex' : 'inline-flex'"
+                  :disabled="postModerationBusy(post.id)"
                   :title="t('topic.moderationBan')"
-                  @click="moderatePost(group.root, 'ban')"
+                  @click="moderatePost(post, 'ban')"
                 >
                   <Ban class="h-3.5 w-3.5" />
                   <span class="sr-only">{{ t('topic.moderationBan') }}</span>
                 </button>
                 <button
-                  v-else-if="group.root.canModerate && group.root.processStatus === 1"
+                  v-else-if="post.canModerate && post.processStatus === 1"
                   type="button"
                   class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50"
-                  :class="isFirstPost(group.root) ? 'hidden sm:inline-flex' : 'inline-flex'"
-                  :disabled="postModerationBusy(group.root.id)"
+                  :class="isFirstPost(post) ? 'hidden sm:inline-flex' : 'inline-flex'"
+                  :disabled="postModerationBusy(post.id)"
                   :title="t('topic.moderationUnban')"
-                  @click="moderatePost(group.root, 'unban')"
+                  @click="moderatePost(post, 'unban')"
                 >
                   <RotateCcw class="h-3.5 w-3.5" />
                   <span class="sr-only">{{ t('topic.moderationUnban') }}</span>
                 </button>
 
                 <!-- 大屏时间展示 -->
-                <time class="hidden w-36 shrink-0 text-right text-xs text-base-content/55 sm:-ml-1 sm:block">{{ formatDateTime(group.root.createdAt) }}</time>
+                <time class="hidden w-36 shrink-0 text-right text-xs text-base-content/55 sm:-ml-1 sm:block">{{ formatDateTime(post.createdAt) }}</time>
 
                 <!-- 首楼内容类型徽章：只显示唯一且明确的类型徽章，未配置时回退为“正文” -->
-                <template v-if="isFirstPost(group.root)">
+                <template v-if="isFirstPost(post)">
                   <span
                     v-if="props.contentType === 1"
                     class="shrink-0 self-center inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success"
@@ -2093,22 +2034,22 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                 </template>
               </div>
             </div>
-            <PostReplyReference v-if="group.root.replyToPostId" :target="replyTargetFor(group.root)" />
-            <div v-if="group.root.isAuthorDeleted" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
+            <PostReplyReference v-if="showReplyReference(post)" :target="replyTargetFor(post)" />
+            <div v-if="post.isAuthorDeleted" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
               <div class="font-semibold text-base-content/70">{{ t('topic.authorDeletedTitle') }}</div>
               <div class="mt-1 leading-6">{{ t('topic.authorDeletedPlaceholder') }}</div>
             </div>
-            <div v-else-if="group.root.isModeratorRemoved" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
+            <div v-else-if="post.isModeratorRemoved" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
               <div class="font-semibold text-base-content/70">{{ t('topic.moderatorRemovedTitle') }}</div>
               <div class="mt-1 leading-6">{{ t('topic.moderatorRemovedPlaceholder') }}</div>
             </div>
-            <div v-else-if="group.root.isHidden && !group.root.canModerate" class="rounded border border-line bg-base-200/60 px-3 py-2 text-sm text-base-content/45">
+            <div v-else-if="post.isHidden && !post.canModerate" class="rounded border border-line bg-base-200/60 px-3 py-2 text-sm text-base-content/45">
               {{ t('topic.hiddenReplyPlaceholder') }}
             </div>
             <div v-else>
               <!-- 置顶多图轮播视窗（移动端已在最顶部置顶展示，桌面端在此保留） -->
               <TopicImageGallery
-                v-if="isShortFormTopic && isFirstPost(group.root) && topicImages && topicImages.length > 0"
+                v-if="isShortFormTopic && isFirstPost(post) && topicImages && topicImages.length > 0"
                 :images="topicImages"
                 :title="props.topicTitle"
                 class="mb-4 hidden sm:block"
@@ -2119,20 +2060,20 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                 v-math-render
                 v-content-enhancements
                 class="gf-prose gf-prose-post"
-                :class="{ 'gf-prose-article': isBlogLikeTopic && isFirstPost(group.root), 'gf-prose-thought': props.contentType === 2 && isFirstPost(group.root) }"
-                v-html="renderedPostContent(group.root)"
+                :class="{ 'gf-prose-article': isBlogLikeTopic && isFirstPost(post), 'gf-prose-thought': props.contentType === 2 && isFirstPost(post) }"
+                v-html="renderedPostContent(post)"
               />
             </div>
-            <div v-if="group.root.isHidden && !isPostRemoved(group.root) && group.root.canModerate" class="mt-2 inline-flex rounded bg-base-200 px-2 py-1 text-xs font-semibold text-base-content/45">
+            <div v-if="post.isHidden && !isPostRemoved(post) && post.canModerate" class="mt-2 inline-flex rounded bg-base-200 px-2 py-1 text-xs font-semibold text-base-content/45">
               {{ t('topic.hiddenReplyBadge') }}
             </div>
-            <div v-if="!group.root.lastEditedAt && group.root.updatedAt && group.root.updatedAt !== group.root.createdAt" class="mt-2 text-xs font-medium text-base-content/55">
-              {{ t('topic.editedAt', { time: formatDateTime(group.root.updatedAt) }) }}
+            <div v-if="!post.lastEditedAt && post.updatedAt && post.updatedAt !== post.createdAt" class="mt-2 text-xs font-medium text-base-content/55">
+              {{ t('topic.editedAt', { time: formatDateTime(post.updatedAt) }) }}
             </div>
-            <div v-if="group.root.lastEditedAt && group.root.lastEditor" class="mt-2 text-xs font-medium text-base-content/55">
-              {{ lastEditedLabel(group.root) }}
+            <div v-if="post.lastEditedAt && post.lastEditor" class="mt-2 text-xs font-medium text-base-content/55">
+              {{ lastEditedLabel(post) }}
             </div>
-            <div v-if="isFirstPost(group.root) && topicActions" class="mt-4 border-t border-line/60 pt-3">
+            <div v-if="isFirstPost(post) && topicActions" class="mt-4 border-t border-line/60 pt-3">
               <!-- 桌面端操作栏：完整平铺展开，不必收纳入更多菜单（sm 及以上屏幕显示） -->
               <div class="hidden sm:flex sm:items-center sm:justify-between sm:gap-2">
                 <div class="flex flex-wrap items-center gap-2">
@@ -2144,7 +2085,7 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                     :class="isProminentReply
                       ? 'bg-primary text-primary-content font-medium px-3.5 shadow-sm hover:shadow hover:bg-primary/90'
                       : 'px-3 text-base-content/70 hover:bg-base-200 hover:text-base-content'"
-                    @click="replyTo(firstPost || group.root)"
+                    @click="replyTo(firstPost || post)"
                   >
                     <CornerDownLeft class="h-4 w-4 shrink-0" />
                     <span>{{ isQuestionTopic ? t('topic.writeAnswer') : t('topic.reply') }}</span>
@@ -2189,10 +2130,10 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
 
                   <!-- 查看编辑历史 -->
                   <button
-                    v-if="group.root.revisionCount > 1"
+                    v-if="post.revisionCount > 1"
                     type="button"
                     class="gf-button gf-button-sm rounded-full px-3 text-base-content/70 hover:bg-base-200 hover:text-base-content active:scale-95 transition-all"
-                    @click="openPostHistory(group.root)"
+                    @click="openPostHistory(post)"
                   >
                     <History class="h-4 w-4 shrink-0" />
                     <span>{{ t('topic.editHistory') }}</span>
@@ -2205,7 +2146,7 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                     type="button"
                     class="gf-icon-button h-8 w-8 rounded-full text-base-content/60 hover:bg-base-200 hover:text-base-content active:scale-95 transition-all"
                     :title="t('topic.share')"
-                    @click="sharePost(firstPost || group.root)"
+                    @click="sharePost(firstPost || post)"
                   >
                     <Share2 class="h-4 w-4" />
                     <span class="sr-only">{{ t('topic.share') }}</span>
@@ -2269,7 +2210,7 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                     :class="isProminentReply
                       ? 'bg-primary text-primary-content font-medium px-3 shadow-xs hover:shadow hover:bg-primary/90'
                       : 'px-2.5 text-base-content/70 hover:bg-base-200 hover:text-base-content'"
-                    @click="replyTo(firstPost || group.root)"
+                    @click="replyTo(firstPost || post)"
                   >
                     <CornerDownLeft class="h-3.5 w-3.5 shrink-0" />
                     <span>{{ isQuestionTopic ? t('topic.writeAnswer') : t('topic.reply') }}</span>
@@ -2306,7 +2247,7 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                     type="button"
                     class="gf-icon-button h-8 w-8 rounded-full text-base-content/60 hover:bg-base-200 hover:text-base-content active:scale-95 transition-all"
                     :title="t('topic.share')"
-                    @click="sharePost(firstPost || group.root)"
+                    @click="sharePost(firstPost || post)"
                   >
                     <Share2 class="h-4 w-4" />
                     <span class="sr-only">{{ t('topic.share') }}</span>
@@ -2349,11 +2290,11 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
 
                           <!-- 查看编辑历史 -->
                           <button
-                            v-if="group.root.revisionCount > 1"
+                            v-if="post.revisionCount > 1"
                             type="button"
                             role="menuitem"
                             class="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-medium text-base-content/85 transition-colors hover:bg-base-200/80 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 cursor-pointer"
-                            @click="openPostHistory(group.root); moreActionsOpen = false"
+                            @click="openPostHistory(post); moreActionsOpen = false"
                           >
                             <History class="h-4 w-4 shrink-0" />
                             <span>{{ t('topic.editHistory') }}</span>
@@ -2417,242 +2358,111 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
               <span v-if="actionMessage" class="mt-2 block text-xs" :class="actionMessageSuccess ? 'text-base-content/75' : 'text-error'">{{ actionMessage }}</span>
             </div>
 
-            <div v-if="group.replies.length" class="mt-4 space-y-2 border-t border-line pt-3">
-              <div
-                v-for="(reply, replyIndex) in visibleReplies(group)"
-                :id="`post-${reply.id}`"
-                :key="reply.id"
-                :data-post-no="reply.postNo"
-                class="relative rounded-lg border border-line/80 bg-base-200/40 px-3 py-2.5 transition-colors sm:px-4"
-                :class="{
-                  'bg-info/10': highlightedPostId === reply.id,
-                  'border-t border-line/80': replyIndex > 0,
-                }"
-              >
-                <PostReplyReference v-if="reply.replyToPostId && reply.replyToPostId !== group.root.id" :target="replyTargetFor(reply)" />
-                <div class="flex min-w-0 items-center gap-2">
-                  <a :href="`/u/${reply.author.id}`" class="shrink-0" @click="showUserCard(reply.author, $event)">
-                    <UserAvatar :src="reply.author.avatarUrl" :alt="reply.author.username" :badge="reply.author.wornBadge" class="h-6 w-6 rounded-full ring-1 ring-line" img-class="rounded-full" />
-                  </a>
-                  <a :href="`/u/${reply.author.id}`" class="min-w-0 truncate text-sm font-semibold text-base-content hover:text-primary" @click="showUserCard(reply.author, $event)">{{ authorDisplayName(reply.author) }}</a>
-                  <span class="shrink-0 text-xs font-semibold tabular-nums text-base-content/55">#{{ formatNumber(reply.postNo) }}</span>
-                  <time class="ml-auto shrink-0 truncate text-xs text-base-content/55">{{ formatDateTime(reply.createdAt) }}</time>
-                </div>
-                <div v-if="reply.isAuthorDeleted" class="mt-2 rounded border border-dashed border-line bg-base-100 px-3 py-2.5 text-sm text-base-content/55">
-                  <div class="font-semibold text-base-content/70">{{ t('topic.authorDeletedTitle') }}</div>
-                  <div class="mt-1 leading-6">{{ t('topic.authorDeletedPlaceholder') }}</div>
-                </div>
-                <div v-else-if="reply.isModeratorRemoved" class="mt-2 rounded border border-dashed border-line bg-base-100 px-3 py-2.5 text-sm text-base-content/55">
-                  <div class="font-semibold text-base-content/70">{{ t('topic.moderatorRemovedTitle') }}</div>
-                  <div class="mt-1 leading-6">{{ t('topic.moderatorRemovedPlaceholder') }}</div>
-                </div>
-                <div v-else-if="reply.isHidden && !reply.canModerate" class="mt-2 rounded border border-line bg-base-100 px-3 py-2 text-sm text-base-content/45">
-                  {{ t('topic.hiddenReplyPlaceholder') }}
-                </div>
-                <div v-else v-code-copy v-code-highlight v-math-render v-content-enhancements class="gf-prose gf-prose-post mt-2" v-html="reply.renderedContent" />
-                <div v-if="reply.isHidden && !isPostRemoved(reply) && reply.canModerate" class="mt-2 inline-flex rounded bg-base-200 px-2 py-1 text-xs font-semibold text-base-content/45">
-                  {{ t('topic.hiddenReplyBadge') }}
-                </div>
-                <div v-if="!reply.lastEditedAt && reply.updatedAt && reply.updatedAt !== reply.createdAt" class="mt-2 text-xs font-medium text-base-content/55">
-                  {{ t('topic.editedAt', { time: formatDateTime(reply.updatedAt) }) }}
-                </div>
-                <div v-if="reply.lastEditedAt && reply.lastEditor" class="mt-2 text-xs font-medium text-base-content/55">
-                  {{ lastEditedLabel(reply) }}
-                </div>
-                <div class="mt-2 flex items-center gap-1">
-                  <button
-                    v-if="(!viewer.isAuthenticated || canPost) && !reply.isHidden && !isPostRemoved(reply)"
-                    type="button"
-                    class="inline-flex h-7 items-center gap-1 rounded px-1.5 text-xs font-semibold text-base-content/55 transition hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    :title="t('topic.reply')"
-                    @click="replyTo(reply)"
-                  >
-                    <CornerDownLeft class="h-3.5 w-3.5" />
-                    {{ t('topic.reply') }}
-                  </button>
-                  <button
-                    v-if="canEditPost(reply)"
-                    type="button"
-                    class="gf-icon-button h-7 w-7 shrink-0 hover:bg-info/10 hover:text-primary"
-                    :title="t('common.edit')"
-                    @click="startEditPost(reply)"
-                  >
-                    <PencilLine class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('common.edit') }}</span>
-                  </button>
-                  <button
-                    v-if="viewer.isAuthenticated && !reply.isHidden && !isPostRemoved(reply)"
-                    type="button"
-                    class="inline-flex h-7 shrink-0 items-center gap-1 rounded px-1.5 text-base-content/55 transition hover:bg-error/10 hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
-                    :class="{ 'text-error hover:text-error': postActionState(reply).isLiked }"
-                    :title="t('topic.like')"
-                    :disabled="postActionState(reply).actingLike"
-                    @click="togglePostLike(reply)"
-                  >
-                    <Heart class="h-3.5 w-3.5" :fill="postActionState(reply).isLiked ? 'currentColor' : 'none'" />
-                    <span v-if="postActionState(reply).likeCount" class="text-xs font-semibold tabular-nums">{{ formatNumber(postActionState(reply).likeCount) }}</span>
-                    <span class="sr-only">{{ t('topic.like') }}</span>
-                  </button>
-                  <button
-                    v-if="viewer.isAuthenticated && !reply.isHidden && !isPostRemoved(reply)"
-                    type="button"
-                    class="gf-icon-button h-7 w-7 shrink-0 hover:bg-info/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                    :class="{ 'text-primary hover:text-primary': postActionState(reply).isBookmarked }"
-                    :title="postActionState(reply).isBookmarked ? t('topic.bookmarked') : t('topic.bookmark')"
-                    :disabled="postActionState(reply).actingBookmark"
-                    @click="togglePostBookmark(reply)"
-                  >
-                    <Bookmark class="h-3.5 w-3.5" :fill="postActionState(reply).isBookmarked ? 'currentColor' : 'none'" />
-                    <span class="sr-only">{{ t('topic.bookmark') }}</span>
-                  </button>
-                  <button
-                    type="button"
-                    class="gf-icon-button h-7 w-7 shrink-0 hover:bg-base-200 hover:text-base-content"
-                    :title="t('topic.share')"
-                    @click="sharePost(reply)"
-                  >
-                    <Share2 class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('topic.share') }}</span>
-                  </button>
-                  <button
-                    v-if="canDeleteRenderedPost(reply)"
-                    type="button"
-                    class="gf-icon-button h-7 w-7 shrink-0 hover:bg-error/10 hover:text-error"
-                    :title="t('topic.delete')"
-                    @click="requestDeletePost(reply)"
-                  >
-                    <Trash2 class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('topic.delete') }}</span>
-                  </button>
-                  <button
-                    v-if="!isFirstPost(reply) && !reply.isOwnPost && !reply.isHidden && !isPostRemoved(reply)"
-                    type="button"
-                    class="gf-icon-button h-7 w-7 shrink-0 hover:bg-warning/10 hover:text-warning"
-                    :title="t('topic.report')"
-                    @click="requestPostReport(reply)"
-                  >
-                    <Flag class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('topic.report') }}</span>
-                  </button>
-                </div>
-              </div>
-              <button
-                v-if="group.replies.length > nestedRepliesPreviewCount"
-                type="button"
-                class="inline-flex h-8 w-full items-center justify-center gap-1 rounded-md text-xs font-semibold text-primary transition hover:bg-info/10"
-                :aria-expanded="groupRepliesExpanded(group)"
-                @click="toggleGroupReplies(group.root.id)"
-              >
-                <ChevronUp v-if="groupRepliesExpanded(group)" class="h-3.5 w-3.5" />
-                <ChevronDown v-else class="h-3.5 w-3.5" />
-                {{ groupRepliesExpanded(group) ? t('topic.collapseReplies') : t('topic.expandReplies', { count: group.replies.length - nestedRepliesPreviewCount }) }}
-              </button>
-            </div>
           </div>
         </article>
 
         <!-- Q&A Answers Section -->
-        <div v-if="isQuestionTopic && answerGroups.length > 0" class="border-t border-line px-4 py-5 xl:border-t-transparent">
+        <div v-if="isQuestionTopic && answerPosts.length > 0" class="border-t border-line px-4 py-5 xl:border-t-transparent">
           <div class="mb-4 flex items-center gap-2">
             <h3 class="text-base font-semibold text-base-content">{{ t('topic.answers') }}</h3>
-            <span class="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{{ answerGroups.length }}</span>
+            <span class="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{{ answerPosts.length }}</span>
           </div>
           <div class="space-y-4">
             <article
-              v-for="(group, answerIndex) in answerGroups"
-              :id="`post-${group.root.id}`"
-              :key="group.root.id"
-              :data-post-no="group.root.postNo"
+              v-for="(post, answerIndex) in answerPosts"
+              :id="`post-${post.id}`"
+              :key="post.id"
+              :data-post-no="post.postNo"
               class="group relative rounded-lg border border-primary/30 bg-primary/5 p-4 transition-[background-color] hover:border-primary/50 hover:bg-primary/10"
-              :class="{ 'bg-info/10': highlightedPostId === group.root.id }"
+              :class="{ 'bg-info/10': highlightedPostId === post.id }"
             >
               <div class="mb-3 flex min-w-0 items-start justify-between gap-2">
                 <div class="min-w-0">
                   <div class="flex min-w-0 flex-wrap items-center gap-2">
-                    <a :href="`/u/${group.root.author.id}`" class="min-w-0 flex items-center gap-2" @click="showUserCard(group.root.author, $event)">
-                      <UserAvatar :src="group.root.author.avatarUrl" :alt="group.root.author.username" :badge="group.root.author.wornBadge" class="h-6 w-6 rounded-full ring-1 ring-line" img-class="rounded-full" />
-                      <span class="min-w-0 truncate text-sm font-semibold text-base-content hover:text-primary">{{ authorDisplayName(group.root.author) }}</span>
+                    <a :href="`/u/${post.author.id}`" class="min-w-0 flex items-center gap-2" @click="showUserCard(post.author, $event)">
+                      <UserAvatar :src="post.author.avatarUrl" :alt="post.author.username" :badge="post.author.wornBadge" class="h-6 w-6 rounded-full ring-1 ring-line" img-class="rounded-full" />
+                      <span class="min-w-0 truncate text-sm font-semibold text-base-content hover:text-primary">{{ authorDisplayName(post.author) }}</span>
                     </a>
-                    <span class="shrink-0 text-xs font-semibold tabular-nums text-base-content/55">#{{ formatNumber(group.root.postNo) }}</span>
-                    <time class="shrink-0 text-xs text-base-content/55">{{ formatDateTime(group.root.createdAt) }}</time>
+                    <span class="shrink-0 text-xs font-semibold tabular-nums text-base-content/55">#{{ formatNumber(post.postNo) }}</span>
+                    <time class="shrink-0 text-xs text-base-content/55">{{ formatDateTime(post.createdAt) }}</time>
                     <span class="shrink-0 rounded bg-success/20 px-1.5 py-0.5 text-[11px] font-semibold text-success">{{ t('topic.answer') }}</span>
                   </div>
                 </div>
                 <div class="flex shrink-0 items-center gap-1">
                   <button
-                    v-if="canEditPost(group.root)"
+                    v-if="canEditPost(post)"
                     type="button"
                     class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="savingEditPostId === group.root.id || deletingPostId === group.root.id"
+                    :disabled="savingEditPostId === post.id || deletingPostId === post.id"
                     :title="t('common.edit')"
-                    @click="startEditPost(group.root)"
+                    @click="startEditPost(post)"
                   >
                     <PencilLine class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('common.edit') }}</span>
                   </button>
                   <button
-                    v-if="canDeleteRenderedPost(group.root)"
+                    v-if="canDeleteRenderedPost(post)"
                     type="button"
                     class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    :disabled="deletingPostId === group.root.id"
-                    :title="deletingPostId === group.root.id ? t('topic.deleting') : t('topic.delete')"
-                    @click="requestDeletePost(group.root)"
+                    :disabled="deletingPostId === post.id"
+                    :title="deletingPostId === post.id ? t('topic.deleting') : t('topic.delete')"
+                    @click="requestDeletePost(post)"
                   >
                     <Trash2 class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ deletingPostId === group.root.id ? t('topic.deleting') : t('topic.delete') }}</span>
+                    <span class="sr-only">{{ deletingPostId === post.id ? t('topic.deleting') : t('topic.delete') }}</span>
                   </button>
                   <button
-                    v-if="(!viewer.isAuthenticated || canPost) && !group.root.isHidden && !isPostRemoved(group.root)"
+                    v-if="(!viewer.isAuthenticated || canPost) && !post.isHidden && !isPostRemoved(post)"
                     type="button"
                     class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:h-8 sm:w-8"
                     :title="t('topic.reply')"
-                    @click="replyTo(group.root)"
+                    @click="replyTo(post)"
                   >
                     <CornerDownLeft class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('topic.reply') }}</span>
                   </button>
                   <button
-                    v-if="viewer.isAuthenticated && !group.root.isHidden && !isPostRemoved(group.root)"
+                    v-if="viewer.isAuthenticated && !post.isHidden && !isPostRemoved(post)"
                     type="button"
                     class="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1 text-icon-muted transition hover:bg-error/10 hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-8 sm:px-1.5"
-                    :class="{ 'text-error hover:text-error': postActionState(group.root).isLiked }"
+                    :class="{ 'text-error hover:text-error': postActionState(post).isLiked }"
                     :title="t('topic.like')"
-                    :disabled="postActionState(group.root).actingLike"
-                    @click="togglePostLike(group.root)"
+                    :disabled="postActionState(post).actingLike"
+                    @click="togglePostLike(post)"
                   >
-                    <Heart class="h-3.5 w-3.5" :fill="postActionState(group.root).isLiked ? 'currentColor' : 'none'" />
-                    <span v-if="postActionState(group.root).likeCount" class="hidden text-xs font-semibold tabular-nums sm:inline">{{ formatNumber(postActionState(group.root).likeCount) }}</span>
+                    <Heart class="h-3.5 w-3.5" :fill="postActionState(post).isLiked ? 'currentColor' : 'none'" />
+                    <span v-if="postActionState(post).likeCount" class="hidden text-xs font-semibold tabular-nums sm:inline">{{ formatNumber(postActionState(post).likeCount) }}</span>
                     <span class="sr-only">{{ t('topic.like') }}</span>
                   </button>
                   <button
                     type="button"
                     class="gf-icon-button h-7 w-7 shrink-0 sm:h-8 sm:w-8 hover:bg-base-200 hover:text-base-content focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     :title="t('topic.share')"
-                    @click="sharePost(group.root)"
+                    @click="sharePost(post)"
                   >
                     <Share2 class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('topic.share') }}</span>
                   </button>
                 </div>
               </div>
-              <PostReplyReference v-if="group.root.replyToPostId" :target="replyTargetFor(group.root)" />
-              <div v-if="group.root.isAuthorDeleted" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
+              <PostReplyReference v-if="showReplyReference(post)" :target="replyTargetFor(post)" />
+              <div v-if="post.isAuthorDeleted" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
                 <div class="font-semibold text-base-content/70">{{ t('topic.authorDeletedTitle') }}</div>
                 <div class="mt-1 leading-6">{{ t('topic.authorDeletedPlaceholder') }}</div>
               </div>
-              <div v-else-if="group.root.isModeratorRemoved" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
+              <div v-else-if="post.isModeratorRemoved" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
                 <div class="font-semibold text-base-content/70">{{ t('topic.moderatorRemovedTitle') }}</div>
                 <div class="mt-1 leading-6">{{ t('topic.moderatorRemovedPlaceholder') }}</div>
               </div>
-              <div v-else-if="group.root.isHidden && !group.root.canModerate" class="rounded border border-line bg-base-200/60 px-3 py-2 text-sm text-base-content/45">
+              <div v-else-if="post.isHidden && !post.canModerate" class="rounded border border-line bg-base-200/60 px-3 py-2 text-sm text-base-content/45">
                 {{ t('topic.hiddenReplyPlaceholder') }}
               </div>
-              <div v-else v-code-copy v-code-highlight v-math-render class="gf-prose gf-prose-post" :class="{ 'gf-prose-article': isBlogLikeTopic && isFirstPost(group.root), 'gf-prose-thought': props.contentType === 2 && isFirstPost(group.root) }" v-html="group.root.renderedContent" />
-              <div v-if="!group.root.lastEditedAt && group.root.updatedAt && group.root.updatedAt !== group.root.createdAt" class="mt-2 text-xs font-medium text-base-content/55">
-                {{ t('topic.editedAt', { time: formatDateTime(group.root.updatedAt) }) }}
+              <div v-else v-code-copy v-code-highlight v-math-render class="gf-prose gf-prose-post" :class="{ 'gf-prose-article': isBlogLikeTopic && isFirstPost(post), 'gf-prose-thought': props.contentType === 2 && isFirstPost(post) }" v-html="post.renderedContent" />
+              <div v-if="!post.lastEditedAt && post.updatedAt && post.updatedAt !== post.createdAt" class="mt-2 text-xs font-medium text-base-content/55">
+                {{ t('topic.editedAt', { time: formatDateTime(post.updatedAt) }) }}
               </div>
-              <div v-if="group.root.lastEditedAt && group.root.lastEditor" class="mt-2 text-xs font-medium text-base-content/55">
-                {{ lastEditedLabel(group.root) }}
+              <div v-if="post.lastEditedAt && post.lastEditor" class="mt-2 text-xs font-medium text-base-content/55">
+                {{ lastEditedLabel(post) }}
               </div>
             </article>
           </div>
