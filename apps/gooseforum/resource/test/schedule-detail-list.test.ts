@@ -23,9 +23,10 @@ import ScheduleDetailList from '../src/site/components/schedule/ScheduleDetailLi
 import { useScheduleStore } from '../src/site/composables/useScheduleStore'
 import type { PkCourseDetail, PkStagedCourse } from '../src/site/types/pk'
 
-function makeDetail(code: string): PkCourseDetail {
+function makeDetail(code: string, isExclusive = false): PkCourseDetail {
   return {
     code,
+    isExclusive,
     campus: '四平路校区',
     teachers: [{ teacherCode: 'T1', teacherName: '张伟' }],
     teachingLanguage: '中文',
@@ -122,6 +123,26 @@ describe('ScheduleDetailList 课评摘要与跳转', () => {
 
     expect(wrapper.find('a[href="/courses?keyword=110001"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Failed to load schedule data')
+  })
+
+  test('计划内教学班置顶，其他教学班保持原顺序', async () => {
+    const store = useScheduleStore()
+    store.clearStagedAndSelectedCourses()
+    store.setClickedCourseInfo({ courseCode: '110001', courseName: '高等数学A(上)' })
+    store.pushStagedCourse(
+      makeStaged('110001', [
+        makeDetail('110001.01'),
+        makeDetail('110001.02', true),
+        makeDetail('110001.03'),
+      ]),
+    )
+
+    const wrapper = mountList()
+    await flushPromises()
+
+    const cards = wrapper.findAll('div.group.relative.rounded-xl.border')
+    const codes = cards.map((card) => card.find('span.font-bold.tabular-nums').text())
+    expect(codes).toEqual(['110001.02', '110001.01', '110001.03'])
   })
   test('教学班行内显示 offering 级课评摘要并跳转聚焦', async () => {
     // P13 classes：教学班 code ↔ offering.class_code（去掉点号归一化）匹配。

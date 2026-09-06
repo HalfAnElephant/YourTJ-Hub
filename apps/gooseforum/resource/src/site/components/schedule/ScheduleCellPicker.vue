@@ -19,7 +19,7 @@ import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRo
 import { useScheduleStore } from '@/site/composables/useScheduleStore'
 import { getPkCourseDetails, getPkCoursesByTime } from '@/runtime/pk-api'
 import { getCourseBaseCode, type PkConflictItem } from '@/site/utils/pkConflict'
-import { sortPlannedCoursesFirst } from '@/site/utils/pkCourseOrder'
+import { sortPlannedFirst, sortPlannedCoursesFirst } from '@/site/utils/pkCourseOrder'
 import { getRowSection, getSectionRangeText } from '@/site/utils/timetable'
 import type { PkCourse, PkCourseDetail, PkCourseOnTable, PkStagedCourse } from '@/site/types/pk'
 
@@ -112,7 +112,11 @@ const stagedCandidates = computed<CellCandidate[]>(() => {
       }
     }
   }
-  return sortPlannedCoursesFirst(list, store.state.commonLists.compulsoryCourses)
+  const plannedCodes = new Set(store.state.commonLists.compulsoryCourses.map((course) => course.courseCode))
+  return sortPlannedFirst(
+    list,
+    (candidate) => candidate.detail.isExclusive === true || plannedCodes.has(candidate.courseCode),
+  )
 })
 
 // ---- 该时段全校课程（P10 getPkCoursesByTime）----

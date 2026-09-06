@@ -34,6 +34,7 @@ import { getPkCourseReviewBrief } from '@/runtime/pk-api'
 import { listCourseReviews, type ReviewPage, type ReviewPayload } from '@/runtime/api'
 import { reviewAvatarSrc } from '@/site/utils/course-review-share'
 import { getCourseBaseCode, type PkConflictItem } from '@/site/utils/pkConflict'
+import { sortPlannedFirst } from '@/site/utils/pkCourseOrder'
 import type { PkArrangement, PkCourseDetail, PkCourseReviewBrief, PkReviewBriefClass } from '@/site/types/pk'
 
 const { t } = useI18n()
@@ -82,6 +83,10 @@ const currentCourse = computed(() =>
   store.state.commonLists.stagedCourses.find(
     (course) => course.courseCode === store.state.clickedCourseInfo.courseCode,
   ),
+)
+
+const orderedCourseDetails = computed(() =>
+  sortPlannedFirst(currentCourse.value?.courseDetail ?? [], (detail) => detail.isExclusive === true),
 )
 
 /** 本学期课评摘要。 */
@@ -471,9 +476,9 @@ function tryStage(detail: PkCourseDetail) {
       </div>
 
       <!-- 教学班卡片列表 -->
-      <div v-if="currentCourse.courseDetail.length" class="space-y-3">
+      <div v-if="orderedCourseDetails.length" class="space-y-3">
         <div
-          v-for="detail in currentCourse.courseDetail"
+          v-for="detail in orderedCourseDetails"
           :key="detail.code"
           class="group relative rounded-xl border p-3.5 sm:p-4 shadow-xs transition-all cursor-pointer select-none"
           :class="[
