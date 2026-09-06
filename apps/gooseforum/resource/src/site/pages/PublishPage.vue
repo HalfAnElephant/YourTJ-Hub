@@ -2,12 +2,13 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { AlertTriangle, BookOpen, Check, FileText, HelpCircle, Lightbulb, ListChecks, Loader2, MessageSquare, Send, X } from '@lucide/vue'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { submitTopic, uploadImage } from '@/runtime/api'
+import { submitTopic, sensitiveWordsFromError, uploadImage } from '@/runtime/api'
 import { processImageFile, validateImageFile } from '@/runtime/image'
 import { useUnsavedDraftGuard } from '@/site/composables/useUnsavedDraftGuard'
 import { useCaptchaChallenge } from '@/site/composables/useCaptchaChallenge'
 import PageHeader from '@/site/components/PageHeader.vue'
 import VditorOfficial from '@/site/components/VditorOfficial.vue'
+import { containsSensitiveText } from '@/site/utils/sensitive-highlight'
 import type { LayoutPayload, PublishPageProps } from '@gooseforum/client'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -40,6 +41,7 @@ const uploadDone = ref(0)
 const message = ref('')
 const website = ref('')
 const error = ref('')
+const sensitiveWords = ref<string[]>([])
 const validationAttempted = ref(false)
 const titleInput = ref<HTMLInputElement | null>(null)
 const categorySection = ref<HTMLElement | null>(null)
@@ -272,6 +274,10 @@ function handleEditorError(editorError: Error) {
   error.value = editorError.message
 }
 
+function clearSensitiveHighlight() {
+  sensitiveWords.value = []
+}
+
 function imageAlt(filename: string) {
   return filename.replace(/\.[^.]+$/, '').replace(/[[\]\n\r]/g, ' ').trim() || 'image'
 }
@@ -288,6 +294,7 @@ async function uploadImageFiles(files: File[]) {
   uploadDone.value = 0
   message.value = ''
   error.value = ''
+  clearSensitiveHighlight()
 
   const markdownImages: string[] = []
   const failed: string[] = []
@@ -334,6 +341,7 @@ async function save() {
   submitting.value = true
   error.value = ''
   message.value = ''
+  clearSensitiveHighlight()
   try {
     const id = await submitTopic({
       topicId: currentTopicId.value,
@@ -354,8 +362,10 @@ async function save() {
     window.location.href = `/p/post/${id}`
   } catch (err) {
     if (challengeFromError(err)) {
+      clearSensitiveHighlight()
       error.value = t('server.auth.captcha.invalid')
     } else {
+      sensitiveWords.value = sensitiveWordsFromError(err)
       error.value = err instanceof Error ? err.message : t('publish.saveFailed')
     }
   } finally {
@@ -373,6 +383,7 @@ async function persistDraft(nextUrl?: string, redirect = true): Promise<boolean>
   submitting.value = true
   error.value = ''
   message.value = ''
+  clearSensitiveHighlight()
   try {
     const id = await submitTopic({
       topicId: currentTopicId.value,
@@ -392,7 +403,10 @@ async function persistDraft(nextUrl?: string, redirect = true): Promise<boolean>
     if (redirect) window.location.href = nextUrl || '/drafts'
     return true
   } catch (err) {
-    if (!challengeFromError(err)) {
+    if (challengeFromError(err)) {
+      clearSensitiveHighlight()
+    } else {
+      sensitiveWords.value = sensitiveWordsFromError(err)
       error.value = err instanceof Error ? err.message : t('publish.draftSaveFailed')
     }
     return false
@@ -442,7 +456,9 @@ async function persistDraft(nextUrl?: string, redirect = true): Promise<boolean>
                     ref="titleInput"
                     v-model="title"
                     class="mt-1 h-11 w-full rounded-md border border-line px-3 text-lg font-semibold outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/20"
+                    :class="{ 'gf-sensitive-field': containsSensitiveText(title, sensitiveWords) }"
                     :placeholder="t('publish.titlePlaceholder')"
+                    @input="clearSensitiveHighlight"
                   />
                 </label>
 
@@ -537,8 +553,10 @@ async function persistDraft(nextUrl?: string, redirect = true): Promise<boolean>
                 :header-toggle="true"
                 :header-collapsed="headerCollapsed"
                 :toggle-host="editorToggleHost"
+                :sensitive-words="sensitiveWords"
                 :placeholder="contentType === 2 ? t('publish.thoughtPlaceholder') : t('publish.visualPlaceholder')"
                 @toggle-header="toggleHeaderCollapsed"
+                @input="clearSensitiveHighlight"
                 @upload="uploadImageFiles"
                 @error="handleEditorError"
               />

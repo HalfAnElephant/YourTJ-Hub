@@ -17,11 +17,12 @@ import {
   PopoverTrigger,
 } from 'reka-ui'
 import type { LayoutPayload } from '@gooseforum/client'
-import { submitTopic, uploadImage } from '@/runtime/api'
+import { sensitiveWordsFromError, submitTopic, uploadImage } from '@/runtime/api'
 import { processImageFile, validateImageFile } from '@/runtime/image'
 import { useCaptchaChallenge } from '@/site/composables/useCaptchaChallenge'
 import { useQuickPublish } from '@/site/composables/useQuickPublish'
 import VditorOfficial from '@/site/components/VditorOfficial.vue'
+import { containsSensitiveText } from '@/site/utils/sensitive-highlight'
 
 interface UploadedImageItem {
   id: string
@@ -63,6 +64,7 @@ const uploading = ref(false)
 const uploadTotal = ref(0)
 const uploadDone = ref(0)
 const errorMessage = ref('')
+const sensitiveWords = ref<string[]>([])
 const validationAttempted = ref(false)
 const titleInput = ref<HTMLInputElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -106,6 +108,7 @@ watch(
   (open) => {
     if (open) {
       errorMessage.value = ''
+      sensitiveWords.value = []
       validationAttempted.value = false
       categoryPickerOpen.value = false
       titleFocused.value = false
@@ -145,6 +148,7 @@ watch(
       content.value = ''
       categoryIds.value = []
       uploadedImages.value = []
+      sensitiveWords.value = []
     }
   },
   { immediate: true },
@@ -158,6 +162,10 @@ function selectCategory(catId: number) {
 
 function handleTitleEnter() {
   editor.value?.focus()
+}
+
+function clearSensitiveHighlight() {
+  sensitiveWords.value = []
 }
 
 function imageAlt(filename: string) {
@@ -196,6 +204,7 @@ async function uploadImageFiles(files: File[]) {
   uploadTotal.value = accepted.length
   uploadDone.value = 0
   errorMessage.value = ''
+  clearSensitiveHighlight()
   if (accepted.length < files.length) {
     errorMessage.value = t('publish.modal.maxImageCount', { count: MAX_IMAGE_COUNT })
   }
@@ -275,6 +284,7 @@ async function handleSubmit() {
   if (submitting.value || uploading.value) return
   submitting.value = true
   errorMessage.value = ''
+  clearSensitiveHighlight()
 
   try {
     const targetTopicId = quickPublishEditPayload.value ? quickPublishEditPayload.value.topicId : 0
@@ -312,8 +322,10 @@ async function handleSubmit() {
     }
   } catch (err) {
     if (challengeFromError(err)) {
+      clearSensitiveHighlight()
       errorMessage.value = t('server.auth.captcha.invalid')
     } else {
+      sensitiveWords.value = sensitiveWordsFromError(err)
       errorMessage.value = err instanceof Error ? err.message : t('publish.saveFailed')
     }
   } finally {
@@ -473,8 +485,10 @@ async function handleSubmit() {
                 v-model="title"
                 type="text"
                 class="w-full text-base sm:text-lg font-bold placeholder:text-base-content/35 border-none bg-transparent outline-none focus:outline-none focus:ring-0 px-0 text-base-content transition"
+                :class="{ 'gf-sensitive-field': containsSensitiveText(title, sensitiveWords) }"
                 :placeholder="quickPublishType === 2 ? t('publish.modal.thoughtTitlePlaceholder') : typeMeta.placeholder"
                 :maxlength="titleMaxLength"
+                @input="clearSensitiveHighlight"
                 @focus="titleFocused = true"
                 @blur="titleFocused = false"
                 @keydown.enter.prevent="handleTitleEnter"
@@ -498,7 +512,9 @@ async function handleSubmit() {
               v-model="content"
               :simple="true"
               :hide-upload="true"
+              :sensitive-words="sensitiveWords"
               :placeholder="t('publish.modal.contentPlaceholder')"
+              @input="clearSensitiveHighlight"
               @upload="uploadImageFiles"
               @error="handleEditorError"
             />

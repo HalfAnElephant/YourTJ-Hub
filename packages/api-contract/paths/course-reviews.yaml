@@ -107,7 +107,7 @@ createCourseReview:
           with `common.request.invalidParams` (issue #176 B4: the contract documents the actual
           route behavior). Content hitting the sensitive-word list is blocked with
           `course.review.sensitiveBlocked` in the same legacy HTTP 200 envelope (params
-          carries the matched word). Over-long content is NOT a request-level failure: it
+          carries the first matched word as `word` and all matched words as `words`). Over-long content is NOT a request-level failure: it
           passes the request validator and is rejected by the service layer as 400
           `review.content.tooLong` (see below). Service-level errors use their own status
           codes below.
@@ -222,7 +222,7 @@ updateCourseReview:
           The updated review payload, or a legacy business failure envelope for validation
           failures. Editing content that hits the sensitive-word list is blocked with
           `course.review.sensitiveBlocked` in the legacy HTTP 200 envelope (params carries
-          the matched word).
+          the first matched word as `word` and all matched words as `words`).
         content:
           application/json:
             schema:
