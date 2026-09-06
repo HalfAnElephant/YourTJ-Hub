@@ -145,6 +145,8 @@ docs/        Docs center (product/architecture/development/operations)
 - Full build: `make build` (resource → go build single binary `bin/yourtj-hub`)
 - Smoke: run `./bin/yourtj-hub serve` then curl the homepage/API (port from config.toml, default 5234)
 - Report the commands actually run and their results; a local subset is not CI passing.
+- Governance gates: `node scripts/run-gates.mjs` (doc links / placeholders / manifest /
+  decisions MADR / postmortem format; seeded by repo-seed, owned by `.repo-seed/manifest.json`). Fast — run early.
 
 ## 5. Git & PR discipline
 
@@ -164,6 +166,8 @@ docs/        Docs center (product/architecture/development/operations)
 - [Docs center](docs/README.md) (fact-source table + status words)
 - [Development entry](docs/development/README.md)
 - Repository skills: `$yourtj-development`, `$yourtj-pre-push-checks`, `$yourtj-simplifications`,
-  `$yourtj-doc-standards`, `$yourtj-code-review` (see `.agents/skills/`)
-- Architecture decision records live in the project note (yourtj-hub ADR note), not in git
+  `$yourtj-doc-standards`, `$yourtj-code-review` (see `.agents/skills/`); repo-seed governance skills
+  `repo-review`, `repo-decisions`, `repo-governance` (upgrade channel: `.repo-seed/update-strategy.md`)
+- Decision records: MADR log in [docs/decisions/](docs/decisions/) (gate `node scripts/verify-decisions.mjs`);
+  the legacy host-note ADR archive is frozen (append-only, no new records)
 - Upstream: GooseForum (apps/gooseforum, the fork itself); YourTJ-Platform (local, same-brand archived repo)

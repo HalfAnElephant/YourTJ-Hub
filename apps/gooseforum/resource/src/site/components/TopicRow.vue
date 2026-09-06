@@ -27,7 +27,7 @@ const { t } = useI18n()
 // 弹层 fixed 定位在视口上，不推挤表格布局；带延迟避免扫过列表时误触。
 // 位置策略：默认出现在鼠标指向的标题右侧，右侧空间不足时主动缩宽，
 // 仍不足则移到鼠标左侧，保证不溢出屏幕。
-const EXPAND_DELAY = 300
+const EXPAND_DELAY = 800
 const COLLAPSE_DELAY = 200
 const rowEl = ref<HTMLElement | null>(null)
 const expanded = ref(false)

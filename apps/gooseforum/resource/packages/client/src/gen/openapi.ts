@@ -1045,7 +1045,7 @@ export interface paths {
          *     the reserved/banned lists fails with `auth.nickname.reserved` /
          *     `auth.nickname.banned`; profile free text (bio/signature/website/websiteName)
          *     hitting the sensitive-word list fails with `content.sensitive.blocked`
-         *     (params carries the matched word). Business failures: `user.fetchFailed`,
+         *     (params carries the first matched word as `word` and all matched words as `words`). Business failures: `user.fetchFailed`,
          *     `user.updateFailed`.
          */
         post: operations["setUserInfo"];
@@ -1067,10 +1067,10 @@ export interface paths {
         /**
          * Update the caller's profile cover image
          * @description Sets the profile cover URL (trimmed server-side; an empty string clears the
-         *     cover). Accounts with RoleId 0 are rejected with `permission.denied` (HTTP
-         *     200). JSON binding is lenient: a malformed body binds to zero values and
-         *     clears the cover. Other business failures: `user.fetchFailed`,
-         *     `user.updateFailed`.
+         *     cover). Any authenticated, writable account may update its own cover;
+         *     ordinary accounts with RoleId 0 are included. JSON binding is lenient: a
+         *     malformed body binds to zero values and clears the cover. Other business
+         *     failures: `user.fetchFailed`, `user.updateFailed`.
          */
         post: operations["setUserProfileCover"];
         delete?: never;
@@ -1489,6 +1489,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/forum/push/device/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Persist the caller's native (mobile) push device registration
+         * @description Saves one mobile push device (iOS APNs device token or Android FCM
+         *     registration token) owned by the caller. token is globally unique:
+         *     re-registering from the same device (or after logging into another
+         *     account) converges the row to the current user and refreshes its
+         *     lastRegisteredAt. The token is a long-lived push-service credential
+         *     and is deleted on account close. Business failures surface as HTTP 200
+         *     `common.operation.failed`; platform must be `ios` or `android`.
+         */
+        post: operations["registerPushDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forum/push/device/unregister": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove one of the caller's native (mobile) push device registrations
+         * @description Deletes the device registration with the given token when it belongs to
+         *     the caller (idempotent: a token the caller does not own, or that does not
+         *     exist, silently succeeds and never reveals other users' devices). Clients
+         *     call this after a local logout so the server stops sending to the device.
+         */
+        post: operations["unregisterPushDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/forum/chat/send": {
         parameters: {
             query?: never;
@@ -1505,7 +1554,7 @@ export interface paths {
          *     a `required` validate tag, omitting it binds 0 and the `oneof=1 2 3` check
          *     fails with `common.request.invalidParams` (HTTP 200). Content hitting the
          *     sensitive-word list is blocked outright with `chat.sensitive.blocked`
-         *     (params word) — chat has no delayed-visibility state. Messaging oneself and
+         *     (params `word` plus all matches in `words`) — chat has no delayed-visibility state. Messaging oneself and
          *     other service failures surface as `chat.send.failed` (params error). JSON
          *     binding is lenient: a malformed body binds to zero values and fails
          *     validation as `common.request.invalidParams` (HTTP 200). The success
@@ -1625,6 +1674,33 @@ export interface paths {
          *     /api/v1/agent/search.
          */
         get: operations["searchForum"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/site-theme/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the published site theme tokens
+         * @description Public read (no auth) of the published site theme, consumed by the mobile
+         *     app to mirror the admin-published design tokens (mobile Route A). Returns
+         *     enabled=false, version=0, publishedAt=null and an empty themes array when
+         *     theming is disabled or nothing has been published yet; clients then keep
+         *     their built-in theme. Only the published state is exposed: staged drafts
+         *     (prepublish) and admin-only metadata (theme name/label) are never
+         *     returned. Token values are the published normalized design tokens (same
+         *     data source as the /site-theme.css stylesheet).
+         */
+        get: operations["getPublicSiteThemeTokens"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4440,10 +4516,10 @@ export interface paths {
          * @description Admin console operation gated by the `SiteManager` role permission
          *     (Admin role is a superset); callers without it fail with HTTP 403 and
          *     `permission.denied` (params permission=<localized permission name>,
-         *     `站点管理` in zh). Returns the stored section times (the 12 class
-         *     periods shown on the /schedule timetable), or the built-in default
-         *     table when nothing has been saved yet. JSON binding is lenient: query
-         *     string and body are ignored.
+         *     `站点管理` in zh). Returns the stored section times (the class
+         *     periods of the current 11-period /schedule timetable), or the
+         *     built-in default table when nothing has been saved yet. JSON binding
+         *     is lenient: query string and body are ignored.
          */
         get: operations["adminGetScheduleSettings"];
         put?: never;
@@ -4469,7 +4545,9 @@ export interface paths {
          *     callers without it fail with HTTP 403 and `permission.denied`.
          *     Replaces the whole section-times configuration, clears the
          *     schedule-settings cache, and the new table takes effect on the next
-         *     /schedule SSR render. Validation: every entry must name a section in
+         *     /schedule SSR render. The configuration describes the current
+         *     11-period system (evening sections 9..11 start 18:30). Validation:
+         *     every entry must name a section in
          *     1..12 with strict `HH:MM` start/end clock values where start is
          *     strictly earlier than end; any invalid entry rejects the whole
          *     submission with HTTP 200 `common.request.invalidParams`
@@ -5305,6 +5383,36 @@ export interface paths {
         };
         /** Course review summary for the PK scheduler popup */
         get: operations["pkGetCourseReviewBrief"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pk/section-times": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Class-period (section) schedule table for the PK scheduler grid
+         * @description Returns the section start/end table used to render the PK scheduler time
+         *     grid (mobile Route A shares this source, same read path as the /schedule
+         *     SSR props and the admin schedule-settings GET: stored configs are
+         *     normalized through NormalizeStoredScheduleSettings — legacy un-versioned
+         *     12-section rows saved before PR #496 are remapped by their old numbers).
+         *     When nothing has been configured the built-in current 11-section default
+         *     table is returned (sections 1-8 daytime, evening 9/10/11 from 18:30;
+         *     anchors: section 3 = 10:00, section 5 = 13:30, section 7 = 15:30,
+         *     section 9 = 18:30). maxRowsDefault is always 11 — historical 12-section
+         *     semesters (calendarId < 120) are rendered client-side from the built-in
+         *     historical table and do not consume this response.
+         */
+        get: operations["pkGetSectionTimes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6578,6 +6686,8 @@ export interface components {
             configured: boolean;
             /** @description VAPID public key (65-byte P-256 uncompressed point, base64url) to pass as PushManager.subscribe applicationServerKey; present only when configured is true. */
             applicationServerKey?: string;
+            /** @description Native (mobile APNs/FCM) channel states; always present. */
+            native: components["schemas"]["NativePushChannels"];
         };
         PushConfigSuccess: components["schemas"]["ApiSuccess"] & {
             result: components["schemas"]["PushConfigResult"];
@@ -6616,13 +6726,42 @@ export interface components {
             result: true;
         };
         PushUnsubscribeResponse: components["schemas"]["PushUnsubscribeSuccess"] | components["schemas"]["ApiFailure"];
+        NativePushChannels: {
+            /** @description True when [push.apns] credentials are configured so the iOS APNs channel is enabled. */
+            apnsEnabled: boolean;
+            /** @description True when [push.fcm] credentials are configured so the Android FCM channel is enabled. */
+            fcmEnabled: boolean;
+        };
+        PushDeviceRegisterRequest: {
+            /**
+             * @description ios routes to APNs, android to FCM.
+             * @enum {string}
+             */
+            platform: "ios" | "android";
+            /** @description Push-service device token (APNs device token or FCM registration token); globally unique — re-registering from the same device converges the row to the current user. */
+            token: string;
+        };
+        PushDeviceRegisterSuccess: components["schemas"]["ApiSuccess"] & {
+            /** @constant */
+            result: true;
+        };
+        PushDeviceRegisterResponse: components["schemas"]["PushDeviceRegisterSuccess"] | components["schemas"]["ApiFailure"];
+        PushDeviceUnregisterRequest: {
+            /** @description Device token to remove; must belong to the caller (foreign tokens silently succeed, never revealing other users' devices). */
+            token: string;
+        };
+        PushDeviceUnregisterSuccess: components["schemas"]["ApiSuccess"] & {
+            /** @constant */
+            result: true;
+        };
+        PushDeviceUnregisterResponse: components["schemas"]["PushDeviceUnregisterSuccess"] | components["schemas"]["ApiFailure"];
         SendChatMessageRequest: {
             /**
              * Format: uint64
              * @description Recipient user id; messaging oneself fails with `chat.send.failed` (HTTP 200).
              */
             peerId: number;
-            /** @description Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params word). */
+            /** @description Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params `word` plus all matches in `words`). */
             content: string;
             /**
              * @description 1 text, 2 image, 3 voice. Effectively required — omitting it binds 0 and fails validation with `common.request.invalidParams` (HTTP 200).
@@ -8375,6 +8514,32 @@ export interface components {
         AdminSaveSiteThemeRequest: {
             settings?: components["schemas"]["AdminSaveSiteThemeSettings"];
         };
+        PublicSiteThemeDefinition: {
+            /**
+             * @description Color scheme of the published theme.
+             * @enum {string}
+             */
+            mode: "light" | "dark";
+            /** @description Design tokens keyed by token name (e.g. color-primary); values are the published, normalized token values. */
+            tokens: components["schemas"]["AdminSiteThemeTokens"];
+        };
+        PublicSiteThemeTokensResult: {
+            /** @description False when site theming is disabled or nothing has been published; clients then fall back to their built-in theme. */
+            enabled: boolean;
+            /** @description Published configuration schema version; 0 when disabled/unpublished. */
+            version: number;
+            /**
+             * Format: date-time
+             * @description RFC 3339 timestamp stamped by the last publish; null when disabled/unpublished.
+             */
+            publishedAt: string | null;
+            /** @description Published themes; empty when disabled/unpublished. Admin-only metadata (theme name/label, staged draft) is never exposed. */
+            themes: components["schemas"]["PublicSiteThemeDefinition"][];
+        };
+        PublicSiteThemeTokensSuccess: components["schemas"]["ApiSuccess"] & {
+            result: components["schemas"]["PublicSiteThemeTokensResult"];
+        };
+        PublicSiteThemeTokensResponse: components["schemas"]["PublicSiteThemeTokensSuccess"] | components["schemas"]["ApiFailure"];
         AdminSecuritySettingsConfig: {
             enableSignup: boolean;
             enableEmailVerification: boolean;
@@ -8676,7 +8841,7 @@ export interface components {
             settings?: components["schemas"]["AdminMcpSettingsConfig"];
         };
         AdminScheduleSectionTime: {
-            /** @description Class-period number (第 N 节), 1..12. */
+            /** @description Class-period number (第 N 节). The current timetable uses sections 1..11; 1..12 stays accepted for compatibility with previously stored legacy entries. */
             section: number;
             /** @description Period start as strict 24-hour `HH:MM` (clock values validated server-side). */
             start: string;
@@ -8684,8 +8849,13 @@ export interface components {
             end: string;
         };
         AdminScheduleSettingsConfig: {
-            /** @description The 12 class periods shown on the /schedule timetable, sorted by section ascending and deduplicated per section. */
+            /** @description The class periods of the current 11-period /schedule timetable (2025-2026 academic year onward: daytime sections 1..8, evening sections 9..11 starting 18:30), sorted by section ascending and deduplicated per section. Historical 12-period timetables (calendarId below 120) render the built-in legacy table and are not affected by this configuration. */
             sectionTimes: components["schemas"]["AdminScheduleSectionTime"][];
+            /**
+             * @description Class-period numbering stamp of this table. `'11'` is the current numbering; rows stored without the stamp predate the 11-period migration and are normalized on read (legacy `'12'` numbering: evening sections 10..12 remapped to 9..11). Saves always stamp `'11'` server-side; clients may omit the field.
+             * @enum {string}
+             */
+            numbering?: "11" | "12";
         };
         AdminScheduleSettingsResponse: components["schemas"]["ApiSuccess"] & {
             /** @description Stored section times, or the built-in default table when nothing has been saved. */
@@ -9391,6 +9561,26 @@ export interface components {
         };
         PkReviewBriefResponse: components["schemas"]["PkSuccess"] & {
             data: components["schemas"]["PkReviewBrief"];
+        };
+        PkSectionTimeItem: {
+            /** @description 节次序号（1-based）。 */
+            section: number;
+            /** @description 开始时间 HH:MM。 */
+            start: string;
+            /** @description 结束时间 HH:MM。 */
+            end: string;
+        };
+        PkSectionTimesResult: {
+            /** @description 作息表（现行 11 节编号；未配置时为内置默认 11 节表，旧 12 节存量经归一重映射）。 */
+            sectionTimes: components["schemas"]["PkSectionTimeItem"][];
+            /**
+             * @description 默认最大行数（现行 11 节制）；历史 12 节制学期（calendarId<120）由客户端内置历史表渲染，不消费本响应。
+             * @constant
+             */
+            maxRowsDefault: 11;
+        };
+        PkSectionTimesResponse: components["schemas"]["PkSuccess"] & {
+            data: components["schemas"]["PkSectionTimesResult"];
         };
         MyContentItem: {
             /** Format: uint64 */
@@ -12687,6 +12877,90 @@ export interface operations {
             };
         };
     };
+    registerPushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushDeviceRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Device registration persisted (or a legacy business failure envelope). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceRegisterResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Authenticated account is frozen or its account information cannot be resolved. A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie is not cleared (issue #406). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    unregisterPushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushDeviceUnregisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Device registration removed (or a legacy business failure envelope). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceUnregisterResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Authenticated account is frozen or its account information cannot be resolved. A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie is not cleared (issue #406). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
     sendChatMessage: {
         parameters: {
             query?: never;
@@ -12875,6 +13149,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    getPublicSiteThemeTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published theme tokens (or the disabled/unpublished shape). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicSiteThemeTokensResponse"];
                 };
             };
         };
@@ -13920,7 +14214,7 @@ export interface operations {
              *     with `common.request.invalidParams` (issue #176 B4: the contract documents the actual
              *     route behavior). Content hitting the sensitive-word list is blocked with
              *     `course.review.sensitiveBlocked` in the same legacy HTTP 200 envelope (params
-             *     carries the matched word). Over-long content is NOT a request-level failure: it
+             *     carries the first matched word as `word` and all matched words as `words`). Over-long content is NOT a request-level failure: it
              *     passes the request validator and is rejected by the service layer as 400
              *     `review.content.tooLong` (see below). Service-level errors use their own status
              *     codes below.
@@ -14073,7 +14367,7 @@ export interface operations {
              * @description The updated review payload, or a legacy business failure envelope for validation
              *     failures. Editing content that hits the sensitive-word list is blocked with
              *     `course.review.sensitiveBlocked` in the legacy HTTP 200 envelope (params carries
-             *     the matched word).
+             *     the first matched word as `word` and all matched words as `words`).
              */
             200: {
                 headers: {
@@ -19438,6 +19732,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+            /** @description Internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+        };
+    };
+    pkGetSectionTimes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Section schedule table (configured/normalized table, or the built-in current 11-section default). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkSectionTimesResponse"];
                 };
             };
             /** @description Internal error. */

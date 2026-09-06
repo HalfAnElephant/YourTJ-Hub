@@ -154,6 +154,7 @@ const syncStatusLoading = ref(false)
 let syncPollTimer: ReturnType<typeof setInterval> | null = null
 
 // ---- 排课器节次作息（控制 /schedule 课表左侧节次时间展示）----
+// 现行 11 节制默认作息（2025-2026 学年起）：白天 1-8 节 + 晚间 9/10/11 节（18:30 起）。
 const DEFAULT_SCHEDULE_SECTION_TIMES: Array<[start: string, end: string]> = [
   ['08:00', '08:45'],
   ['08:50', '09:35'],
@@ -163,7 +164,6 @@ const DEFAULT_SCHEDULE_SECTION_TIMES: Array<[start: string, end: string]> = [
   ['14:20', '15:05'],
   ['15:30', '16:15'],
   ['16:20', '17:05'],
-  ['17:10', '17:55'],
   ['18:30', '19:15'],
   ['19:20', '20:05'],
   ['20:10', '20:55'],
@@ -708,7 +708,7 @@ function normalizeHHMM(value: unknown): string | null {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
-// 节次固定 1-12：按 section 对齐服务端数据，缺失/非法回退默认作息。
+// 节次固定 1-11（现行 11 节制）：按 section 对齐服务端数据，缺失/非法回退默认作息。
 function normalizeSchedule(settings: Partial<ScheduleSettings> = {}): ScheduleSettings {
   const bySection = new Map(
     (Array.isArray(settings.sectionTimes) ? settings.sectionTimes : [])

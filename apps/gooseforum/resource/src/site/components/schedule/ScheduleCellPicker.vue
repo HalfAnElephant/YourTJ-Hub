@@ -19,6 +19,7 @@ import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRo
 import { useScheduleStore } from '@/site/composables/useScheduleStore'
 import { getPkCourseDetails, getPkCoursesByTime } from '@/runtime/pk-api'
 import { getCourseBaseCode, type PkConflictItem } from '@/site/utils/pkConflict'
+import { sortPlannedFirst, sortPlannedCoursesFirst } from '@/site/utils/pkCourseOrder'
 import { getRowSection, getSectionRangeText } from '@/site/utils/timetable'
 import type { PkCourse, PkCourseDetail, PkCourseOnTable, PkStagedCourse } from '@/site/types/pk'
 
@@ -111,7 +112,11 @@ const stagedCandidates = computed<CellCandidate[]>(() => {
       }
     }
   }
-  return list
+  const plannedCodes = new Set(store.state.commonLists.compulsoryCourses.map((course) => course.courseCode))
+  return sortPlannedFirst(
+    list,
+    (candidate) => candidate.detail.isExclusive === true || plannedCodes.has(candidate.courseCode),
+  )
 })
 
 // ---- 该时段全校课程（P10 getPkCoursesByTime）----
@@ -132,15 +137,17 @@ function campusText(campus?: string | string[]): string {
 
 const filteredSlotElectives = computed(() => {
   const kw = searchKeyword.value.trim().toLowerCase()
-  if (!kw) return slotElectives.value
-  return slotElectives.value.filter((course) => {
-    return (
-      course.courseName.toLowerCase().includes(kw) ||
-      course.courseCode.toLowerCase().includes(kw) ||
-      (course.faculty && course.faculty.toLowerCase().includes(kw)) ||
-      campusText(course.campus).toLowerCase().includes(kw)
-    )
-  })
+  const filtered = !kw
+    ? slotElectives.value
+    : slotElectives.value.filter((course) => {
+        return (
+          course.courseName.toLowerCase().includes(kw) ||
+          course.courseCode.toLowerCase().includes(kw) ||
+          (course.faculty && course.faculty.toLowerCase().includes(kw)) ||
+          campusText(course.campus).toLowerCase().includes(kw)
+        )
+      })
+  return sortPlannedCoursesFirst(filtered, store.state.commonLists.compulsoryCourses)
 })
 
 async function fetchSlotCourses() {

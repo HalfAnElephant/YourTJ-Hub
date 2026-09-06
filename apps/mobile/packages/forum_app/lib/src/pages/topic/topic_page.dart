@@ -52,7 +52,10 @@ class _TopicPageState extends ConsumerState<TopicPage> {
   // 浮动层状态(web TopicFloatingControls / PostComposer 语义)。
   bool _composerOpen = false;
   bool _railOpen = false;
-  final Set<int> _expandedReplyGroups = <int>{};
+
+  // 引用目标缓存:post id → replyTarget,供平铺引用块渲染被引用内容。
+  final Map<int, ReplyTargetPayload> _replyTargets =
+      <int, ReplyTargetPayload>{};
 
   @override
   void initState() {
@@ -97,6 +100,13 @@ class _TopicPageState extends ConsumerState<TopicPage> {
         _page = AsyncValue.data(props);
         _posts.clear();
         _posts.addAll(props.postStream.posts);
+        _replyTargets
+          ..clear()
+          ..addEntries(
+            props.postStream.replyTargets.map(
+              (ReplyTargetPayload t) => MapEntry(t.id, t),
+            ),
+          );
         _afterPostNo = props.postStream.afterPostNo;
         _hasMorePosts = props.postStream.hasAfter;
         _liked = props.topic.isLiked;
@@ -171,6 +181,9 @@ class _TopicPageState extends ConsumerState<TopicPage> {
         _posts.addAll(
           window.posts.where((PostPayload post) => existingIds.add(post.id)),
         );
+        for (final ReplyTargetPayload target in window.replyTargets) {
+          _replyTargets[target.id] = target;
+        }
         final int? nextAfterPostNo = window.afterPostNo ?? previousAfterPostNo;
         _afterPostNo = nextAfterPostNo;
         _hasMorePosts =
@@ -468,51 +481,25 @@ class _TopicPageState extends ConsumerState<TopicPage> {
     }
   }
 
-  List<_PostGroup> _postGroups({PostPayload? mainPost}) {
-    final int? mainPostId = mainPost?.id;
-    final Map<int, PostPayload> byId = <int, PostPayload>{
-      for (final PostPayload post in _posts) post.id: post,
-    };
-    final List<PostPayload> roots = <PostPayload>[];
-    final Map<int, List<PostPayload>> repliesByRoot =
-        <int, List<PostPayload>>{};
+  /// 楼层平铺：除主帖外全部楼层按 postNo 升序线性展示；
+  /// replyToPostId 仅用于引用块、通知路由与回答标记，不再用于分组嵌套。
+  List<PostPayload> _visiblePosts({PostPayload? mainPost}) {
+    final List<PostPayload> replyPosts = <PostPayload>[
+      for (final PostPayload post in _posts)
+        if (post.id != mainPost?.id) post,
+    ]..sort((PostPayload a, PostPayload b) => a.postNo.compareTo(b.postNo));
+    return replyPosts;
+  }
 
-    PostPayload resolveRoot(PostPayload post) {
-      final Set<int> visited = <int>{};
-      PostPayload cursor = post;
-      while (cursor.replyToPostId != null && cursor.replyToPostId! > 0) {
-        // 直接回复主帖的帖子本身就是根,不再向上追溯。
-        if (cursor.replyToPostId == mainPostId) break;
-        if (!visited.add(cursor.id)) break;
-        final PostPayload? parent = byId[cursor.replyToPostId!];
-        if (parent == null) break;
-        cursor = parent;
-      }
-      return cursor;
-    }
-
-    for (final PostPayload post in _posts) {
-      // 主帖由 _TopicHeader 单独渲染,不进入回复分组。
-      if (post.id == mainPostId) continue;
-      final PostPayload? parent = post.replyToPostId == null
-          ? null
-          : byId[post.replyToPostId!];
-      if (parent == null || parent.id == mainPostId) {
-        roots.add(post);
-        continue;
-      }
-      final PostPayload root = resolveRoot(post);
-      repliesByRoot.putIfAbsent(root.id, () => <PostPayload>[]).add(post);
-    }
-    roots.sort((a, b) => a.postNo.compareTo(b.postNo));
-    return <_PostGroup>[
-      for (final PostPayload root in roots)
-        _PostGroup(
-          root: root,
-          replies: (repliesByRoot[root.id] ?? <PostPayload>[])
-            ..sort((a, b) => a.postNo.compareTo(b.postNo)),
-        ),
-    ];
+  /// 引用块显隐与 web showReplyReference 对齐:回复主帖不显示引用块;
+  /// 主帖不在已加载窗口时(深链/离线缓存)用 replyTargets.postNo 判定首楼目标。
+  bool _showReplyQuote(PostPayload post, PostPayload? mainPost) {
+    final int? targetId = post.replyToPostId;
+    if (targetId == null || targetId == 0) return false;
+    if (mainPost != null) return targetId != mainPost.id;
+    final ReplyTargetPayload? target = _replyTargets[targetId];
+    if (target == null) return true;
+    return target.postNo != 1;
   }
 
   void _goBack() {
@@ -545,7 +532,9 @@ class _TopicPageState extends ConsumerState<TopicPage> {
             GfErrorRetry(message: resolveErrorMessage(l10n, e), onRetry: _load),
         data: (props) {
           final PostPayload? mainPost = _mainPost(_posts);
-          final List<_PostGroup> groups = _postGroups(mainPost: mainPost);
+          final List<PostPayload> replyPosts = _visiblePosts(
+            mainPost: mainPost,
+          );
 
           return Stack(
             children: <Widget>[
@@ -583,7 +572,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                               count: props.topic.replyCount,
                             ),
                           ),
-                          if (groups.isEmpty)
+                          if (replyPosts.isEmpty)
                             SliverToBoxAdapter(
                               child: GfEmpty(
                                 icon: Icons.forum_outlined,
@@ -593,28 +582,25 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                             )
                           else
                             SliverList.builder(
-                              itemCount: groups.length,
+                              itemCount: replyPosts.length,
                               itemBuilder: (BuildContext context, int index) {
-                                final _PostGroup group = groups[index];
+                                final PostPayload post = replyPosts[index];
                                 return RepaintBoundary(
                                   child: Column(
                                     children: <Widget>[
-                                      _PostGroupView(
-                                        group: group,
-                                        expanded: _expandedReplyGroups.contains(
-                                          group.root.id,
+                                      _PostCard(
+                                        post: post,
+                                        showReplyQuote: _showReplyQuote(
+                                          post,
+                                          mainPost,
                                         ),
-                                        onToggleReplies: () => setState(() {
-                                          final int id = group.root.id;
-                                          if (!_expandedReplyGroups.add(id)) {
-                                            _expandedReplyGroups.remove(id);
-                                          }
-                                        }),
-                                        onReply: (PostPayload post) =>
+                                        quoteTarget:
+                                            _replyTargets[post.replyToPostId],
+                                        onReply: () =>
                                             _openComposer(replyTo: post),
-                                        onReport: _reportPost,
+                                        onReport: () => _reportPost(post),
                                       ),
-                                      if (index < groups.length - 1)
+                                      if (index < replyPosts.length - 1)
                                         const GfDivider(),
                                     ],
                                   ),
@@ -988,103 +974,22 @@ class _MetaItem extends StatelessWidget {
   }
 }
 
-class _PostGroup {
-  const _PostGroup({required this.root, required this.replies});
-
-  final PostPayload root;
-  final List<PostPayload> replies;
-}
-
-class _PostGroupView extends StatelessWidget {
-  const _PostGroupView({
-    required this.group,
-    required this.expanded,
-    required this.onToggleReplies,
-    required this.onReply,
-    required this.onReport,
-  });
-
-  static const int _previewCount = 3;
-
-  final _PostGroup group;
-  final bool expanded;
-  final VoidCallback onToggleReplies;
-  final ValueChanged<PostPayload> onReply;
-  final ValueChanged<PostPayload> onReport;
-
-  @override
-  Widget build(BuildContext context) {
-    final List<PostPayload> replies = expanded
-        ? group.replies
-        : group.replies.take(_previewCount).toList();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          _PostCard(
-            post: group.root,
-            onReply: () => onReply(group.root),
-            onReport: () => onReport(group.root),
-          ),
-          if (replies.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                color: GfTheme.colorsOf(context).base200.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(
-                  GfTheme.radiiOf(context).field,
-                ),
-                border: Border.all(color: GfTheme.colorsOf(context).line),
-              ),
-              child: Column(
-                children: <Widget>[
-                  for (
-                    int index = 0;
-                    index < replies.length;
-                    index++
-                  ) ...<Widget>[
-                    if (index > 0) const GfDivider(),
-                    _NestedPostCard(
-                      post: replies[index],
-                      onReply: () => onReply(replies[index]),
-                      onReport: () => onReport(replies[index]),
-                    ),
-                  ],
-                  if (group.replies.length > _previewCount)
-                    TextButton.icon(
-                      onPressed: onToggleReplies,
-                      icon: Icon(
-                        expanded
-                            ? Icons.expand_less
-                            : Icons.keyboard_arrow_down,
-                        size: 18,
-                      ),
-                      label: Text(
-                        expanded
-                            ? AppLocalizations.of(context).commonClose
-                            : '+${group.replies.length - _previewCount}',
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _PostCard extends StatelessWidget {
   const _PostCard({
     required this.post,
+    required this.showReplyQuote,
+    required this.quoteTarget,
     required this.onReply,
     required this.onReport,
   });
 
   final PostPayload post;
+
+  /// 平铺模式下的引用块开关：回复其他楼层显示引用块，回复主帖保持轻量文本。
+  final bool showReplyQuote;
+
+  /// 被引用楼层的 replyTarget（可空：目标信息缺失时按 unavailable 降级）。
+  final ReplyTargetPayload? quoteTarget;
   final VoidCallback onReply;
   final VoidCallback onReport;
 
@@ -1122,12 +1027,23 @@ class _PostCard extends StatelessWidget {
           ),
           if (post.replyToUsername != null) ...[
             const SizedBox(height: 6),
-            Text(
-              '${l10n.topicReply} @${post.replyToUsername}',
-              style: GfTheme.typographyOf(
-                context,
-              ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
-            ),
+            if (showReplyQuote)
+              _ReplyQuote(
+                username: post.replyToUsername!,
+                postNo: quoteTarget?.postNo,
+                contentPreview: _plainTextFromHtml(
+                  quoteTarget?.renderedContent,
+                ),
+                unavailable:
+                    quoteTarget == null || quoteTarget?.unavailable == true,
+              )
+            else
+              Text(
+                '${l10n.topicReply} @${post.replyToUsername}',
+                style: GfTheme.typographyOf(
+                  context,
+                ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
+              ),
           ],
           const SizedBox(height: 10),
           GfMarkdownView(data: post.content),
@@ -1178,111 +1094,54 @@ class _PostCard extends StatelessWidget {
   }
 }
 
-class _NestedPostCard extends StatelessWidget {
-  const _NestedPostCard({
-    required this.post,
-    required this.onReply,
-    required this.onReport,
-  });
-
-  final PostPayload post;
-  final VoidCallback onReply;
-  final VoidCallback onReport;
-
-  @override
-  Widget build(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context);
-    final GfColors colors = GfTheme.colorsOf(context);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          GfAvatar(
-            src: resolveApiAssetUrl(post.author.avatarUrl),
-            size: 28,
-            ring: true,
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        post.author.nickname ?? post.author.username,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    if (post.postNo > 0)
-                      Text(
-                        '#${post.postNo}',
-                        style: TextStyle(
-                          color: colors.baseContent.withValues(alpha: 0.55),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                  ],
-                ),
-                if (post.replyToUsername != null) ...<Widget>[
-                  const SizedBox(height: 6),
-                  _ReplyReference(username: post.replyToUsername!),
-                ],
-                const SizedBox(height: 8),
-                GfMarkdownView(data: post.content),
-                const SizedBox(height: 8),
-                Row(
-                  children: <Widget>[
-                    Text(
-                      timeAgo(post.createdAt, l10n: l10n),
-                      style: GfTheme.typographyOf(
-                        context,
-                      ).caption.copyWith(color: colors.iconMuted),
-                    ),
-                    const Spacer(),
-                    GfIconButton(
-                      icon: Icons.reply_outlined,
-                      size: 44,
-                      iconSize: 18,
-                      tooltip: l10n.topicReply,
-                      onPressed: onReply,
-                    ),
-                    const SizedBox(width: 4),
-                    GfIconButton(
-                      icon: Icons.flag_outlined,
-                      size: 44,
-                      iconSize: 18,
-                      tooltip: l10n.topicReport,
-                      onPressed: onReport,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+/// 去除服务端渲染 HTML 的标签，取纯文本预览（移动端引用块轻量展示用）。
+String _plainTextFromHtml(String? html) {
+  if (html == null || html.isEmpty) return '';
+  return html
+      .replaceAll(RegExp(r'<br\s*/?>'), '\n')
+      .replaceAll(RegExp(r'</(p|div|li|h[1-6]|blockquote|tr)>'), '\n')
+      .replaceAll(RegExp(r'<[^>]*>'), '')
+      .replaceAll('&nbsp;', ' ')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
 }
 
-class _ReplyReference extends StatelessWidget {
-  const _ReplyReference({required this.username});
+/// 平铺回复的引用块：被引用楼层作者/楼号 + 纯文本预览，长内容可展开收起。
+class _ReplyQuote extends StatefulWidget {
+  const _ReplyQuote({
+    required this.username,
+    required this.unavailable,
+    this.postNo,
+    this.contentPreview,
+  });
 
   final String username;
+  final int? postNo;
+  final String? contentPreview;
+  final bool unavailable;
+
+  @override
+  State<_ReplyQuote> createState() => _ReplyQuoteState();
+}
+
+class _ReplyQuoteState extends State<_ReplyQuote> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final String header = widget.postNo == null
+        ? '${l10n.topicReply} @${widget.username}'
+        : '${l10n.topicReply} @${widget.username} #${widget.postNo}';
+    final String preview = widget.contentPreview ?? '';
+    final bool hasPreview = !widget.unavailable && preview.isNotEmpty;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -1291,12 +1150,52 @@ class _ReplyReference extends StatelessWidget {
         border: Border(left: BorderSide(color: colors.primary, width: 2)),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(
-        '${AppLocalizations.of(context).topicReply} @$username',
-        style: TextStyle(
-          color: colors.baseContent.withValues(alpha: 0.55),
-          fontSize: 12,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            header,
+            style: TextStyle(
+              color: colors.baseContent.withValues(alpha: 0.55),
+              fontSize: 12,
+            ),
+          ),
+          if (widget.unavailable) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(
+              l10n.topicReplyTargetUnavailable,
+              style: TextStyle(
+                color: colors.baseContent.withValues(alpha: 0.45),
+                fontSize: 12,
+              ),
+            ),
+          ] else if (hasPreview) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(
+              preview,
+              maxLines: _expanded ? null : 3,
+              overflow: _expanded ? TextOverflow.clip : TextOverflow.ellipsis,
+              style: TextStyle(
+                color: colors.baseContent.withValues(alpha: 0.75),
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+            if (preview.length > 120)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => _expanded = !_expanded),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                    color: colors.baseContent.withValues(alpha: 0.45),
+                  ),
+                ),
+              ),
+          ],
+        ],
       ),
     );
   }

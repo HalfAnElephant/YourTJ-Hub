@@ -187,6 +187,40 @@ func TestExtractPreviewUsesImageFallbackAndTruncatesRunes(t *testing.T) {
 	}
 }
 
+func TestExtractVisibleTextDoesNotDropMarkdownWrappedWords(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		content string
+	}{
+		{name: "strong", content: "**赌博**"},
+		{name: "emphasis", content: "*赌博*"},
+		{name: "strikethrough", content: "~~赌博~~"},
+		{name: "inline code", content: "`赌博`"},
+		{name: "heading", content: "# 赌博"},
+		{name: "blockquote", content: "> 赌博"},
+		{name: "list", content: "- 赌博"},
+		{name: "link", content: "[赌博](https://example.com)"},
+		{name: "fenced code", content: "```text\n赌博\n```"},
+		{name: "formatting inside word", content: "赌**博**"},
+		{name: "inline code inside word", content: "赌`博`"},
+		{name: "link inside word", content: "赌[博](https://example.com)"},
+		{name: "numeric entity inside word", content: "&#x8D4C;博"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExtractVisibleText(tt.content); !strings.Contains(got, "赌博") {
+				t.Fatalf("ExtractVisibleText(%q) = %q, want 赌博", tt.content, got)
+			}
+		})
+	}
+}
+
+func TestExtractVisibleTextSeparatesMarkdownTableCells(t *testing.T) {
+	visible := ExtractVisibleText("| 赌 | 博 |\n| --- | --- |")
+	if strings.Contains(visible, "赌博") {
+		t.Fatalf("ExtractVisibleText() joined separate table cells: %q", visible)
+	}
+}
+
 func TestFallbackExtractDescription(t *testing.T) {
 	got := fallbackExtractDescription(`# Title
 

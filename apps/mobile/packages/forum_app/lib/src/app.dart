@@ -5,7 +5,9 @@ import 'package:ui_kit/ui_kit.dart';
 
 import '../l10n/app_localizations.dart';
 import 'router.dart';
+import 'site_theme.dart';
 import 'theme_mode.dart';
+import 'push/push_service.dart';
 
 /// yourtj 移动端根应用。
 ///
@@ -20,12 +22,20 @@ class GfApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ThemeMode mode = ref.watch(themeModeProvider);
+    final GfRuntimeTheme? runtime = ref.watch(
+      siteThemeProvider.select((s) => s.following ? s.runtime : null),
+    );
+
+    // 原生推送启动引导：配置的构建异步恢复注册状态与点按路由；
+    // 未配置/未启用构建为纯 no-op（unsupported 状态，零开销）。
+    ref.watch(pushBootstrapProvider);
 
     return MaterialApp.router(
       title: 'yourtj',
       debugShowCheckedModeBanner: false,
-      theme: gfThemeData(Brightness.light),
-      darkTheme: gfThemeData(Brightness.dark),
+      // 站点主题同步：runtime 覆盖为 null 时回退内置 tokens.json 镜像主题。
+      theme: gfThemeData(Brightness.light, overrides: runtime?.light),
+      darkTheme: gfThemeData(Brightness.dark, overrides: runtime?.dark),
       themeMode: mode,
       routerConfig: appRouter,
       // i18n:zh/en 一期(web locale 对齐),跟随系统语言。

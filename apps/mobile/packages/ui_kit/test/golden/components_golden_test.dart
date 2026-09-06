@@ -8,7 +8,8 @@ import '../golden_helper.dart';
 
 /// Component-level golden baselines (390x844 mobile surface, Roboto).
 ///
-/// Regenerate intentionally after a visual change:
+/// Tagged `golden` and excluded from `melos run test` (the CI gate) via
+/// `--exclude-tags=golden`. Regenerate intentionally after a visual change:
 /// `flutter test --update-goldens test/golden/components_golden_test.dart`
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +20,9 @@ void main() {
   // goldens on Linux and skip elsewhere.
   final bool skipGoldens = !Platform.isLinux;
 
-  testWidgets('GfButton all variants', skip: skipGoldens, (tester) async {
+  testWidgets('GfButton all variants', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     await pumpGfGolden(
       tester,
       Padding(
@@ -40,7 +43,9 @@ void main() {
     );
   });
 
-  testWidgets('GfBadge all variants', skip: skipGoldens, (tester) async {
+  testWidgets('GfBadge all variants', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     await pumpGfGolden(
       tester,
       Padding(
@@ -61,7 +66,9 @@ void main() {
     );
   });
 
-  testWidgets('GfSegmented control', skip: skipGoldens, (tester) async {
+  testWidgets('GfSegmented control', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     await pumpGfGolden(
       tester,
       Padding(
@@ -83,7 +90,9 @@ void main() {
     );
   });
 
-  testWidgets('GfTopicRow states', skip: skipGoldens, (tester) async {
+  testWidgets('GfTopicRow states', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     await pumpGfGolden(
       tester,
       SizedBox(
@@ -122,7 +131,9 @@ void main() {
     );
   });
 
-  testWidgets('GfFloatingControls', skip: skipGoldens, (tester) async {
+  testWidgets('GfFloatingControls', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     await pumpGfGolden(
       tester,
       Center(
@@ -154,7 +165,9 @@ void main() {
     );
   });
 
-  testWidgets('GfNotificationRow states', skip: skipGoldens, (tester) async {
+  testWidgets('GfNotificationRow states', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     await pumpGfGolden(
       tester,
       SizedBox(
@@ -187,7 +200,9 @@ void main() {
     );
   });
 
-  testWidgets('GfMessageBubble states', skip: skipGoldens, (tester) async {
+  testWidgets('GfMessageBubble states', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     await pumpGfGolden(
       tester,
       const Padding(
@@ -208,7 +223,9 @@ void main() {
     );
   });
 
-  testWidgets('GfAvatarStack sm', skip: skipGoldens, (tester) async {
+  testWidgets('GfAvatarStack sm', skip: skipGoldens, tags: 'golden', (
+    tester,
+  ) async {
     await pumpGfGolden(
       tester,
       const Padding(

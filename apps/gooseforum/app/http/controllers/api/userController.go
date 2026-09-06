@@ -237,11 +237,12 @@ func EditUserInfo(req component.BetterRequest[EditUserInfoReq]) component.Respon
 		req.Params.Website,
 		req.Params.WebsiteName,
 	}, "\n")
-	if hit, word := moderationservice.CheckContentAllowed(profileText); hit {
+	if words := moderationservice.FindSensitiveWords(profileText); len(words) > 0 {
+		word := words[0]
 		moderationservice.SensitiveContentBlocked(req.UserId, moderationLog.SubjectUserProfile, 0, word, truncateExcerpt(profileText))
 		return component.FailResponseCode(
 			component.MessageContentSensitiveBlocked,
-			component.MessageParams{"word": word},
+			component.MessageParams{"word": word, "words": words},
 		)
 	}
 
@@ -273,9 +274,6 @@ func EditUserProfileCover(req component.BetterRequest[EditUserProfileCoverReq]) 
 	userEntity, err := req.GetUser()
 	if err != nil {
 		return component.FailResponseCode(component.MessageUserFetchFailed, nil)
-	}
-	if userEntity.RoleId == 0 {
-		return component.FailResponseCode(component.MessagePermissionDenied, nil)
 	}
 
 	userEntity.ProfileCoverUrl = strings.TrimSpace(req.Params.ProfileCoverUrl)

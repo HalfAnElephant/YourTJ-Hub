@@ -310,6 +310,9 @@ complete operation coverage and the precondition for such a gate is met.
   - `import` (staged, checksum-addressed JSON import)
   - `file-migrate` (BLOB → object storage migration)
   - `topic-search.*`, `user-search.*`, `category-search.*`, and `course-search.*` (search projections)
+  - `webpush.*` (Web Push browser-channel notifications; VAPID endpoints, 404/410 cleanup)
+  - `nativepush.*` (native APNs/FCM push; same enqueue points as `webpush.*`, terminal-task
+    cleanup cron at `12 3 * * *`)
 - Task claiming is **atomic with a lease** (issue #138): a worker claims a row via a CAS update
   (`pending/retrying → running`, `RowsAffected = 1`), so concurrent workers/processes never execute
   the same task simultaneously from the queue's perspective. Each claim generates a fresh,
@@ -338,6 +341,13 @@ complete operation coverage and the precondition for such a gate is met.
   worker re-reads current database state before upserting or deleting the external document, so an
   unavailable Meilisearch instance only delays a rebuildable projection.
 - Export files land in `data/export/` and are retained 7 days (daily cron cleanup).
+- Push registrations: `push_subscriptions` (browser Web Push subscriptions) and `push_device`
+  (native APNs/FCM device tokens; token UNIQUE index, per-user 20-device cap with oldest-row
+  eviction on new registration). Both tables are purged on account close; dead registrations are
+  removed by their workers on delivery failure (web push 404/410, APNs 410/BadDeviceToken,
+  FCM 404 UNREGISTERED). Native device routes require login; `push/config` exposes the
+  `native` capability gate (`apnsEnabled`/`fcmEnabled`) so clients hide the channel when the
+  server has no credentials configured.
 
 ## Config-driven features (pageConfig)
 

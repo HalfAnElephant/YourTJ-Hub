@@ -52,18 +52,69 @@ func CheckNicknameAllowedWithConfig(nickname string, cfg pageConfig.SecurityAndR
 	return "", nil
 }
 
-// CheckContentAllowed 检查内容是否命中敏感词，返回是否命中及命中的敏感词。
+// CheckContentAllowed 检查内容是否命中敏感词，返回是否命中及首个命中的敏感词。
+// 保留单词入口给审核日志和旧调用方；需要完整命中列表时使用 FindSensitiveWords。
 func CheckContentAllowed(content string) (hit bool, word string) {
 	return CheckContentAllowedWithConfig(content, hotdataserve.GetSecuritySettingsConfigCache())
 }
 
 // CheckContentAllowedWithConfig 使用给定配置检查内容，便于测试。
 // 词表经 wordmatch.ContentOptions（大小写/NFKC/零宽折叠，不含 leetspeak）
-// 归一化后单遍 AC 扫描；命中返回配置中的原词。
+// 归一化后单遍 AC 扫描；命中返回配置顺序中的首个原词。
 func CheckContentAllowedWithConfig(content string, cfg pageConfig.SecurityAndRegistration) (hit bool, word string) {
 	matcher := wordmatch.Compile(cfg.SensitiveWords, wordmatch.ContentOptions)
 	word, hit = matcher.Find(content)
 	return hit, word
+}
+
+// FindSensitiveWords 返回内容中所有命中的敏感词，顺序与安全设置中的词表一致。
+// 结果已去重，匹配只扫描一次，供需要准确提示用户修改位置的调用方使用。
+func FindSensitiveWords(content string) []string {
+	return FindSensitiveWordsWithConfig(content, hotdataserve.GetSecuritySettingsConfigCache())
+}
+
+// FindSensitiveWordsWithConfig 使用给定配置返回内容中所有命中的敏感词，便于测试。
+// matcher.FindAll 已处理大小写/NFKC/零宽归一化、重叠词和配置顺序。
+func FindSensitiveWordsWithConfig(content string, cfg pageConfig.SecurityAndRegistration) []string {
+	return FindSensitiveWordsInTextsWithConfig([]string{content}, cfg)
+}
+
+// FindSensitiveWordsInTextsWithConfig 在多个文本表示中查找所有命中的敏感词。
+// 调用方可同时传入 Markdown 原文与渲染后的可见文本，防止格式标记插入词中间
+// （例如「赌**博**」）后仅靠原文子串检查被绕过。结果仍按配置词表顺序去重。
+func FindSensitiveWordsInTextsWithConfig(contents []string, cfg pageConfig.SecurityAndRegistration) []string {
+	matcher := wordmatch.Compile(cfg.SensitiveWords, wordmatch.ContentOptions)
+	if matcher.Len() == 0 {
+		return nil
+	}
+
+	found := make(map[string]struct{}, matcher.Len())
+	for i, content := range contents {
+		duplicate := false
+		for _, previous := range contents[:i] {
+			if content == previous {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
+			continue
+		}
+		for _, word := range matcher.FindAll(content) {
+			found[word] = struct{}{}
+		}
+	}
+	if len(found) == 0 {
+		return nil
+	}
+
+	hits := make([]string, 0, len(found))
+	for _, word := range matcher.Words() {
+		if _, ok := found[word.Original]; ok {
+			hits = append(hits, word.Original)
+		}
+	}
+	return hits
 }
 
 // FreezeUsersByBannedUsername 冻结与单个禁用词（归一化整串全等，与策略检查同规则）

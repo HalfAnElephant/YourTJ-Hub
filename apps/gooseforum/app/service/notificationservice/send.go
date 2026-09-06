@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/eventNotification"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/nativepushservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/unreadservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/webpushservice"
 	"github.com/spf13/cast"
@@ -34,6 +35,7 @@ func SendCommentNotification(userId uint64, topicId uint64, commentContent strin
 	if err == nil {
 		unreadservice.Invalidate(userId)
 		webpushservice.EnqueueNotification(userId, notification.Id)
+		nativepushservice.EnqueueNotification(userId, notification.Id)
 	}
 	return err
 }
@@ -63,6 +65,7 @@ func SendPostReplyNotification(userId uint64, postId uint64, postNo uint64, topi
 	if err == nil {
 		unreadservice.Invalidate(userId)
 		webpushservice.EnqueueNotification(userId, notification.Id)
+		nativepushservice.EnqueueNotification(userId, notification.Id)
 	}
 	return err
 }
@@ -106,6 +109,7 @@ func SendTopicPostNotifications(userIds []uint64, topicId uint64, postId uint64,
 			}
 			unreadservice.Invalidate(notification.UserId)
 			webpushservice.EnqueueNotification(notification.UserId, notification.Id)
+			nativepushservice.EnqueueNotification(notification.UserId, notification.Id)
 		}
 	}
 	return err
@@ -133,6 +137,7 @@ func SendBadgeNotification(userId uint64, badgeCode string, badgeName string, ba
 	if err == nil {
 		unreadservice.Invalidate(userId)
 		webpushservice.EnqueueNotification(userId, notification.Id)
+		nativepushservice.EnqueueNotification(userId, notification.Id)
 	}
 	return err
 }
@@ -159,6 +164,7 @@ func SendLikeNotification(userId uint64, topicId uint64, topicTitle string, post
 	if err == nil {
 		unreadservice.Invalidate(userId)
 		webpushservice.EnqueueNotification(userId, notification.Id)
+		nativepushservice.EnqueueNotification(userId, notification.Id)
 	}
 	return err
 }
@@ -181,6 +187,7 @@ func SendFollowNotification(userId uint64, followerId uint64, followerName strin
 	if err == nil {
 		unreadservice.Invalidate(userId)
 		webpushservice.EnqueueNotification(userId, notification.Id)
+		nativepushservice.EnqueueNotification(userId, notification.Id)
 	}
 	return err
 }

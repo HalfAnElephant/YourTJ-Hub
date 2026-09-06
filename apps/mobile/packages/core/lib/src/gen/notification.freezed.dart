@@ -1270,9 +1270,7 @@ abstract class $NotificationTemplateParamsCopyWith<$Res> {
         NotificationTemplateParams
       >;
   @useResult
-  $Res call({
-    String? preview,
-  });
+  $Res call({String? preview});
 }
 
 /// @nodoc
@@ -1292,9 +1290,7 @@ class _$NotificationTemplateParamsCopyWithImpl<
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
-  $Res call({
-    Object? preview = freezed,
-  }) {
+  $Res call({Object? preview = freezed}) {
     return _then(
       _value.copyWith(
             preview: freezed == preview
@@ -1316,9 +1312,7 @@ abstract class _$$NotificationTemplateParamsImplCopyWith<$Res>
   ) = __$$NotificationTemplateParamsImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({
-    String? preview,
-  });
+  $Res call({String? preview});
 }
 
 /// @nodoc
@@ -1338,9 +1332,7 @@ class __$$NotificationTemplateParamsImplCopyWithImpl<$Res>
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
-  $Res call({
-    Object? preview = freezed,
-  }) {
+  $Res call({Object? preview = freezed}) {
     return _then(
       _$NotificationTemplateParamsImpl(
         preview: freezed == preview
@@ -1355,9 +1347,7 @@ class __$$NotificationTemplateParamsImplCopyWithImpl<$Res>
 /// @nodoc
 @JsonSerializable()
 class _$NotificationTemplateParamsImpl implements _NotificationTemplateParams {
-  const _$NotificationTemplateParamsImpl({
-    this.preview,
-  });
+  const _$NotificationTemplateParamsImpl({this.preview});
 
   factory _$NotificationTemplateParamsImpl.fromJson(
     Map<String, dynamic> json,
@@ -1402,9 +1392,8 @@ class _$NotificationTemplateParamsImpl implements _NotificationTemplateParams {
 
 abstract class _NotificationTemplateParams
     implements NotificationTemplateParams {
-  const factory _NotificationTemplateParams({
-    final String? preview,
-  }) = _$NotificationTemplateParamsImpl;
+  const factory _NotificationTemplateParams({final String? preview}) =
+      _$NotificationTemplateParamsImpl;
 
   factory _NotificationTemplateParams.fromJson(Map<String, dynamic> json) =
       _$NotificationTemplateParamsImpl.fromJson;

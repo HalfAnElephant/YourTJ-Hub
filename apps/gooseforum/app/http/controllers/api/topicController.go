@@ -57,15 +57,26 @@ func detachedJobContext(c *gin.Context) (context.Context, context.CancelFunc) {
 }
 
 // checkContentPolicy 检查内容是否命中敏感词。
-// 返回 (pendingReview, word, err)：
+// 返回 (pendingReview, word, err)：word 保留为首个命中词；拦截错误的 params
+// 同时带完整的 words，供编辑器准确标记所有命中段落。
 //   - pendingReview=true：命中且配置为转人工审核，调用方应将 ProcessStatus 置为待审（2）。
 //   - err!=nil：命中且配置为直接拦截，调用方应拒绝写入并返回错误。
 func checkContentPolicy(userId uint64, content string, subjectType string, subjectId uint64) (bool, string, error) {
 	securityConfig := hotdataserve.GetSecuritySettingsConfigCache()
-	hit, word := moderationservice.CheckContentAllowedWithConfig(content, securityConfig)
+	if len(securityConfig.SensitiveWords) == 0 {
+		return false, "", nil
+	}
+	// 既查 Markdown 原文，也查去掉格式标记后的可见文本。这样整词包裹
+	// （**赌博**）和格式插入词中（赌**博**）都不能绕过内容策略。
+	visibleContent := markdown2html.ExtractVisibleText(content)
+	words := moderationservice.FindSensitiveWordsInTextsWithConfig(
+		[]string{content, visibleContent}, securityConfig,
+	)
+	hit := len(words) > 0
 	if !hit {
 		return false, "", nil
 	}
+	word := words[0]
 	excerpt := content
 	if len(excerpt) > 100 {
 		excerpt = excerpt[:100]
@@ -78,7 +89,7 @@ func checkContentPolicy(userId uint64, content string, subjectType string, subje
 	return false, word, component.NewMessageError(
 		component.MessageContentSensitiveBlocked,
 		"内容包含敏感词，已被拦截",
-		component.MessageParams{"word": word},
+		component.MessageParams{"word": word, "words": words},
 	)
 }
 

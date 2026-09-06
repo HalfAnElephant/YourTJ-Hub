@@ -49,7 +49,7 @@ make build && ./bin/yourtj-hub serve   # then curl http://localhost:5234
 | http/controllers | handler + rendering tests (upstream has some) | go test + httptest |
 | resource (frontend) | typecheck + component tests | vue-tsc + Vitest |
 | contract | OpenAPI lint/bundle/type generation plus real Gin route-chain fixture assertions | pnpm + go test + httptest |
-| mobile | widget/unit | flutter test (melos analyze + test; see local-development.md) |
+| mobile | widget/unit | flutter test (melos analyze + test; pixel goldens are tagged `golden` and excluded from this gate; see local-development.md) |
 | mobile OIDC | controller chain unit + E2E script | `auth/test/oidc_controller_test.dart` (authorize→exchange 调用链) + `scripts/oidc_e2e.sh` (本地内建 Provider → AppAuth 模拟器回跳 → exchange 验证) |
 
 ## Test layout
@@ -99,7 +99,7 @@ path filters directly, so an unrelated PR does not start a Flutter runner.
   `apps/gooseforum/resource/packages/client/src/gen`. Its inputs are the contract package, generated
   TypeScript, client package manifest, and its own workflow configuration. The route-level HTTP
   contract fixture tests run inside the backend `go test ./...` gate.
-- ci-mobile.yml: changed mobile paths run melos bootstrap, analyze, and test (apps/mobile/**).
+- ci-mobile.yml: changed mobile paths run melos bootstrap, analyze, and test (apps/mobile/**); pixel golden tests are tagged `golden` and excluded from the gate (regenerate per golden test file with `flutter test --update-goldens`, or use the mobile-golden-refresh workflow on Linux).
 
 ## Smoke checklist
 

@@ -6,7 +6,7 @@
 >
 > Owner: Platform maintainers
 >
-> Last verified: 2026-08-14
+> Last verified: 2026-09-06
 
 ## Deployment shape
 
@@ -45,6 +45,50 @@
     `docker images | awk '/yourtj-wiki/{print $3}' | xargs -r docker rmi -f`
     （`deploy.sh` 的镜像清理只保留 `yourtj-hub` 前缀 tag，不含 `yourtj-wiki:*`）。
   - 若反向代理仍把旧 wiki 域名指到 127.0.0.1:5284/5285，退役后需同步摘除路由。
+
+### 静态资产缓存（反向代理注意事项）
+
+单二进制自身负责静态资产与文件下载的缓存头（实现：
+`app/http/httputil/cache.go` + `app/http/middleware/browsercache.go`）。
+`/assets/*` 与 `/static/*` 的挂载级缓存中间件（`AssetsCache`/`BrowserCache`）
+仅在 `app.env=production` 生效，本地/开发响应不带缓存头；`/file/img/*` 与
+下方 PWA 文件（`servePWAStatic`）的缓存头不区分环境，恒定输出：
+
+| 路径 | 2xx 响应头 | 说明 |
+| --- | --- | --- |
+| `/assets/*`（Vite 构建，文件名含内容哈希） | `public, max-age=31536000, immutable`（`AssetsCache`） | 字节变更必然换 URL，二次访问零重验证 |
+| `/static/*`（内嵌静态文件） | `public, max-age=18144000`（`BrowserCache`） | 长公共缓存 |
+| `/file/img/*`（用户/版面图片，成功路径） | `public, max-age=18144000`（`SetLongPublic`） | 文件名内容寻址 |
+| `/sw.js` | `no-cache` | Service Worker 更新必须及时可见 |
+| `/manifest.webmanifest` | `public, max-age=3600` | PWA manifest 短缓存 |
+| `/`（SSR HTML）与 `/api/*` | 路由自控（多为 `no-store`/无缓存头） | 登录态与动态内容，禁止代理层长缓存 |
+| 上述静态挂载的 404/错误 | `no-store`（`DeferCacheHeader` 按最终状态码决定） | 部署回滚窗口不得把缺失 chunk 钉进缓存 |
+
+**反向代理（1Panel/openresty）不得对以上响应追加或覆盖 `cache-control`。**
+nginx `add_header` 是追加而非覆盖：一旦代理层再发一个 `Cache-Control`
+（典型事故：站点 `proxy/*.conf` 里的 `add_header Cache-Control no-cache`），
+浏览器按多个头中最严格语义执行，等价于禁用全部缓存——静态资产每次导航
+全量回源，长缓存完全失效。
+
+1Panel 修复路径：网站 → 全部网站 → 站点设置 → 反向代理，逐个编辑代理条目，
+删除 `add_header Cache-Control ...` 行（同时检查站点 conf.d 主配置）。
+修改保存后 1Panel 自动 reload；手动重载：
+`docker exec <openresty容器> nginx -t && docker exec <openresty容器> nginx -s reload`。
+
+部署/变更后验收（每条响应必须只出现一行 `cache-control`）。统一用 GET 探测
+（丢弃 body、保留响应头）：`/sw.js` 与 `/` 只注册了 GET 处理器，HEAD
+（`curl -I`）会落入 NoRoute 返回 404（HEAD 契约见 `contract_head_http_test.go`）：
+
+```bash
+curl -sS -D - -o /dev/null https://f.yourtj.de/assets/assets/<当前entry>.js   # public, max-age=31536000, immutable
+curl -sS -D - -o /dev/null https://f.yourtj.de/static/pic/icon.webp           # public, max-age=18144000
+curl -sS -D - -o /dev/null https://f.yourtj.de/sw.js                          # no-cache
+curl -sS -D - -o /dev/null https://f.yourtj.de/                               # no-store 系（HTML 不缓存）
+```
+
+排查技巧：绕过代理直打上游可二分定位注入方——`curl -sI http://127.0.0.1:5234/assets/...`
+（宿主机上执行；上游无头而公网有头 ⇒ 代理层注入）。dev 实例同理
+（`dev.yourtj.de` → `127.0.0.1:5235`）。
 
 ### 旧 VitePress wiki 内容迁移（GitHub 唯一真实源）
 
@@ -189,6 +233,8 @@ Deploy/apply/drift workflows 的 job 声明对应 `environment:`，自动获得�
 | `PG_DSN` | both | `[db.default].url`（key=value 或 URL DSN；main=your**tj_main**，dev=your**tj_dev**；含库密码，勿外泄） |
 | `SIGNING_KEY` | both | `[app].signingKey`（**必须与现网一致**；轮换即全线登出 + TOTP/重置链接失效） |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | both（可选） | `[webpush]` VAPID 密钥对（生成：`yourtj-hub webpush-keys`，见下方 Config & run）；为空 = Web Push 通道关闭；**dev 保持空**（快照同步的订阅/任务行绝不外发推送） |
+| `APNS_KEY_PATH` / `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_BUNDLE_ID` / `APNS_ENVIRONMENT` | both（可选） | `[push.apns]` iOS 原生推送凭据（.p8 token 认证）；为空 = APNs 通道关闭；**dev 保持空**（快照同步的 push_device/任务行绝不外发） |
+| `FCM_CREDENTIALS_PATH` / `FCM_PROJECT_ID` | both（可选） | `[push.fcm]` Android 原生推送凭据（service-account JSON 路径 + Firebase 项目 id）；为空 = FCM 通道关闭；**dev 保持空** |
 | `MEILI_MASTER_KEY` | both | `[meilisearch].masterkey` |
 | `WIKI_WEBHOOK_SECRET` | both | `[wiki.git].webhook_secret` |
 | `GH_CLIENT_ID` / `GH_CLIENT_SECRET` | production only | GitHub OAuth（dev 因 DB siteUrl 无环境隔离保持空，渲染 allow-empty） |
@@ -239,6 +285,7 @@ make build     # cd apps/gooseforum/resource && pnpm build → cd apps/gooseforu
 - Container-internal port is always `5234`; host mapping via `MAIN_PORT` (5234) / `DEV_PORT` (5235).
 - Health probe: `GET /health` returns 200 when service + main db ping succeed, else 503.
 - Web Push（`[webpush]` 段，可选增强通道）：`vapid_public_key`/`vapid_private_key` 为空 = 通道关闭（dev 保持空）；密钥已配置但格式非法（base64url 解码后公钥非 65B / 私钥非 32B）时 `serve` 启动输出告警并禁用通道（fail-closed，绝不外发）。生成密钥对：`cd apps/gooseforum && go run . webpush-keys`
+- 原生推送（`[push.apns]` / `[push.fcm]` 段，可选增强通道）：各凭据为空 = 对应通道关闭（dev 保持空，快照同步的 push_device 注册与任务行绝不外发）。APNs 走 token-based `.p8` 认证：`key_path` 指向 `.p8` 文件、`key_id`/`team_id` 取自 Apple Developer 后台、`bundle_id` 为 App Bundle ID、`environment` 为 `sandbox`（开发构建）或 `production`（App Store/TestFlight）。FCM 走 HTTP v1：`credentials_path` 指向 Firebase 项目 service-account JSON、`project_id` 为 Firebase 项目 id（OAuth2 换取 access token 后调用 `messages:send`）。密钥文件在容器内挂载（`APNS_KEY_PATH`/`FCM_CREDENTIALS_PATH` 为容器内路径）；仅填了部分字段时通道按未配置处理（fail-closed，绝不外发）。`GET /api/forum/push/config` 的 `native.apnsEnabled`/`native.fcmEnabled` 反映通道状态。
 
 ## DB migration execution and rollback
 
@@ -738,7 +785,8 @@ curl -fsS -H "Host: f.yourtj.de" http://127.0.0.1/ | head -5   # 经 1Panel 反�
   3. 把新机 `storage/database/file.db` 拷回旧机对应路径并 `chown 1000:1000`；
   4. 再切 DNS 回旧机。
   - 若回滚发生在切换后很短时间内且写入量可忽略，可接受不回灌，但文档不承诺"数据无损"。
-- Meilisearch 索引不迁移，首次启动后由 `rebuild-search-index` 重建（ADR-003：索引是可重建投影）。
+- Meilisearch 索引不迁移，首次启动后由 `rebuild-search-index` 重建（决策
+  [0003](../decisions/0003-aggregate-search-multi-index-pinyin.md)：索引是可重建投影）。
 - 搜索投影任务采用有界重试；Meilisearch 短时不可用时，`topic-search.*`、
   `user-search.*` 或 `category-search.*` 任务可能进入 `failed`，不会自动无限重试。
   Meilisearch 恢复后检查 `task_queue`，并运行 `rebuild-search-index` 做一次全量对账；

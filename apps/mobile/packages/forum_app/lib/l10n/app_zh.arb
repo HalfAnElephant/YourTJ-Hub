@@ -170,6 +170,7 @@
     }
   },
   "topicReplyHint": "写下你的评论…",
+  "topicReplyTargetUnavailable": "原回复不可见",
   "topicReplying": "回复中…(点击取消)",
   "topicReport": "举报帖子",
   "topicReportHint": "请描述举报原因",
@@ -473,5 +474,137 @@
   "sortPopular": "流行",
   "topicFeedModeList": "列表",
   "topicFeedModeCard": "卡片",
-  "topicNewTopic": "新建话题"
+  "topicNewTopic": "新建话题",
+  "scheduleTitle": "课表",
+  "scheduleTabTimetable": "课表",
+  "scheduleTabPick": "选课",
+  "scheduleTerm": "学期",
+  "scheduleGrade": "年级",
+  "scheduleMajor": "专业",
+  "scheduleSyncLatest": "同步最新",
+  "scheduleDataOutdated": "教务数据已更新，点击同步",
+  "scheduleSyncedTo": "已同步至 {date}",
+  "@scheduleSyncedTo": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleWeekAll": "全部周次",
+  "scheduleWeekN": "第 {week} 周",
+  "@scheduleWeekN": {
+    "placeholders": {
+      "week": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleCurrentWeek": "当前周次",
+  "schedulePlanNew": "新建方案",
+  "schedulePlanRename": "重命名方案",
+  "schedulePlanDelete": "删除方案",
+  "schedulePlanClear": "清空课程",
+  "schedulePlanN": "方案 {n}",
+  "@schedulePlanN": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleStatsCourses": "{count} 门",
+  "@scheduleStatsCourses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleStatsCredits": "学分",
+  "scheduleStatsHours": "学时",
+  "scheduleStatsConflicts": "冲突",
+  "scheduleConflictBadge": "冲突",
+  "scheduleAddCustomEvent": "添加占位",
+  "scheduleCustomEventLabel": "有事",
+  "scheduleExportPng": "导出图片",
+  "scheduleExportCsv": "导出 CSV",
+  "scheduleDegraded": "检索降级中，结果可能不全",
+  "scheduleNoReviewData": "暂无课评数据",
+  "schedulePickClass": "选择教学班",
+  "scheduleCompulsory": "必修",
+  "scheduleOptional": "选修",
+  "scheduleSearchHint": "搜索课名/课号/教师",
+  "scheduleStaged": "备选",
+  "scheduleSelected": "已选",
+  "scheduleRemoveCourse": "退课",
+  "scheduleParityOdd": "单周",
+  "scheduleParityEven": "双周",
+  "scheduleWeeksN": "共{range}周",
+  "@scheduleWeeksN": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleDayMon": "周一",
+  "scheduleDayTue": "周二",
+  "scheduleDayWed": "周三",
+  "scheduleDayThu": "周四",
+  "scheduleDayFri": "周五",
+  "scheduleDaySat": "周六",
+  "scheduleDaySun": "周日",
+  "scheduleMorning": "上午",
+  "scheduleAfternoon": "下午",
+  "scheduleEvening": "晚上",
+  "coursesTitle": "课程目录",
+  "coursesSearchHint": "搜索课程",
+  "coursesFilterDepartment": "院系",
+  "coursesFilterTerm": "学期",
+  "coursesFilterCampus": "校区",
+  "coursesFilterInstructor": "教师",
+  "coursesOnlyWithReviews": "只看有评价",
+  "coursesRatingCount": "{count} 条评价",
+  "@coursesRatingCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "coursesNoRating": "暂无评分",
+  "courseDetailReviews": "课评",
+  "courseDetailOfferings": "开课班级",
+  "courseDetailLineage": "课程沿革",
+  "courseDetailRelated": "相关课程",
+  "courseDetailAiSummary": "AI 总结",
+  "courseDetailAiSummaryEmpty": "暂无 AI 总结",
+  "courseBookmark": "收藏",
+  "courseBookmarked": "已收藏",
+  "courseWriteReview": "写课评",
+  "reviewAnonymous": "匿名评价",
+  "reviewSubmit": "发布评价",
+  "reviewHelpful": "有用",
+  "reviewsEmpty": "还没有评价",
+  "wikiTitle": "Wiki",
+  "wikiRecent": "最近更新",
+  "wikiEditOnGithub": "在 GitHub 编辑",
+  "wikiToc": "目录",
+  "wikiNamespaces": "命名空间",
+  "wikiViewCount": "{count} 次浏览",
+  "@wikiViewCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsPush": "推送通知",
+  "settingsPushDenied": "系统通知权限未授予，点击前往设置",
+  "settingsFollowSiteTheme": "跟随站点主题",
+  "settingsFollowSiteThemeDesc": "使用服务器下发的站点配色",
+  "entryCourses": "课程",
+  "entrySchedule": "课表",
+  "entryWiki": "Wiki"
 }

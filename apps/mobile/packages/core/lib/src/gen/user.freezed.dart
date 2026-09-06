@@ -43,7 +43,10 @@ mixin _$UserCardPayload {
   int get collectionCount => throw _privateConstructorUsedError;
   bool get isOnline => throw _privateConstructorUsedError;
   bool get isFollowing => throw _privateConstructorUsedError;
-  bool get isSelf => throw _privateConstructorUsedError;
+  bool get isSelf =>
+      throw _privateConstructorUsedError; // 容错：旧后端（< 2026-09-06 修复）对无徽章用户序列化 badges 为 null
+  // （违反 TS 契约），defaultValue 对显式 null 与缺键均生效。
+  @JsonKey(defaultValue: [])
   List<UserBadgePayload> get badges => throw _privateConstructorUsedError;
   UserBadgePayload? get wornBadge => throw _privateConstructorUsedError;
   String get lastActiveTime => throw _privateConstructorUsedError;
@@ -89,7 +92,7 @@ abstract class $UserCardPayloadCopyWith<$Res> {
     bool isOnline,
     bool isFollowing,
     bool isSelf,
-    List<UserBadgePayload> badges,
+    @JsonKey(defaultValue: []) List<UserBadgePayload> badges,
     UserBadgePayload? wornBadge,
     String lastActiveTime,
     String createdAt,
@@ -298,7 +301,7 @@ abstract class _$$UserCardPayloadImplCopyWith<$Res>
     bool isOnline,
     bool isFollowing,
     bool isSelf,
-    List<UserBadgePayload> badges,
+    @JsonKey(defaultValue: []) List<UserBadgePayload> badges,
     UserBadgePayload? wornBadge,
     String lastActiveTime,
     String createdAt,
@@ -486,7 +489,7 @@ class _$UserCardPayloadImpl implements _UserCardPayload {
     required this.isOnline,
     required this.isFollowing,
     required this.isSelf,
-    required final List<UserBadgePayload> badges,
+    @JsonKey(defaultValue: []) required final List<UserBadgePayload> badges,
     this.wornBadge,
     required this.lastActiveTime,
     required this.createdAt,
@@ -547,8 +550,13 @@ class _$UserCardPayloadImpl implements _UserCardPayload {
   final bool isFollowing;
   @override
   final bool isSelf;
+  // 容错：旧后端（< 2026-09-06 修复）对无徽章用户序列化 badges 为 null
+  // （违反 TS 契约），defaultValue 对显式 null 与缺键均生效。
   final List<UserBadgePayload> _badges;
+  // 容错：旧后端（< 2026-09-06 修复）对无徽章用户序列化 badges 为 null
+  // （违反 TS 契约），defaultValue 对显式 null 与缺键均生效。
   @override
+  @JsonKey(defaultValue: [])
   List<UserBadgePayload> get badges {
     if (_badges is EqualUnmodifiableListView) return _badges;
     // ignore: implicit_dynamic_type
@@ -695,7 +703,7 @@ abstract class _UserCardPayload implements UserCardPayload {
     required final bool isOnline,
     required final bool isFollowing,
     required final bool isSelf,
-    required final List<UserBadgePayload> badges,
+    @JsonKey(defaultValue: []) required final List<UserBadgePayload> badges,
     final UserBadgePayload? wornBadge,
     required final String lastActiveTime,
     required final String createdAt,
@@ -747,8 +755,10 @@ abstract class _UserCardPayload implements UserCardPayload {
   @override
   bool get isFollowing;
   @override
-  bool get isSelf;
+  bool get isSelf; // 容错：旧后端（< 2026-09-06 修复）对无徽章用户序列化 badges 为 null
+  // （违反 TS 契约），defaultValue 对显式 null 与缺键均生效。
   @override
+  @JsonKey(defaultValue: [])
   List<UserBadgePayload> get badges;
   @override
   UserBadgePayload? get wornBadge;
@@ -2099,9 +2109,14 @@ mixin _$UserProfileProps {
   UserCardPayload get user => throw _privateConstructorUsedError;
   String get section => throw _privateConstructorUsedError;
   String get activityTab => throw _privateConstructorUsedError;
-  List<TabItemPayload> get tabs => throw _privateConstructorUsedError;
+  List<TabItemPayload> get tabs =>
+      throw _privateConstructorUsedError; // 容错：旧后端（< 2026-09-06 修复）在 summary 等非 activity 区块把
+  // activityTabs 序列化为 null（违反 TS 契约），defaultValue 对显式 null
+  // 与缺键均生效；后端源头修复见 payload.go buildUserProfileActivityTabs。
+  @JsonKey(defaultValue: [])
   List<TabItemPayload> get activityTabs => throw _privateConstructorUsedError;
   PaginationPayload get pagination => throw _privateConstructorUsedError;
+  @JsonKey(defaultValue: [])
   List<UserBadgePayload> get badges => throw _privateConstructorUsedError;
   List<TopicPayload> get topics => throw _privateConstructorUsedError;
   List<UserActivityPayload> get activities =>
@@ -2140,9 +2155,9 @@ abstract class $UserProfilePropsCopyWith<$Res> {
     String section,
     String activityTab,
     List<TabItemPayload> tabs,
-    List<TabItemPayload> activityTabs,
+    @JsonKey(defaultValue: []) List<TabItemPayload> activityTabs,
     PaginationPayload pagination,
-    List<UserBadgePayload> badges,
+    @JsonKey(defaultValue: []) List<UserBadgePayload> badges,
     List<TopicPayload> topics,
     List<UserActivityPayload> activities,
     List<UserLikePayload> likes,
@@ -2308,9 +2323,9 @@ abstract class _$$UserProfilePropsImplCopyWith<$Res>
     String section,
     String activityTab,
     List<TabItemPayload> tabs,
-    List<TabItemPayload> activityTabs,
+    @JsonKey(defaultValue: []) List<TabItemPayload> activityTabs,
     PaginationPayload pagination,
-    List<UserBadgePayload> badges,
+    @JsonKey(defaultValue: []) List<UserBadgePayload> badges,
     List<TopicPayload> topics,
     List<UserActivityPayload> activities,
     List<UserLikePayload> likes,
@@ -2450,9 +2465,9 @@ class _$UserProfilePropsImpl implements _UserProfileProps {
     required this.section,
     required this.activityTab,
     required final List<TabItemPayload> tabs,
-    required final List<TabItemPayload> activityTabs,
+    @JsonKey(defaultValue: []) required final List<TabItemPayload> activityTabs,
     required this.pagination,
-    required final List<UserBadgePayload> badges,
+    @JsonKey(defaultValue: []) required final List<UserBadgePayload> badges,
     required final List<TopicPayload> topics,
     required final List<UserActivityPayload> activities,
     required final List<UserLikePayload> likes,
@@ -2491,8 +2506,15 @@ class _$UserProfilePropsImpl implements _UserProfileProps {
     return EqualUnmodifiableListView(_tabs);
   }
 
+  // 容错：旧后端（< 2026-09-06 修复）在 summary 等非 activity 区块把
+  // activityTabs 序列化为 null（违反 TS 契约），defaultValue 对显式 null
+  // 与缺键均生效；后端源头修复见 payload.go buildUserProfileActivityTabs。
   final List<TabItemPayload> _activityTabs;
+  // 容错：旧后端（< 2026-09-06 修复）在 summary 等非 activity 区块把
+  // activityTabs 序列化为 null（违反 TS 契约），defaultValue 对显式 null
+  // 与缺键均生效；后端源头修复见 payload.go buildUserProfileActivityTabs。
   @override
+  @JsonKey(defaultValue: [])
   List<TabItemPayload> get activityTabs {
     if (_activityTabs is EqualUnmodifiableListView) return _activityTabs;
     // ignore: implicit_dynamic_type
@@ -2503,6 +2525,7 @@ class _$UserProfilePropsImpl implements _UserProfileProps {
   final PaginationPayload pagination;
   final List<UserBadgePayload> _badges;
   @override
+  @JsonKey(defaultValue: [])
   List<UserBadgePayload> get badges {
     if (_badges is EqualUnmodifiableListView) return _badges;
     // ignore: implicit_dynamic_type
@@ -2667,9 +2690,9 @@ abstract class _UserProfileProps implements UserProfileProps {
     required final String section,
     required final String activityTab,
     required final List<TabItemPayload> tabs,
-    required final List<TabItemPayload> activityTabs,
+    @JsonKey(defaultValue: []) required final List<TabItemPayload> activityTabs,
     required final PaginationPayload pagination,
-    required final List<UserBadgePayload> badges,
+    @JsonKey(defaultValue: []) required final List<UserBadgePayload> badges,
     required final List<TopicPayload> topics,
     required final List<UserActivityPayload> activities,
     required final List<UserLikePayload> likes,
@@ -2693,12 +2716,16 @@ abstract class _UserProfileProps implements UserProfileProps {
   @override
   String get activityTab;
   @override
-  List<TabItemPayload> get tabs;
+  List<TabItemPayload> get tabs; // 容错：旧后端（< 2026-09-06 修复）在 summary 等非 activity 区块把
+  // activityTabs 序列化为 null（违反 TS 契约），defaultValue 对显式 null
+  // 与缺键均生效；后端源头修复见 payload.go buildUserProfileActivityTabs。
   @override
+  @JsonKey(defaultValue: [])
   List<TabItemPayload> get activityTabs;
   @override
   PaginationPayload get pagination;
   @override
+  @JsonKey(defaultValue: [])
   List<UserBadgePayload> get badges;
   @override
   List<TopicPayload> get topics;

@@ -444,6 +444,9 @@ func TestAdminGetScheduleSettingsHTTPContract(t *testing.T) {
 	t.Run("success returns the stored section times", func(t *testing.T) {
 		conn, router := setupAdminIntegrationsContractTest(t)
 		persistContractPageConfig(t, conn, pageConfig.ScheduleSettings, pageConfig.ScheduleSettingsConfig{
+			// 现行 11 节制默认作息：白天 1-8 节 + 晚间 9/10/11 节（18:30 起）；
+			// 保存/种子均带现行编号盖章（未盖章的存量行走读取侧旧编号归一）。
+			Numbering:    pageConfig.ScheduleNumberingCurrent,
 			SectionTimes: []pageConfig.ScheduleSectionTime{
 				{Section: 1, Start: "08:00", End: "08:45"},
 				{Section: 2, Start: "08:50", End: "09:35"},
@@ -453,10 +456,9 @@ func TestAdminGetScheduleSettingsHTTPContract(t *testing.T) {
 				{Section: 6, Start: "14:20", End: "15:05"},
 				{Section: 7, Start: "15:30", End: "16:15"},
 				{Section: 8, Start: "16:20", End: "17:05"},
-				{Section: 9, Start: "17:10", End: "17:55"},
-				{Section: 10, Start: "18:30", End: "19:15"},
-				{Section: 11, Start: "19:20", End: "20:05"},
-				{Section: 12, Start: "20:10", End: "20:55"},
+				{Section: 9, Start: "18:30", End: "19:15"},
+				{Section: 10, Start: "19:20", End: "20:05"},
+				{Section: 11, Start: "20:10", End: "20:55"},
 			},
 		})
 		serveAdminSiteOK(t, conn, router, http.MethodGet, path, "", "admin-schedule-settings-success.json")
@@ -479,6 +481,10 @@ func TestAdminSaveScheduleSettingsHTTPContract(t *testing.T) {
 		stored := pageConfig.GetConfigByPageType(pageConfig.ScheduleSettings, pageConfig.ScheduleSettingsConfig{})
 		if len(stored.SectionTimes) != 2 {
 			t.Fatalf("stored schedule settings = %#v, want two section times", stored)
+		}
+		// 保存恒以现行编号盖章（读取侧据此识别编号体系，review P1）。
+		if stored.Numbering != pageConfig.ScheduleNumberingCurrent {
+			t.Fatalf("stored numbering = %q, want current stamp", stored.Numbering)
 		}
 		// 输入按节次升序排序后落库（12 在前提交，存储后 1 在前）。
 		if stored.SectionTimes[0].Section != 1 || stored.SectionTimes[1].Section != 12 {

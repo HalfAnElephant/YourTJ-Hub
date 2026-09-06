@@ -210,6 +210,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           return Column(
             children: [
               _AnnouncementBanner(props: props),
+              const _QuickEntries(),
               _HomeToolbar(
                 props: props,
                 selected: _sort,
@@ -476,5 +477,92 @@ class _HomeToolbar extends ConsumerWidget {
       'popular' => l10n.sortPopular,
       _ => key,
     };
+  }
+}
+
+/// 快捷入口行:课程/课表/Wiki 三域固定入口(Route A),首页工具条上方。
+class _QuickEntries extends StatelessWidget {
+  const _QuickEntries();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final GfColors colors = GfTheme.colorsOf(context);
+    final GfTypography typography = GfTheme.typographyOf(context);
+
+    return Container(
+      color: colors.base100,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: <Widget>[
+          _QuickEntry(
+            label: l10n.entryCourses,
+            icon: Icons.menu_book_outlined,
+            route: '/courses',
+            colors: colors,
+            typography: typography,
+          ),
+          _entryDivider(colors),
+          _QuickEntry(
+            label: l10n.entrySchedule,
+            icon: Icons.calendar_month_outlined,
+            route: '/schedule',
+            colors: colors,
+            typography: typography,
+          ),
+          _entryDivider(colors),
+          _QuickEntry(
+            label: l10n.entryWiki,
+            icon: Icons.auto_stories_outlined,
+            route: '/wiki',
+            colors: colors,
+            typography: typography,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _entryDivider(GfColors colors) =>
+      Container(width: 1, height: 26, color: colors.line);
+}
+
+class _QuickEntry extends StatelessWidget {
+  const _QuickEntry({
+    required this.label,
+    required this.icon,
+    required this.route,
+    required this.colors,
+    required this.typography,
+  });
+
+  final String label;
+  final IconData icon;
+  final String route;
+  final GfColors colors;
+  final GfTypography typography;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => context.push(route),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(icon, size: 17, color: colors.primary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: typography.small.copyWith(color: colors.baseContent),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

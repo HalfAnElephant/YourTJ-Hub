@@ -9,12 +9,17 @@ import '../l10n/app_localizations.dart';
 import 'navigation/tab_scroll_registry.dart';
 import 'pages/auth/login_page.dart';
 import 'pages/category/category_page.dart';
+import 'pages/courses/catalog_page.dart';
+import 'pages/courses/detail_page.dart';
 import 'pages/drafts/drafts_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/messages/messages_page.dart';
 import 'pages/notifications/notifications_page.dart';
 import 'pages/profile/profile_page.dart';
 import 'pages/publish/publish_page.dart';
+import 'pages/wiki/wiki_home_page.dart';
+import 'pages/wiki/wiki_page.dart';
+import 'pages/schedule/schedule_page.dart';
 import 'pages/search/search_page.dart';
 import 'pages/settings/settings_page.dart';
 import 'pages/topic/topic_page.dart';
@@ -249,5 +254,24 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
     GoRoute(path: '/drafts', builder: (_, _) => const DraftsPage()),
+    GoRoute(path: '/schedule', builder: (_, _) => const SchedulePage()),
+    GoRoute(path: '/courses', builder: (_, _) => const CourseCatalogPage()),
+    GoRoute(
+      path: '/courses/:courseId',
+      builder: (BuildContext context, GoRouterState state) => CourseDetailPage(
+        courseId: int.parse(state.pathParameters['courseId']!),
+        focusOfferingId: int.tryParse(
+          state.uri.queryParameters['offeringId'] ?? '',
+        ),
+      ),
+    ),
+    GoRoute(path: '/wiki', builder: (_, _) => const WikiHomePage()),
+    GoRoute(
+      // 多段 wiki 路径（如 /wiki/guide/getting-started）经 (.*) 通配捕获；
+      // go_router 对 path 参数自动 percent-decode，页面内按段重新编码。
+      path: '/wiki/:wikiPath(.*)',
+      builder: (BuildContext context, GoRouterState state) =>
+          WikiPage(wikiPath: state.pathParameters['wikiPath']!),
+    ),
   ],
 );
