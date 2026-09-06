@@ -14,6 +14,7 @@ import '../../providers.dart';
 import '../../format.dart';
 import '../../server_messages.dart';
 import '../../theme_mode.dart';
+import '../../site_theme.dart';
 import '../../widgets/status_views.dart';
 import '../../current_user.dart';
 import '../../widgets/skeletons.dart';
@@ -923,13 +924,37 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         _settingsSection(
           context,
           title: l10n.settingsAppearance,
-          child: GfSwitchRow(
-            title: l10n.settingsDarkMode,
-            description: isDark
-                ? l10n.settingsDarkCurrent
-                : l10n.settingsLightCurrent,
-            value: isDark,
-            onChanged: _toggleDarkMode,
+          child: Column(
+            children: [
+              GfSwitchRow(
+                title: l10n.settingsDarkMode,
+                description: isDark
+                    ? l10n.settingsDarkCurrent
+                    : l10n.settingsLightCurrent,
+                value: isDark,
+                onChanged: _toggleDarkMode,
+              ),
+              // 站点主题同步（Route A）：仅服务端启用站点主题时展示。
+              Consumer(
+                builder: (BuildContext context, WidgetRef ref, _) {
+                  final SiteThemeState siteTheme = ref.watch(siteThemeProvider);
+                  if (!siteTheme.available) return const SizedBox.shrink();
+                  return Column(
+                    children: [
+                      const GfDivider(),
+                      GfSwitchRow(
+                        title: l10n.settingsFollowSiteTheme,
+                        description: l10n.settingsFollowSiteThemeDesc,
+                        value: siteTheme.following,
+                        onChanged: (bool value) => ref
+                            .read(siteThemeProvider.notifier)
+                            .setFollowing(value),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
