@@ -1137,8 +1137,6 @@ export default {
     shareFailed: '共有に失敗しました',
     expandReply: 'すべて表示',
     collapseReply: '折りたたむ',
-    expandReplies: '返信を {count} 件表示',
-    collapseReplies: '返信を折りたたむ',
     replyPlaceholder: '返信を書く...',
     publishing: '投稿中...',
     delete: '削除',

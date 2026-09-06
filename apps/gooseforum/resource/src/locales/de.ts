@@ -1137,8 +1137,6 @@ export default {
     shareFailed: 'Teilen fehlgeschlagen',
     expandReply: 'Alles anzeigen',
     collapseReply: 'Einklappen',
-    expandReplies: 'Weitere {count} Antworten anzeigen',
-    collapseReplies: 'Weniger Antworten anzeigen',
     replyPlaceholder: 'Schreibe deine Antwort...',
     publishing: 'Wird veröffentlicht...',
     delete: 'Löschen',
