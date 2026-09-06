@@ -60,6 +60,7 @@ const loginProps = {
   githubUrl: '/api/oauth/github',
   googleUrl: '',
   googleReady: false,
+  privacyPolicyEnabled: true,
 }
 
 function brandSrcs(wrapper: VueWrapper): string[] {
@@ -127,6 +128,24 @@ describe('LoginPage default brand wordmark theme switch', () => {
     const srcs = brandSrcs(wrapper)
     expect(srcs.length).toBeGreaterThan(0)
     expect(new Set(srcs)).toEqual(new Set(['/static/pic/brand-default-dark.webp']))
+    wrapper.unmount()
+  })
+
+  test('disabled privacy policy is not linked or required by the registration agreement', async () => {
+    const wrapper = mount(LoginPage, {
+      props: {
+        layout: layout('default', ''),
+        props: { ...loginProps, initialMode: 'register', privacyPolicyEnabled: false },
+      },
+      global: { plugins: [i18n] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    expect(wrapper.find('a[href="/terms"]').exists()).toBe(true)
+    expect(wrapper.find('a[href="/privacy"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('I have read and agree to the terms')
+    expect(wrapper.text()).not.toContain('I have read and agree to the terms and privacy policy')
     wrapper.unmount()
   })
 })

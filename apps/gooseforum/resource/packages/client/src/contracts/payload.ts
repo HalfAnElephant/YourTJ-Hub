@@ -49,6 +49,7 @@ export interface LoginPageProps {
   githubUrl: string
   googleUrl: string
   googleReady: boolean
+  privacyPolicyEnabled: boolean
 }
 
 export interface ResetPasswordPageProps {

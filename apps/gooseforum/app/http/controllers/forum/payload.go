@@ -118,11 +118,12 @@ type ErrorPageProps struct {
 }
 
 type LoginPageProps struct {
-	InitialMode string `json:"initialMode"`
-	RedirectURL string `json:"redirectUrl"`
-	GitHubURL   string `json:"githubUrl"`
-	GoogleURL   string `json:"googleUrl"`
-	GoogleReady bool   `json:"googleReady"`
+	InitialMode          string `json:"initialMode"`
+	RedirectURL          string `json:"redirectUrl"`
+	GitHubURL            string `json:"githubUrl"`
+	GoogleURL            string `json:"googleUrl"`
+	GoogleReady          bool   `json:"googleReady"`
+	PrivacyPolicyEnabled bool   `json:"privacyPolicyEnabled"`
 }
 
 type ResetPasswordPageProps struct {
@@ -952,11 +953,12 @@ func buildLoginPageProps(c *gin.Context) LoginPageProps {
 		googleURL += "?redirect=" + url.QueryEscape(redirectURL)
 	}
 	return LoginPageProps{
-		InitialMode: mode,
-		RedirectURL: redirectURL,
-		GitHubURL:   githubURL,
-		GoogleURL:   googleURL,
-		GoogleReady: oauthservice.IsGoogleOAuthReady(),
+		InitialMode:          mode,
+		RedirectURL:          redirectURL,
+		GitHubURL:            githubURL,
+		GoogleURL:            googleURL,
+		GoogleReady:          oauthservice.IsGoogleOAuthReady(),
+		PrivacyPolicyEnabled: hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
 	}
 }
 

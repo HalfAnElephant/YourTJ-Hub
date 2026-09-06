@@ -173,7 +173,9 @@ async function handleRegister() {
     return
   }
   if (!registerForm.agree) {
-    error.value = t('auth.validation.termsRequired')
+    error.value = page.props.privacyPolicyEnabled
+      ? t('auth.validation.termsRequired')
+      : t('auth.validation.termsOnlyRequired')
     return
   }
   loading.register = true
@@ -417,10 +419,12 @@ function onToggleTheme() {
             <label class="flex items-start gap-2 text-sm leading-5 text-base-content/55">
               <input v-model="registerForm.agree" type="checkbox" class="mt-1 h-4 w-4 rounded border-line text-primary focus:ring-primary" />
               <span>
-                {{ t('auth.agreeTerms') }}
+                {{ page.props.privacyPolicyEnabled ? t('auth.agreeTerms') : t('auth.agreeTermsOnly') }}
                 <a href="/terms" target="_blank" rel="noopener noreferrer" class="font-medium text-primary hover:text-primary">{{ t('auth.termsLink') }}</a>
-                <span class="mx-1 text-base-content/40">·</span>
-                <a href="/privacy" target="_blank" rel="noopener noreferrer" class="font-medium text-primary hover:text-primary">{{ t('auth.privacyLink') }}</a>
+                <template v-if="page.props.privacyPolicyEnabled">
+                  <span class="mx-1 text-base-content/40">·</span>
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer" class="font-medium text-primary hover:text-primary">{{ t('auth.privacyLink') }}</a>
+                </template>
               </span>
             </label>
             <input v-model="registerForm.website" type="text" class="hidden" tabindex="-1" autocomplete="off" aria-hidden="true" />
