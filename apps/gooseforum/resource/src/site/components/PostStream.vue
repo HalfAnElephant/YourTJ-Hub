@@ -782,16 +782,22 @@ const qaPostsById = computed(() => {
   return map
 })
 
+// append 增量加载时，链根位于上一窗口边界之前的子回复改为平铺渲染（引用条保留上下文），
+// 避免把新内容插进读者早已滚过的旧楼层卡片里、出现在视口上方导致不可见。
+const qaForceFlatPostIds = ref(new Set<number>())
+
 // 返回 post 所属回复链的根楼层 id；回复 #1 或无目标 → null（主流平铺层）；
-// 链根未加载 → null（平铺兜底）。
+// 链根未加载或链异常深（>64 跳，含脏数据成环）→ null（平铺兜底，保证内容可见）。
 function qaChainRootId(post: PostPayload): number | null {
+  if (qaForceFlatPostIds.value.has(post.id)) return null
   if (!post.replyToPostId) return null
   const firstId = firstPost.value?.id
   if (firstId && post.replyToPostId === firstId) return null
   const byId = qaPostsById.value
   let current: PostPayload | undefined = byId.get(post.replyToPostId)
-  let guard = 0
-  while (current?.replyToPostId && current.replyToPostId !== firstId && guard++ < 64) {
+  let hops = 0
+  while (current?.replyToPostId && current.replyToPostId !== firstId) {
+    if (hops++ >= 64) return null
     current = byId.get(current.replyToPostId)
     if (!current) return null
   }
@@ -836,13 +842,27 @@ function showReplyReference(post: PostPayload) {
 
 function applyPostWindowPayload(payload: Awaited<ReturnType<typeof getPostWindow>>, mergeMode: 'replace' | 'prepend' | 'append') {
   const pageStartPostNo = firstPostNo(payload.posts)
+  // append：合并前记录窗口边界，用于把链根在边界之前的子回复改为平铺（见 qaForceFlatPostIds）。
+  const appendBoundaryPostNo = mergeMode === 'append' ? postAfterPostNo.value : 0
   mergePosts(payload.posts, mergeMode)
   if (mergeMode === 'replace') {
     postPageStarts.value = pageStartPostNo ? [pageStartPostNo] : []
+    qaForceFlatPostIds.value = new Set()
   } else if (pageStartPostNo && !postPageStarts.value.includes(pageStartPostNo)) {
     postPageStarts.value = [...postPageStarts.value, pageStartPostNo].sort((a, b) => a - b)
   }
   mergeReplyTargets(payload.replyTargets || [], mergeMode)
+  if (mergeMode === 'append' && isQuestionTopic.value && appendBoundaryPostNo > 0) {
+    const byId = qaPostsById.value
+    const nextForceFlat = new Set(qaForceFlatPostIds.value)
+    for (const post of payload.posts) {
+      const rootId = qaChainRootId(post)
+      if (rootId == null) continue
+      const root = byId.get(rootId)
+      if (root && (root.postNo || 0) < appendBoundaryPostNo) nextForceFlat.add(post.id)
+    }
+    qaForceFlatPostIds.value = nextForceFlat
+  }
   const nextMaxPostNo = Math.max(postMaxNo.value, payload.maxPostNo || 0)
   postMaxNo.value = nextMaxPostNo
   syncLoadedPostWindowBounds(payload.hasBefore, payload.hasAfter, nextMaxPostNo)
@@ -1929,7 +1949,7 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                 <div class="flex min-w-0 items-center gap-2">
                   <a :href="`/u/${post.author.id}`" class="min-w-0 truncate font-semibold text-base-content hover:text-primary">{{ authorDisplayName(post.author) }}</a>
                   <span v-if="post.postNo" class="hidden shrink-0 text-xs font-semibold tabular-nums text-base-content/55 sm:inline">#{{ formatNumber(post.postNo) }}</span>
-                  <span v-if="isQuestionTopic && post.isAnswer" class="shrink-0 rounded bg-success/20 px-1.5 py-0.5 text-[11px] font-semibold text-success">{{ t('topic.answer') }}</span>
+                  <span v-if="isQuestionTopic && post.isAnswer" class="hidden shrink-0 rounded bg-success/20 px-1.5 py-0.5 text-[11px] font-semibold text-success sm:inline">{{ t('topic.answer') }}</span>
                 </div>
                 <div class="mt-0.5 flex items-center gap-2 text-xs text-base-content/55 sm:hidden">
                   <span v-if="post.postNo" class="font-semibold tabular-nums text-base-content/55">#{{ formatNumber(post.postNo) }}</span>
@@ -2450,6 +2470,10 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                     <span v-if="postActionState(reply).likeCount" class="hidden text-xs font-semibold tabular-nums sm:inline">{{ formatNumber(postActionState(reply).likeCount) }}</span>
                     <span class="sr-only">{{ t('topic.like') }}</span>
                   </button>
+                  <button v-if="viewer.isAuthenticated && !reply.isHidden && !isPostRemoved(reply)" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-info/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50" :class="{ 'text-primary hover:text-primary': postActionState(reply).isBookmarked }" :title="postActionState(reply).isBookmarked ? t('topic.bookmarked') : t('topic.bookmark')" :disabled="postActionState(reply).actingBookmark" @click="togglePostBookmark(reply)">
+                    <Bookmark class="h-3.5 w-3.5" :fill="postActionState(reply).isBookmarked ? 'currentColor' : 'none'" />
+                    <span class="sr-only">{{ t('topic.bookmark') }}</span>
+                  </button>
                   <button type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-base-200 hover:text-base-content" :title="t('topic.share')" @click="sharePost(reply)">
                     <Share2 class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('topic.share') }}</span>
@@ -2457,6 +2481,14 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                   <button v-if="!reply.isOwnPost && !reply.isHidden && !isPostRemoved(reply)" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-warning/10 hover:text-warning" :title="t('topic.report')" @click="requestPostReport(reply)">
                     <Flag class="h-3.5 w-3.5" />
                     <span class="sr-only">{{ t('topic.report') }}</span>
+                  </button>
+                  <button v-if="reply.canModerate && reply.processStatus === 0" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-error/10 hover:text-error disabled:opacity-50" :disabled="postModerationBusy(reply.id)" :title="t('topic.moderationBan')" @click="moderatePost(reply, 'ban')">
+                    <Ban class="h-3.5 w-3.5" />
+                    <span class="sr-only">{{ t('topic.moderationBan') }}</span>
+                  </button>
+                  <button v-else-if="reply.canModerate && reply.processStatus === 1" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-info/10 hover:text-primary disabled:opacity-50" :disabled="postModerationBusy(reply.id)" :title="t('topic.moderationUnban')" @click="moderatePost(reply, 'unban')">
+                    <RotateCcw class="h-3.5 w-3.5" />
+                    <span class="sr-only">{{ t('topic.moderationUnban') }}</span>
                   </button>
                 </span>
               </div>
@@ -2470,7 +2502,13 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
               <div v-else-if="reply.isHidden && !reply.canModerate" class="mt-2 rounded border border-line bg-base-100/60 px-3 py-2 text-sm text-base-content/45">
                 {{ t('topic.hiddenReplyPlaceholder') }}
               </div>
-              <div v-else v-code-copy v-code-highlight v-math-render class="gf-prose gf-prose-post mt-1" v-html="reply.renderedContent" />
+              <div v-else v-code-copy v-code-highlight v-math-render v-content-enhancements class="gf-prose gf-prose-post mt-1" v-html="reply.renderedContent" />
+              <div v-if="!reply.lastEditedAt && reply.updatedAt && reply.updatedAt !== reply.createdAt" class="mt-2 text-xs font-medium text-base-content/55">
+                {{ t('topic.editedAt', { time: formatDateTime(reply.updatedAt) }) }}
+              </div>
+              <div v-if="reply.lastEditedAt && reply.lastEditor" class="mt-2 text-xs font-medium text-base-content/55">
+                {{ lastEditedLabel(reply) }}
+              </div>
             </div>
           </div>
         </article>
