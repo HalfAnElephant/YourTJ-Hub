@@ -101,6 +101,8 @@ HTTPS `connect-src` 放行规则。该 SDK 会把页面访问与性能观测发�
 `https://ana.yourtj.de`，隐私政策与数据保留口径应与 InsightFlare 站点设置保持一致。
 生产环境的 `/privacy` 页面会在已保存的自定义政策缺少 InsightFlare 数据范围时自动追加标准披露，
 避免历史配置在启用采集后仍然遗漏该说明；修改站点隐私政策时仍需同步维护实际数据保留期限。
+如果 SPA 导航收到 `insightFlareEnabled` 从 `true` 变为 `false` 的新 payload，前端会强制整页刷新，
+以卸载已加载 SDK 注册的路由监听；已打开但没有发生导航的页面需在变更后刷新或重新打开。
 
 当前 Cloudflare 部署资源由外部 InsightFlare 项目管理，不写入本仓库的凭据或配置文件：
 Worker `insightflare` 绑定 D1、KV、Durable Object、三套 Analytics Engine 和 R2 冷归档，

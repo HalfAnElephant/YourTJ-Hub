@@ -3,6 +3,7 @@ import App from '@/site/App.vue'
 import '@/styles/resource.css'
 import { readInitialPayload, updateDocumentMeta } from '@/runtime/payload'
 import { installNavigation, preparePayload } from '@/runtime/router'
+import { reloadIfInsightFlareDisabled } from '@/runtime/insightflare'
 import { currentLocale, i18n } from '@/runtime/i18n'
 import { hydrateFlashMessages } from '@/runtime/flash-message'
 import { applySiteThemePayload, applyStoredTheme, initSystemThemeListener } from '@/runtime/site-theme'
@@ -48,6 +49,13 @@ function installNotoSerifSc() {
 installNotoSerifSc()
 
 function commitPage(nextPage: typeof initialPage) {
+  if (reloadIfInsightFlareDisabled(
+    currentPage.value.payload.layout.insightFlareEnabled,
+    nextPage.payload.layout.insightFlareEnabled,
+    () => window.location.reload(),
+  )) {
+    return
+  }
   currentPage.value = nextPage
   applySiteThemePayload(nextPage.payload.layout.theme)
   updateDocumentMeta(nextPage.payload)
