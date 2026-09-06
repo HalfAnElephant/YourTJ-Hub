@@ -9,6 +9,8 @@ import '../l10n/app_localizations.dart';
 import 'navigation/tab_scroll_registry.dart';
 import 'pages/auth/login_page.dart';
 import 'pages/category/category_page.dart';
+import 'pages/courses/catalog_page.dart';
+import 'pages/courses/detail_page.dart';
 import 'pages/drafts/drafts_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/messages/messages_page.dart';
@@ -251,5 +253,15 @@ final GoRouter appRouter = GoRouter(
     GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
     GoRoute(path: '/drafts', builder: (_, _) => const DraftsPage()),
     GoRoute(path: '/schedule', builder: (_, _) => const SchedulePage()),
+    GoRoute(path: '/courses', builder: (_, _) => const CourseCatalogPage()),
+    GoRoute(
+      path: '/courses/:courseId',
+      builder: (BuildContext context, GoRouterState state) => CourseDetailPage(
+        courseId: int.parse(state.pathParameters['courseId']!),
+        focusOfferingId: int.tryParse(
+          state.uri.queryParameters['offeringId'] ?? '',
+        ),
+      ),
+    ),
   ],
 );
