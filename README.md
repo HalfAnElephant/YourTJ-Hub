@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="./apps/mobile/packages/forum_app/assets/images/brand-default.png" width="520" alt="YourTJHub">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/brand-default-dark.webp">
+    <img src="./assets/brand-default.webp" width="520" alt="YourTJ Hub">
+  </picture>
 </p>
 
 <h1 align="center">YourTJ Hub</h1>
@@ -48,8 +51,8 @@ YourTJ Hub 希望让校园经验、问题与观点不再消失在短暂的信息
 | 数据与文件 | `Current` | 部署默认 PostgreSQL，本地开发 SQLite；文件可存于 SQLite BLOB 或 S3 兼容对象存储 |
 | 内容治理 | `Current` | 敏感词审核、限流与验证码、审计、服务条款、数据导入导出 |
 | 移动端 | `Partial` | Flutter 客户端、共享设计语言与 OIDC 登录已实现，尚未发布到应用商店 |
-| API 契约 | `Partial` | OpenAPI 校验、TypeScript 生成与契约测试已落地，尚未覆盖全部接口 |
-| 积分 | `Planned` | 跨服务积分模型尚未提供可用实现 |
+| API 契约 | `Partial` | OpenAPI 校验、TypeScript 生成与契约测试已落地，全部非排除 `/api` 路由已纳管并有 CI 门禁；OIDC 标准端点与自动 Dart 生成尚未覆盖 |
+| 积分 | `Partial` | 论坛内积分账本已落地（发帖/回复奖励幂等入账、删除原子回滚）；跨服务结算（credit）仍未实现 |
 
 ## 架构
 

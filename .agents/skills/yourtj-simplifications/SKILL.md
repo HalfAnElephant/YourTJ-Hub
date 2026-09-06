@@ -13,8 +13,8 @@ description: Use when asked to find non-obvious simplification candidates in the
 - 读根 `AGENTS.md`（尤其 §3 硬约束与 §4 验证哲学）、`docs/development/testing.md`、
   `docs/development/coding-conventions.md`（TODO 三档语义）。
 - 用 `docs/README.md` 事实源表判断领域归属；简化候选若与架构边界（bundles → models → service → http）冲突，需额外证据。
-- 本仓库的 Agent Note 记录在 Synergy 原生 note（yourtj-hub ADR note），不在仓库内——简化候选的输出落点是
-  note 或代码内 TODO/XXX 标记，不在仓库建 `.agents/notes` 目录。
+- 本仓库的持久决策记录在 [`docs/decisions/`](../../../docs/decisions/)（MADR，in git）；过程性 Agent Note 仍在
+  Synergy 原生 note——简化候选的输出落点是 note、MADR 决策记录或代码内 TODO/XXX 标记，不在仓库建 `.agents/notes` 目录。
 
 ## What counts as a strong candidate
 

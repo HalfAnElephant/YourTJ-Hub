@@ -101,7 +101,9 @@ Follow [`docs/development/documentation.md`](../../../docs/development/documenta
 must include documentation changes: user-visible features update the docs center and status words
 (`Current`/`Partial`/`Planned`/`Decision needed`); purely internal changes at least update the relevant
 README or code comments. Documents describe the current supported model only — no timeline or milestones.
-Big decisions are recorded in the project ADR note (not in git), append-only numbering.
+- Durable decisions with real alternatives are recorded as MADR records in
+  [`docs/decisions/`](../../../docs/decisions/): append-only numbering, supersede instead of
+  rewrite, enforced by `node scripts/verify-decisions.mjs`.
 
 ## 7. Deliver
 
