@@ -34,6 +34,7 @@ export 'src/gen/response.dart';
 export 'src/gen/search.dart';
 export 'src/gen/topic.dart';
 export 'src/gen/user.dart';
+export 'src/gen/wiki.dart';
 
 export 'src/gen/pk.dart';
 export 'src/gen/push_device.dart';

@@ -17,6 +17,8 @@ import 'pages/messages/messages_page.dart';
 import 'pages/notifications/notifications_page.dart';
 import 'pages/profile/profile_page.dart';
 import 'pages/publish/publish_page.dart';
+import 'pages/wiki/wiki_home_page.dart';
+import 'pages/wiki/wiki_page.dart';
 import 'pages/schedule/schedule_page.dart';
 import 'pages/search/search_page.dart';
 import 'pages/settings/settings_page.dart';
@@ -262,6 +264,14 @@ final GoRouter appRouter = GoRouter(
           state.uri.queryParameters['offeringId'] ?? '',
         ),
       ),
+    ),
+    GoRoute(path: '/wiki', builder: (_, _) => const WikiHomePage()),
+    GoRoute(
+      // 多段 wiki 路径（如 /wiki/guide/getting-started）经 (.*) 通配捕获；
+      // go_router 对 path 参数自动 percent-decode，页面内按段重新编码。
+      path: '/wiki/:wikiPath(.*)',
+      builder: (BuildContext context, GoRouterState state) =>
+          WikiPage(wikiPath: state.pathParameters['wikiPath']!),
     ),
   ],
 );
