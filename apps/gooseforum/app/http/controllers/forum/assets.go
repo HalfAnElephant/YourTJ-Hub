@@ -119,6 +119,10 @@ func dedupeStrings(values []string) []string {
 func templateFuncs() template.FuncMap {
 	funcs := template.FuncMap{}
 	maps.Copy(funcs, templateFuncMap)
+	// InsightFlare is production-only: the public layout is also rendered by
+	// local, development and preview instances, which must not share the
+	// production site's analytics stream.
+	funcs["InsightFlareEnabled"] = setting.IsProduction
 	funcs["ResourceEntry"] = resourceEntry
 	funcs["ResourceAsset"] = resourceAsset
 	return funcs

@@ -92,12 +92,15 @@ curl -sS -D - -o /dev/null https://f.yourtj.de/                               # 
 
 ### InsightFlare 事件观测
 
-公共论坛页面由 `apps/gooseforum/resource/templates/layout/app.gohtml` 加载
-InsightFlare SDK，站点为 `https://f.yourtj.de`，固定 `siteId` 为
+生产公共论坛页面由 `apps/gooseforum/resource/templates/layout/app.gohtml` 加载
+InsightFlare SDK，模板通过 `setting.IsProduction()` 限定仅生产环境注入；站点为
+`https://f.yourtj.de`，固定 `siteId` 为
 `09521282-d1ce-4a88-add6-99c039014def`。统计脚本只放在公共站点布局，管理后台不加载；
 页面级 CSP 的 `script-src` 只额外允许 `https://ana.yourtj.de`，采集请求复用既有的
 HTTPS `connect-src` 放行规则。该 SDK 会把页面访问与性能观测发送到自建的
 `https://ana.yourtj.de`，隐私政策与数据保留口径应与 InsightFlare 站点设置保持一致。
+生产环境的 `/privacy` 页面会在已保存的自定义政策缺少 InsightFlare 数据范围时自动追加标准披露，
+避免历史配置在启用采集后仍然遗漏该说明；修改站点隐私政策时仍需同步维护实际数据保留期限。
 
 当前 Cloudflare 部署资源由外部 InsightFlare 项目管理，不写入本仓库的凭据或配置文件：
 Worker `insightflare` 绑定 D1、KV、Durable Object、三套 Analytics Engine 和 R2 冷归档，
