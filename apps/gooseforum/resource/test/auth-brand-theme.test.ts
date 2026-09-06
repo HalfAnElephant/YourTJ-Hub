@@ -60,6 +60,7 @@ const loginProps = {
   githubUrl: '/api/oauth/github',
   googleUrl: '',
   googleReady: false,
+  termsOfServiceEnabled: true,
   privacyPolicyEnabled: true,
 }
 
@@ -145,6 +146,24 @@ describe('LoginPage default brand wordmark theme switch', () => {
     expect(wrapper.find('a[href="/terms"]').exists()).toBe(true)
     expect(wrapper.find('a[href="/privacy"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('I have read and agree to the terms')
+    expect(wrapper.text()).not.toContain('I have read and agree to the terms and privacy policy')
+    wrapper.unmount()
+  })
+
+  test('disabled terms of service is not linked or required by the registration agreement', async () => {
+    const wrapper = mount(LoginPage, {
+      props: {
+        layout: layout('default', ''),
+        props: { ...loginProps, initialMode: 'register', termsOfServiceEnabled: false },
+      },
+      global: { plugins: [i18n] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    expect(wrapper.find('a[href="/terms"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/privacy"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('I have read and agree to the privacy policy')
     expect(wrapper.text()).not.toContain('I have read and agree to the terms and privacy policy')
     wrapper.unmount()
   })
