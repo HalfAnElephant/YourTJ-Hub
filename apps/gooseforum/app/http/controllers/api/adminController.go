@@ -1593,9 +1593,12 @@ func SaveMCPSettings(req component.BetterRequest[SaveMCPSettingsReq]) component.
 	return savePageConfig(pageConfig.MCPSettings, req.Params.Settings, hotdataserve.ClearMCPSettingsConfigCache)
 }
 
-// GetScheduleSettings 获取排课器节次作息表设置（未保存过时回内置默认 12 节作息）
+// GetScheduleSettings 获取排课器节次作息表设置（未保存过时回内置默认 11 节作息；
+// 存量旧 12 节配置读取侧归一为现行语义，管理端回显正确值，保存后存储自愈）
 func GetScheduleSettings(req component.BetterRequest[component.Null]) component.Response {
-	config := pageConfig.GetConfigByPageType(pageConfig.ScheduleSettings, defaultconfig.GetDefaultScheduleSettingsConfig())
+	config := defaultconfig.NormalizeStoredScheduleSettings(
+		pageConfig.GetConfigByPageType(pageConfig.ScheduleSettings, defaultconfig.GetDefaultScheduleSettingsConfig()),
+	)
 	return component.SuccessResponse(config)
 }
 

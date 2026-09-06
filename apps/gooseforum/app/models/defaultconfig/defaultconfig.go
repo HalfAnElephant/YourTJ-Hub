@@ -170,6 +170,63 @@ func GetDefaultScheduleSettingsConfig() pageConfig.ScheduleSettingsConfig {
 	}
 }
 
+// legacyScheduleSection9Start/End 是旧 12 节制默认表的第 9 节（17:10-17:55），
+// 该节次在现行 11 节制中不存在，其出现即标识存储行为旧编号配置。
+const (
+	legacyScheduleSection9Start = "17:10"
+	legacyScheduleSection9End   = "17:55"
+)
+
+// NormalizeStoredScheduleSettings 读取侧归一存量节次作息配置（review P1）：
+// PR #496 之前保存的配置为旧 12 节编号（第 9 节 17:10、晚间 10/11/12 节），
+// 直接按节次号合并进现行 11 节视图会把晚间整体错位一格，且管理端回显
+// 旧值后保存会把错值再次持久化。判定存储行第 9 节为旧制 17:10-17:55 时
+// 按旧编号解释：白天 1-8 节照搬，新 9/10/11 节取旧 10/11/12 节（晚间物理
+// 时段未变，仅编号前移，旧第 9 节时段已取消故丢弃）；其余配置按现行语义
+// 读取并丢弃 >11 节的行（如旧表单强制写入的重复第 12 行）。读取侧归一
+// 使 SSR 与管理端 GET 均得到现行语义，管理端保存后存储自然自愈，
+// 无需数据迁移或人工修复。
+func NormalizeStoredScheduleSettings(cfg pageConfig.ScheduleSettingsConfig) pageConfig.ScheduleSettingsConfig {
+	if len(cfg.SectionTimes) == 0 {
+		return cfg
+	}
+	bySection := make(map[int]pageConfig.ScheduleSectionTime, len(cfg.SectionTimes))
+	for _, item := range cfg.SectionTimes {
+		if item.Section >= 1 && item.Section <= 12 {
+			bySection[item.Section] = item
+		}
+	}
+	if len(bySection) == 0 {
+		return cfg
+	}
+
+	// 旧编号：新 9/10/11 节 ← 旧 10/11/12 节。
+	if nine, ok := bySection[9]; ok && nine.Start == legacyScheduleSection9Start && nine.End == legacyScheduleSection9End {
+		normalized := make([]pageConfig.ScheduleSectionTime, 0, 11)
+		for section := 1; section <= 8; section++ {
+			if item, ok := bySection[section]; ok {
+				normalized = append(normalized, item)
+			}
+		}
+		for section := 10; section <= 12; section++ {
+			if item, ok := bySection[section]; ok {
+				item.Section = section - 1
+				normalized = append(normalized, item)
+			}
+		}
+		return pageConfig.ScheduleSettingsConfig{SectionTimes: normalized}
+	}
+
+	// 现行编号：仅保留 1..11 节。
+	normalized := make([]pageConfig.ScheduleSectionTime, 0, 11)
+	for section := 1; section <= 11; section++ {
+		if item, ok := bySection[section]; ok {
+			normalized = append(normalized, item)
+		}
+	}
+	return pageConfig.ScheduleSettingsConfig{SectionTimes: normalized}
+}
+
 func GetDefaultAiSummaryConfig() pageConfig.AiSummaryConfig {
 	return mustPageConfigDefaults().AiSummary
 }

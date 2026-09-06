@@ -3,6 +3,8 @@ package defaultconfig
 import (
 	"strings"
 	"testing"
+
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pageConfig"
 )
 
 func TestPageConfigDefaultsLoad(t *testing.T) {
@@ -64,4 +66,85 @@ func TestPageConfigDefaultGettersReturnCopies(t *testing.T) {
 	if got := GetDefaultSponsorsConfig().Rules[0].Content; got == "changed" {
 		t.Fatal("sponsors getter returned shared mutable rules")
 	}
+}
+
+func TestNormalizeStoredScheduleSettings(t *testing.T) {
+	rows := func(pairs ...[3]string) []pageConfig.ScheduleSectionTime {
+		times := make([]pageConfig.ScheduleSectionTime, 0, len(pairs))
+		for i, p := range pairs {
+			times = append(times, pageConfig.ScheduleSectionTime{Section: i + 1, Start: p[0], End: p[1]})
+		}
+		return times
+	}
+	sections := func(times []pageConfig.ScheduleSectionTime) map[int]pageConfig.ScheduleSectionTime {
+		out := make(map[int]pageConfig.ScheduleSectionTime, len(times))
+		for _, item := range times {
+			out[item.Section] = item
+		}
+		return out
+	}
+
+	t.Run("存量旧 12 节默认表（第 9 节 17:10）按旧编号重映射", func(t *testing.T) {
+		legacy := pageConfig.ScheduleSettingsConfig{SectionTimes: rows(
+			[3]string{"08:00", "08:45"}, [3]string{"08:50", "09:35"}, [3]string{"10:00", "10:45"},
+			[3]string{"10:50", "11:35"}, [3]string{"13:30", "14:15"}, [3]string{"14:20", "15:05"},
+			[3]string{"15:30", "16:15"}, [3]string{"16:20", "17:05"}, [3]string{"17:10", "17:55"},
+			[3]string{"18:30", "19:15"}, [3]string{"19:20", "20:05"}, [3]string{"20:10", "20:55"},
+		)}
+		got := sections(NormalizeStoredScheduleSettings(legacy).SectionTimes)
+		if len(got) != 11 {
+			t.Fatalf("normalized rows = %d, want 11", len(got))
+		}
+		want := map[int][2]string{9: {"18:30", "19:15"}, 10: {"19:20", "20:05"}, 11: {"20:10", "20:55"}}
+		for section, times := range want {
+			item, ok := got[section]
+			if !ok || item.Start != times[0] || item.End != times[1] {
+				t.Fatalf("normalized section %d = %#v, want %v", section, item, times)
+			}
+		}
+		for _, item := range got {
+			if item.Start == "17:10" {
+				t.Fatalf("legacy 17:10 row survived normalization: %#v", got)
+			}
+		}
+	})
+
+	t.Run("旧 12 节配置的白天自定义行在重映射后保留", func(t *testing.T) {
+		legacy := pageConfig.ScheduleSettingsConfig{SectionTimes: rows(
+			[3]string{"08:30", "09:15"}, [3]string{"08:50", "09:35"}, [3]string{"10:00", "10:45"},
+			[3]string{"10:50", "11:35"}, [3]string{"13:30", "14:15"}, [3]string{"14:20", "15:05"},
+			[3]string{"15:30", "16:15"}, [3]string{"16:20", "17:05"}, [3]string{"17:10", "17:55"},
+			[3]string{"18:30", "19:15"}, [3]string{"19:20", "20:05"}, [3]string{"20:10", "20:55"},
+		)}
+		got := sections(NormalizeStoredScheduleSettings(legacy).SectionTimes)
+		if item := got[1]; item.Start != "08:30" {
+			t.Fatalf("custom daytime row lost: %#v", item)
+		}
+		if item := got[9]; item.Start != "18:30" {
+			t.Fatalf("legacy evening not remapped: %#v", item)
+		}
+	})
+
+	t.Run("现行 11 节语义的存量（含重复第 12 行）按新编号读取并丢弃 >11 节行", func(t *testing.T) {
+		stored := pageConfig.ScheduleSettingsConfig{SectionTimes: rows(
+			[3]string{"08:00", "08:45"}, [3]string{"08:50", "09:35"}, [3]string{"10:00", "10:45"},
+			[3]string{"10:50", "11:35"}, [3]string{"13:30", "14:15"}, [3]string{"14:20", "15:05"},
+			[3]string{"15:30", "16:15"}, [3]string{"16:20", "17:05"}, [3]string{"18:30", "19:15"},
+			[3]string{"19:20", "20:05"}, [3]string{"20:10", "20:55"}, [3]string{"20:10", "20:55"},
+		)}
+		got := NormalizeStoredScheduleSettings(stored).SectionTimes
+		if len(got) != 11 {
+			t.Fatalf("normalized rows = %d, want 11", len(got))
+		}
+		if item := got[8]; item.Section != 9 || item.Start != "18:30" {
+			t.Fatalf("new-numbered row 9 shifted: %#v", item)
+		}
+	})
+
+	t.Run("空配置原样返回", func(t *testing.T) {
+		empty := pageConfig.ScheduleSettingsConfig{}
+		if got := NormalizeStoredScheduleSettings(empty); len(got.SectionTimes) != 0 {
+			t.Fatalf("empty config changed: %#v", got)
+		}
+	})
 }
