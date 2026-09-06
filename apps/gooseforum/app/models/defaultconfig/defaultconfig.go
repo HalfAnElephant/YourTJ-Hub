@@ -148,8 +148,10 @@ func GetDefaultMCPSettingsConfig() pageConfig.MCPSettingsConfig {
 	return mustPageConfigDefaults().MCP
 }
 
-// GetDefaultScheduleSettingsConfig 排课器节次作息表默认值（12 节），
-// 与前端内置默认作息表保持一致；未保存配置时 SSR/管理端回显该默认。
+// GetDefaultScheduleSettingsConfig 排课器节次作息表默认值（现行 11 节制：
+// 2025-2026 学年起白天 1-8 节 + 晚间 9/10/11 节 18:30 起），
+// 与前端内置 11 节默认作息表保持一致；未保存配置时 SSR/管理端回显该默认。
+// 历史 12 节制学期（calendarId<120）课表由前端内置历史表渲染，不受此配置影响。
 func GetDefaultScheduleSettingsConfig() pageConfig.ScheduleSettingsConfig {
 	return pageConfig.ScheduleSettingsConfig{
 		SectionTimes: []pageConfig.ScheduleSectionTime{
@@ -161,10 +163,9 @@ func GetDefaultScheduleSettingsConfig() pageConfig.ScheduleSettingsConfig {
 			{Section: 6, Start: "14:20", End: "15:05"},
 			{Section: 7, Start: "15:30", End: "16:15"},
 			{Section: 8, Start: "16:20", End: "17:05"},
-			{Section: 9, Start: "17:10", End: "17:55"},
-			{Section: 10, Start: "18:30", End: "19:15"},
-			{Section: 11, Start: "19:20", End: "20:05"},
-			{Section: 12, Start: "20:10", End: "20:55"},
+			{Section: 9, Start: "18:30", End: "19:15"},
+			{Section: 10, Start: "19:20", End: "20:05"},
+			{Section: 11, Start: "20:10", End: "20:55"},
 		},
 	}
 }
