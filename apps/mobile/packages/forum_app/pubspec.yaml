@@ -32,6 +32,9 @@ dependencies:
   drift_flutter: ^0.3.1
   sqlite3_flutter_libs: ^0.6.0+eol
   share_plus: ^11.0.0
+  firebase_core: ^3.15.2
+  firebase_messaging: ^15.2.10
+  app_settings: ^5.1.1
 
 dev_dependencies:
   flutter_test:

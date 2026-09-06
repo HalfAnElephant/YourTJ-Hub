@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 import 'router.dart';
 import 'site_theme.dart';
 import 'theme_mode.dart';
+import 'push/push_service.dart';
 
 /// yourtj 移动端根应用。
 ///
@@ -24,6 +25,10 @@ class GfApp extends ConsumerWidget {
     final GfRuntimeTheme? runtime = ref.watch(
       siteThemeProvider.select((s) => s.following ? s.runtime : null),
     );
+
+    // 原生推送启动引导：配置的构建异步恢复注册状态与点按路由；
+    // 未配置/未启用构建为纯 no-op（unsupported 状态，零开销）。
+    ref.watch(pushBootstrapProvider);
 
     return MaterialApp.router(
       title: 'yourtj',

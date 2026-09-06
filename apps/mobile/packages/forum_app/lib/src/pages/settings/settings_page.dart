@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ import '../../format.dart';
 import '../../server_messages.dart';
 import '../../theme_mode.dart';
 import '../../site_theme.dart';
+import '../../push/push_service.dart';
 import '../../widgets/status_views.dart';
 import '../../current_user.dart';
 import '../../widgets/skeletons.dart';
@@ -958,6 +960,56 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ),
         const SizedBox(height: 12),
+        // 原生推送（Route A）：未配置构建/服务端未启用/未知态时整段隐藏
+        // （设置页零入口零报错，语义对齐 Web Push 通道门控）。
+        Consumer(
+          builder: (BuildContext context, WidgetRef ref, _) {
+            final PushChannelStatus push = ref.watch(pushControllerProvider);
+            if (push == PushChannelStatus.unsupported ||
+                push == PushChannelStatus.serverDisabled ||
+                push == PushChannelStatus.unknown) {
+              return const SizedBox.shrink();
+            }
+            // permissionDenied = 用户已开启但系统权限被拒：开关保持开，
+            // 下方给出跳系统设置引导行（三态之二）。
+            final bool switchOn =
+                push == PushChannelStatus.enabled ||
+                push == PushChannelStatus.permissionDenied;
+            return _settingsSection(
+              context,
+              title: l10n.settingsPush,
+              child: Column(
+                children: [
+                  GfSwitchRow(
+                    title: l10n.settingsPush,
+                    value: switchOn,
+                    onChanged: (bool value) async {
+                      final PushController controller = ref.read(
+                        pushControllerProvider.notifier,
+                      );
+                      if (value) {
+                        await controller.enable();
+                      } else {
+                        await controller.disable();
+                      }
+                    },
+                  ),
+                  if (push == PushChannelStatus.permissionDenied) ...[
+                    const GfDivider(),
+                    GfSettingRow(
+                      title: l10n.settingsPushDenied,
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      onTap: () => ref
+                          .read(pushControllerProvider.notifier)
+                          .openSystemSettings(),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
         _settingsSection(
           context,
           title: l10n.settingsTotpTitle,
@@ -1092,6 +1144,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// 登出/吊销全部会话后当前 JWT 已不可信,必须清空本地 token 与离线
   /// 缓存(否则同一设备换账号后仍可读到上一账号数据,造成跨账号泄漏)。
   Future<void> _signOutLocally({String? successMessage}) async {
+    // 原生推送：尽力注销当前设备的用户绑定（幂等；失败不阻塞登出）。
+    await ref.read(pushControllerProvider.notifier).handleLogout();
     await ref.read(tokenStorageProvider).clear();
     // 会话边界:先使旧会话在途写入失效、当前用户身份失效,再清空缓存。
     ref.read(offlineCacheEpochProvider.notifier).invalidate();
