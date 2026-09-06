@@ -31,7 +31,9 @@ abstract class UserCardPayload with _$UserCardPayload {
     required bool isOnline,
     required bool isFollowing,
     required bool isSelf,
-    required List<UserBadgePayload> badges,
+    // 容错：旧后端（< 2026-09-06 修复）对无徽章用户序列化 badges 为 null
+    // （违反 TS 契约），defaultValue 对显式 null 与缺键均生效。
+    @JsonKey(defaultValue: []) required List<UserBadgePayload> badges,
     UserBadgePayload? wornBadge,
     required String lastActiveTime,
     required String createdAt,
@@ -43,9 +45,7 @@ abstract class UserCardPayload with _$UserCardPayload {
 
 @freezed
 abstract class ExternalLinkPayload with _$ExternalLinkPayload {
-  const factory ExternalLinkPayload({
-    String? link,
-  }) = _ExternalLinkPayload;
+  const factory ExternalLinkPayload({String? link}) = _ExternalLinkPayload;
 
   factory ExternalLinkPayload.fromJson(Map<String, dynamic> json) =>
       _$ExternalLinkPayloadFromJson(json);
@@ -122,9 +122,12 @@ abstract class UserProfileProps with _$UserProfileProps {
     required String section,
     required String activityTab,
     required List<TabItemPayload> tabs,
-    required List<TabItemPayload> activityTabs,
+    // 容错：旧后端（< 2026-09-06 修复）在 summary 等非 activity 区块把
+    // activityTabs 序列化为 null（违反 TS 契约），defaultValue 对显式 null
+    // 与缺键均生效；后端源头修复见 payload.go buildUserProfileActivityTabs。
+    @JsonKey(defaultValue: []) required List<TabItemPayload> activityTabs,
     required PaginationPayload pagination,
-    required List<UserBadgePayload> badges,
+    @JsonKey(defaultValue: []) required List<UserBadgePayload> badges,
     required List<TopicPayload> topics,
     required List<UserActivityPayload> activities,
     required List<UserLikePayload> likes,
