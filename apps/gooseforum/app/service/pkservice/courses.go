@@ -189,7 +189,7 @@ func FindCourseDetailsByCodes(calendarId int, courseCodes []string) (map[string]
 	}
 	byCourseCode := map[string][]pk.CourseDetailRow{}
 	for _, row := range rows {
-		for _, cc := range matchingRequestedCourseCodes(row, out) {
+		if cc, ok := matchingRequestedCourseCode(row, out); ok {
 			byCourseCode[cc] = append(byCourseCode[cc], row)
 		}
 	}
@@ -318,7 +318,7 @@ func SyncCourseInfo(p SyncCourseInfoParams) (map[string][]CourseDetailBriefItem,
 
 	byCourseCode := map[string][]pk.CourseDetailRow{}
 	for _, row := range rows {
-		for _, cc := range matchingRequestedCourseCodes(row, out) {
+		if cc, ok := matchingRequestedCourseCode(row, out); ok {
 			byCourseCode[cc] = append(byCourseCode[cc], row)
 		}
 	}
@@ -366,22 +366,18 @@ func normalizeCodes(codes []string) []string {
 	return out
 }
 
-// matchingRequestedCourseCodes 返回该行命中的请求键。正常路径使用改码后的 courseCode；
-// 旧版前端持久化的原始 courseCode 仍可命中同一行，避免「同步最新」丢失班级详情。
-func matchingRequestedCourseCodes(row pk.CourseDetailRow, requested map[string][]CourseDetailBriefItem) []string {
-	keys := make([]string, 0, 2)
-	for _, code := range []string{normalizeText(row.CourseCode), normalizeText(row.SourceCourseCode)} {
-		if code == "" {
-			continue
-		}
-		if _, ok := requested[code]; !ok {
-			continue
-		}
-		if len(keys) == 0 || keys[0] != code {
-			keys = append(keys, code)
-		}
+// matchingRequestedCourseCode 返回该行唯一命中的请求键。正常路径优先使用改码后的
+// courseCode；仅当新码未被请求时，旧版前端持久化的原始 courseCode 才作为兼容回退。
+func matchingRequestedCourseCode(row pk.CourseDetailRow, requested map[string][]CourseDetailBriefItem) (string, bool) {
+	effectiveCode := normalizeText(row.CourseCode)
+	if _, ok := requested[effectiveCode]; effectiveCode != "" && ok {
+		return effectiveCode, true
 	}
-	return keys
+	sourceCode := normalizeText(row.SourceCourseCode)
+	if _, ok := requested[sourceCode]; sourceCode != "" && sourceCode != effectiveCode && ok {
+		return sourceCode, true
+	}
+	return "", false
 }
 
 // loadTeacherRows 从明细行集合提取教学班 id 并批量查教师（保留 arrangeInfoText）。

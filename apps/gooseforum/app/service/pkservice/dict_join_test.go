@@ -117,4 +117,12 @@ func TestReplacementCourseCodeIsProjected(t *testing.T) {
 	if len(legacyItems) != 1 || legacyItems[0].Code != "CMS12270201" {
 		t.Fatalf("legacy details = %+v, want replacement class code CMS12270201", legacyItems)
 	}
+
+	bothDetails, err := FindCourseDetailsByCodes(99999, []string{"CMS122702", "CMS122701"})
+	if err != nil {
+		t.Fatalf("FindCourseDetailsByCodes replacement and legacy codes: %v", err)
+	}
+	if len(bothDetails["CMS122702"]) != 1 || len(bothDetails["CMS122701"]) != 0 {
+		t.Fatalf("details for both codes = %+v, want row only under replacement code CMS122702", bothDetails)
+	}
 }
