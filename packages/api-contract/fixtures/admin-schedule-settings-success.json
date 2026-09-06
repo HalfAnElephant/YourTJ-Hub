@@ -9,11 +9,11 @@
       {"section": 6, "start": "14:20", "end": "15:05"},
       {"section": 7, "start": "15:30", "end": "16:15"},
       {"section": 8, "start": "16:20", "end": "17:05"},
-      {"section": 9, "start": "17:10", "end": "17:55"},
-      {"section": 10, "start": "18:30", "end": "19:15"},
-      {"section": 11, "start": "19:20", "end": "20:05"},
-      {"section": 12, "start": "20:10", "end": "20:55"}
-    ]
+      {"section": 9, "start": "18:30", "end": "19:15"},
+      {"section": 10, "start": "19:20", "end": "20:05"},
+      {"section": 11, "start": "20:10", "end": "20:55"}
+    ],
+    "numbering": "11"
   },
   "code": 0
 }

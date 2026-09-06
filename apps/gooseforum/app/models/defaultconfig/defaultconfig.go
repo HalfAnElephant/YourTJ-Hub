@@ -148,10 +148,13 @@ func GetDefaultMCPSettingsConfig() pageConfig.MCPSettingsConfig {
 	return mustPageConfigDefaults().MCP
 }
 
-// GetDefaultScheduleSettingsConfig 排课器节次作息表默认值（12 节），
-// 与前端内置默认作息表保持一致；未保存配置时 SSR/管理端回显该默认。
+// GetDefaultScheduleSettingsConfig 排课器节次作息表默认值（现行 11 节制：
+// 2025-2026 学年起白天 1-8 节 + 晚间 9/10/11 节 18:30 起），
+// 与前端内置 11 节默认作息表保持一致；未保存配置时 SSR/管理端回显该默认。
+// 历史 12 节制学期（calendarId<120）课表由前端内置历史表渲染，不受此配置影响。
 func GetDefaultScheduleSettingsConfig() pageConfig.ScheduleSettingsConfig {
 	return pageConfig.ScheduleSettingsConfig{
+		Numbering: pageConfig.ScheduleNumberingCurrent,
 		SectionTimes: []pageConfig.ScheduleSectionTime{
 			{Section: 1, Start: "08:00", End: "08:45"},
 			{Section: 2, Start: "08:50", End: "09:35"},
@@ -161,11 +164,59 @@ func GetDefaultScheduleSettingsConfig() pageConfig.ScheduleSettingsConfig {
 			{Section: 6, Start: "14:20", End: "15:05"},
 			{Section: 7, Start: "15:30", End: "16:15"},
 			{Section: 8, Start: "16:20", End: "17:05"},
-			{Section: 9, Start: "17:10", End: "17:55"},
-			{Section: 10, Start: "18:30", End: "19:15"},
-			{Section: 11, Start: "19:20", End: "20:05"},
-			{Section: 12, Start: "20:10", End: "20:55"},
+			{Section: 9, Start: "18:30", End: "19:15"},
+			{Section: 10, Start: "19:20", End: "20:05"},
+			{Section: 11, Start: "20:10", End: "20:55"},
 		},
+	}
+}
+
+// NormalizeStoredScheduleSettings 读取侧归一节次作息配置（review P1）：
+// PR #496 之前保存的配置没有 numbering 标记且为旧 12 节编号（第 9 节 17:10、
+// 晚间 10/11/12 节），直接按节次号合并进现行 11 节视图会把晚间整体错位一格，
+// 且管理端回显旧值后保存会把错值再次持久化。归一规则：
+//
+//   - Numbering == 现行（"11"）：完全透传——现行语义下第 9 节允许被管理员合法
+//     设为任意时间（含 17:10-17:55），不得基于时间值猜测编号体系；
+//   - 其余（缺省 = PR #496 之前写入的存量行，或显式旧标记）：按旧 12 节编号
+//     解释——白天 1-8 节照搬，新 9/10/11 节取旧 10/11/12 节（晚间物理时段未变，
+//     仅编号前移，旧第 9 节时段已取消故丢弃），即使第 9 节被管理员自定义过。
+//
+// 归一结果恒以现行编号盖章返回，SSR 与管理端 GET 均得到现行语义；管理端
+// 保存（服务端盖章现行编号）后存储自愈，无需数据迁移或人工修复。
+func NormalizeStoredScheduleSettings(cfg pageConfig.ScheduleSettingsConfig) pageConfig.ScheduleSettingsConfig {
+	if cfg.Numbering == pageConfig.ScheduleNumberingCurrent {
+		return cfg
+	}
+	if len(cfg.SectionTimes) == 0 {
+		return cfg
+	}
+	bySection := make(map[int]pageConfig.ScheduleSectionTime, len(cfg.SectionTimes))
+	for _, item := range cfg.SectionTimes {
+		if item.Section >= 1 && item.Section <= 12 {
+			bySection[item.Section] = item
+		}
+	}
+	if len(bySection) == 0 {
+		return cfg
+	}
+
+	// 未版本化（存量）或显式旧标记：按旧编号重映射，新 9/10/11 节 ← 旧 10/11/12 节。
+	normalized := make([]pageConfig.ScheduleSectionTime, 0, 11)
+	for section := 1; section <= 8; section++ {
+		if item, ok := bySection[section]; ok {
+			normalized = append(normalized, item)
+		}
+	}
+	for section := 10; section <= 12; section++ {
+		if item, ok := bySection[section]; ok {
+			item.Section = section - 1
+			normalized = append(normalized, item)
+		}
+	}
+	return pageConfig.ScheduleSettingsConfig{
+		Numbering:    pageConfig.ScheduleNumberingCurrent,
+		SectionTimes: normalized,
 	}
 }
 

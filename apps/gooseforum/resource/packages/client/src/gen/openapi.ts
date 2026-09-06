@@ -4440,10 +4440,10 @@ export interface paths {
          * @description Admin console operation gated by the `SiteManager` role permission
          *     (Admin role is a superset); callers without it fail with HTTP 403 and
          *     `permission.denied` (params permission=<localized permission name>,
-         *     `站点管理` in zh). Returns the stored section times (the 12 class
-         *     periods shown on the /schedule timetable), or the built-in default
-         *     table when nothing has been saved yet. JSON binding is lenient: query
-         *     string and body are ignored.
+         *     `站点管理` in zh). Returns the stored section times (the class
+         *     periods of the current 11-period /schedule timetable), or the
+         *     built-in default table when nothing has been saved yet. JSON binding
+         *     is lenient: query string and body are ignored.
          */
         get: operations["adminGetScheduleSettings"];
         put?: never;
@@ -4469,7 +4469,9 @@ export interface paths {
          *     callers without it fail with HTTP 403 and `permission.denied`.
          *     Replaces the whole section-times configuration, clears the
          *     schedule-settings cache, and the new table takes effect on the next
-         *     /schedule SSR render. Validation: every entry must name a section in
+         *     /schedule SSR render. The configuration describes the current
+         *     11-period system (evening sections 9..11 start 18:30). Validation:
+         *     every entry must name a section in
          *     1..12 with strict `HH:MM` start/end clock values where start is
          *     strictly earlier than end; any invalid entry rejects the whole
          *     submission with HTTP 200 `common.request.invalidParams`
@@ -8676,7 +8678,7 @@ export interface components {
             settings?: components["schemas"]["AdminMcpSettingsConfig"];
         };
         AdminScheduleSectionTime: {
-            /** @description Class-period number (第 N 节), 1..12. */
+            /** @description Class-period number (第 N 节). The current timetable uses sections 1..11; 1..12 stays accepted for compatibility with previously stored legacy entries. */
             section: number;
             /** @description Period start as strict 24-hour `HH:MM` (clock values validated server-side). */
             start: string;
@@ -8684,8 +8686,13 @@ export interface components {
             end: string;
         };
         AdminScheduleSettingsConfig: {
-            /** @description The 12 class periods shown on the /schedule timetable, sorted by section ascending and deduplicated per section. */
+            /** @description The class periods of the current 11-period /schedule timetable (2025-2026 academic year onward: daytime sections 1..8, evening sections 9..11 starting 18:30), sorted by section ascending and deduplicated per section. Historical 12-period timetables (calendarId below 120) render the built-in legacy table and are not affected by this configuration. */
             sectionTimes: components["schemas"]["AdminScheduleSectionTime"][];
+            /**
+             * @description Class-period numbering stamp of this table. `'11'` is the current numbering; rows stored without the stamp predate the 11-period migration and are normalized on read (legacy `'12'` numbering: evening sections 10..12 remapped to 9..11). Saves always stamp `'11'` server-side; clients may omit the field.
+             * @enum {string}
+             */
+            numbering?: "11" | "12";
         };
         AdminScheduleSettingsResponse: components["schemas"]["ApiSuccess"] & {
             /** @description Stored section times, or the built-in default table when nothing has been saved. */

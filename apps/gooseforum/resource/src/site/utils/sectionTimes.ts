@@ -1,7 +1,12 @@
-// 排课器节次时间表（纯展示用，可被后台设置覆盖）。
+// 排课器节次时间表（纯展示用）。
 //
-// 默认作息以四个锚点构建（45 分钟一节，节间 5 分钟，大课间 25 分钟）：
-//   第 3 节 10:00 开始、第 5 节 13:30 开始、第 7 节 15:30 开始、第 10 节 18:30 开始。
+// 2025-2026 学年（calendarId>=120）起一系统作息由每天 12 节调整为 11 节：
+// 白天仍为第 1-8 节，晚间自第 9 节 18:30 开始（原 17:10-17:55 节次取消，晚间重新编号）。
+// 默认作息以锚点构建（45 分钟一节，节间 5 分钟，大课间 25 分钟）：
+//   11 节制（现行）：第 3 节 10:00、第 5 节 13:30、第 7 节 15:30、第 9 节 18:30 开始；
+//   12 节制（历史学期）：第 3 节 10:00、第 5 节 13:30、第 7 节 15:30、第 10 节 18:30 开始。
+// 管理端「节次作息」配置描述现行 11 节制（后台 overrides 仅作用于 11 节制视图）；
+// 历史学期（12 节制）课表始终用内置 12 节表渲染历史作息。
 // 一系统不提供官方作息表，此为可运营覆盖的默认值，仅用于课表左侧
 // 起止时间展示与上午/下午/晚上分组；显示错误不影响任何排课数据。
 
@@ -14,7 +19,7 @@ export interface SectionTime {
   end: string
 }
 
-/** 完整 12 节制默认作息（锚点：3=10:00 / 5=13:30 / 7=15:30 / 10=18:30）。 */
+/** 历史 12 节制默认作息（锚点：3=10:00 / 5=13:30 / 7=15:30 / 10=18:30），用于 calendarId<120 的历史学期。 */
 export const DEFAULT_SECTION_TIMES_12: SectionTime[] = [
   { section: 1, start: '08:00', end: '08:45' },
   { section: 2, start: '08:50', end: '09:35' },
@@ -30,19 +35,30 @@ export const DEFAULT_SECTION_TIMES_12: SectionTime[] = [
   { section: 12, start: '20:10', end: '20:55' },
 ]
 
-/** 11 节新制 = 12 节制前 11 节（calendarId>=120 行数裁剪后的展示）。 */
-export const DEFAULT_SECTION_TIMES_11: SectionTime[] = DEFAULT_SECTION_TIMES_12.slice(0, 11)
+/** 现行 11 节制默认作息（锚点：3=10:00 / 5=13:30 / 7=15:30 / 9=18:30），2025-2026 学年起生效。 */
+export const DEFAULT_SECTION_TIMES_11: SectionTime[] = [
+  { section: 1, start: '08:00', end: '08:45' },
+  { section: 2, start: '08:50', end: '09:35' },
+  { section: 3, start: '10:00', end: '10:45' },
+  { section: 4, start: '10:50', end: '11:35' },
+  { section: 5, start: '13:30', end: '14:15' },
+  { section: 6, start: '14:20', end: '15:05' },
+  { section: 7, start: '15:30', end: '16:15' },
+  { section: 8, start: '16:20', end: '17:05' },
+  { section: 9, start: '18:30', end: '19:15' },
+  { section: 10, start: '19:20', end: '20:05' },
+  { section: 11, start: '20:10', end: '20:55' },
+]
 
 /**
- * 按节次制取作息表：优先使用后台覆盖（overrides，按 section 对齐补齐缺口），
- * 缺失时回退默认表。maxRows 非 11 即按 12 节制处理。
+ * 按节次制取作息表：11 节制（现行）优先使用后台覆盖（overrides，按 section 对齐补齐缺口），
+ * 缺失时回退默认表；12 节制为历史学期，始终返回内置历史表、忽略覆盖。
  */
 export function sectionTimesFor(maxRows: number, overrides?: SectionTime[] | null): SectionTime[] {
-  const defaults = maxRows === 11 ? DEFAULT_SECTION_TIMES_11 : DEFAULT_SECTION_TIMES_12
-  const target = maxRows === 11 ? 11 : 12
-  if (!overrides || overrides.length === 0) return defaults
+  if (maxRows !== 11) return DEFAULT_SECTION_TIMES_12
+  if (!overrides || overrides.length === 0) return DEFAULT_SECTION_TIMES_11
   const bySection = new Map(overrides.map((item) => [item.section, item]))
-  return defaults.map((item) => bySection.get(item.section) ?? item).slice(0, target)
+  return DEFAULT_SECTION_TIMES_11.map((item) => bySection.get(item.section) ?? item)
 }
 
 /** 解析 "HH:MM" 为分钟数；非法返回 null（分组推导容错用）。 */
