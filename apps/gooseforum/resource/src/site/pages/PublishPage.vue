@@ -455,7 +455,7 @@ async function persistDraft(nextUrl?: string, redirect = true): Promise<boolean>
                   <input
                     ref="titleInput"
                     v-model="title"
-                    class="mt-1 h-11 w-full rounded-md border border-line px-3 text-lg font-semibold outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/20"
+                    class="mt-1 h-11 w-full rounded-[var(--gf-radius-field)] border border-line bg-base-100 px-3 text-lg font-semibold outline-none transition-[border-color,box-shadow] focus:border-base-content/35 focus:ring-0 focus-visible:border-base-content/50 focus-visible:ring-1 focus-visible:ring-base-content/12 focus-visible:ring-offset-0"
                     :class="{ 'gf-sensitive-field': containsSensitiveText(title, sensitiveWords) }"
                     :placeholder="t('publish.titlePlaceholder')"
                     @input="clearSensitiveHighlight"
