@@ -17,6 +17,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/courseservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/dataservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/fileusageservice"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/nativepushservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/oidcservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/storageservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/totpservice"
@@ -136,6 +137,14 @@ func registerJobs() {
 		}
 	}))
 	slog.Info("reg cron", "entryID", entryID, "spec", "11 3 * * *", "err", err)
+	entryID, err = scheduler.AddFunc("12 3 * * *", upCmd(func() {
+		// 清理超过 7 天保留期的终态（Success/Failed）原生推送任务行：
+		// nativepush 同样每条通知一行 outbox，与 webpush 共用同一保留策略。
+		if _, cleanupErr := nativepushservice.CleanupTerminalTasks(time.Now().Add(-7*24*time.Hour), 500); cleanupErr != nil {
+			slog.Error("cleanup terminal nativepush tasks failed", "err", cleanupErr)
+		}
+	}))
+	slog.Info("reg cron", "entryID", entryID, "spec", "12 3 * * *", "err", err)
 	entryID, err = scheduler.AddFunc("17 * * * *", upCmd(func() {
 		// 清理超过 2 小时未完成的直接上传（S3 presigned，issue #366）：
 		// 删除对象与 pending 元数据行，避免中断/过期上传遗留孤儿对象。

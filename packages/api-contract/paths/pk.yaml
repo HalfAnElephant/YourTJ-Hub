@@ -620,3 +620,33 @@ getCourseReviewBrief:
           application/json:
             schema:
               $ref: ../components/schemas.yaml#/PkFailure
+getSectionTimes:
+  get:
+    tags: [PK]
+    summary: Class-period (section) schedule table for the PK scheduler grid
+    security: []
+    operationId: pkGetSectionTimes
+    description: |
+      Returns the section start/end table used to render the PK scheduler time
+      grid (mobile Route A shares this source). Reads the site's saved
+      `scheduleSettings` page config; when nothing has been configured the
+      built-in 12-section default table is returned (section 3 = 10:00,
+      section 5 = 13:30, section 7 = 15:30, section 10 = 18:30).
+      maxRowsDefault is always 12 — the client trims to 11 rows only for
+      semesters with calendarId >= 120.
+    responses:
+      '200':
+        description: Section schedule table (configured table, or the built-in 12-section default).
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/PkSectionTimesResponse
+            examples:
+              success:
+                externalValue: ../fixtures/pk-section-times-success.json
+      '500':
+        description: Internal error.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/PkFailure

@@ -49,6 +49,15 @@ BASE_OPTIONAL_TOKENS = {
     # 订阅/任务行绝不能从 dev 外发推送）。
     "VAPID_PUBLIC_KEY",
     "VAPID_PRIVATE_KEY",
+    # 原生推送（移动端 APNs/FCM）：未配置即对应通道关闭（dev 保持空，
+    # 快照同步的 push_device/任务行绝不能从 dev 外发推送）。
+    "APNS_KEY_PATH",
+    "APNS_KEY_ID",
+    "APNS_TEAM_ID",
+    "APNS_BUNDLE_ID",
+    "APNS_ENVIRONMENT",
+    "FCM_CREDENTIALS_PATH",
+    "FCM_PROJECT_ID",
 }
 
 DEFAULT_TMPL = os.path.join(

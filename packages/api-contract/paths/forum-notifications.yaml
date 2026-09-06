@@ -345,3 +345,113 @@ unsubscribePush:
                 externalValue: ../fixtures/account-frozen.json
               csrfRejected:
                 externalValue: ../fixtures/csrf-rejected.json
+registerPushDevice:
+  post:
+    tags: [Forum]
+    summary: Persist the caller's native (mobile) push device registration
+    operationId: registerPushDevice
+    description: |
+      Saves one mobile push device (iOS APNs device token or Android FCM
+      registration token) owned by the caller. token is globally unique:
+      re-registering from the same device (or after logging into another
+      account) converges the row to the current user and refreshes its
+      lastRegisteredAt. The token is a long-lived push-service credential
+      and is deleted on account close. Business failures surface as HTTP 200
+      `common.operation.failed`; platform must be `ios` or `android`.
+    security:
+      - bearerAuth: []
+      - accessTokenCookie: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas.yaml#/PushDeviceRegisterRequest
+    responses:
+      '200':
+        description: Device registration persisted (or a legacy business failure envelope).
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/PushDeviceRegisterResponse
+            examples:
+              success:
+                externalValue: ../fixtures/push-device-register-success.json
+      '401':
+        description: Missing, invalid, expired, or revoked access token.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+            examples:
+              unauthenticated:
+                externalValue: ../fixtures/auth-required.json
+      '403':
+        description: >-
+          Authenticated account is frozen or its account information cannot be resolved.
+          A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected
+          by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie
+          is not cleared (issue #406).
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+            examples:
+              frozenAccount:
+                externalValue: ../fixtures/account-frozen.json
+              csrfRejected:
+                externalValue: ../fixtures/csrf-rejected.json
+
+unregisterPushDevice:
+  post:
+    tags: [Forum]
+    summary: Remove one of the caller's native (mobile) push device registrations
+    operationId: unregisterPushDevice
+    description: |
+      Deletes the device registration with the given token when it belongs to
+      the caller (idempotent: a token the caller does not own, or that does not
+      exist, silently succeeds and never reveals other users' devices). Clients
+      call this after a local logout so the server stops sending to the device.
+    security:
+      - bearerAuth: []
+      - accessTokenCookie: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas.yaml#/PushDeviceUnregisterRequest
+    responses:
+      '200':
+        description: Device registration removed (or a legacy business failure envelope).
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/PushDeviceUnregisterResponse
+            examples:
+              success:
+                externalValue: ../fixtures/push-device-unregister-success.json
+      '401':
+        description: Missing, invalid, expired, or revoked access token.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+            examples:
+              unauthenticated:
+                externalValue: ../fixtures/auth-required.json
+      '403':
+        description: >-
+          Authenticated account is frozen or its account information cannot be resolved.
+          A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected
+          by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie
+          is not cleared (issue #406).
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+            examples:
+              frozenAccount:
+                externalValue: ../fixtures/account-frozen.json
+              csrfRejected:
+                externalValue: ../fixtures/csrf-rejected.json

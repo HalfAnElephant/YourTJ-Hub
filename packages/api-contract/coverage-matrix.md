@@ -4,11 +4,11 @@
 
 路由快照来自 `TestRoutesSnapshot`（`fixtures/routes-snapshot.json`，默认配置装配，不含 OIDC `/api/oauth/*` 端点——OIDC 另有专项）。
 
-- 快照路由总数：289
-- /api JSON 路由：226，已入契约：227（100%），已知未覆盖：0
+- 快照路由总数：293
+- /api JSON 路由：230，已入契约：231（100%），已知未覆盖：0
 - 非 API 排除路由：62
 
-## 已覆盖（227）
+## 已覆盖（231）
 
 | Method | Path | operationId |
 | --- | --- | --- |
@@ -68,6 +68,8 @@
 | GET | `/api/pk/course-review-brief` | `pkGetCourseReviewBrief` |
 | GET | `/api/pk/faculties` | `pkListFaculties` |
 | GET | `/api/pk/latest-update` | `pkGetLatestUpdate` |
+| GET | `/api/pk/section-times` | `pkGetSectionTimes` |
+| GET | `/api/site-theme/tokens` | `getPublicSiteThemeTokens` |
 | GET | `/api/user-card` | `getUserCard` |
 | GET | `/api/user/sessions` | `listSessions` |
 | GET | `/api/user/totp/status` | `getTotpStatus` |
@@ -190,6 +192,8 @@
 | POST | `/api/forum/posts/delete` | `deletePost` |
 | POST | `/api/forum/posts/like` | `likePost` |
 | POST | `/api/forum/posts/update` | `updatePost` |
+| POST | `/api/forum/push/device/register` | `registerPushDevice` |
+| POST | `/api/forum/push/device/unregister` | `unregisterPushDevice` |
 | POST | `/api/forum/push/subscribe` | `subscribePush` |
 | POST | `/api/forum/push/unsubscribe` | `unsubscribePush` |
 | POST | `/api/forum/report` | `createReport` |

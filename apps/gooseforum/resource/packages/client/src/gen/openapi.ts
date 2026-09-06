@@ -1489,6 +1489,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/forum/push/device/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Persist the caller's native (mobile) push device registration
+         * @description Saves one mobile push device (iOS APNs device token or Android FCM
+         *     registration token) owned by the caller. token is globally unique:
+         *     re-registering from the same device (or after logging into another
+         *     account) converges the row to the current user and refreshes its
+         *     lastRegisteredAt. The token is a long-lived push-service credential
+         *     and is deleted on account close. Business failures surface as HTTP 200
+         *     `common.operation.failed`; platform must be `ios` or `android`.
+         */
+        post: operations["registerPushDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forum/push/device/unregister": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove one of the caller's native (mobile) push device registrations
+         * @description Deletes the device registration with the given token when it belongs to
+         *     the caller (idempotent: a token the caller does not own, or that does not
+         *     exist, silently succeeds and never reveals other users' devices). Clients
+         *     call this after a local logout so the server stops sending to the device.
+         */
+        post: operations["unregisterPushDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/forum/chat/send": {
         parameters: {
             query?: never;
@@ -1625,6 +1674,33 @@ export interface paths {
          *     /api/v1/agent/search.
          */
         get: operations["searchForum"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/site-theme/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the published site theme tokens
+         * @description Public read (no auth) of the published site theme, consumed by the mobile
+         *     app to mirror the admin-published design tokens (mobile Route A). Returns
+         *     enabled=false, version=0, publishedAt=null and an empty themes array when
+         *     theming is disabled or nothing has been published yet; clients then keep
+         *     their built-in theme. Only the published state is exposed: staged drafts
+         *     (prepublish) and admin-only metadata (theme name/label) are never
+         *     returned. Token values are the published normalized design tokens (same
+         *     data source as the /site-theme.css stylesheet).
+         */
+        get: operations["getPublicSiteThemeTokens"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5313,6 +5389,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pk/section-times": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Class-period (section) schedule table for the PK scheduler grid
+         * @description Returns the section start/end table used to render the PK scheduler time
+         *     grid (mobile Route A shares this source). Reads the site's saved
+         *     `scheduleSettings` page config; when nothing has been configured the
+         *     built-in 12-section default table is returned (section 3 = 10:00,
+         *     section 5 = 13:30, section 7 = 15:30, section 10 = 18:30).
+         *     maxRowsDefault is always 12 — the client trims to 11 rows only for
+         *     semesters with calendarId >= 120.
+         */
+        get: operations["pkGetSectionTimes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/forum/moderation/course-list": {
         parameters: {
             query?: never;
@@ -6578,6 +6680,8 @@ export interface components {
             configured: boolean;
             /** @description VAPID public key (65-byte P-256 uncompressed point, base64url) to pass as PushManager.subscribe applicationServerKey; present only when configured is true. */
             applicationServerKey?: string;
+            /** @description Native (mobile APNs/FCM) channel states; always present. */
+            native: components["schemas"]["NativePushChannels"];
         };
         PushConfigSuccess: components["schemas"]["ApiSuccess"] & {
             result: components["schemas"]["PushConfigResult"];
@@ -6616,6 +6720,35 @@ export interface components {
             result: true;
         };
         PushUnsubscribeResponse: components["schemas"]["PushUnsubscribeSuccess"] | components["schemas"]["ApiFailure"];
+        NativePushChannels: {
+            /** @description True when [push.apns] credentials are configured so the iOS APNs channel is enabled. */
+            apnsEnabled: boolean;
+            /** @description True when [push.fcm] credentials are configured so the Android FCM channel is enabled. */
+            fcmEnabled: boolean;
+        };
+        PushDeviceRegisterRequest: {
+            /**
+             * @description ios routes to APNs, android to FCM.
+             * @enum {string}
+             */
+            platform: "ios" | "android";
+            /** @description Push-service device token (APNs device token or FCM registration token); globally unique — re-registering from the same device converges the row to the current user. */
+            token: string;
+        };
+        PushDeviceRegisterSuccess: components["schemas"]["ApiSuccess"] & {
+            /** @constant */
+            result: true;
+        };
+        PushDeviceRegisterResponse: components["schemas"]["PushDeviceRegisterSuccess"] | components["schemas"]["ApiFailure"];
+        PushDeviceUnregisterRequest: {
+            /** @description Device token to remove; must belong to the caller (foreign tokens silently succeed, never revealing other users' devices). */
+            token: string;
+        };
+        PushDeviceUnregisterSuccess: components["schemas"]["ApiSuccess"] & {
+            /** @constant */
+            result: true;
+        };
+        PushDeviceUnregisterResponse: components["schemas"]["PushDeviceUnregisterSuccess"] | components["schemas"]["ApiFailure"];
         SendChatMessageRequest: {
             /**
              * Format: uint64
@@ -8375,6 +8508,32 @@ export interface components {
         AdminSaveSiteThemeRequest: {
             settings?: components["schemas"]["AdminSaveSiteThemeSettings"];
         };
+        PublicSiteThemeDefinition: {
+            /**
+             * @description Color scheme of the published theme.
+             * @enum {string}
+             */
+            mode: "light" | "dark";
+            /** @description Design tokens keyed by token name (e.g. color-primary); values are the published, normalized token values. */
+            tokens: components["schemas"]["AdminSiteThemeTokens"];
+        };
+        PublicSiteThemeTokensResult: {
+            /** @description False when site theming is disabled or nothing has been published; clients then fall back to their built-in theme. */
+            enabled: boolean;
+            /** @description Published configuration schema version; 0 when disabled/unpublished. */
+            version: number;
+            /**
+             * Format: date-time
+             * @description RFC 3339 timestamp stamped by the last publish; null when disabled/unpublished.
+             */
+            publishedAt: string | null;
+            /** @description Published themes; empty when disabled/unpublished. Admin-only metadata (theme name/label, staged draft) is never exposed. */
+            themes: components["schemas"]["PublicSiteThemeDefinition"][];
+        };
+        PublicSiteThemeTokensSuccess: components["schemas"]["ApiSuccess"] & {
+            result: components["schemas"]["PublicSiteThemeTokensResult"];
+        };
+        PublicSiteThemeTokensResponse: components["schemas"]["PublicSiteThemeTokensSuccess"] | components["schemas"]["ApiFailure"];
         AdminSecuritySettingsConfig: {
             enableSignup: boolean;
             enableEmailVerification: boolean;
@@ -9391,6 +9550,26 @@ export interface components {
         };
         PkReviewBriefResponse: components["schemas"]["PkSuccess"] & {
             data: components["schemas"]["PkReviewBrief"];
+        };
+        PkSectionTimeItem: {
+            /** @description 节次序号（1-based）。 */
+            section: number;
+            /** @description 开始时间 HH:MM。 */
+            start: string;
+            /** @description 结束时间 HH:MM。 */
+            end: string;
+        };
+        PkSectionTimesResult: {
+            /** @description 作息表（未配置时为内置默认 12 节表）。 */
+            sectionTimes: components["schemas"]["PkSectionTimeItem"][];
+            /**
+             * @description 默认最大行数；客户端对 calendarId>=120 的学期自行裁剪到 11 节。
+             * @constant
+             */
+            maxRowsDefault: 12;
+        };
+        PkSectionTimesResponse: components["schemas"]["PkSuccess"] & {
+            data: components["schemas"]["PkSectionTimesResult"];
         };
         MyContentItem: {
             /** Format: uint64 */
@@ -12687,6 +12866,90 @@ export interface operations {
             };
         };
     };
+    registerPushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushDeviceRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Device registration persisted (or a legacy business failure envelope). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceRegisterResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Authenticated account is frozen or its account information cannot be resolved. A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie is not cleared (issue #406). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    unregisterPushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushDeviceUnregisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Device registration removed (or a legacy business failure envelope). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDeviceUnregisterResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Authenticated account is frozen or its account information cannot be resolved. A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie is not cleared (issue #406). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
     sendChatMessage: {
         parameters: {
             query?: never;
@@ -12875,6 +13138,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    getPublicSiteThemeTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published theme tokens (or the disabled/unpublished shape). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicSiteThemeTokensResponse"];
                 };
             };
         };
@@ -19438,6 +19721,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+            /** @description Internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+        };
+    };
+    pkGetSectionTimes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Section schedule table (configured table, or the built-in 12-section default). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkSectionTimesResponse"];
                 };
             };
             /** @description Internal error. */

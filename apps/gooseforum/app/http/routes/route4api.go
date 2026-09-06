@@ -179,6 +179,9 @@ func apiRoute(ginApp *gin.Engine) {
 
 	baseApi.GET("get-captcha", UpQueryReq(api.GetCaptcha))
 	baseApi.GET("user-card", UpQueryReq(api.GetUserCard))
+	// 站点主题公开下发（mobile Route A）：公开只读，无鉴权；数据源与
+	// /site-theme.css 一致（page_config SiteTheme 发布态），未启用返回空。
+	baseApi.GET("site-theme/tokens", ginUpNP(api.GetPublicSiteThemeTokens))
 	baseApi.POST("forgot-password", middleware.RateLimit(middleware.RateLimitForgotPassword), UpButterReq(api.ForgotPassword))
 	baseApi.POST("reset-password", middleware.RateLimit(middleware.RateLimitResetPassword), UpButterReq(api.ResetPassword))
 	baseApi.GET("auth/:provider", api.ProviderLogin)
@@ -256,6 +259,7 @@ func apiRoute(ginApp *gin.Engine) {
 	pkApi.GET("latest-update", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkNoReq(pkcontroller.LatestUpdate))
 	pkApi.POST("course-info-sync", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkJsonReq(pkcontroller.CourseInfoSync))
 	pkApi.GET("course-review-brief", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkQueryReq(pkcontroller.CourseReviewBrief))
+	pkApi.GET("section-times", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkNoReq(pkcontroller.SectionTimes))
 
 	forumApi := baseApi.Group("forum")
 	forumApi.GET("get-site-statistics", ginUpNP(api.GetSiteStatistics))
@@ -300,6 +304,8 @@ func apiRoute(ginApp *gin.Engine) {
 	forumLoginApi.GET("push/config", middleware.NoUpdateUserActivity, UpButterReq(api.GetPushConfig))
 	forumLoginApi.POST("push/subscribe", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.SubscribePush))
 	forumLoginApi.POST("push/unsubscribe", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.UnsubscribePush))
+	forumLoginApi.POST("push/device/register", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.RegisterPushDevice))
+	forumLoginApi.POST("push/device/unregister", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.UnregisterPushDevice))
 	forumLoginApi.POST("topics/write", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitTopicWrite), UpButterReq(api.WriteTopic))
 	forumLoginApi.POST("topics/status", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitTopicStatus), UpButterReq(api.UpdateTopicStatus))
 	forumLoginApi.POST("topics/delete", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.DeleteTopicByUser))

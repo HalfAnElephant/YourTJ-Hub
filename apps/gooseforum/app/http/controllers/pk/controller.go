@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/defaultconfig"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pageConfig"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/pkservice"
 )
 
@@ -289,4 +291,33 @@ func CourseReviewBrief(req Request[CourseReviewBriefReq]) Response {
 		return internalError(err)
 	}
 	return Ok(brief)
+}
+
+// ---- 节次作息（移动端 Route A 公开只读）----
+
+// maxRowsDefault 是移动端排课器默认节次行数：后端恒为 12（11 节新制由
+// 客户端按 calendarId>=120 自行裁剪，服务端保持简单）。
+const maxRowsDefault = 12
+
+// SectionTimesResult 节次作息响应 data。
+type SectionTimesResult struct {
+	SectionTimes   []pageConfig.ScheduleSectionTime `json:"sectionTimes"`
+	MaxRowsDefault int                              `json:"maxRowsDefault"`
+}
+
+// SectionTimes 返回排课器节次作息表（公开只读，与 /schedule SSR 与
+// admin GET /schedule-settings 同一数据源：page_config ScheduleSettings）。
+// 配置为空（未保存 / 保存了空表）时返回内置默认 12 节作息——与前端
+// sectionTimesFor 的「overrides 为空回退默认表」语义一致，移动端可直接
+// 应用返回表无需再做合并。
+func SectionTimes(req Request[Null]) Response {
+	config := pageConfig.GetConfigByPageType(pageConfig.ScheduleSettings, pageConfig.ScheduleSettingsConfig{})
+	times := config.SectionTimes
+	if len(times) == 0 {
+		times = defaultconfig.GetDefaultScheduleSettingsConfig().SectionTimes
+	}
+	return Ok(SectionTimesResult{
+		SectionTimes:   times,
+		MaxRowsDefault: maxRowsDefault,
+	})
 }
