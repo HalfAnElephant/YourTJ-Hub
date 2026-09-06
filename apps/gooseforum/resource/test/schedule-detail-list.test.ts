@@ -144,6 +144,7 @@ describe('ScheduleDetailList 课评摘要与跳转', () => {
     const codes = cards.map((card) => card.find('span.font-bold.tabular-nums').text())
     expect(codes).toEqual(['110001.02', '110001.01', '110001.03'])
   })
+
   test('教学班行内显示 offering 级课评摘要并跳转聚焦', async () => {
     // P13 classes：教学班 code ↔ offering.class_code（去掉点号归一化）匹配。
     getPkCourseReviewBrief.mockResolvedValue({
