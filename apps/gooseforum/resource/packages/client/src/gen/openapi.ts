@@ -1045,7 +1045,7 @@ export interface paths {
          *     the reserved/banned lists fails with `auth.nickname.reserved` /
          *     `auth.nickname.banned`; profile free text (bio/signature/website/websiteName)
          *     hitting the sensitive-word list fails with `content.sensitive.blocked`
-         *     (params carries the matched word). Business failures: `user.fetchFailed`,
+         *     (params carries the first matched word as `word` and all matched words as `words`). Business failures: `user.fetchFailed`,
          *     `user.updateFailed`.
          */
         post: operations["setUserInfo"];
@@ -1505,7 +1505,7 @@ export interface paths {
          *     a `required` validate tag, omitting it binds 0 and the `oneof=1 2 3` check
          *     fails with `common.request.invalidParams` (HTTP 200). Content hitting the
          *     sensitive-word list is blocked outright with `chat.sensitive.blocked`
-         *     (params word) — chat has no delayed-visibility state. Messaging oneself and
+         *     (params `word` plus all matches in `words`) — chat has no delayed-visibility state. Messaging oneself and
          *     other service failures surface as `chat.send.failed` (params error). JSON
          *     binding is lenient: a malformed body binds to zero values and fails
          *     validation as `common.request.invalidParams` (HTTP 200). The success
@@ -6622,7 +6622,7 @@ export interface components {
              * @description Recipient user id; messaging oneself fails with `chat.send.failed` (HTTP 200).
              */
             peerId: number;
-            /** @description Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params word). */
+            /** @description Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params `word` plus all matches in `words`). */
             content: string;
             /**
              * @description 1 text, 2 image, 3 voice. Effectively required — omitting it binds 0 and fails validation with `common.request.invalidParams` (HTTP 200).
@@ -13920,7 +13920,7 @@ export interface operations {
              *     with `common.request.invalidParams` (issue #176 B4: the contract documents the actual
              *     route behavior). Content hitting the sensitive-word list is blocked with
              *     `course.review.sensitiveBlocked` in the same legacy HTTP 200 envelope (params
-             *     carries the matched word). Over-long content is NOT a request-level failure: it
+             *     carries the first matched word as `word` and all matched words as `words`). Over-long content is NOT a request-level failure: it
              *     passes the request validator and is rejected by the service layer as 400
              *     `review.content.tooLong` (see below). Service-level errors use their own status
              *     codes below.
@@ -14073,7 +14073,7 @@ export interface operations {
              * @description The updated review payload, or a legacy business failure envelope for validation
              *     failures. Editing content that hits the sensitive-word list is blocked with
              *     `course.review.sensitiveBlocked` in the legacy HTTP 200 envelope (params carries
-             *     the matched word).
+             *     the first matched word as `word` and all matched words as `words`).
              */
             200: {
                 headers: {

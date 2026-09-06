@@ -9,7 +9,7 @@ sendChatMessage:
       a `required` validate tag, omitting it binds 0 and the `oneof=1 2 3` check
       fails with `common.request.invalidParams` (HTTP 200). Content hitting the
       sensitive-word list is blocked outright with `chat.sensitive.blocked`
-      (params word) — chat has no delayed-visibility state. Messaging oneself and
+      (params `word` plus all matches in `words`) — chat has no delayed-visibility state. Messaging oneself and
       other service failures surface as `chat.send.failed` (params error). JSON
       binding is lenient: a malformed body binds to zero values and fails
       validation as `common.request.invalidParams` (HTTP 200). The success

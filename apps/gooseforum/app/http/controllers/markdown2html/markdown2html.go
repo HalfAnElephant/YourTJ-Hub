@@ -12,8 +12,10 @@ import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
+	extensionast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 	nethtml "golang.org/x/net/html"
 )
 
@@ -337,6 +339,71 @@ func ExtractPreview(content string, maxLength int) string {
 		preview = string(runes[:maxLength])
 	}
 	return preview
+}
+
+// ExtractVisibleText returns the text represented by Markdown after its
+// formatting delimiters are removed. Block boundaries stay separated so text
+// from adjacent paragraphs cannot become a new match when this value is used
+// by moderation checks.
+func ExtractVisibleText(content string) string {
+	// Most content is plain text. Avoid building a Markdown AST when no syntax
+	// can split a sensitive word across visible text nodes.
+	if !strings.ContainsAny(content, "*_~`[]<>\\&") {
+		return content
+	}
+
+	reader := text.NewReader([]byte(content))
+	doc := GetParser().Parser().Parse(reader)
+	var builder strings.Builder
+	appendBlockBreak := func() {
+		if builder.Len() == 0 {
+			return
+		}
+		value := builder.String()
+		if value[len(value)-1] != '\n' {
+			builder.WriteByte('\n')
+		}
+	}
+
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			switch n.(type) {
+			case *ast.Paragraph, *ast.Heading, *ast.ListItem, *ast.Blockquote,
+				*ast.CodeBlock, *ast.FencedCodeBlock, *extensionast.TableCell:
+				appendBlockBreak()
+			}
+			return ast.WalkContinue, nil
+		}
+
+		switch node := n.(type) {
+		case *ast.Text:
+			value := node.Segment.Value(reader.Source())
+			if !node.IsRaw() {
+				value = util.UnescapePunctuations(value)
+				value = util.ResolveNumericReferences(value)
+				value = util.ResolveEntityNames(value)
+			}
+			builder.Write(value)
+			if node.SoftLineBreak() || node.HardLineBreak() {
+				builder.WriteByte('\n')
+			}
+		case *ast.String:
+			builder.Write(node.Value)
+		case *ast.CodeBlock:
+			builder.Write(node.Lines().Value(reader.Source()))
+			return ast.WalkSkipChildren, nil
+		case *ast.FencedCodeBlock:
+			builder.Write(node.Lines().Value(reader.Source()))
+			return ast.WalkSkipChildren, nil
+		case *ast.Image, *ast.HTMLBlock:
+			// Image alt text and raw HTML markup are not ordinary Markdown
+			// prose. The original source is still scanned separately.
+			return ast.WalkSkipChildren, nil
+		}
+		return ast.WalkContinue, nil
+	})
+
+	return builder.String()
 }
 
 func extractDescriptionBlockText(node ast.Node, source []byte) string {

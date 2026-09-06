@@ -26,7 +26,7 @@ export interface PostStreamTopicActions {
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, Teleport, useSlots, watch } from 'vue'
 import { AlertTriangle, Ban, Bell, BookOpen, Bookmark, ChevronsUp, Clock, CornerDownLeft, Flag, Heart, HelpCircle, History, Loader2, MoreHorizontal, PencilLine, RotateCcw, Share2, Sparkles, Trash2, X } from '@lucide/vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { bookmarkTopic, deletePost, deleteTopic, getPostRevisions, getPostWindow, likeTopic, createPost, submitReport, updateModerationTopicStatus, updateModerationPostStatus, updatePost, watchTopic, likePost, bookmarkPost, reportContentEvent, privacyEraseContent, type PostRevisionResult } from '@/runtime/api'
+import { bookmarkTopic, deletePost, deleteTopic, getPostRevisions, getPostWindow, likeTopic, createPost, sensitiveWordsFromError, submitReport, updateModerationTopicStatus, updateModerationPostStatus, updatePost, watchTopic, likePost, bookmarkPost, reportContentEvent, privacyEraseContent, type PostRevisionResult } from '@/runtime/api'
 import { formatDateTime, formatNumber } from '@/runtime/format'
 import { useFlashMessages } from '@/runtime/flash-message'
 import { fetchPage } from '@/runtime/router'
@@ -154,6 +154,7 @@ const postWindowError = ref('')
 const deleteErrorMessage = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
+const sensitiveWords = ref<string[]>([])
 const postLoadMoreEl = ref<HTMLElement | null>(null)
 const markdownImageViewer = ref<InstanceType<typeof MarkdownImageViewer> | null>(null)
 const composerOpen = ref(false)
@@ -972,6 +973,7 @@ function focusPostComposer() {
 
 function updateComposerOpen(open: boolean) {
   composerOpen.value = open
+  if (!open) sensitiveWords.value = []
   if (!open && editingPostId.value) {
     cancelEditPost()
   }
@@ -1228,17 +1230,20 @@ function replyTo(post: PostPayload) {
   targetPostId.value = post.id
   errorMessage.value = ''
   successMessage.value = ''
+  sensitiveWords.value = []
   focusPostComposer()
 }
 
 function cancelPostTarget() {
   targetPostId.value = 0
   errorMessage.value = ''
+  sensitiveWords.value = []
 }
 
 function clearPostValidation() {
   errorMessage.value = ''
   successMessage.value = ''
+  sensitiveWords.value = []
 }
 
 function handlePostImageInserted(count: number) {
@@ -1306,6 +1311,7 @@ function startEditPost(post: PostPayload) {
   postContent.value = post.content
   errorMessage.value = ''
   successMessage.value = ''
+  sensitiveWords.value = []
   focusPostComposer()
 }
 
@@ -1313,6 +1319,7 @@ function cancelEditPost() {
   if (savingEditPostId.value) return
   editingPostId.value = 0
   errorMessage.value = ''
+  sensitiveWords.value = []
   postContent.value = postDraftBeforeEdit.value
   targetPostId.value = targetPostBeforeEdit.value
   postDraftBeforeEdit.value = ''
@@ -1342,6 +1349,7 @@ async function savePostEdit() {
   savingEditPostId.value = post.id
   errorMessage.value = ''
   successMessage.value = ''
+  sensitiveWords.value = []
   try {
     const updated = await updatePost(post.id, content)
     const index = posts.value.findIndex((item) => item.id === post.id)
@@ -1364,6 +1372,7 @@ async function savePostEdit() {
     composerOpen.value = false
     pushFlash(t('topic.replyUpdated'), 'success')
   } catch (error) {
+    sensitiveWords.value = sensitiveWordsFromError(error)
     errorMessage.value = error instanceof Error ? error.message : t('api.replyUpdateFailed')
   } finally {
     savingEditPostId.value = 0
@@ -1389,6 +1398,7 @@ async function submitPost() {
   submitting.value = true
   errorMessage.value = ''
   successMessage.value = ''
+  sensitiveWords.value = []
   try {
     const createdPost = await createPost(props.topicId, content, postId, {
       captchaId: captchaId.value,
@@ -1411,8 +1421,10 @@ async function submitPost() {
     }
   } catch (error) {
     if (challengeFromError(error)) {
+      sensitiveWords.value = []
       errorMessage.value = t('server.auth.captcha.invalid')
     } else {
+      sensitiveWords.value = sensitiveWordsFromError(error)
       errorMessage.value = error instanceof Error ? error.message : t('api.replyFailed')
     }
   } finally {
@@ -2627,6 +2639,7 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
     :mode="composerMode"
     :submitting="editingPostId ? savingEditPostId > 0 : submitting"
     :success-message="successMessage"
+    :sensitive-words="sensitiveWords"
     :target="targetPost"
     @clear-target="cancelPostTarget"
     @clear-validation="clearPostValidation"

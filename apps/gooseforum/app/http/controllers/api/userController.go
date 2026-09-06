@@ -237,11 +237,12 @@ func EditUserInfo(req component.BetterRequest[EditUserInfoReq]) component.Respon
 		req.Params.Website,
 		req.Params.WebsiteName,
 	}, "\n")
-	if hit, word := moderationservice.CheckContentAllowed(profileText); hit {
+	if words := moderationservice.FindSensitiveWords(profileText); len(words) > 0 {
+		word := words[0]
 		moderationservice.SensitiveContentBlocked(req.UserId, moderationLog.SubjectUserProfile, 0, word, truncateExcerpt(profileText))
 		return component.FailResponseCode(
 			component.MessageContentSensitiveBlocked,
-			component.MessageParams{"word": word},
+			component.MessageParams{"word": word, "words": words},
 		)
 	}
 

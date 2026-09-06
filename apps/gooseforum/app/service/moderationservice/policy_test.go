@@ -5,6 +5,7 @@ import (
 
 	db "github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/moderationLog"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pageConfig"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/users"
@@ -92,6 +93,47 @@ func TestCheckContentAllowedWithConfigEmptyList(t *testing.T) {
 	}
 	if word != "" {
 		t.Fatalf("word = %q with empty word list, want empty", word)
+	}
+}
+
+func TestFindSensitiveWordsWithConfig(t *testing.T) {
+	cfg := pageConfig.SecurityAndRegistration{
+		SensitiveWords: []string{"赌博", "代考", "spammer", "赌博"},
+	}
+	hits := FindSensitiveWordsWithConfig("第一段赌博\n第二段 SPAMMER\n第三段代考", cfg)
+	want := []string{"赌博", "代考", "spammer"}
+	if len(hits) != len(want) {
+		t.Fatalf("FindSensitiveWordsWithConfig() = %v, want %v", hits, want)
+	}
+	for i := range want {
+		if hits[i] != want[i] {
+			t.Fatalf("FindSensitiveWordsWithConfig() = %v, want %v", hits, want)
+		}
+	}
+}
+
+func TestFindSensitiveWordsInTextsWithConfig(t *testing.T) {
+	cfg := pageConfig.SecurityAndRegistration{
+		SensitiveWords: []string{"赌博", "代考", "spammer"},
+	}
+	raw := []string{
+		"赌**博**",
+		"[代**考**](https://example.com)",
+		"```text\nSPAMMER\n```",
+	}
+	visible := make([]string, 0, len(raw))
+	for _, content := range raw {
+		visible = append(visible, markdown2html.ExtractVisibleText(content))
+	}
+	hits := FindSensitiveWordsInTextsWithConfig(append(raw, visible...), cfg)
+	want := []string{"赌博", "代考", "spammer"}
+	if len(hits) != len(want) {
+		t.Fatalf("FindSensitiveWordsInTextsWithConfig() = %v, want %v", hits, want)
+	}
+	for i := range want {
+		if hits[i] != want[i] {
+			t.Fatalf("FindSensitiveWordsInTextsWithConfig() = %v, want %v", hits, want)
+		}
 	}
 }
 

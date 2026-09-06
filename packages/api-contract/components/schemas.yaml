@@ -4590,7 +4590,7 @@ SendChatMessageRequest:
     content:
       type: string
       minLength: 1
-      description: Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params word).
+      description: Message content; sensitive-word hits fail with `chat.sensitive.blocked` (HTTP 200, params `word` plus all matches in `words`).
     msgType:
       type: integer
       enum: [1, 2, 3]
