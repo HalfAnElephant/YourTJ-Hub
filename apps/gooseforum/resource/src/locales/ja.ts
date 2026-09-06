@@ -1147,6 +1147,8 @@ export default {
     allRepliesShown: 'すべての返信を表示しました',
     answer: '回答',
     writeAnswer: '回答を書く',
+    viewFlat: 'フラット',
+    viewTree: 'ツリー',
     earliestContent: '最初の内容',
     latestReply: '最新の返信',
     replyPosition: '返信位置',

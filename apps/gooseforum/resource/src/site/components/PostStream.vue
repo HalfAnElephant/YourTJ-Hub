@@ -32,9 +32,12 @@ import { useFlashMessages } from '@/runtime/flash-message'
 import { fetchPage } from '@/runtime/router'
 import { showUserCard } from '@/runtime/user-card-events'
 import { measurePostViewportProgressFromRects } from '@/runtime/post-viewport-progress'
+import { usePostViewMode } from '@/runtime/post-view-mode'
+import { buildReplyForest, flattenReplyForest, postTreeIndentLevel, type ForestRow } from '@/runtime/reply-forest'
 import MarkdownImageViewer from '@/site/components/MarkdownImageViewer.vue'
 import PostPositionRail from '@/site/components/PostPositionRail.vue'
 import PostReplyReference from '@/site/components/PostReplyReference.vue'
+import PostReplyRow from '@/site/components/PostReplyRow.vue'
 import TopicFloatingControls from '@/site/components/TopicFloatingControls.vue'
 import TopicImageGallery from '@/site/components/TopicImageGallery.vue'
 import TopicList from '@/site/components/TopicList.vue'
@@ -273,6 +276,8 @@ let postRailResumeLastScrollY = 0
 let postRailResumeStableFrames = 0
 let postElements: HTMLElement[] = []
 const postNavigationTargetTop = 160
+// 树状视图折叠态：仅会话内有效，切换话题时重置（不持久化，默认全展开）。
+const collapsedIds = ref(new Set<number>())
 
 watch(
   () => props.interactions,
@@ -322,6 +327,7 @@ watch(
     pendingModerationAction.value = null
     actingModeration.value = false
     resetPostsFromProps()
+    collapsedIds.value = new Set()
     mobilePostRailOpen.value = false
     void nextTick(observePostLoader)
     void nextTick(collectPostElements)
@@ -803,8 +809,49 @@ function qaChainRootId(post: PostPayload): number | null {
   }
   return current?.id ?? null
 }
+// 视图模式：扁平/树状胶囊切换。默认按内容类型（提问=树状，其余=扁平），
+// 用户手动选择按内容类型独立记忆（localStorage，与 home-feed-mode 同一客户端模式）。
+const { viewMode: postViewMode, setViewMode: setPostViewMode } = usePostViewMode(() => props.contentType)
+
+// 树状视图：真实父子嵌套的回复森林。兜底为根节点平铺（无目标/回复首楼/目标未加载/
+// 祖先链成环或超限/forceFlat），保证内容零丢失；Wiki 页沿用 sortedPosts 过滤结果。
+const replyForest = computed(() => buildReplyForest(sortedPosts.value, {
+  firstPostId: firstPost.value?.id,
+  forceFlatIds: qaForceFlatPostIds.value,
+}))
+
+// 树状主流层 = 森林根节点（沿用主流楼层卡渲染）；每个根卡的树状块渲染其全部后代行。
+const treeRootPosts = computed(() => replyForest.value.map((node) => node.post))
+
+const treeRowsByRoot = computed<Map<number, ForestRow[]>>(() => {
+  const map = new Map<number, ForestRow[]>()
+  for (const root of replyForest.value) {
+    const rows = flattenReplyForest(root.children, collapsedIds.value)
+    if (rows.length) map.set(root.post.id, rows)
+  }
+  return map
+})
+
+function treeRowsFor(post: PostPayload): ForestRow[] {
+  return treeRowsByRoot.value.get(post.id) ?? []
+}
+
+function treeIndentLevel(depth: number) {
+  return postTreeIndentLevel(depth)
+}
+
+function toggleTreeCollapse(postId: number) {
+  const next = new Set(collapsedIds.value)
+  if (next.has(postId)) next.delete(postId)
+  else next.add(postId)
+  collapsedIds.value = next
+}
+
 
 const renderPosts = computed<PostPayload[]>(() => {
+  if (postViewMode.value === 'tree') {
+    return treeRootPosts.value
+  }
   if (!isQuestionTopic.value) return sortedPosts.value
   return sortedPosts.value.filter((post) => qaChainRootId(post) === null)
 })
@@ -1841,6 +1888,29 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
             {{ t('topic.loadEarlierReplies') }}
           </button>
         </div>
+        <!-- 视图切换胶囊：按内容类型默认（提问=树状，其余=扁平），用户选择按类型记忆 -->
+        <div v-if="posts.length" class="flex items-center justify-end px-4 pt-2.5 sm:px-5">
+          <div class="flex items-center rounded-full bg-base-200/70 p-0.5" role="group">
+            <button
+              type="button"
+              class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+              :class="postViewMode === 'flat' ? 'bg-base-100 text-base-content shadow-sm' : 'text-base-content/55 hover:text-base-content'"
+              :aria-pressed="postViewMode === 'flat'"
+              @click="setPostViewMode('flat')"
+            >
+              {{ t('topic.viewFlat') }}
+            </button>
+            <button
+              type="button"
+              class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+              :class="postViewMode === 'tree' ? 'bg-base-100 text-base-content shadow-sm' : 'text-base-content/55 hover:text-base-content'"
+              :aria-pressed="postViewMode === 'tree'"
+              @click="setPostViewMode('tree')"
+            >
+              {{ t('topic.viewTree') }}
+            </button>
+          </div>
+        </div>
 
         <article
           v-for="(post, index) in renderPosts"
@@ -2432,84 +2502,70 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
             </div>
 
           </div>
-          <!-- Q&A 楼内堆叠：回复本楼回复链的子回复（回复回答/回复回复），按楼号堆叠在楼层卡片内 -->
+          <!-- 扁平视图（Q&A 两层布局）：链内子回复按链根拍平，堆叠在楼层卡片内 -->
           <div
-            v-if="isQuestionTopic && stackedRepliesFor(post).length"
+            v-if="postViewMode === 'flat' && isQuestionTopic && stackedRepliesFor(post).length"
             class="col-span-2 mt-1 space-y-2.5 border-l-2 border-line/70 pl-3 sm:pl-4"
           >
-            <div
+            <PostReplyRow
               v-for="reply in stackedRepliesFor(post)"
               :id="`post-${reply.id}`"
               :key="reply.id"
               :data-post-no="reply.postNo"
-              class="scroll-mt-20 rounded-lg bg-base-200/45 p-3 transition-[background-color]"
-              :class="{ 'bg-info/10': highlightedPostId === reply.id }"
-            >
-              <div class="mb-2 flex min-w-0 items-center gap-2">
-                <a :href="`/u/${reply.author.id}`" class="shrink-0" @click="showUserCard(reply.author, $event)">
-                  <UserAvatar :src="reply.author.avatarUrl" :alt="reply.author.username" :badge="reply.author.wornBadge" class="h-6 w-6 rounded-full ring-1 ring-line" img-class="rounded-full" />
-                </a>
-                <a :href="`/u/${reply.author.id}`" class="min-w-0 truncate text-sm font-semibold text-base-content hover:text-primary" @click="showUserCard(reply.author, $event)">{{ authorDisplayName(reply.author) }}</a>
-                <span class="shrink-0 text-xs font-semibold tabular-nums text-base-content/55">#{{ formatNumber(reply.postNo) }}</span>
-                <time class="shrink-0 text-xs text-base-content/55">{{ formatDateTime(reply.createdAt) }}</time>
-                <span class="ml-auto flex shrink-0 items-center gap-1">
-                  <button v-if="canEditPost(reply)" type="button" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50" :disabled="savingEditPostId === reply.id || deletingPostId === reply.id" :title="t('common.edit')" @click="startEditPost(reply)">
-                    <PencilLine class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('common.edit') }}</span>
-                  </button>
-                  <button v-if="canDeleteRenderedPost(reply)" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-error/10 hover:text-error disabled:cursor-not-allowed disabled:opacity-50" :disabled="deletingPostId === reply.id" :title="deletingPostId === reply.id ? t('topic.deleting') : t('topic.delete')" @click="requestDeletePost(reply)">
-                    <Trash2 class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ deletingPostId === reply.id ? t('topic.deleting') : t('topic.delete') }}</span>
-                  </button>
-                  <button v-if="(!viewer.isAuthenticated || canPost) && !reply.isHidden && !isPostRemoved(reply)" type="button" class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-icon-muted transition hover:bg-info/10 hover:text-primary" :title="t('topic.reply')" @click="replyTo(reply)">
-                    <CornerDownLeft class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('topic.reply') }}</span>
-                  </button>
-                  <button v-if="viewer.isAuthenticated && !reply.isHidden && !isPostRemoved(reply)" type="button" class="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1 text-icon-muted transition hover:bg-error/10 hover:text-error disabled:cursor-not-allowed disabled:opacity-50" :class="{ 'text-error hover:text-error': postActionState(reply).isLiked }" :title="t('topic.like')" :disabled="postActionState(reply).actingLike" @click="togglePostLike(reply)">
-                    <Heart class="h-3.5 w-3.5" :fill="postActionState(reply).isLiked ? 'currentColor' : 'none'" />
-                    <span v-if="postActionState(reply).likeCount" class="hidden text-xs font-semibold tabular-nums sm:inline">{{ formatNumber(postActionState(reply).likeCount) }}</span>
-                    <span class="sr-only">{{ t('topic.like') }}</span>
-                  </button>
-                  <button v-if="viewer.isAuthenticated && !reply.isHidden && !isPostRemoved(reply)" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-info/10 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50" :class="{ 'text-primary hover:text-primary': postActionState(reply).isBookmarked }" :title="postActionState(reply).isBookmarked ? t('topic.bookmarked') : t('topic.bookmark')" :disabled="postActionState(reply).actingBookmark" @click="togglePostBookmark(reply)">
-                    <Bookmark class="h-3.5 w-3.5" :fill="postActionState(reply).isBookmarked ? 'currentColor' : 'none'" />
-                    <span class="sr-only">{{ t('topic.bookmark') }}</span>
-                  </button>
-                  <button type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-base-200 hover:text-base-content" :title="t('topic.share')" @click="sharePost(reply)">
-                    <Share2 class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('topic.share') }}</span>
-                  </button>
-                  <button v-if="!reply.isOwnPost && !reply.isHidden && !isPostRemoved(reply)" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-warning/10 hover:text-warning" :title="t('topic.report')" @click="requestPostReport(reply)">
-                    <Flag class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('topic.report') }}</span>
-                  </button>
-                  <button v-if="reply.canModerate && reply.processStatus === 0" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-error/10 hover:text-error disabled:opacity-50" :disabled="postModerationBusy(reply.id)" :title="t('topic.moderationBan')" @click="moderatePost(reply, 'ban')">
-                    <Ban class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('topic.moderationBan') }}</span>
-                  </button>
-                  <button v-else-if="reply.canModerate && reply.processStatus === 1" type="button" class="gf-icon-button h-7 w-7 shrink-0 hover:bg-info/10 hover:text-primary disabled:opacity-50" :disabled="postModerationBusy(reply.id)" :title="t('topic.moderationUnban')" @click="moderatePost(reply, 'unban')">
-                    <RotateCcw class="h-3.5 w-3.5" />
-                    <span class="sr-only">{{ t('topic.moderationUnban') }}</span>
-                  </button>
-                </span>
-              </div>
-              <PostReplyReference v-if="showReplyReference(reply)" :target="replyTargetFor(reply)" />
-              <div v-if="reply.isAuthorDeleted" class="mt-2 rounded border border-dashed border-line bg-base-100/60 px-3 py-2 text-sm text-base-content/55">
-                {{ t('topic.authorDeletedPlaceholder') }}
-              </div>
-              <div v-else-if="reply.isModeratorRemoved" class="mt-2 rounded border border-dashed border-line bg-base-100/60 px-3 py-2 text-sm text-base-content/55">
-                {{ t('topic.moderatorRemovedPlaceholder') }}
-              </div>
-              <div v-else-if="reply.isHidden && !reply.canModerate" class="mt-2 rounded border border-line bg-base-100/60 px-3 py-2 text-sm text-base-content/45">
-                {{ t('topic.hiddenReplyPlaceholder') }}
-              </div>
-              <div v-else v-code-copy v-code-highlight v-math-render v-content-enhancements class="gf-prose gf-prose-post mt-1" v-html="reply.renderedContent" />
-              <div v-if="!reply.lastEditedAt && reply.updatedAt && reply.updatedAt !== reply.createdAt" class="mt-2 text-xs font-medium text-base-content/55">
-                {{ t('topic.editedAt', { time: formatDateTime(reply.updatedAt) }) }}
-              </div>
-              <div v-if="reply.lastEditedAt && reply.lastEditor" class="mt-2 text-xs font-medium text-base-content/55">
-                {{ lastEditedLabel(reply) }}
-              </div>
-            </div>
+              :post="reply"
+              :highlighted="highlightedPostId === reply.id"
+              :show-quote="showReplyReference(reply)"
+              :reply-target="replyTargetFor(reply)"
+              :authenticated="viewer.isAuthenticated"
+              :can-post="canPost"
+              :saving-edit="savingEditPostId === reply.id"
+              :deleting="deletingPostId === reply.id"
+              :moderation-busy="postModerationBusy(reply.id)"
+              :action-state="postActionState(reply)"
+              @reply="replyTo(reply)"
+              @edit="startEditPost(reply)"
+              @delete="requestDeletePost(reply)"
+              @like="togglePostLike(reply)"
+              @bookmark="togglePostBookmark(reply)"
+              @share="sharePost(reply)"
+              @report="requestPostReport(reply)"
+              @moderate="(action) => moderatePost(reply, action)"
+            />
+          </div>
+          <!-- 树状视图：真实父子嵌套；链内省略引用条（父子相邻即上下文），
+               兜底为根的子回复在 depth 0 显示引用条保留上下文 -->
+          <div
+            v-if="postViewMode === 'tree' && treeRowsFor(post).length"
+            class="col-span-2 mt-1 space-y-2 border-l-2 border-line/70"
+          >
+            <PostReplyRow
+              v-for="row in treeRowsFor(post)"
+              :id="`post-${row.post.id}`"
+              :key="row.post.id"
+              :data-post-no="row.post.postNo"
+              :post="row.post"
+              :highlighted="highlightedPostId === row.post.id"
+              :show-quote="row.depth === 0 && showReplyReference(row.post)"
+              :reply-target="replyTargetFor(row.post)"
+              :authenticated="viewer.isAuthenticated"
+              :can-post="canPost"
+              :saving-edit="savingEditPostId === row.post.id"
+              :deleting="deletingPostId === row.post.id"
+              :moderation-busy="postModerationBusy(row.post.id)"
+              :action-state="postActionState(row.post)"
+              :indent-level="treeIndentLevel(row.depth)"
+              :collapsible="row.hasChildren"
+              :collapsed="collapsedIds.has(row.post.id)"
+              @reply="replyTo(row.post)"
+              @edit="startEditPost(row.post)"
+              @delete="requestDeletePost(row.post)"
+              @like="togglePostLike(row.post)"
+              @bookmark="togglePostBookmark(row.post)"
+              @share="sharePost(row.post)"
+              @report="requestPostReport(row.post)"
+              @moderate="(action) => moderatePost(row.post, action)"
+              @toggle-collapse="toggleTreeCollapse(row.post.id)"
+            />
           </div>
         </article>
 

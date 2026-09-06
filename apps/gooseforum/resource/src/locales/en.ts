@@ -1147,6 +1147,8 @@ export default {
     allRepliesShown: 'All replies shown',
     answer: 'Answer',
     writeAnswer: 'Write Answer',
+    viewFlat: 'Flat',
+    viewTree: 'Tree',
     earliestContent: 'Earliest content',
     latestReply: 'Latest reply',
     replyPosition: 'Reply position',
