@@ -341,6 +341,11 @@ export interface TermsOfServiceConfig {
   content: string
 }
 
+export interface PrivacyPolicyConfig {
+  enabled: boolean
+  content: string
+}
+
 export interface AdminTaskRow {
   id: number
   type: string
