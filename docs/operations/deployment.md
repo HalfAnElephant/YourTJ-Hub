@@ -90,6 +90,29 @@ curl -sS -D - -o /dev/null https://f.yourtj.de/                               # 
 （宿主机上执行；上游无头而公网有头 ⇒ 代理层注入）。dev 实例同理
 （`dev.yourtj.de` → `127.0.0.1:5235`）。
 
+### InsightFlare 事件观测
+
+公共论坛页面由 `apps/gooseforum/resource/templates/layout/app.gohtml` 加载
+InsightFlare SDK，站点为 `https://f.yourtj.de`，固定 `siteId` 为
+`09521282-d1ce-4a88-add6-99c039014def`。统计脚本只放在公共站点布局，管理后台不加载；
+页面级 CSP 的 `script-src` 只额外允许 `https://ana.yourtj.de`，采集请求复用既有的
+HTTPS `connect-src` 放行规则。该 SDK 会把页面访问与性能观测发送到自建的
+`https://ana.yourtj.de`，隐私政策与数据保留口径应与 InsightFlare 站点设置保持一致。
+
+当前 Cloudflare 部署资源由外部 InsightFlare 项目管理，不写入本仓库的凭据或配置文件：
+Worker `insightflare` 绑定 D1、KV、Durable Object、三套 Analytics Engine 和 R2 冷归档，
+`MAIN_SECRET` 与 `BOOTSTRAP_ADMIN_PASSWORD` 以 Worker Secret 管理。资源/Secret 变更应在
+Cloudflare 或 InsightFlare 管理面完成，不要把 Wrangler 本地认证文件、API Token、站点
+采集 Token 或 D1/KV ID 提交到仓库。
+
+部署或变更后，用 GET 验证观测服务与 SDK 可达（不要用 `curl -I`，SDK 端点不保证支持 HEAD）：
+
+```bash
+curl -fsSL https://ana.yourtj.de/healthz
+curl -fsSL -o /dev/null -w '%{http_code}\n' \
+  'https://ana.yourtj.de/script.js?siteId=09521282-d1ce-4a88-add6-99c039014def'
+```
+
 ### 旧 VitePress wiki 内容迁移（GitHub 唯一真实源）
 
 论坛 wiki 内容由公开 GitHub 仓库 `YourTongji/YourTJ-Wiki` 维护（PR 协作编辑），
