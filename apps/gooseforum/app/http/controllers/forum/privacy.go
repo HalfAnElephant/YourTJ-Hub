@@ -56,10 +56,6 @@ func buildPrivacyPageProps(config pageConfig.PrivacyPolicyConfig) PrivacyPagePro
 	}
 }
 
-func insightFlareEnabled(production, privacyEnabled bool) bool {
-	return production && privacyEnabled
-}
-
 func buildPrivacyMeta(c *gin.Context) PageMeta {
 	lang := requestLang(c)
 	return PageMeta{

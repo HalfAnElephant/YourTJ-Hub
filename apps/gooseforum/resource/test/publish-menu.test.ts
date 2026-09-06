@@ -55,6 +55,7 @@ function makeLayout(isAuthenticated = true): LayoutPayload {
     footer: { links: [], primary: [] },
     unread: { notifications: false, messages: false, moderationReports: false, latestNotificationType: '' },
     theme: { enabled: false, current: 'gf-light', themeColor: '#ffffff' },
+    insightFlareEnabled: false,
   } as any
 }
 

@@ -702,10 +702,7 @@ func buildLayout(c *gin.Context, activeKey string) LayoutPayload {
 	brandImage := urlutil.Clean(urlutil.Image, chrome.BrandImage)
 
 	return LayoutPayload{
-		InsightFlareEnabled: insightFlareEnabled(
-			setting.IsProduction(),
-			hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
-		),
+		InsightFlareEnabled: setting.IsProduction() && hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
 		Site: SitePayload{
 			Name:          siteConfig.SiteName,
 			Description:   siteConfig.SiteDescription,

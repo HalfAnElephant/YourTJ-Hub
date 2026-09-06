@@ -56,22 +56,3 @@ func TestBuildPrivacyPagePropsDoesNotDuplicateInsightFlareDisclosure(t *testing.
 		t.Fatalf("InsightFlare disclosure marker count = %d, want 1: %s", got, props.ContentHTML)
 	}
 }
-
-func TestInsightFlareEnabledRequiresProductionPrivacyPolicy(t *testing.T) {
-	for _, tc := range []struct {
-		name           string
-		production     bool
-		privacyEnabled bool
-		want           bool
-	}{
-		{name: "production and enabled", production: true, privacyEnabled: true, want: true},
-		{name: "production and disabled", production: true, privacyEnabled: false, want: false},
-		{name: "local and enabled", production: false, privacyEnabled: true, want: false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := insightFlareEnabled(tc.production, tc.privacyEnabled); got != tc.want {
-				t.Fatalf("insightFlareEnabled(%t, %t) = %t, want %t", tc.production, tc.privacyEnabled, got, tc.want)
-			}
-		})
-	}
-}

@@ -50,6 +50,7 @@ function layout(brandType: 'default' | 'image' | 'text', brandImage: string): La
     footer: { links: [], primary: [] },
     unread: { notifications: false, messages: false, moderationReports: false },
     theme: { enabled: false, current: 'gf-light', themeColor: '#fbfdff' },
+    insightFlareEnabled: false,
   }
 }
 
