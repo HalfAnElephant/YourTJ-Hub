@@ -65,6 +65,22 @@ masterkey = "REPLACE_MEILI_KEY"
 vapid_public_key = ""
 vapid_private_key = ""
 
+# 原生推送（移动端 APNs/FCM，可选增强通道）：凭据留空 = 通道关闭。
+# APNs 走 .p8 token 认证（Key ID/Team ID 取自 Apple Developer 后台，
+# bundle_id 为 App 的 Bundle ID）；FCM 用 service-account JSON（Firebase
+# 项目设置 → 服务账号 → 生成新私钥）。部署实例由 GitHub Environments
+# secrets APNS_*/FCM_* 经 render_config.py 注入（见 docs/operations/deployment.md）。
+[push.apns]
+key_path = ""
+key_id = ""
+team_id = ""
+bundle_id = ""
+environment = ""
+
+[push.fcm]
+credentials_path = ""
+project_id = ""
+
 # Wiki GitHub 唯一真实源（可选）：配置后 wiki 内容由仓库同步（只读投影），
 # 编辑/审核/历史/贡献者全部走 GitHub PR。repo 留空 = 不启用。
 [wiki.git]

@@ -90,6 +90,35 @@ curl -sS -D - -o /dev/null https://f.yourtj.de/                               # 
 （宿主机上执行；上游无头而公网有头 ⇒ 代理层注入）。dev 实例同理
 （`dev.yourtj.de` → `127.0.0.1:5235`）。
 
+### InsightFlare 事件观测
+
+生产公共论坛页面由 `apps/gooseforum/resource/templates/layout/app.gohtml` 加载
+InsightFlare SDK，服务端仅在 `setting.IsProduction()` 且隐私政策 `enabled=true` 时注入；站点为
+`https://f.yourtj.de`，固定 `siteId` 为
+`09521282-d1ce-4a88-add6-99c039014def`。统计脚本只放在公共站点布局，管理后台不加载；
+页面级 CSP 的 `script-src` 只额外允许 `https://ana.yourtj.de`，采集请求复用既有的
+HTTPS `connect-src` 放行规则。该 SDK 会把页面访问与性能观测发送到自建的
+`https://ana.yourtj.de`，隐私政策与数据保留口径应与 InsightFlare 站点设置保持一致。
+生产环境的 `/privacy` 页面会在已保存的自定义政策缺少 InsightFlare 数据范围时自动追加标准披露，
+避免历史配置在启用采集后仍然遗漏该说明；修改站点隐私政策时仍需同步维护实际数据保留期限。
+如果 SPA 导航收到 `insightFlareEnabled` 发生变化的新 payload，前端会强制整页刷新，以卸载已加载 SDK
+注册的路由监听，或在重新启用后按新配置加载；已打开页面每分钟检查一次 `/privacy` payload，切回前台和
+bfcache 恢复时立即检查，因此没有发生导航的页面也会自动在状态变化后刷新。
+
+当前 Cloudflare 部署资源由外部 InsightFlare 项目管理，不写入本仓库的凭据或配置文件：
+Worker `insightflare` 绑定 D1、KV、Durable Object、三套 Analytics Engine 和 R2 冷归档，
+`MAIN_SECRET` 与 `BOOTSTRAP_ADMIN_PASSWORD` 以 Worker Secret 管理。资源/Secret 变更应在
+Cloudflare 或 InsightFlare 管理面完成，不要把 Wrangler 本地认证文件、API Token、站点
+采集 Token 或 D1/KV ID 提交到仓库。
+
+部署或变更后，用 GET 验证观测服务与 SDK 可达（不要用 `curl -I`，SDK 端点不保证支持 HEAD）：
+
+```bash
+curl -fsSL https://ana.yourtj.de/healthz
+curl -fsSL -o /dev/null -w '%{http_code}\n' \
+  'https://ana.yourtj.de/script.js?siteId=09521282-d1ce-4a88-add6-99c039014def'
+```
+
 ### 旧 VitePress wiki 内容迁移（GitHub 唯一真实源）
 
 论坛 wiki 内容由公开 GitHub 仓库 `YourTongji/YourTJ-Wiki` 维护（PR 协作编辑），
@@ -233,6 +262,8 @@ Deploy/apply/drift workflows 的 job 声明对应 `environment:`，自动获得�
 | `PG_DSN` | both | `[db.default].url`（key=value 或 URL DSN；main=your**tj_main**，dev=your**tj_dev**；含库密码，勿外泄） |
 | `SIGNING_KEY` | both | `[app].signingKey`（**必须与现网一致**；轮换即全线登出 + TOTP/重置链接失效） |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | both（可选） | `[webpush]` VAPID 密钥对（生成：`yourtj-hub webpush-keys`，见下方 Config & run）；为空 = Web Push 通道关闭；**dev 保持空**（快照同步的订阅/任务行绝不外发推送） |
+| `APNS_KEY_PATH` / `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_BUNDLE_ID` / `APNS_ENVIRONMENT` | both（可选） | `[push.apns]` iOS 原生推送凭据（.p8 token 认证）；为空 = APNs 通道关闭；**dev 保持空**（快照同步的 push_device/任务行绝不外发） |
+| `FCM_CREDENTIALS_PATH` / `FCM_PROJECT_ID` | both（可选） | `[push.fcm]` Android 原生推送凭据（service-account JSON 路径 + Firebase 项目 id）；为空 = FCM 通道关闭；**dev 保持空** |
 | `MEILI_MASTER_KEY` | both | `[meilisearch].masterkey` |
 | `WIKI_WEBHOOK_SECRET` | both | `[wiki.git].webhook_secret` |
 | `GH_CLIENT_ID` / `GH_CLIENT_SECRET` | production only | GitHub OAuth（dev 因 DB siteUrl 无环境隔离保持空，渲染 allow-empty） |
@@ -283,6 +314,7 @@ make build     # cd apps/gooseforum/resource && pnpm build → cd apps/gooseforu
 - Container-internal port is always `5234`; host mapping via `MAIN_PORT` (5234) / `DEV_PORT` (5235).
 - Health probe: `GET /health` returns 200 when service + main db ping succeed, else 503.
 - Web Push（`[webpush]` 段，可选增强通道）：`vapid_public_key`/`vapid_private_key` 为空 = 通道关闭（dev 保持空）；密钥已配置但格式非法（base64url 解码后公钥非 65B / 私钥非 32B）时 `serve` 启动输出告警并禁用通道（fail-closed，绝不外发）。生成密钥对：`cd apps/gooseforum && go run . webpush-keys`
+- 原生推送（`[push.apns]` / `[push.fcm]` 段，可选增强通道）：各凭据为空 = 对应通道关闭（dev 保持空，快照同步的 push_device 注册与任务行绝不外发）。APNs 走 token-based `.p8` 认证：`key_path` 指向 `.p8` 文件、`key_id`/`team_id` 取自 Apple Developer 后台、`bundle_id` 为 App Bundle ID、`environment` 为 `sandbox`（开发构建）或 `production`（App Store/TestFlight）。FCM 走 HTTP v1：`credentials_path` 指向 Firebase 项目 service-account JSON、`project_id` 为 Firebase 项目 id（OAuth2 换取 access token 后调用 `messages:send`）。密钥文件在容器内挂载（`APNS_KEY_PATH`/`FCM_CREDENTIALS_PATH` 为容器内路径）；仅填了部分字段时通道按未配置处理（fail-closed，绝不外发）。`GET /api/forum/push/config` 的 `native.apnsEnabled`/`native.fcmEnabled` 反映通道状态。
 
 ## DB migration execution and rollback
 
@@ -782,7 +814,8 @@ curl -fsS -H "Host: f.yourtj.de" http://127.0.0.1/ | head -5   # 经 1Panel 反�
   3. 把新机 `storage/database/file.db` 拷回旧机对应路径并 `chown 1000:1000`；
   4. 再切 DNS 回旧机。
   - 若回滚发生在切换后很短时间内且写入量可忽略，可接受不回灌，但文档不承诺"数据无损"。
-- Meilisearch 索引不迁移，首次启动后由 `rebuild-search-index` 重建（ADR-003：索引是可重建投影）。
+- Meilisearch 索引不迁移，首次启动后由 `rebuild-search-index` 重建（决策
+  [0003](../decisions/0003-aggregate-search-multi-index-pinyin.md)：索引是可重建投影）。
 - 搜索投影任务采用有界重试；Meilisearch 短时不可用时，`topic-search.*`、
   `user-search.*` 或 `category-search.*` 任务可能进入 `failed`，不会自动无限重试。
   Meilisearch 恢复后检查 `task_queue`，并运行 `rebuild-search-index` 做一次全量对账；

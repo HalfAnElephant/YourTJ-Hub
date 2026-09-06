@@ -6,7 +6,7 @@
 >
 > Owner: Platform maintainers
 >
-> Last verified: 2026-09-02
+> Last verified: 2026-09-06
 
 This is the single entry point for yourtj-hub product, architecture, development, and operations specs.
 Docs describe only the currently supported model; stale phase plans, PR delivery checklists, and
@@ -69,6 +69,7 @@ status. Do not use PR-relative "shipped this / later" labels as long-term status
 - [Testing strategy & commands](development/testing.md)
 - [Branches, commits & pull requests](development/pull-requests.md)
 - [Documentation governance](development/documentation.md)
+- [Newcomer orientation (repo-seed)](development.md)
 - [Go dependency vulnerability scanning](development/dependency-scanning.md)
 
 ### Operations
@@ -76,7 +77,16 @@ status. Do not use PR-relative "shipped this / later" labels as long-term status
 - [Deployment & release](operations/deployment.md)
 - [Object storage](operations/object-storage.md)
 
+### Governance
+
+- [Governance layer & upgrade channel](../.repo-seed/update-strategy.md) — repo-seed manifest,
+  gates (`node scripts/run-gates.mjs`), and capability state
+- [Specs (external pointer)](specs/README.md)
+- [Postmortems](postmortems/README.md)
+
 ### Decision records
 
-- Architecture decision records (ADR) live in the project note (yourtj-hub ADR note), **not in git**;
-  new decisions append a number, append-only, history never rewritten.
+- MADR decision log lives in [decisions/](decisions/) — in git, append-only numbering,
+  supersede instead of rewrite, enforced by `node scripts/verify-decisions.mjs`
+  (gate in `node scripts/run-gates.mjs`). The legacy host-note ADR archive is frozen:
+  read-only history, no new records.

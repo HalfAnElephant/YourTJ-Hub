@@ -6,6 +6,7 @@ import (
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/eventNotification"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/topicUserAction"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/nativepushservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/permission"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/unreadservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/userservice"
@@ -85,6 +86,7 @@ func notifyWatchers(topicId uint64, pagePath string, title string, editorId uint
 					}
 					unreadservice.Invalidate(notification.UserId)
 					webpushservice.EnqueueNotification(notification.UserId, notification.Id)
+					nativepushservice.EnqueueNotification(notification.UserId, notification.Id)
 				}
 			}
 		}

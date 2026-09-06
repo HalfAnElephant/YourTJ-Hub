@@ -63,6 +63,21 @@ masterkey = {{MEILI_MASTER_KEY}}
 vapid_public_key = {{VAPID_PUBLIC_KEY}}
 vapid_private_key = {{VAPID_PRIVATE_KEY}}
 
+# 原生推送（移动端 APNs/FCM，可选增强通道）：凭据为空 = 通道关闭（dev 保持空）。
+# APNs 走 .p8 token 认证；FCM 用 service-account JSON。密钥由 GitHub Environments
+# secrets APNS_KEY_PATH/APNS_KEY_ID/APNS_TEAM_ID/APNS_BUNDLE_ID/APNS_ENVIRONMENT 与
+# FCM_CREDENTIALS_PATH/FCM_PROJECT_ID 注入（见 docs/operations/deployment.md）。
+[push.apns]
+key_path = {{APNS_KEY_PATH}}
+key_id = {{APNS_KEY_ID}}
+team_id = {{APNS_TEAM_ID}}
+bundle_id = {{APNS_BUNDLE_ID}}
+environment = {{APNS_ENVIRONMENT}}
+
+[push.fcm]
+credentials_path = {{FCM_CREDENTIALS_PATH}}
+project_id = {{FCM_PROJECT_ID}}
+
 [wiki.git]
 repo = "https://github.com/YourTongji/YourTJ-Wiki.git"
 branch = "main"

@@ -27,6 +27,7 @@ const mockLayout: LayoutPayload = {
   footer: { links: [], primary: [] },
   unread: { notifications: 0, messages: 0 },
   theme: { enabled: true, current: 'gf-light', themeColor: '#3b82f6' },
+  insightFlareEnabled: false,
 }
 
 describe('QuickPublishModal 组件', () => {

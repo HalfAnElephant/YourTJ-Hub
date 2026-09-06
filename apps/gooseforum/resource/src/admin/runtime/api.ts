@@ -24,6 +24,7 @@ import type {
   HttpNotifySettings,
   MailSettings,
   PageResult,
+  PrivacyPolicyConfig,
   PostingSettings,
   MCPSettings,
   AiSummaryModelItem,
@@ -468,6 +469,14 @@ export function getTermsOfService() {
 
 export function saveTermsOfService(settings: TermsOfServiceConfig) {
   return postJson<unknown>('/api/admin/save-terms-of-service', { settings }, adminText('k00go'))
+}
+
+export function getPrivacyPolicy() {
+  return getJson<PrivacyPolicyConfig>('/api/admin/privacy-policy', adminText('k00gt'))
+}
+
+export function savePrivacyPolicy(settings: PrivacyPolicyConfig) {
+  return postJson<unknown>('/api/admin/save-privacy-policy', { settings }, adminText('k00gt'))
 }
 
 export function getReviewQueue(kind: 'topic' | 'post', page: number, pageSize: number) {

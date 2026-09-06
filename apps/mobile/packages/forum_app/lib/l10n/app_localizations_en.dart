@@ -853,4 +853,268 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get topicNewTopic => 'New topic';
+
+  @override
+  String get scheduleTitle => 'Schedule';
+
+  @override
+  String get scheduleTabTimetable => 'Timetable';
+
+  @override
+  String get scheduleTabPick => 'Pick courses';
+
+  @override
+  String get scheduleTerm => 'Term';
+
+  @override
+  String get scheduleGrade => 'Grade';
+
+  @override
+  String get scheduleMajor => 'Major';
+
+  @override
+  String get scheduleSyncLatest => 'Sync latest';
+
+  @override
+  String get scheduleDataOutdated => 'Course data updated, tap to sync';
+
+  @override
+  String scheduleSyncedTo(String date) {
+    return 'Synced to $date';
+  }
+
+  @override
+  String get scheduleWeekAll => 'All weeks';
+
+  @override
+  String scheduleWeekN(int week) {
+    return 'Week $week';
+  }
+
+  @override
+  String get scheduleCurrentWeek => 'Current week';
+
+  @override
+  String get schedulePlanNew => 'New plan';
+
+  @override
+  String get schedulePlanRename => 'Rename plan';
+
+  @override
+  String get schedulePlanDelete => 'Delete plan';
+
+  @override
+  String get schedulePlanClear => 'Clear courses';
+
+  @override
+  String schedulePlanN(int n) {
+    return 'Plan $n';
+  }
+
+  @override
+  String scheduleStatsCourses(int count) {
+    return '$count courses';
+  }
+
+  @override
+  String get scheduleStatsCredits => 'Credits';
+
+  @override
+  String get scheduleStatsHours => 'Hours';
+
+  @override
+  String get scheduleStatsConflicts => 'Conflicts';
+
+  @override
+  String get scheduleConflictBadge => 'Conflict';
+
+  @override
+  String get scheduleAddCustomEvent => 'Add placeholder';
+
+  @override
+  String get scheduleCustomEventLabel => 'Busy';
+
+  @override
+  String get scheduleExportPng => 'Export image';
+
+  @override
+  String get scheduleExportCsv => 'Export CSV';
+
+  @override
+  String get scheduleDegraded => 'Degraded search, results may be incomplete';
+
+  @override
+  String get scheduleNoReviewData => 'No review data yet';
+
+  @override
+  String get schedulePickClass => 'Pick class';
+
+  @override
+  String get scheduleCompulsory => 'Compulsory';
+
+  @override
+  String get scheduleOptional => 'Elective';
+
+  @override
+  String get scheduleSearchHint => 'Search name/code/teacher';
+
+  @override
+  String get scheduleStaged => 'Staged';
+
+  @override
+  String get scheduleSelected => 'Selected';
+
+  @override
+  String get scheduleRemoveCourse => 'Remove';
+
+  @override
+  String get scheduleParityOdd => 'odd weeks';
+
+  @override
+  String get scheduleParityEven => 'even weeks';
+
+  @override
+  String scheduleWeeksN(String range) {
+    return '$range weeks';
+  }
+
+  @override
+  String get scheduleDayMon => 'Mon';
+
+  @override
+  String get scheduleDayTue => 'Tue';
+
+  @override
+  String get scheduleDayWed => 'Wed';
+
+  @override
+  String get scheduleDayThu => 'Thu';
+
+  @override
+  String get scheduleDayFri => 'Fri';
+
+  @override
+  String get scheduleDaySat => 'Sat';
+
+  @override
+  String get scheduleDaySun => 'Sun';
+
+  @override
+  String get scheduleMorning => 'Morning';
+
+  @override
+  String get scheduleAfternoon => 'Afternoon';
+
+  @override
+  String get scheduleEvening => 'Evening';
+
+  @override
+  String get coursesTitle => 'Courses';
+
+  @override
+  String get coursesSearchHint => 'Search courses';
+
+  @override
+  String get coursesFilterDepartment => 'Department';
+
+  @override
+  String get coursesFilterTerm => 'Term';
+
+  @override
+  String get coursesFilterCampus => 'Campus';
+
+  @override
+  String get coursesFilterInstructor => 'Instructor';
+
+  @override
+  String get coursesOnlyWithReviews => 'With reviews only';
+
+  @override
+  String coursesRatingCount(int count) {
+    return '$count reviews';
+  }
+
+  @override
+  String get coursesNoRating => 'No rating';
+
+  @override
+  String get courseDetailReviews => 'Reviews';
+
+  @override
+  String get courseDetailOfferings => 'Classes';
+
+  @override
+  String get courseDetailLineage => 'History';
+
+  @override
+  String get courseDetailRelated => 'Related courses';
+
+  @override
+  String get courseDetailAiSummary => 'AI summary';
+
+  @override
+  String get courseDetailAiSummaryEmpty => 'No AI summary';
+
+  @override
+  String get courseBookmark => 'Bookmark';
+
+  @override
+  String get courseBookmarked => 'Bookmarked';
+
+  @override
+  String get courseWriteReview => 'Write review';
+
+  @override
+  String get reviewAnonymous => 'Anonymous';
+
+  @override
+  String get reviewSubmit => 'Submit';
+
+  @override
+  String get reviewHelpful => 'Helpful';
+
+  @override
+  String get reviewsEmpty => 'No reviews yet';
+
+  @override
+  String get wikiTitle => 'Wiki';
+
+  @override
+  String get wikiRecent => 'Recently updated';
+
+  @override
+  String get wikiEditOnGithub => 'Edit on GitHub';
+
+  @override
+  String get wikiToc => 'Contents';
+
+  @override
+  String get wikiNamespaces => 'Namespaces';
+
+  @override
+  String wikiViewCount(int count) {
+    return '$count views';
+  }
+
+  @override
+  String get settingsPush => 'Push notifications';
+
+  @override
+  String get settingsPushDenied =>
+      'Notification permission denied, tap to open Settings';
+
+  @override
+  String get settingsFollowSiteTheme => 'Follow site theme';
+
+  @override
+  String get settingsFollowSiteThemeDesc => 'Use server-issued site colors';
+
+  @override
+  String get entryCourses => 'Courses';
+
+  @override
+  String get entrySchedule => 'Schedule';
+
+  @override
+  String get entryWiki => 'Wiki';
 }

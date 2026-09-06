@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/i18n"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/setting"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/urlutil"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/markdown2html"
@@ -117,11 +118,13 @@ type ErrorPageProps struct {
 }
 
 type LoginPageProps struct {
-	InitialMode string `json:"initialMode"`
-	RedirectURL string `json:"redirectUrl"`
-	GitHubURL   string `json:"githubUrl"`
-	GoogleURL   string `json:"googleUrl"`
-	GoogleReady bool   `json:"googleReady"`
+	InitialMode           string `json:"initialMode"`
+	RedirectURL           string `json:"redirectUrl"`
+	GitHubURL             string `json:"githubUrl"`
+	GoogleURL             string `json:"googleUrl"`
+	GoogleReady           bool   `json:"googleReady"`
+	TermsOfServiceEnabled bool   `json:"termsOfServiceEnabled"`
+	PrivacyPolicyEnabled  bool   `json:"privacyPolicyEnabled"`
 }
 
 type ResetPasswordPageProps struct {
@@ -129,13 +132,14 @@ type ResetPasswordPageProps struct {
 }
 
 type LayoutPayload struct {
-	Site    SitePayload         `json:"site"`
-	Viewer  ViewerPayload       `json:"viewer"`
-	Header  []NavItemPayload    `json:"header,omitempty"`
-	Sidebar SidebarPayload      `json:"sidebar"`
-	Footer  FooterPayload       `json:"footer"`
-	Unread  UnreadStatusPayload `json:"unread"`
-	Theme   ThemePayload        `json:"theme"`
+	Site                SitePayload         `json:"site"`
+	Viewer              ViewerPayload       `json:"viewer"`
+	Header              []NavItemPayload    `json:"header,omitempty"`
+	Sidebar             SidebarPayload      `json:"sidebar"`
+	Footer              FooterPayload       `json:"footer"`
+	Unread              UnreadStatusPayload `json:"unread"`
+	Theme               ThemePayload        `json:"theme"`
+	InsightFlareEnabled bool                `json:"insightFlareEnabled"`
 }
 
 type ThemePayload struct {
@@ -700,6 +704,7 @@ func buildLayout(c *gin.Context, activeKey string) LayoutPayload {
 	brandImage := urlutil.Clean(urlutil.Image, chrome.BrandImage)
 
 	return LayoutPayload{
+		InsightFlareEnabled: setting.IsProduction() && hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
 		Site: SitePayload{
 			Name:          siteConfig.SiteName,
 			Description:   siteConfig.SiteDescription,
@@ -949,11 +954,13 @@ func buildLoginPageProps(c *gin.Context) LoginPageProps {
 		googleURL += "?redirect=" + url.QueryEscape(redirectURL)
 	}
 	return LoginPageProps{
-		InitialMode: mode,
-		RedirectURL: redirectURL,
-		GitHubURL:   githubURL,
-		GoogleURL:   googleURL,
-		GoogleReady: oauthservice.IsGoogleOAuthReady(),
+		InitialMode:           mode,
+		RedirectURL:           redirectURL,
+		GitHubURL:             githubURL,
+		GoogleURL:             googleURL,
+		GoogleReady:           oauthservice.IsGoogleOAuthReady(),
+		TermsOfServiceEnabled: hotdataserve.GetTermsOfServiceConfigCache().Enabled,
+		PrivacyPolicyEnabled:  hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
 	}
 }
 
@@ -1734,9 +1741,15 @@ func buildUserProfileProps(c *gin.Context, user users.EntityComplete, section st
 		userCard = &vo.UserCard{}
 	}
 	userBadges := userCard.Badges
+	if userBadges == nil {
+		// 空切片而非 nil：契约（payload.ts）声明非空数组，nil 会序列化为 JSON null。
+		userBadges = []badgeservice.UserBadge{}
+	}
 	card := *userCard
 	userCard = &card
-	userCard.Badges = nil
+	// 空切片而非 nil：契约（payload.ts UserCardPayload.badges）声明非空数组，
+	// Go nil 切片会序列化为 JSON null，移动端非空镜像解析失败（2026-09-06 生产回归）。
+	userCard.Badges = []badgeservice.UserBadge{}
 	userCard.IsFollowing = isFollowing
 	userCard.IsSelf = currentUserID == user.Id
 
@@ -1917,7 +1930,10 @@ func buildUserProfileTabs(userID uint64, active string, isOwnProfile bool) []Tab
 
 func buildUserProfileActivityTabs(userID uint64, section string, active string) []TabPayload {
 	if section != userProfileSectionActivity {
-		return nil
+		// 空切片而非 nil：契约（payload.ts UserProfileProps.activityTabs）声明
+		// 非空数组，nil 会序列化为 JSON null，移动端非空镜像解析失败
+		// （2026-09-06 生产回归：Profile 页「Failed to parse page data」）。
+		return []TabPayload{}
 	}
 	baseURL := "/u/" + strconv.FormatUint(userID, 10) + "/" + userProfileSectionActivity
 	return []TabPayload{

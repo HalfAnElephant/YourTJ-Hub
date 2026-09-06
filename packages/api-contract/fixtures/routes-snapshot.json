@@ -257,6 +257,14 @@
   },
   {
     "method": "GET",
+    "path": "/api/pk/section-times"
+  },
+  {
+    "method": "GET",
+    "path": "/api/site-theme/tokens"
+  },
+  {
+    "method": "GET",
     "path": "/api/user-card"
   },
   {
@@ -942,6 +950,14 @@
   {
     "method": "POST",
     "path": "/api/forum/posts/update"
+  },
+  {
+    "method": "POST",
+    "path": "/api/forum/push/device/register"
+  },
+  {
+    "method": "POST",
+    "path": "/api/forum/push/device/unregister"
   },
   {
     "method": "POST",

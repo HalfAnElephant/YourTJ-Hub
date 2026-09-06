@@ -184,3 +184,23 @@ final fileRepositoryProvider = Provider<FileRepository>((ref) {
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(ref.watch(apiClientProvider));
 });
+
+final pkRepositoryProvider = Provider<PkRepository>((ref) {
+  return PkRepository(ref.watch(apiClientProvider));
+});
+
+final courseRepositoryProvider = Provider<CourseRepository>((ref) {
+  return CourseRepository(ref.watch(apiClientProvider));
+});
+
+final wikiRepositoryProvider = Provider<WikiRepository>((ref) {
+  return WikiRepository(ref.watch(apiClientProvider));
+});
+
+final themeRepositoryProvider = Provider<ThemeRepository>((ref) {
+  return ThemeRepository(ref.watch(apiClientProvider));
+});
+
+final pushRepositoryProvider = Provider<PushRepository>((ref) {
+  return PushRepository(ref.watch(apiClientProvider));
+});

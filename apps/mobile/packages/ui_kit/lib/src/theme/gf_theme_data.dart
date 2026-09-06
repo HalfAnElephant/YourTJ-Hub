@@ -12,8 +12,11 @@ import 'gf_typography.dart';
 ///
 /// The Gf tokens remain reachable through `Theme.of(context).extension<T>()`
 /// (see [GfTheme]).
-ThemeData gfThemeData(Brightness brightness) {
-  final GfColors colors = GfColors.forBrightness(brightness);
+/// [colors] 为可选的运行时覆盖色板（站点主题同步）：缺省时用内置
+/// `GfColors.forBrightness`（tokens.json 镜像，唯一事实源）。
+ThemeData gfThemeData(Brightness brightness, {GfColors? overrides}) {
+  // 运行时覆盖色板（站点主题同步）；缺省用内置 tokens.json 镜像（唯一事实源）。
+  final GfColors colors = overrides ?? GfColors.forBrightness(brightness);
   final ThemeData tdesignTheme = _buildTDesignTheme(colors, brightness);
 
   final ColorScheme colorScheme = ColorScheme(

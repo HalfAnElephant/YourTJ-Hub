@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/defaultconfig"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pageConfig"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/pkservice"
 )
 
@@ -289,4 +291,38 @@ func CourseReviewBrief(req Request[CourseReviewBriefReq]) Response {
 		return internalError(err)
 	}
 	return Ok(brief)
+}
+
+// ---- 节次作息（移动端 Route A 公开只读）----
+
+// maxRowsDefault 是移动端排课器默认节次行数：后端返回现行 11 节制默认表
+// （2025-2026 学年起白天 1-8 节 + 晚间 9/10/11 节 18:30 起）；历史 12 节制
+// 学期（calendarId<120）由客户端内置历史表渲染，不消费本响应。
+const maxRowsDefault = 11
+
+// SectionTimesResult 节次作息响应 data。
+type SectionTimesResult struct {
+	SectionTimes   []pageConfig.ScheduleSectionTime `json:"sectionTimes"`
+	MaxRowsDefault int                              `json:"maxRowsDefault"`
+}
+
+// SectionTimes 返回排课器节次作息表（公开只读，与 /schedule SSR 与
+// admin GET /schedule-settings 同一数据源、同一读取口径：page_config
+// ScheduleSettings 经 NormalizeStoredScheduleSettings 归一——PR #496 之前
+// 保存的旧 12 节编号存量按旧编号重映射为现行 11 节，避免晚间整体错位）。
+// 配置为空（未保存 / 保存了空表）时返回内置现行 11 节默认作息——与前端
+// sectionTimesFor 的「11 节制 overrides 为空回退默认表」语义一致，移动端
+// 可直接应用返回表无需再做合并。
+func SectionTimes(req Request[Null]) Response {
+	config := defaultconfig.NormalizeStoredScheduleSettings(
+		pageConfig.GetConfigByPageType(pageConfig.ScheduleSettings, pageConfig.ScheduleSettingsConfig{}),
+	)
+	times := config.SectionTimes
+	if len(times) == 0 {
+		times = defaultconfig.GetDefaultScheduleSettingsConfig().SectionTimes
+	}
+	return Ok(SectionTimesResult{
+		SectionTimes:   times,
+		MaxRowsDefault: maxRowsDefault,
+	})
 }

@@ -114,15 +114,11 @@ Map<String, dynamic> _$$NotificationInnerPayloadImplToJson(
 
 _$NotificationTemplateParamsImpl _$$NotificationTemplateParamsImplFromJson(
   Map<String, dynamic> json,
-) => _$NotificationTemplateParamsImpl(
-  preview: json['preview'] as String?,
-);
+) => _$NotificationTemplateParamsImpl(preview: json['preview'] as String?);
 
 Map<String, dynamic> _$$NotificationTemplateParamsImplToJson(
   _$NotificationTemplateParamsImpl instance,
-) => <String, dynamic>{
-  'preview': instance.preview,
-};
+) => <String, dynamic>{'preview': instance.preview};
 
 _$NotificationMetadataImpl _$$NotificationMetadataImplFromJson(
   Map<String, dynamic> json,
