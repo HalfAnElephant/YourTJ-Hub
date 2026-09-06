@@ -435,34 +435,43 @@ void main() {
     });
   });
 
-  group('pkSectionTimes · 默认表与覆盖合并', () {
-    test('锚点与 11 节裁剪', () {
-      String startOf(int section) =>
-          kDefaultSectionTimes12.firstWhere((s) => s.section == section).start;
-      expect(startOf(3), '10:00');
-      expect(startOf(5), '13:30');
-      expect(startOf(7), '15:30');
-      expect(startOf(10), '18:30');
+  group('pkSectionTimes · 默认表与覆盖合并（PR #496 十一节语义）', () {
+    test('现行 11 节制锚点：晚间自第 9 节 18:30 起', () {
+      String startOf(List<SectionTime> table, int section) =>
+          table.firstWhere((s) => s.section == section).start;
+      // 历史 12 节制表：第 9 节 17:10、晚间 10/11/12 节（calendarId<120）。
+      expect(startOf(kDefaultSectionTimes12, 9), '17:10');
+      expect(startOf(kDefaultSectionTimes12, 10), '18:30');
+      expect(kDefaultSectionTimes12, hasLength(12));
+      // 现行 11 节制：晚间重新编号为 9/10/11 节（2025-2026 学年起）。
+      expect(startOf(kDefaultSectionTimes11, 3), '10:00');
+      expect(startOf(kDefaultSectionTimes11, 5), '13:30');
+      expect(startOf(kDefaultSectionTimes11, 7), '15:30');
+      expect(startOf(kDefaultSectionTimes11, 9), '18:30');
       expect(kDefaultSectionTimes11, hasLength(11));
     });
 
-    test('override 按 section 覆盖，未知 section 忽略', () {
-      final merged = sectionTimesFor(12, const [
+    test('override：11 节制按 section 覆盖（未知忽略）；12 节制恒历史表', () {
+      // 12 节制为历史学期：恒返回内置历史表、忽略覆盖（web 同语义）。
+      final historical = sectionTimesFor(12, const [
+        SectionTime(section: 3, start: '09:55', end: '10:40'),
+      ]);
+      expect(historical, hasLength(12));
+      expect(historical[2].start, '10:00'); // 覆盖被忽略，保持历史默认
+      // 11 节制：覆盖按 section 对齐补齐缺口，未知 section 忽略。
+      final merged = sectionTimesFor(11, const [
         SectionTime(section: 3, start: '09:55', end: '10:40'),
         SectionTime(section: 20, start: '99:99', end: '99:99'),
       ]);
       expect(merged[2].start, '09:55');
       expect(merged[1].start, '08:50'); // 未覆盖保持默认
-      expect(merged, hasLength(12));
-      expect(
-        sectionTimesFor(11, const [
-          SectionTime(section: 12, start: '21:00', end: '21:45'),
-        ]),
-        hasLength(11),
-      );
+      expect(merged, hasLength(11));
+      // 覆盖为空/null 时回退默认表。
+      expect(sectionTimesFor(11, null), hasLength(11));
+      expect(sectionTimesFor(11, const []), hasLength(11));
     });
 
-    test('parseHHMM 与 dayPart', () {
+    test('parseHHMM 与 dayPart（11 节制晚间切点为第 9 节）', () {
       expect(parseHHMM('08:05'), 485);
       expect(parseHHMM('9:05'), 545);
       expect(parseHHMM('24:00'), isNull);
@@ -474,6 +483,12 @@ void main() {
         'morning': 1,
         'afternoon': 5,
         'evening': 10,
+      });
+      // 现行 11 节制：晚间自第 9 节起（node 参照 run3 输出）。
+      expect(dayPartBoundaries(kDefaultSectionTimes11), {
+        'morning': 1,
+        'afternoon': 5,
+        'evening': 9,
       });
     });
   });

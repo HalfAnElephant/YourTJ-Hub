@@ -480,20 +480,22 @@ func TestPkCourseReviewBriefHTTPContract(t *testing.T) {
 }
 
 // TestPkSectionTimesHTTPContract 节次作息（mobile Route A）：未配置 page_config
-// 时返回内置默认 12 节作息（与 defaultconfig 同源）；管理员配置后返回配置表。
+// 时返回内置现行 11 节默认作息（与 defaultconfig 同源，锚点 9=18:30）；管理员
+// 现行配置直读返回；PR #496 之前的旧 12 节编号存量经归一重映射后返回。
 func TestPkSectionTimesHTTPContract(t *testing.T) {
 	conn, router := setupPkContractTest(t)
 	seedPkContractData(t, conn)
 
-	// 1. 未配置：内置默认 12 节作息（fixture 锁定锚点 3=10:00/5=13:30/7=15:30/10=18:30）。
+	// 1. 未配置：内置现行 11 节作息（fixture 锁定锚点 3=10:00/5=13:30/7=15:30/9=18:30）。
 	rec := servePkGET(router, "/api/pk/section-times")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("section-times status = %d, want 200: %s", rec.Code, rec.Body.String())
 	}
 	assertPkFixture(t, decodePkEnvelope(t, rec), pkContractFixture(t, "pk-section-times-success.json"))
 
-	// 2. 配置覆盖：管理端保存的作息表直读返回（与 admin save-schedule-settings 同一数据源）。
+	// 2. 现行配置覆盖：管理端保存的作息表直读返回（与 admin save-schedule-settings 同一数据源）。
 	persistContractPageConfig(t, conn, pageConfig.ScheduleSettings, pageConfig.ScheduleSettingsConfig{
+		Numbering: pageConfig.ScheduleNumberingCurrent,
 		SectionTimes: []pageConfig.ScheduleSectionTime{
 			{Section: 1, Start: "09:00", End: "09:45"},
 			{Section: 2, Start: "10:00", End: "10:45"},
@@ -507,11 +509,34 @@ func TestPkSectionTimesHTTPContract(t *testing.T) {
 	if err := json.Unmarshal(decodePkEnvelope(t, rec).Data, &result); err != nil {
 		t.Fatalf("decode section-times data: %v", err)
 	}
-	if len(result.SectionTimes) != 2 || result.MaxRowsDefault != 12 {
-		t.Fatalf("configured section-times = %+v, want 2 entries with maxRowsDefault 12", result)
+	if len(result.SectionTimes) != 2 || result.MaxRowsDefault != 11 {
+		t.Fatalf("configured section-times = %+v, want 2 entries with maxRowsDefault 11", result)
 	}
 	if result.SectionTimes[0].Start != "09:00" || result.SectionTimes[1].End != "10:45" {
 		t.Fatalf("configured section-times mismatch: %+v", result.SectionTimes)
+	}
+
+	// 3. 旧 12 节编号存量（PR #496 之前写入，无 numbering 标记）：经
+	// NormalizeStoredScheduleSettings 按旧编号重映射（旧 10 节 → 现行 9 节），
+	// 与 /schedule SSR、admin GET 同一口径，避免移动端晚间整体错位。
+	persistContractPageConfig(t, conn, pageConfig.ScheduleSettings, pageConfig.ScheduleSettingsConfig{
+		SectionTimes: []pageConfig.ScheduleSectionTime{
+			{Section: 1, Start: "08:00", End: "08:45"},
+			{Section: 10, Start: "18:30", End: "19:15"},
+		},
+	})
+	rec = servePkGET(router, "/api/pk/section-times")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("legacy section-times status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	if err := json.Unmarshal(decodePkEnvelope(t, rec).Data, &result); err != nil {
+		t.Fatalf("decode legacy section-times data: %v", err)
+	}
+	if len(result.SectionTimes) != 2 {
+		t.Fatalf("legacy section-times = %+v, want 2 entries", result.SectionTimes)
+	}
+	if result.SectionTimes[0].Section != 1 || result.SectionTimes[1].Section != 9 {
+		t.Fatalf("legacy section-times not remapped to current numbering: %+v", result.SectionTimes)
 	}
 }
 

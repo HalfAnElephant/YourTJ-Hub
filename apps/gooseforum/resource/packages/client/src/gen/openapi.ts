@@ -5401,12 +5401,16 @@ export interface paths {
         /**
          * Class-period (section) schedule table for the PK scheduler grid
          * @description Returns the section start/end table used to render the PK scheduler time
-         *     grid (mobile Route A shares this source). Reads the site's saved
-         *     `scheduleSettings` page config; when nothing has been configured the
-         *     built-in 12-section default table is returned (section 3 = 10:00,
-         *     section 5 = 13:30, section 7 = 15:30, section 10 = 18:30).
-         *     maxRowsDefault is always 12 — the client trims to 11 rows only for
-         *     semesters with calendarId >= 120.
+         *     grid (mobile Route A shares this source, same read path as the /schedule
+         *     SSR props and the admin schedule-settings GET: stored configs are
+         *     normalized through NormalizeStoredScheduleSettings — legacy un-versioned
+         *     12-section rows saved before PR #496 are remapped by their old numbers).
+         *     When nothing has been configured the built-in current 11-section default
+         *     table is returned (sections 1-8 daytime, evening 9/10/11 from 18:30;
+         *     anchors: section 3 = 10:00, section 5 = 13:30, section 7 = 15:30,
+         *     section 9 = 18:30). maxRowsDefault is always 11 — historical 12-section
+         *     semesters (calendarId < 120) are rendered client-side from the built-in
+         *     historical table and do not consume this response.
          */
         get: operations["pkGetSectionTimes"];
         put?: never;
@@ -9567,13 +9571,13 @@ export interface components {
             end: string;
         };
         PkSectionTimesResult: {
-            /** @description 作息表（未配置时为内置默认 12 节表）。 */
+            /** @description 作息表（现行 11 节编号；未配置时为内置默认 11 节表，旧 12 节存量经归一重映射）。 */
             sectionTimes: components["schemas"]["PkSectionTimeItem"][];
             /**
-             * @description 默认最大行数；客户端对 calendarId>=120 的学期自行裁剪到 11 节。
+             * @description 默认最大行数（现行 11 节制）；历史 12 节制学期（calendarId<120）由客户端内置历史表渲染，不消费本响应。
              * @constant
              */
-            maxRowsDefault: 12;
+            maxRowsDefault: 11;
         };
         PkSectionTimesResponse: components["schemas"]["PkSuccess"] & {
             data: components["schemas"]["PkSectionTimesResult"];
@@ -19750,7 +19754,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Section schedule table (configured table, or the built-in 12-section default). */
+            /** @description Section schedule table (configured/normalized table, or the built-in current 11-section default). */
             200: {
                 headers: {
                     [name: string]: unknown;

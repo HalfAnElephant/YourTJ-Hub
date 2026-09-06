@@ -3271,11 +3271,11 @@ PkSectionTimesResult:
       type: array
       items:
         $ref: '#/PkSectionTimeItem'
-      description: 作息表（未配置时为内置默认 12 节表）。
+      description: 作息表（现行 11 节编号；未配置时为内置默认 11 节表，旧 12 节存量经归一重映射）。
     maxRowsDefault:
       type: integer
-      const: 12
-      description: 默认最大行数；客户端对 calendarId>=120 的学期自行裁剪到 11 节。
+      const: 11
+      description: 默认最大行数（现行 11 节制）；历史 12 节制学期（calendarId<120）由客户端内置历史表渲染，不消费本响应。
   additionalProperties: false
 
 PkSectionTimesResponse:

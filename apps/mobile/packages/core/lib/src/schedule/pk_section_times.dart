@@ -39,7 +39,8 @@ const List<SectionTime> kDefaultSectionTimes12 = [
   SectionTime(section: 12, start: '20:10', end: '20:55'),
 ];
 
-/// 11 节新制 = 12 节制前 11 节（calendarId>=120 行数裁剪后的展示）。
+/// 现行 11 节制默认作息（锚点：3=10:00 / 5=13:30 / 7=15:30 / 9=18:30），
+/// 2025-2026 学年（calendarId>=120）起生效；晚间重新编号为 9/10/11 节。
 const List<SectionTime> kDefaultSectionTimes11 = [
   SectionTime(section: 1, start: '08:00', end: '08:45'),
   SectionTime(section: 2, start: '08:50', end: '09:35'),
@@ -49,24 +50,23 @@ const List<SectionTime> kDefaultSectionTimes11 = [
   SectionTime(section: 6, start: '14:20', end: '15:05'),
   SectionTime(section: 7, start: '15:30', end: '16:15'),
   SectionTime(section: 8, start: '16:20', end: '17:05'),
-  SectionTime(section: 9, start: '17:10', end: '17:55'),
-  SectionTime(section: 10, start: '18:30', end: '19:15'),
-  SectionTime(section: 11, start: '19:20', end: '20:05'),
+  SectionTime(section: 9, start: '18:30', end: '19:15'),
+  SectionTime(section: 10, start: '19:20', end: '20:05'),
+  SectionTime(section: 11, start: '20:10', end: '20:55'),
 ];
 
-/// 按节次制取作息表：优先使用后台覆盖（按 section 对齐补齐缺口），
-/// 缺失时回退默认表。maxRows 非 11 即按 12 节制处理。
+/// 按节次制取作息表：11 节制（现行）优先使用后台覆盖（overrides，按 section
+/// 对齐补齐缺口，未知 section 忽略），缺失时回退默认表；12 节制为历史学期，
+/// 恒返回内置历史表、忽略覆盖（web sectionTimesFor 同语义）。
 List<SectionTime> sectionTimesFor(int maxRows, List<SectionTime>? overrides) {
-  final defaults = maxRows == 11
-      ? kDefaultSectionTimes11
-      : kDefaultSectionTimes12;
-  final target = maxRows == 11 ? 11 : 12;
-  if (overrides == null || overrides.isEmpty) return defaults;
-  final bySection = {for (final item in overrides) item.section: item};
-  return defaults
-      .map((item) => bySection[item.section] ?? item)
-      .toList()
-      .sublist(0, target < defaults.length ? target : defaults.length);
+  if (maxRows != 11) return kDefaultSectionTimes12;
+  if (overrides == null || overrides.isEmpty) return kDefaultSectionTimes11;
+  final Map<int, SectionTime> bySection = {
+    for (final SectionTime item in overrides) item.section: item,
+  };
+  return kDefaultSectionTimes11
+      .map((SectionTime item) => bySection[item.section] ?? item)
+      .toList();
 }
 
 /// 解析 "HH:MM" 为分钟数；非法返回 null（分组推导容错用）。

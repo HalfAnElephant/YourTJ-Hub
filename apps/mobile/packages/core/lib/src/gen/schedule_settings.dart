@@ -1,7 +1,9 @@
 /// 排课器节次作息契约镜像（`GET /api/pk/section-times` 的 data）。
 ///
-/// 手写维护；与后端响应形状一致。服务端未配置时返回内置默认表
-/// （与 mobile `pk_section_times.dart` 的 kDefaultSectionTimes12 同源）。
+/// 手写维护；与后端响应形状一致。后端返回现行 11 节编号的作息表
+/// （未配置时为内置默认 11 节表，旧 12 节存量经归一重映射，与
+/// defaultconfig 同源）；历史 12 节制学期由客户端内置历史表渲染，
+/// 不消费本响应。
 library;
 
 /// 单个节次的起止时间（HH:MM）。
@@ -33,7 +35,7 @@ class SectionTimesPayload {
 
   final List<SectionTimeSetting> sectionTimes;
 
-  /// 默认行数（恒 12；11 节新制由客户端按 calendarId>=120 裁剪）。
+  /// 默认行数（恒 11：现行 11 节制；历史 12 节制学期不消费本响应）。
   final int maxRowsDefault;
 
   factory SectionTimesPayload.fromJson(Map<String, dynamic> json) =>
@@ -45,6 +47,6 @@ class SectionTimesPayload {
               ),
             )
             .toList(),
-        maxRowsDefault: (json['maxRowsDefault'] as num?)?.toInt() ?? 12,
+        maxRowsDefault: (json['maxRowsDefault'] as num?)?.toInt() ?? 11,
       );
 }
