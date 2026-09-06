@@ -286,6 +286,13 @@ export default {
     feedMode: '切换信息流样式',
     feedModeTable: '列表',
     feedModeCard: '卡片',
+    refreshTopics: '刷新话题',
+    newTopics: '{count} 条新帖子待刷新',
+    pullToRefresh: '下拉刷新',
+    releaseToRefresh: '松开刷新',
+    refreshing: '正在刷新',
+    refreshComplete: '已刷新到最新内容',
+    refreshFailed: '刷新失败，请稍后重试',
     tabs: {
       latest: '最新',
       hot: '热门',

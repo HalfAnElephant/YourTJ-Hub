@@ -286,6 +286,13 @@ export default {
     feedMode: 'Feed-Stil ändern',
     feedModeTable: 'Liste',
     feedModeCard: 'Karten',
+    refreshTopics: 'Themen aktualisieren',
+    newTopics: '{count} neue Themen',
+    pullToRefresh: 'Zum Aktualisieren ziehen',
+    releaseToRefresh: 'Zum Aktualisieren loslassen',
+    refreshing: 'Wird aktualisiert',
+    refreshComplete: 'Feed ist aktuell',
+    refreshFailed: 'Aktualisierung fehlgeschlagen. Bitte später erneut versuchen.',
     tabs: {
       latest: 'Neueste',
       hot: 'Trending',
