@@ -286,6 +286,13 @@ export default {
     feedMode: 'Toggle feed style',
     feedModeTable: 'List',
     feedModeCard: 'Cards',
+    refreshTopics: 'Refresh topics',
+    newTopics: '{count} new topics',
+    pullToRefresh: 'Pull to refresh',
+    releaseToRefresh: 'Release to refresh',
+    refreshing: 'Refreshing',
+    refreshComplete: 'Feed is up to date',
+    refreshFailed: 'Unable to refresh. Try again later.',
     tabs: {
       latest: 'Latest',
       hot: 'Hot',

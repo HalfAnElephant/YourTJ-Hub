@@ -286,6 +286,13 @@ export default {
     feedMode: '表示スタイルを切り替え',
     feedModeTable: 'リスト',
     feedModeCard: 'カード',
+    refreshTopics: 'トピックを更新',
+    newTopics: '新しいトピック {count} 件',
+    pullToRefresh: '引き下げて更新',
+    releaseToRefresh: '離して更新',
+    refreshing: '更新中',
+    refreshComplete: '最新の内容に更新しました',
+    refreshFailed: '更新できませんでした。後でもう一度お試しください。',
     tabs: {
       latest: '最新',
       hot: '人気',
