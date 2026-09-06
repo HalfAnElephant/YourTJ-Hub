@@ -43,6 +43,8 @@ const pullMaxDistance = 108
 const refreshPollMs = 45_000
 let observer: IntersectionObserver | undefined
 let refreshPollTimer: number | undefined
+let refreshPollingActive = false
+let refreshViewportQuery: MediaQueryList | undefined
 
 const hasTopics = computed(() => topics.value.length > 0)
 const showPinnedLabels = computed(() => page.props.sort === '' || page.props.sort === 'latest')
@@ -263,14 +265,31 @@ function handlePullEnd() {
   else pullDistance.value = 0
 }
 
+// 轮询与视口宽度联动：窄窗口（<640px，移动端布局）自动停止 45s 探测，
+// 回到桌面宽度自动恢复；change 监听在组件卸载前保持挂载，
+// keep-alive 后台实例由 refreshPollingActive 守卫，不会误启轮询。
+function handleRefreshViewportChange() {
+  syncRefreshPolling()
+}
+
 function startRefreshPolling() {
-  stopRefreshPolling()
-  if (window.matchMedia('(min-width: 640px)').matches) {
+  refreshPollingActive = true
+  syncRefreshPolling()
+}
+
+function stopRefreshPolling() {
+  refreshPollingActive = false
+  stopRefreshPollTimer()
+}
+
+function syncRefreshPolling() {
+  stopRefreshPollTimer()
+  if (refreshPollingActive && refreshViewportQuery?.matches) {
     refreshPollTimer = window.setInterval(() => void checkForNewTopics(), refreshPollMs)
   }
 }
 
-function stopRefreshPolling() {
+function stopRefreshPollTimer() {
   if (refreshPollTimer !== undefined) {
     window.clearInterval(refreshPollTimer)
     refreshPollTimer = undefined
@@ -371,6 +390,8 @@ onMounted(() => {
     || Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
   pullRefreshEnabled.value = standalone && window.matchMedia('(pointer: coarse)').matches
   if (pullRefreshEnabled.value) document.documentElement.classList.add('gf-pwa-pull-refresh')
+  refreshViewportQuery = window.matchMedia('(min-width: 640px)')
+  refreshViewportQuery.addEventListener('change', handleRefreshViewportChange)
   startRefreshPolling()
   feedModeMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
   reducedMotion.value = feedModeMotionQuery.matches
@@ -407,6 +428,7 @@ onBeforeUnmount(() => {
   document.documentElement.classList.remove('gf-pwa-pull-refresh')
   feedModeResizeObserver?.disconnect()
   feedModeMotionQuery?.removeEventListener('change', handleFeedModeMotionChange)
+  refreshViewportQuery?.removeEventListener('change', handleRefreshViewportChange)
 })
 
 </script>
