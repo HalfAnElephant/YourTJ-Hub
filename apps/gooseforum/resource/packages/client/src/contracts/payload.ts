@@ -63,6 +63,7 @@ export interface LayoutPayload {
   footer: FooterPayload
   unread: UnreadStatusPayload
   theme: ThemePayload
+  insightFlareEnabled?: boolean
 }
 
 export interface ThemePayload {

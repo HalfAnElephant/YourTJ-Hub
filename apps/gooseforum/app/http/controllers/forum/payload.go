@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/i18n"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/setting"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/urlutil"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/markdown2html"
@@ -129,13 +130,14 @@ type ResetPasswordPageProps struct {
 }
 
 type LayoutPayload struct {
-	Site    SitePayload         `json:"site"`
-	Viewer  ViewerPayload       `json:"viewer"`
-	Header  []NavItemPayload    `json:"header,omitempty"`
-	Sidebar SidebarPayload      `json:"sidebar"`
-	Footer  FooterPayload       `json:"footer"`
-	Unread  UnreadStatusPayload `json:"unread"`
-	Theme   ThemePayload        `json:"theme"`
+	Site                SitePayload         `json:"site"`
+	Viewer              ViewerPayload       `json:"viewer"`
+	Header              []NavItemPayload    `json:"header,omitempty"`
+	Sidebar             SidebarPayload      `json:"sidebar"`
+	Footer              FooterPayload       `json:"footer"`
+	Unread              UnreadStatusPayload `json:"unread"`
+	Theme               ThemePayload        `json:"theme"`
+	InsightFlareEnabled bool                `json:"insightFlareEnabled"`
 }
 
 type ThemePayload struct {
@@ -700,6 +702,10 @@ func buildLayout(c *gin.Context, activeKey string) LayoutPayload {
 	brandImage := urlutil.Clean(urlutil.Image, chrome.BrandImage)
 
 	return LayoutPayload{
+		InsightFlareEnabled: insightFlareEnabled(
+			setting.IsProduction(),
+			hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
+		),
 		Site: SitePayload{
 			Name:          siteConfig.SiteName,
 			Description:   siteConfig.SiteDescription,

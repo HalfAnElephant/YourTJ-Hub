@@ -6,44 +6,42 @@ import (
 	"testing"
 	"unicode"
 
-	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/preferences"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/vo"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/wikiservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/resource"
 )
 
-func TestAppTemplateInsightFlareOnlyRendersInProduction(t *testing.T) {
-	previousEnv := preferences.GetString("app.env", "production")
-	t.Cleanup(func() { preferences.Set("app.env", previousEnv) })
-
+func TestAppTemplateInsightFlareRendering(t *testing.T) {
 	reg, err := newRegistry(resource.GetTemplateFS())
 	if err != nil {
 		t.Fatalf("newRegistry: %v", err)
 	}
 	payload := PagePayload{
-		Layout: LayoutPayload{Site: SitePayload{Name: "GooseForum"}},
-		Props:  HomeProps{},
+		Layout: LayoutPayload{
+			Site:                SitePayload{Name: "GooseForum"},
+			InsightFlareEnabled: true,
+		},
+		Props: HomeProps{},
 	}
 
 	for _, tc := range []struct {
-		name string
-		env  string
-		want bool
+		name    string
+		enabled bool
+		want    bool
 	}{
-		{name: "production", env: "production", want: true},
-		{name: "local", env: "local", want: false},
-		{name: "preview", env: "preview", want: false},
+		{name: "enabled", enabled: true, want: true},
+		{name: "disabled", enabled: false, want: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			preferences.Set("app.env", tc.env)
+			payload.Layout.InsightFlareEnabled = tc.enabled
 			var buf bytes.Buffer
 			if err := reg.render(&buf, "home.gohtml", templateData{Payload: payload, Lang: "en"}); err != nil {
 				t.Fatalf("render home template: %v", err)
 			}
 			got := strings.Contains(buf.String(), "https://ana.yourtj.de/script.js?siteId=")
 			if got != tc.want {
-				t.Fatalf("InsightFlare script rendered in %s=%t, want %t", tc.env, got, tc.want)
+				t.Fatalf("InsightFlare script rendered with enabled=%t, want %t", tc.enabled, tc.want)
 			}
 		})
 	}

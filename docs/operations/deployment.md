@@ -93,7 +93,7 @@ curl -sS -D - -o /dev/null https://f.yourtj.de/                               # 
 ### InsightFlare 事件观测
 
 生产公共论坛页面由 `apps/gooseforum/resource/templates/layout/app.gohtml` 加载
-InsightFlare SDK，模板通过 `setting.IsProduction()` 限定仅生产环境注入；站点为
+InsightFlare SDK，服务端仅在 `setting.IsProduction()` 且隐私政策 `enabled=true` 时注入；站点为
 `https://f.yourtj.de`，固定 `siteId` 为
 `09521282-d1ce-4a88-add6-99c039014def`。统计脚本只放在公共站点布局，管理后台不加载；
 页面级 CSP 的 `script-src` 只额外允许 `https://ana.yourtj.de`，采集请求复用既有的

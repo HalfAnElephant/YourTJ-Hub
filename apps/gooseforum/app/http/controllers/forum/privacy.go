@@ -12,7 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const insightFlarePrivacyDisclosure = `## 事件观测与性能数据
+const insightFlarePrivacyDisclosureMarker = "## 事件观测与性能数据"
+
+const insightFlarePrivacyDisclosure = insightFlarePrivacyDisclosureMarker + `
 
 - **公共页面会加载自建 InsightFlare 事件观测服务**：用于统计页面访问、站内路由切换、出站链接和页面性能。当前统计站点为 https://f.yourtj.de，观测服务为 https://ana.yourtj.de。
 - **采集字段**：事件可能包含访问页面的 hostname、pathname、URL query string、URL hash、页面标题、来源页面、语言、时区、屏幕尺寸、匿名访问者/会话标识，以及浏览器提供的有限设备信息；性能观测可能包含 TTFB、FCP、LCP、CLS、INP 等 Web Vitals。请勿把密码、Token、身份证件号或其他敏感信息放入 URL 的 query 或 hash。
@@ -45,13 +47,17 @@ func buildPrivacyPageProps(config pageConfig.PrivacyPolicyConfig) PrivacyPagePro
 	// A persisted custom policy can outlive the repository default. Append the
 	// production disclosure at render time so collection is never enabled
 	// against an online policy that omits the InsightFlare data scope.
-	if setting.IsProduction() && config.Enabled && !strings.Contains(config.Content, "https://ana.yourtj.de") {
+	if setting.IsProduction() && config.Enabled && !strings.Contains(config.Content, insightFlarePrivacyDisclosureMarker) {
 		contentHTML += markdown2html.MarkdownToHTML(insightFlarePrivacyDisclosure)
 	}
 	return PrivacyPageProps{
 		Enabled:     config.Enabled,
 		ContentHTML: contentHTML,
 	}
+}
+
+func insightFlareEnabled(production, privacyEnabled bool) bool {
+	return production && privacyEnabled
 }
 
 func buildPrivacyMeta(c *gin.Context) PageMeta {

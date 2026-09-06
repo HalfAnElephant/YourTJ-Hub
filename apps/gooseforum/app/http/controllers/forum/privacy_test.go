@@ -26,7 +26,7 @@ func TestBuildPrivacyPagePropsAddsInsightFlareDisclosureInProduction(t *testing.
 	}
 }
 
-func TestBuildPrivacyPagePropsDoesNotDuplicateInsightFlareDisclosure(t *testing.T) {
+func TestBuildPrivacyPagePropsAppendsDisclosureWhenOnlyURLMentioned(t *testing.T) {
 	previousEnv := preferences.GetString("app.env", "production")
 	t.Cleanup(func() { preferences.Set("app.env", previousEnv) })
 	preferences.Set("app.env", "production")
@@ -36,7 +36,42 @@ func TestBuildPrivacyPagePropsDoesNotDuplicateInsightFlareDisclosure(t *testing.
 		Content: "# Existing policy\n\n观测服务：https://ana.yourtj.de",
 	}
 	props := buildPrivacyPageProps(config)
-	if got := strings.Count(props.ContentHTML, "https://ana.yourtj.de"); got != 1 {
-		t.Fatalf("InsightFlare disclosure count = %d, want 1: %s", got, props.ContentHTML)
+	if strings.Count(props.ContentHTML, `<h2 id="事件观测与性能数据`) != 1 ||
+		!strings.Contains(props.ContentHTML, "URL query string") {
+		t.Fatalf("URL-only policy did not receive full InsightFlare disclosure: %s", props.ContentHTML)
+	}
+}
+
+func TestBuildPrivacyPagePropsDoesNotDuplicateInsightFlareDisclosure(t *testing.T) {
+	previousEnv := preferences.GetString("app.env", "production")
+	t.Cleanup(func() { preferences.Set("app.env", previousEnv) })
+	preferences.Set("app.env", "production")
+
+	config := pageConfig.PrivacyPolicyConfig{
+		Enabled: true,
+		Content: "# Existing policy\n\n" + insightFlarePrivacyDisclosure,
+	}
+	props := buildPrivacyPageProps(config)
+	if got := strings.Count(props.ContentHTML, `<h2 id="事件观测与性能数据`); got != 1 {
+		t.Fatalf("InsightFlare disclosure marker count = %d, want 1: %s", got, props.ContentHTML)
+	}
+}
+
+func TestInsightFlareEnabledRequiresProductionPrivacyPolicy(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		production     bool
+		privacyEnabled bool
+		want           bool
+	}{
+		{name: "production and enabled", production: true, privacyEnabled: true, want: true},
+		{name: "production and disabled", production: true, privacyEnabled: false, want: false},
+		{name: "local and enabled", production: false, privacyEnabled: true, want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := insightFlareEnabled(tc.production, tc.privacyEnabled); got != tc.want {
+				t.Fatalf("insightFlareEnabled(%t, %t) = %t, want %t", tc.production, tc.privacyEnabled, got, tc.want)
+			}
+		})
 	}
 }
