@@ -27,6 +27,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   String _scope = 'all';
   int _page = 1;
   bool _loadingMore = false;
+  int _generation = 0;
   final GfScrollToTopController _scrollToTopController =
       GfScrollToTopController();
 
@@ -41,26 +42,45 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     super.dispose();
   }
 
+  void _clearSearch() {
+    // Invalidates initial, refresh and pagination requests already in flight.
+    _generation++;
+    _query.clear();
+    setState(() {
+      _result = null;
+      _scope = 'all';
+      _page = 1;
+      _loadingMore = false;
+    });
+  }
+
   Future<void> _search() async {
     final String q = _query.text.trim();
     if (q.isEmpty) return;
+    final generation = ++_generation;
     setState(() {
       _result = const AsyncValue.loading();
       _page = 1;
+      _loadingMore = false;
     });
     try {
       final SearchPageProps props = await ref
           .read(topicRepositoryProvider)
           .search(query: q, scope: _scope == 'all' ? '' : _scope, page: 1);
-      if (mounted) setState(() => _result = AsyncValue.data(props));
+      if (mounted && generation == _generation) {
+        setState(() => _result = AsyncValue.data(props));
+      }
     } catch (e, st) {
-      if (mounted) setState(() => _result = AsyncValue.error(e, st));
+      if (mounted && generation == _generation) {
+        setState(() => _result = AsyncValue.error(e, st));
+      }
     }
   }
 
   Future<void> _loadMore() async {
     final SearchPageProps? props = _result?.value;
     if (props == null || _loadingMore || _page >= props.totalPages) return;
+    final generation = _generation;
     setState(() => _loadingMore = true);
     try {
       final SearchPageProps next = await ref
@@ -70,7 +90,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             scope: _scope == 'all' ? '' : _scope,
             page: _page + 1,
           );
-      if (mounted) {
+      if (mounted && generation == _generation) {
         setState(() {
           _page += 1;
           _result = AsyncValue.data(
@@ -83,7 +103,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     } catch (_) {
       // 保留当前结果，用户可再次触发加载。
     } finally {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted && generation == _generation) {
+        setState(() => _loadingMore = false);
+      }
     }
   }
 
@@ -96,18 +118,22 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Future<void> _refresh() async {
     final String q = _query.text.trim();
     if (q.isEmpty) return;
+    final generation = ++_generation;
+    setState(() => _loadingMore = false);
     try {
       final SearchPageProps props = await ref
           .read(topicRepositoryProvider)
           .search(query: q, scope: _scope == 'all' ? '' : _scope, page: 1);
-      if (mounted) {
+      if (mounted && generation == _generation) {
         setState(() {
           _page = 1;
           _result = AsyncValue.data(props);
         });
       }
     } catch (e, st) {
-      if (mounted) setState(() => _result = AsyncValue.error(e, st));
+      if (mounted && generation == _generation) {
+        setState(() => _result = AsyncValue.error(e, st));
+      }
     }
   }
 
@@ -137,6 +163,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   hintText: l10n.searchHint,
                   clearLabel: l10n.courseCopyClearSearch,
                   onSubmitted: (_) => _search(),
+                  onClear: _clearSearch,
                 ),
                 if (props != null) ...[
                   const SizedBox(height: 10),

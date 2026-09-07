@@ -53,8 +53,9 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   subtle background and left rule, an author/avatar/floor header, and a four-line preview with
   expand/collapse controls only when the rendered text overflows.
 - `Current`: notification headings resolve the same template keys and event types as Web in the
-  selected language, with actor names and topic/content previews. Legacy literal headings remain
-  readable; unresolved translation keys are never displayed as titles.
+  selected language, with actor names and topic/content previews. Legacy literal headings take precedence when no template key is present; content previews take
+  precedence over topic titles. Protocol-key filtering applies only to heading fields, preserving
+  user content and badge names that begin with the same prefix.
 
 ## Language and presentation
 
@@ -72,10 +73,13 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 
 - `Current`: search uses one filled capsule field across messages, new conversations, the course
   catalog, global search, Wiki and scheduler. Search fields provide a localized clear action and keyboard
-  submission where applicable; account and publishing forms retain their separate form styling.
+  submission where applicable. Clearing global search resets results, scope and pagination, and
+  invalidates pending requests; account and publishing forms retain their separate form styling.
 - `Current`: topic read-only view/reply counts sit above independent reply, like, bookmark and watch
   actions. Active actions use Web's semantic tints, actions wrap on narrow screens, and the reply
-  heading has no decorative discussion icon. SVG icons inherit their enclosing button foreground
+  heading has no decorative discussion icon. Topic subscriptions use topic-specific labels; reply
+  commands have no toggle semantics. The dock switches to an accessible icon-only reply action when
+  its label cannot fit, including long translations and enlarged text. SVG icons inherit their enclosing button foreground
   unless a semantic or provider color is explicitly set.
 
 ## Publishing
@@ -145,8 +149,9 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   management group (drafts, content and recycle bin), settings and permission-gated workspaces.
   The profile overflow retains these infrequent entries. Account controls are outside the public profile.
 - `Current`: activity entries distinguish signup, post, like, follow and comment with matching
-  icons and localized captions in bordered cards with a content preview and compact timestamp. Stream changes preserve the profile header and vertical position,
-  including short/empty streams and failures; retry feedback stays within the stream.
+  icons and localized captions in bordered cards with a content preview and compact timestamp. Stream changes retain the profile header collapse, limiting deep offsets to the start of the
+  new stream so loading, empty states and retry actions stay visible. Empty badge lists use
+  badge-specific feedback.
 - `Current`: profile bios trim boundary whitespace; signatures use a separate feather mark and subtle
   underline. Avatar overlap participates in layout so it leaves no translated blank space. The role
   label stays beside the name; earned badges appear as bordered title/description cards with colored

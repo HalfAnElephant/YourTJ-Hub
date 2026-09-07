@@ -9,6 +9,9 @@ NotificationPayload notification({
   String? template,
   String title = 'notifications.templates.unknown',
   String actor = 'Alice',
+  String content = '',
+  String? topicTitle,
+  String? payloadTitle,
   NotificationMetadata? metadata,
 }) => NotificationPayload(
   id: 1,
@@ -16,10 +19,12 @@ NotificationPayload notification({
   isRead: false,
   createdAt: '',
   title: title,
-  content: 'notifications.templates.unknown',
+  content: content,
   actor: NotificationActorPayload(id: 1, username: actor),
   payload: NotificationInnerPayload(
     actorId: 1,
+    title: payloadTitle,
+    topicTitle: topicTitle,
     templateKey: template,
     metadata: metadata,
     templateParams: const NotificationTemplateParams(preview: 'Actual preview'),
@@ -27,6 +32,71 @@ NotificationPayload notification({
 );
 
 void main() {
+  test('user text beginning with notifications stays literal', () {
+    final en = AppLocalizationsEn();
+    final item = notification(
+      event: 'comment',
+      content: 'notifications.example',
+    );
+    expect(notificationText(item, en).$2, 'notifications.example');
+    expect(
+      notificationText(
+        notification(
+          event: 'badge',
+          metadata: const NotificationMetadata(
+            badgeName: 'notifications.badge',
+          ),
+        ),
+        en,
+      ).$1,
+      en.notificationBadge('notifications.badge'),
+    );
+  });
+  test(
+    'legacy recognized events prefer literal headings from either field',
+    () {
+      final en = AppLocalizationsEn();
+      expect(
+        notificationText(
+          notification(event: 'post_reply', title: 'Reply from legacy'),
+          en,
+        ).$1,
+        'Reply from legacy',
+      );
+      expect(
+        notificationText(
+          notification(event: 'comment', payloadTitle: 'Legacy payload'),
+          en,
+        ).$1,
+        'Legacy payload',
+      );
+    },
+  );
+  test(
+    'topic notifications preserve comment previews ahead of topic titles',
+    () {
+      final en = AppLocalizationsEn();
+      expect(
+        notificationText(
+          notification(
+            event: 'comment',
+            topicTitle: 'Topic',
+            content: 'Reply text',
+          ),
+          en,
+        ).$2,
+        'Reply text',
+      );
+      expect(
+        notificationText(
+          notification(event: 'comment', topicTitle: 'Topic'),
+          en,
+        ).$2,
+        'Actual preview',
+      );
+    },
+  );
+
   test('all Web template keys resolve in both supported locales', () {
     for (final l10n in [AppLocalizationsEn(), AppLocalizationsZh()]) {
       for (final key in [

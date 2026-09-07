@@ -1190,7 +1190,7 @@ class _TopicHeader extends StatelessWidget {
                 ),
                 _TopicAction(
                   symbol: 'bell',
-                  label: watched ? l10n.profileFollowing : l10n.profileFollow,
+                  label: watched ? l10n.topicUnwatch : l10n.topicWatch,
                   tooltip: watched ? l10n.topicUnwatch : l10n.topicWatch,
                   selected: watched,
                   color: colors.primary,
@@ -1265,7 +1265,7 @@ class _TopicAction extends StatelessWidget {
     required this.symbol,
     required this.label,
     required this.tooltip,
-    this.selected = false,
+    this.selected,
     this.prominent = false,
     this.color,
     this.onTap,
@@ -1273,7 +1273,7 @@ class _TopicAction extends StatelessWidget {
   final String symbol;
   final String label;
   final String tooltip;
-  final bool selected;
+  final bool? selected;
   final bool prominent;
   final Color? color;
   final VoidCallback? onTap;
@@ -1282,7 +1282,7 @@ class _TopicAction extends StatelessWidget {
     final colors = GfTheme.colorsOf(context);
     final foreground = prominent
         ? colors.primaryContent
-        : selected
+        : selected == true
         ? color ?? colors.primary
         : colors.iconMuted;
     return Semantics(
@@ -1297,7 +1297,7 @@ class _TopicAction extends StatelessWidget {
             foregroundColor: foreground,
             backgroundColor: prominent
                 ? colors.primary
-                : selected
+                : selected == true
                 ? (color ?? colors.primary).withValues(alpha: .1)
                 : Colors.transparent,
             minimumSize: const Size(44, 44),

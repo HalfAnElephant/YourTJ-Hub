@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'dart:ui' show Tristate;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -519,8 +520,10 @@ class RedesignPageRepository extends PageRepository {
 class _ShortProfileStreams extends RedesignPageRepository {
   _ShortProfileStreams(super.client);
   bool fail = false;
+  Future<void>? pending;
   @override
   Future<PagePayload> fetch(String path) async {
+    await pending;
     if (fail) throw StateError('stream unavailable');
     final payload = redesignedProfilePayloadJson();
     final props = payload['props'] as Map<String, dynamic>;
@@ -814,6 +817,20 @@ class ErroringProfilePageRepository extends CountingPageRepository {
 }
 
 /// 记录 search 调用 page 的 TopicRepository。
+class ControlledSearchRepository extends PagingTopicRepository {
+  ControlledSearchRepository(super.client);
+  Future<void>? pending;
+  @override
+  Future<SearchPageProps> search({
+    required String query,
+    String scope = '',
+    int page = 1,
+  }) async {
+    await pending;
+    return super.search(query: query, scope: scope, page: page);
+  }
+}
+
 class PagingTopicRepository extends TopicRepository {
   PagingTopicRepository(super.client);
 
@@ -1501,6 +1518,28 @@ void main() {
         of: find.byKey(const ValueKey('topic-inline-actions')),
         matching: find.text('回复'),
       );
+      final semantics = tester.ensureSemantics();
+
+      final replyButton = find
+          .ancestor(of: reply, matching: find.byType(TextButton))
+          .first;
+      expect(
+        tester
+            .getSemantics(replyButton)
+            .getSemanticsData()
+            .flagsCollection
+            .isToggled,
+        Tristate.none,
+      );
+      final watchLabel = AppLocalizations.of(tester.element(reply)).topicWatch;
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('topic-inline-actions')),
+          matching: find.text(watchLabel),
+        ),
+        findsOneWidget,
+      );
+      semantics.dispose();
       await tester.ensureVisible(reply);
       await tester.tap(reply);
       await tester.pumpAndSettle();
@@ -1689,6 +1728,109 @@ void main() {
       );
     },
   );
+
+  testWidgets('deep profile switches keep loading empty and retry visible', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final repo = _ShortProfileStreams(client);
+    final container = await makeContainer(pageRepo: repo);
+    await tester.pumpWidget(app(container, const ProfilePage(userId: 1)));
+    await tester.pumpAndSettle();
+    final scroll = tester
+        .widget<CustomScrollView>(find.byType(CustomScrollView))
+        .controller!;
+    final selectLikes = tester
+        .widget<InkWell>(
+          find
+              .descendant(
+                of: find.byTooltip('获赞'),
+                matching: find.byType(InkWell),
+              )
+              .first,
+        )
+        .onTap!;
+    scroll.jumpTo(1200);
+    await tester.pump();
+    bool visible(Finder finder) =>
+        tester.getRect(finder).overlaps(const Rect.fromLTWH(0, 56, 390, 788));
+    final pending = Completer<void>();
+    repo.pending = pending.future;
+    selectLikes();
+    await tester.pump();
+    expect(visible(find.byType(GfLoadingIndicator)), isTrue);
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(visible(find.text('暂无点赞')), isTrue);
+    expect(scroll.offset, greaterThan(0));
+    repo.fail = true;
+    await tester.ensureVisible(find.byTooltip('主题'));
+    await tester.tap(find.byTooltip('主题'));
+    await tester.pumpAndSettle();
+    expect(find.byType(GfErrorRetry), findsOneWidget);
+    expect(visible(find.byType(GfErrorRetry)), isTrue);
+  });
+
+  testWidgets('clearing search resets results and ignores pending responses', (
+    tester,
+  ) async {
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final repo = ControlledSearchRepository(client);
+    final container = await makeContainer(
+      pageRepo: CountingPageRepository(client),
+      topicRepo: repo,
+    );
+    await tester.pumpWidget(app(container, const SearchPage()));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '同济');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(find.text('结果-第一页'), findsOneWidget);
+    final pending = Completer<void>();
+    repo.pending = pending.future;
+    await tester.tap(find.text('加载更多'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('清空搜索'));
+    await tester.pump();
+    expect(find.text('结果-第一页'), findsNothing);
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('结果-第二页'), findsNothing);
+    await tester.enterText(find.byType(TextField), '新查询');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(repo.searchPages.last, 1);
+  });
+
+  testWidgets('badges tab has badge-specific empty state', (tester) async {
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final payload = redesignedProfilePayloadJson();
+    (payload['props'] as Map<String, dynamic>)['badges'] = [];
+    final container = await makeContainer(
+      pageRepo: RedesignPageRepository(client, profilePayload: payload),
+    );
+    await tester.pumpWidget(app(container, const ProfilePage(userId: 1)));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byTooltip('徽章'));
+    await tester.tap(find.byTooltip('徽章'));
+    await tester.pumpAndSettle();
+    expect(find.text('暂无徽章'), findsOneWidget);
+  });
 
   testWidgets(
     'profile tab changes retain vertical position with short and failed streams',
@@ -2182,6 +2324,13 @@ void main() {
       await tester.tap(find.text('用户').first);
       await tester.pumpAndSettle();
       expect(topicRepo.scopes.last, 'users');
+      await tester.tap(find.byTooltip('清空搜索'));
+      await tester.pumpAndSettle();
+      expect(find.text('聚合帖子结果'), findsNothing);
+      await tester.enterText(find.byType(TextField), '新查询');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      expect(topicRepo.scopes.last, '');
     });
   });
 

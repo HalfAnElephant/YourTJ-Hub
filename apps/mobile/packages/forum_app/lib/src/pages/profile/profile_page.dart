@@ -355,24 +355,30 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ),
                     const SliverToBoxAdapter(child: GfDivider()),
                     if (tabs.isNotEmpty)
-                      SliverToBoxAdapter(
-                        child: _ProfileTabs(
-                          tabs: tabs,
-                          index: _tabIndex,
-                          onChanged: (int index) {
-                            if (_stream == tabs[index].key) return;
-                            setState(() {
-                              _minimumScrollOffset = math.max(
-                                0,
-                                controller.offset,
+                      SliverLayoutBuilder(
+                        builder: (context, constraints) => SliverToBoxAdapter(
+                          child: _ProfileTabs(
+                            tabs: tabs,
+                            index: _tabIndex,
+                            onChanged: (int index) {
+                              if (_stream == tabs[index].key) return;
+                              // Retain header collapse, not an arbitrary offset
+                              // into the previous stream that could hide status.
+                              final retainedOffset = math.min(
+                                math.max(0.0, controller.offset),
+                                constraints.precedingScrollExtent,
                               );
-                              _tabIndex = index;
-                              _stream = tabs[index].key;
-                              _streamLoading = true;
-                              _streamError = null;
-                            });
-                            _load(silent: true, streamChange: true);
-                          },
+                              controller.jumpTo(retainedOffset);
+                              setState(() {
+                                _minimumScrollOffset = retainedOffset;
+                                _tabIndex = index;
+                                _stream = tabs[index].key;
+                                _streamLoading = true;
+                                _streamError = null;
+                              });
+                              _load(silent: true, streamChange: true);
+                            },
+                          ),
                         ),
                       ),
                     const SliverToBoxAdapter(child: GfDivider()),
@@ -413,7 +419,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
 
                     // Short/empty streams must not clamp the shared header back
-                    // into view. Reserve only the offset captured at tab change.
+                    // into view. Reserve only the retained header-collapse offset.
                     SliverLayoutBuilder(
                       builder: (context, constraints) => SliverToBoxAdapter(
                         child: SizedBox(
@@ -694,10 +700,7 @@ class _ProfileBody extends StatelessWidget {
     return switch (selectedKey) {
       'badges' =>
         props.badges.isEmpty
-            ? _empty(
-                Icons.workspace_premium_outlined,
-                l10n.profileEmptyActivity,
-              )
+            ? _empty(Icons.workspace_premium_outlined, l10n.profileNoBadges)
             : SliverPadding(
                 padding: const EdgeInsets.all(16),
                 sliver: SliverList.separated(
