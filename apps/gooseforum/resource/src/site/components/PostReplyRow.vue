@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Ban, Bookmark, ChevronDown, ChevronUp, CornerDownLeft, Flag, Heart, PencilLine, RotateCcw, Share2, Trash2 } from '@lucide/vue'
-import type { PostPayload, ReplyTargetPayload } from '@gooseforum/client'
+import type { PostPayload } from '@gooseforum/client'
 import { formatDateTime, formatNumber } from '@/runtime/format'
 import { showUserCard } from '@/runtime/user-card-events'
 import { useI18n } from 'vue-i18n'
-import PostReplyReference from '@/site/components/PostReplyReference.vue'
 import UserAvatar from '@/site/components/UserAvatar.vue'
 
 /** 楼层互动状态（由父组件 postActionState 提供，保持同一对象引用以继承响应式更新）。 */
@@ -21,9 +20,6 @@ const props = withDefaults(defineProps<{
   post: PostPayload
   /** 深链高亮态。 */
   highlighted?: boolean
-  /** 是否显示引用条（显隐由父层统一判定）。 */
-  showQuote?: boolean
-  replyTarget?: ReplyTargetPayload
   authenticated: boolean
   canPost: boolean
   /** 编辑保存中 / 删除中 / 版主操作进行中（按钮禁用态，源自父组件全局状态）。 */
@@ -39,7 +35,6 @@ const props = withDefaults(defineProps<{
   collapsed?: boolean
 }>(), {
   highlighted: false,
-  showQuote: false,
   savingEdit: false,
   deleting: false,
   moderationBusy: false,
@@ -86,18 +81,18 @@ function lastEditedLabel(post: PostPayload) {
 </script>
 
 <template>
-  <div class="scroll-mt-20 reply-row-indent" :style="{ '--reply-row-indent': indentLevel }">
+  <div class="scroll-mt-20 reply-row-indent" :class="{ 'reply-row-indented': indentLevel > 0 }" :style="{ '--reply-row-indent': indentLevel }">
     <div
       class="rounded-lg bg-base-200/45 p-3 transition-[background-color]"
       :class="{ 'bg-info/10': highlighted }"
     >
-      <div class="mb-2 flex min-w-0 items-center gap-2">
+      <div class="mb-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
         <a :href="`/u/${post.author.id}`" class="shrink-0" @click="showUserCard(post.author, $event)">
           <UserAvatar :src="post.author.avatarUrl" :alt="post.author.username" :badge="post.author.wornBadge" class="h-6 w-6 rounded-full ring-1 ring-line" img-class="rounded-full" />
         </a>
         <a :href="`/u/${post.author.id}`" class="min-w-0 truncate text-sm font-semibold text-base-content hover:text-primary" @click="showUserCard(post.author, $event)">{{ authorDisplayName(post.author) }}</a>
         <span class="shrink-0 text-xs font-semibold tabular-nums text-base-content/55">#{{ formatNumber(post.postNo) }}</span>
-        <time class="shrink-0 text-xs text-base-content/55">{{ formatDateTime(post.createdAt) }}</time>
+        <time class="hidden shrink-0 text-xs text-base-content/55 sm:inline">{{ formatDateTime(post.createdAt) }}</time>
           <button v-if="collapsible" type="button" class="inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full bg-base-100 px-1.5 text-[11px] font-medium text-base-content/55 transition hover:text-base-content" :title="collapsed ? t('topic.expandReply') : t('topic.collapseReply')" @click="emit('toggleCollapse')">
             <ChevronDown v-if="collapsed" class="h-3 w-3" />
             <ChevronUp v-else class="h-3 w-3" />
@@ -143,7 +138,6 @@ function lastEditedLabel(post: PostPayload) {
           </button>
         </span>
       </div>
-      <PostReplyReference v-if="showQuote" :target="replyTarget" />
       <div v-if="post.isAuthorDeleted" class="mt-2 rounded border border-dashed border-line bg-base-100/60 px-3 py-2 text-sm text-base-content/55">
         {{ t('topic.authorDeletedPlaceholder') }}
       </div>
@@ -165,14 +159,42 @@ function lastEditedLabel(post: PostPayload) {
 </template>
 
 <style scoped>
-/* 树状视图缩进：每级 12px（移动）/ 20px（桌面），0 级时不产生任何偏移。 */
+/*
+ * 树状视图缩进（#520 增强）：每级 16px（移动）/ 24px（桌面），0 级时不产生任何偏移。
+ * 相比旧值（12/20px）逐级放大，多级嵌套的层级差异一眼可辨。
+ */
 .reply-row-indent {
-  margin-left: calc(var(--reply-row-indent, 0) * 12px);
+  margin-left: calc(var(--reply-row-indent, 0) * 16px);
 }
 
 @media (min-width: 640px) {
   .reply-row-indent {
-    margin-left: calc(var(--reply-row-indent, 0) * 20px);
+    margin-left: calc(var(--reply-row-indent, 0) * 24px);
+  }
+}
+
+/*
+ * 逐级引导线（#520）：缩进行在左侧留白内画一条贯穿线，与上一级内容对齐成「树杈」，
+ * 深层嵌套不再靠纯缩进脑补。缩进封顶后（indentLevel 停增）引导线仍随层级存在。
+ */
+.reply-row-indented {
+  position: relative;
+}
+
+.reply-row-indented::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -10px;
+  width: 2px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--gf-color-line) 85%, transparent);
+}
+
+@media (min-width: 640px) {
+  .reply-row-indented::before {
+    left: -14px;
   }
 }
 </style>
