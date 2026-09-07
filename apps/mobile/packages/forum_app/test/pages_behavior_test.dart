@@ -541,6 +541,7 @@ class _ShortProfileStreams extends RedesignPageRepository {
 
 class RecordingFollowTopicRepository extends TopicRepository {
   RecordingFollowTopicRepository(super.client);
+  Completer<bool>? pending;
 
   final List<int> userIds = <int>[];
   final List<bool> currentStates = <bool>[];
@@ -552,7 +553,7 @@ class RecordingFollowTopicRepository extends TopicRepository {
   }) async {
     userIds.add(userId);
     currentStates.add(isFollowing);
-    return true;
+    return pending == null ? true : await pending!.future;
   }
 }
 
@@ -1490,13 +1491,13 @@ void main() {
       tokenStorage: MemTokenStorage(),
       baseUrl: 'http://fake.local',
     );
-    for (final entry in <int, IconData>{
-      1: Icons.person_add_alt_1_outlined,
-      2: Icons.edit_outlined,
-      3: Icons.favorite_border,
-      4: Icons.person_add_outlined,
-      5: Icons.chat_bubble_outline,
-      999: Icons.bolt_outlined,
+    for (final entry in <int, String>{
+      1: 'user-round',
+      2: 'square-pen',
+      3: 'heart',
+      4: 'user-round-plus',
+      5: 'message-circle',
+      999: 'activity',
     }.entries) {
       final payload = redesignedProfilePayloadJson();
       final props = payload['props'] as Map<String, dynamic>;
@@ -1512,9 +1513,11 @@ void main() {
         app(container, ProfilePage(key: UniqueKey(), userId: 1)),
       );
       await tester.pumpAndSettle();
-      final rows = tester.widgetList<GfSettingRow>(find.byType(GfSettingRow));
+      final rows = tester.widgetList<GfActivityCard>(
+        find.byType(GfActivityCard),
+      );
       expect(
-        rows.singleWhere((r) => r.title.contains('活动内容')).icon,
+        rows.singleWhere((r) => r.title.contains('活动内容')).symbol,
         entry.value,
       );
     }
@@ -1554,6 +1557,52 @@ void main() {
       expect(find.text('选课经验'), findsOneWidget);
     },
   );
+
+  testWidgets('followed administrators retain the unfollow action', (
+    tester,
+  ) async {
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final payload = peerProfilePayloadJson();
+    final props = payload['props'] as Map<String, dynamic>;
+    final user = props['user'] as Map<String, dynamic>;
+    user['isAdmin'] = true;
+    user['isFollowing'] = true;
+    final repo = RecordingFollowTopicRepository(client);
+    final container = await makeContainer(
+      pageRepo: RedesignPageRepository(client, profilePayload: payload),
+      topicRepo: repo,
+    );
+    await tester.pumpWidget(app(container, const ProfilePage(userId: 2)));
+    await tester.pumpAndSettle();
+    final followed = find.widgetWithText(GfButton, '已关注');
+    expect(followed, findsOneWidget);
+    await tester.tap(followed);
+    await tester.pumpAndSettle();
+    expect(repo.currentStates, [true]);
+    expect(find.widgetWithText(GfButton, '关注'), findsOneWidget);
+    repo.pending = Completer<bool>();
+    final retry = tester
+        .widget<GfButton>(find.widgetWithText(GfButton, '关注'))
+        .onPressed!;
+    retry();
+    retry();
+    await tester.pump();
+    expect(repo.currentStates, [true, false]);
+    expect(
+      tester.widget<GfButton>(find.widgetWithText(GfButton, '已关注')).loading,
+      isTrue,
+    );
+    repo.pending!.completeError(StateError('follow failed'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(GfButton, '关注'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'profile renders provider marks and worn badge even without badge list',

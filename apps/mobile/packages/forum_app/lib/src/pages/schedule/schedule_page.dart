@@ -712,7 +712,7 @@ class _CollapsedConfigRow extends StatelessWidget {
         : (sel.major ?? '');
     final List<String> parts = <String>[
       if (calendarName.isNotEmpty) calendarName,
-      if (sel.grade != null) '${sel.grade} 级',
+      if (sel.grade != null) l10n.scheduleGradeYear('${sel.grade}'),
       if (major.isNotEmpty) major,
     ];
     final String summary = parts.isEmpty
@@ -788,7 +788,9 @@ class _ConfigRow extends ConsumerWidget {
           Expanded(
             child: _ConfigSelector(
               label: l10n.scheduleGrade,
-              value: sel.grade == null ? '' : '${sel.grade} 级',
+              value: sel.grade == null
+                  ? ''
+                  : l10n.scheduleGradeYear('${sel.grade}'),
               placeholder: l10n.scheduleGrade,
               onTap: sel.calendarId == null
                   ? null
@@ -883,7 +885,7 @@ class _ConfigRow extends ConsumerWidget {
       builder: (BuildContext sheetContext) => _ListPickerSheet<int>(
         title: l10n.scheduleGrade,
         items: grades.gradeList,
-        labelOf: (int grade) => '$grade 级',
+        labelOf: (int grade) => l10n.scheduleGradeYear('$grade'),
         selectedOf: (int grade) => grade == sel.grade,
       ),
     );
@@ -2585,9 +2587,15 @@ class _ClassRow extends StatelessWidget {
           ? '${times.first}'
           : '${times.first}-${times.last}';
       final String weeks = formatWeeksText(a.occupyWeek);
-      parts.add('${days[day - 1]} $span节${weeks.isEmpty ? '' : ' $weeks周'}');
+      parts.add(
+        [
+          days[day - 1],
+          l10n.schedulePeriodRange(span),
+          if (weeks.isNotEmpty) l10n.scheduleWeeksN(weeks),
+        ].join(' · '),
+      );
     }
-    return parts.take(3).join('；');
+    return parts.take(3).join('; ');
   }
 }
 
@@ -2628,7 +2636,7 @@ class _CellPickerSheet extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
             child: Text(
-              '${days[day - 1]} 第$section节',
+              '${days[day - 1]} · ${l10n.schedulePeriodRange('$section')}',
               style: GfTheme.typographyOf(context).title3,
             ),
           ),
@@ -2938,7 +2946,7 @@ class _ReviewBriefPanelState extends ConsumerState<_ReviewBriefPanel> {
           : '${brief.ratingAvg!.toStringAsFixed(1)} ★';
       text = <String>[
         avg,
-        '${brief.reviewCount} 条',
+        l10n.coursesRatingCount(brief.reviewCount),
       ].where((String s) => s.isNotEmpty).join(' · ');
     }
     return Container(
@@ -3016,7 +3024,7 @@ class _CustomEventSheetState extends ConsumerState<_CustomEventSheet> {
                 ],
               ),
               const SizedBox(height: 12),
-              Text('节次：', style: _groupLabelStyle(colors)),
+              Text(l10n.schedulePeriods, style: _groupLabelStyle(colors)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
@@ -3037,7 +3045,10 @@ class _CustomEventSheetState extends ConsumerState<_CustomEventSheet> {
               const SizedBox(height: 12),
               Row(
                 children: <Widget>[
-                  Text('周次：', style: _groupLabelStyle(colors)),
+                  Text(
+                    l10n.scheduleWeeksLabel,
+                    style: _groupLabelStyle(colors),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     _weeksTextPreview(),
@@ -3112,7 +3123,9 @@ class _CustomEventSheetState extends ConsumerState<_CustomEventSheet> {
   String _weeksTextPreview() {
     if (_weeks.isEmpty) return '';
     final List<int> sorted = _weeks.toList()..sort();
-    return '${sorted.first}-${sorted.last}周';
+    return AppLocalizations.of(
+      context,
+    ).scheduleWeeksN('${sorted.first}-${sorted.last}');
   }
 }
 

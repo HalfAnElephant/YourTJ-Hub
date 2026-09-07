@@ -1,8 +1,10 @@
 import 'package:core/core.dart';
 import 'package:flutter/material.dart';
+import 'package:ui_kit/ui_kit.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../profile_links.dart';
+import '../../app_locale.dart';
 
 /// Own the form controllers for the entire dialog route, including its exit
 /// animation. The profile endpoint replaces every field, so preserve unknown
@@ -28,7 +30,8 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
         text: widget.user.externalInformation[key]?.link ?? '',
       ),
   };
-  late String _locale = widget.user.locale == 'en' ? 'en' : 'zh';
+  late String _locale =
+      normalizeAppLocale(widget.user.locale)?.languageCode ?? 'zh';
 
   @override
   void dispose() {
@@ -82,7 +85,15 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
             ? TextInputType.url
             : (lines > 1 ? TextInputType.multiline : TextInputType.text),
         autocorrect: !url,
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: profileSocialProviders.containsKey(key)
+              ? Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: GfSocialIcon(key),
+                )
+              : null,
+        ),
         validator: url
             ? (value) =>
                   normalizeProfileLink(value ?? '', prefix: prefix) == null
@@ -109,9 +120,12 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
                   decoration: InputDecoration(
                     labelText: l10n.settingsProfileLanguage,
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'zh', child: Text('中文')),
-                    DropdownMenuItem(value: 'en', child: Text('English')),
+                  items: [
+                    for (final entry in appLanguageNames.entries)
+                      DropdownMenuItem(
+                        value: entry.key,
+                        child: Text(entry.value),
+                      ),
                   ],
                   onChanged: (value) {
                     if (value != null) setState(() => _locale = value);

@@ -222,6 +222,24 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('profile trims bio and signature boundary whitespace', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        gfApp(
+          const GfUserCard(
+            avatarUrl: '',
+            name: 'Alice',
+            username: 'alice',
+            bio: '  Hello\n\n',
+            signature: '  Stay curious\n',
+          ),
+        ),
+      );
+      expect(find.text('Hello'), findsOneWidget);
+      expect(find.text('Stay curious'), findsOneWidget);
+    });
+
     testWidgets('renders setting rows', (tester) async {
       await tester.pumpWidget(
         gfApp(

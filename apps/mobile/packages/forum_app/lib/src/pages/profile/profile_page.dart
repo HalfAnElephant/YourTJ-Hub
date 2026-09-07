@@ -66,6 +66,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   double _minimumScrollOffset = 0;
   String _stream = 'timeline';
   bool _following = false;
+  bool _followBusy = false;
   bool _loginRequired = false;
   bool _canAccessAdmin = false;
   bool _canModerate = false;
@@ -228,16 +229,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Future<void> _toggleFollow(UserCardPayload user) async {
-    if (user.isSelf) return;
+    if (user.isSelf || _followBusy) return;
     final bool wasFollowing = _following;
     final bool target = !wasFollowing;
-    setState(() => _following = target);
+    setState(() {
+      _following = target;
+      _followBusy = true;
+    });
     try {
       await ref
           .read(topicRepositoryProvider)
           .followUser(userId: user.userId, isFollowing: wasFollowing);
-    } catch (_) {
-      if (mounted) setState(() => _following = wasFollowing);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _following = wasFollowing);
+        showGfToast(
+          context,
+          resolveErrorMessage(AppLocalizations.of(context), error),
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
     }
   }
 
@@ -427,15 +440,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final UserCardPayload user = props.user;
     final Map<String, GfUserBadge> badges = <String, GfUserBadge>{};
-    for (final UserBadgePayload badge in <UserBadgePayload>[
-      ...user.badges,
-      ...props.badges,
-    ]) {
-      badges.putIfAbsent(
-        badge.code.isEmpty ? badge.name : badge.code,
-        () => GfUserBadge(label: badge.name, color: _userBadgeColor(badge)),
-      );
-    }
     if (user.isAdmin) {
       badges['admin'] = GfUserBadge(
         label: l10n.profileRoleAdmin,
@@ -447,7 +451,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (user.isSelf || props.isOwnProfile) {
       actions.add(
         GfButton(
-          icon: const Icon(Icons.edit_outlined, size: 18),
+          icon: const GfSymbol('square-pen', size: 18),
           label: l10n.settingsEditProfile,
           variant: GfButtonVariant.outline,
           size: GfButtonSize.small,
@@ -455,10 +459,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ),
       );
     } else {
-      if (props.canFollow && !user.isAdmin) {
+      if (props.canFollow) {
         actions.add(
           GfButton(
             label: _following ? l10n.profileFollowing : l10n.profileFollow,
+            icon: GfSymbol(
+              _following ? 'user-round-check' : 'user-round-plus',
+              size: 18,
+            ),
+            loading: _followBusy,
             variant: _following
                 ? GfButtonVariant.outline
                 : GfButtonVariant.primary,
@@ -470,7 +479,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       if (props.canMessage && props.messageUrl.trim().isNotEmpty) {
         actions.add(
           GfButton(
-            icon: const Icon(Icons.mail_outline_rounded, size: 18),
+            icon: const GfSymbol('mail', size: 18),
             label: l10n.messagesNew,
             variant: GfButtonVariant.outline,
             size: GfButtonSize.small,
@@ -509,15 +518,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
-                    icon: switch (provider) {
-                      'github' => const GfSymbol('github', size: 18),
-                      'twitter' => const GfSymbol('twitter', size: 18),
-                      'linkedIn' => const GfSymbol('linkedin', size: 18),
-                      'weibo' => const GfSymbol('weibo', size: 18),
-                      'bilibili' => const GfSymbol('bilibili', size: 18),
-                      'zhihu' => const GfSymbol('zhihu', size: 18),
-                      _ => const Icon(Icons.link, size: 18),
-                    },
+                    icon: GfSocialIcon(provider, size: 20),
                     label: Text(
                       label,
                       maxLines: 1,
@@ -643,15 +644,15 @@ class _ProfileTabs extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        GfSymbol(
                           switch (tabs[i].key) {
-                            'topics' => Icons.article_outlined,
-                            'likes' => Icons.favorite_border,
-                            'bookmarks' => Icons.bookmark_border,
-                            'following' => Icons.person_add_alt,
-                            'followers' => Icons.people_outline,
-                            'badges' => Icons.workspace_premium_outlined,
-                            _ => Icons.bolt_outlined,
+                            'topics' => 'file-text',
+                            'likes' => 'heart',
+                            'bookmarks' => 'bookmark',
+                            'following' => 'user-round-plus',
+                            'followers' => 'users-round',
+                            'badges' => 'award',
+                            _ => 'activity',
                           },
                           size: 22,
                           color: i == index ? colors.primary : colors.iconMuted,
@@ -691,15 +692,33 @@ class _ProfileBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return switch (selectedKey) {
-      'badges' => SliverList.list(
-        children: [
-          for (final badge in props.badges)
-            GfSettingRow(
-              icon: Icons.workspace_premium_outlined,
-              title: badge.name,
-            ),
-        ],
-      ),
+      'badges' =>
+        props.badges.isEmpty
+            ? _empty(
+                Icons.workspace_premium_outlined,
+                l10n.profileEmptyActivity,
+              )
+            : SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList.separated(
+                  itemCount: props.badges.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (_, index) {
+                    final badge = props.badges[index];
+                    return GfAchievementCard(
+                      title: badge.name,
+                      description: badge.description,
+                      color: _userBadgeColor(badge),
+                      icon: GfBadgeIcon(
+                        url: resolveApiAssetUrl(badge.iconUrl),
+                        label: badge.name,
+                        framed: false,
+                        size: 28,
+                      ),
+                    );
+                  },
+                ),
+              ),
       'topics' => _topicRows(context, l10n),
       'likes' => _likeRows(context, l10n),
       'bookmarks' => _bookmarkRows(context, l10n),
@@ -740,14 +759,20 @@ class _ProfileBody extends StatelessWidget {
           5 => 'comment',
           _ => activity.label,
         };
-        return GfSettingRow(
-          icon: switch (action) {
-            'signup' => Icons.person_add_alt_1_outlined,
-            'post' => Icons.edit_outlined,
-            'like' => Icons.favorite_border,
-            'follow' => Icons.person_add_outlined,
-            'comment' => Icons.chat_bubble_outline,
-            _ => Icons.bolt_outlined,
+        return GfActivityCard(
+          symbol: switch (action) {
+            'signup' => 'user-round',
+            'post' => 'square-pen',
+            'like' => 'heart',
+            'follow' => 'user-round-plus',
+            'comment' => 'message-circle',
+            _ => 'activity',
+          },
+          color: switch (action) {
+            'like' => const Color(0xFFE11D48),
+            'follow' => const Color(0xFF7C3AED),
+            'comment' => const Color(0xFF059669),
+            _ => GfTheme.colorsOf(context).primary,
           },
           title: [
             switch (action) {
@@ -760,7 +785,7 @@ class _ProfileBody extends StatelessWidget {
             },
             activity.contentPreview,
           ].where((s) => s.isNotEmpty).join(' · '),
-          description: timeAgo(activity.createdAt, l10n: l10n),
+          time: timeAgo(activity.createdAt, l10n: l10n),
           onTap: route == null ? null : () => context.push(route),
         );
       },

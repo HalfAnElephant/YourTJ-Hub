@@ -19,9 +19,13 @@ class GfDraftRow extends StatelessWidget {
     required this.updatedTime,
     this.onTap,
     this.onEdit,
+    this.editLabel = 'Edit',
+    this.blockedLabel = 'Blocked',
   });
 
   final String title;
+  final String editLabel;
+  final String blockedLabel;
   final String description;
   final List<GfTopicCategory> categories;
   final bool blocked;
@@ -62,8 +66,8 @@ class GfDraftRow extends StatelessWidget {
                   ),
                 ),
                 if (blocked)
-                  const GfBadge(
-                    label: 'blocked',
+                  GfBadge(
+                    label: blockedLabel,
                     variant: GfBadgeVariant.error,
                     icon: Icon(Icons.shield_outlined, size: 12),
                   ),
@@ -121,7 +125,7 @@ class GfDraftRow extends StatelessWidget {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('编辑'),
+                    child: Text(editLabel),
                   ),
               ],
             ),

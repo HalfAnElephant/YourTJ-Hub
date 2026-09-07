@@ -56,6 +56,20 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   selected language, with actor names and topic/content previews. Legacy literal headings remain
   readable; unresolved translation keys are never displayed as titles.
 
+## Language and presentation
+
+- `Current`: the native app supports the same four languages as Web: Simplified Chinese, English,
+  Japanese and German. Login and Settings expose an immediate language picker with a follow-system
+  option; unsupported system languages fall back to Chinese. The device preference survives restart
+  and is independent of public profile language. Switching preserves the current page, session and
+  unsaved input.
+- `Current`: API requests send the selected language without recreating the authenticated client.
+  Notification templates and server message translations reuse Web's catalogs in all four languages;
+  authenticated management workspaces inherit the choice through the first-party language cookie.
+  User-written content and server-defined badge names remain in their original language.
+- `Current`: profile and settings use Web's Lucide line icons, with subtle semantic color tiles for
+  activity and account controls. Social links use all six Web provider marks and brand colors.
+
 ## Publishing
 
 - `Current`: the type selector keeps Web's moment/question/article values. Moments and questions
@@ -123,8 +137,15 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   management group (drafts, content and recycle bin), settings and permission-gated workspaces.
   The profile overflow retains these infrequent entries. Account controls are outside the public profile.
 - `Current`: activity entries distinguish signup, post, like, follow and comment with matching
-  icons and localized captions. Stream changes preserve the profile header and vertical position,
+  icons and localized captions in bordered cards with a content preview and compact timestamp. Stream changes preserve the profile header and vertical position,
   including short/empty streams and failures; retry feedback stays within the stream.
+- `Current`: profile bios trim boundary whitespace; signatures use a separate feather mark and subtle
+  underline. Avatar overlap participates in layout so it leaves no translated blank space. The role
+  label stays beside the name; earned badges appear as bordered title/description cards with colored
+  hexagons and their server-provided SVGs. The selected badge remains attached to the avatar.
+- `Current`: users with follow permission retain the follow button for already-followed accounts,
+  including administrators. It displays the followed state and toggles to unfollow, prevents duplicate
+  in-flight requests and restores the previous state when a request fails.
 - `Current`: only the active profile tab displays its label; all tabs retain accessible names.
   Activity, topics, likes, own bookmarks, follows/followers and badges fetch their corresponding
   server streams. Cursor pagination uses the server's next URL within the same user's profile.

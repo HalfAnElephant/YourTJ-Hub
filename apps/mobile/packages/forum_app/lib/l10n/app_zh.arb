@@ -267,6 +267,14 @@
   "settingsAvatar": "头像",
   "settingsAvatarUpload": "上传头像(前端转 webp)",
   "settingsAvatarUploading": "上传中…",
+  "settingsAvatarUploadFailed": "头像上传失败:{error}",
+  "@settingsAvatarUploadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "settingsEmail": "邮箱",
   "settingsEmailEdit": "修改绑定邮箱",
   "settingsEmailUpdated": "邮箱已更新,请验证",
@@ -417,14 +425,6 @@
   "messagesNoContactableUsers": "暂无可联系用户",
   "settingsLogout": "退出登录",
   "settingsLogoutConfirm": "确定退出 yourtj 吗?",
-  "settingsAvatarUploadFailed": "头像上传失败:{error}",
-  "@settingsAvatarUploadFailed": {
-    "placeholders": {
-      "error": {
-        "type": "String"
-      }
-    }
-  },
   "commonParseFailed": "页面数据解析失败",
   "commonLoadFailed": "加载失败",
   "topicEmpty": "暂无话题",
@@ -806,5 +806,115 @@
   "profileActionComment": "发表回复",
   "replyQuoteExpand": "展开引用",
   "replyQuoteCollapse": "收起引用",
-  "notificationBadgeUnnamed": "你获得了一枚新徽章"
+  "notificationBadgeUnnamed": "你获得了一枚新徽章",
+  "settingsAppLanguage": "应用语言",
+  "settingsLanguageSystem": "跟随系统",
+  "scheduleGradeYear": "{year} 级",
+  "@scheduleGradeYear": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      }
+    }
+  },
+  "schedulePeriods": "节次",
+  "scheduleWeeksLabel": "周次",
+  "schedulePeriodRange": "第 {range} 节",
+  "@schedulePeriodRange": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "courseCopyCreditUnit": "学分",
+  "courseCopyNoTeacher": "无教师",
+  "courseCopyCatalogEmptyTitle": "暂无课程",
+  "courseCopyCatalogEmptyDescription": "课程目录尚未导入。",
+  "courseCopyNoFilterResults": "没有找到符合筛选条件的课程。",
+  "courseCopyNoFilterResultsDescription": "试试调整或清除筛选，查看更广的课程。",
+  "courseCopyClearSearch": "清空搜索",
+  "courseCopyDone": "完成",
+  "courseCopyNoOptions": "暂无可选项",
+  "courseCopySelectedCount": "已选 {count} 项",
+  "@courseCopySelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "courseCopyInstructorInputHint": "输入教师姓名，回车添加",
+  "courseCopyInstructorAdd": "添加",
+  "courseCopyInstructorEmptyHint": "通过上方输入框添加教师",
+  "courseCopyAliasesLabel": "别名：",
+  "courseCopyLegacyNamesLabel": "原名：",
+  "courseCopyReviewScopeTeam": "教学团队",
+  "courseCopyReviewScopeCourse": "课程级评价",
+  "courseCopyTeamInstructorsPrefix": "教学团队 · ",
+  "courseCopyTeamInstructorsSuffix": "等 {count} 位教师",
+  "@courseCopyTeamInstructorsSuffix": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "courseCopyRatingTitle": "课程评分",
+  "courseCopyRatingOutOf": "/ 5.0",
+  "courseCopyNoRatingQuiet": "暂无评分",
+  "courseCopyOfferingsEmpty": "暂无开课记录。",
+  "courseCopyOfferingFocusLabel": "只看该教学班的评价",
+  "courseCopyOfferingFocusClear": "查看全部评价",
+  "courseCopySummaryGenerated": "已生成",
+  "courseCopySummaryKeywords": "关键词",
+  "courseCopySummaryPros": "优点",
+  "courseCopySummaryCons": "缺点",
+  "courseCopySummaryRepresentativeReviews": "代表性评价",
+  "courseCopySummarySentimentPositive": "好评",
+  "courseCopySummarySentimentNeutral": "中立",
+  "courseCopySummarySentimentNegative": "差评",
+  "courseCopySummaryRefresh": "刷新",
+  "courseCopySummaryExpand": "展开",
+  "courseCopySummaryCollapse": "收起",
+  "courseCopySummaryDisclaimer": "以上内容由 AI 基于学生评价自动生成，仅供参考，不构成选课建议。",
+  "courseCopySummaryInsufficient": "评价数量不足，暂无法生成 AI 总结。",
+  "courseCopySummaryLoadFailed": "AI 总结生成失败，请稍后重试。",
+  "courseCopyWriteReviewTitle": "写一条评价",
+  "courseCopyEditReviewTitle": "编辑评价",
+  "courseCopySelectOffering": "选择开课实例",
+  "courseCopyRatingLabel": "评分",
+  "courseCopyContentLabel": "评价内容",
+  "courseCopyContentPlaceholder": "写下你的学习体验、课程质量或给分情况…",
+  "courseCopyRatingRequired": "请选择 1–5 星评分。",
+  "courseCopyContentRequired": "评价内容不能为空。",
+  "courseCopyAnonymousLabel": "匿名发布（对公众隐藏身份）",
+  "courseCopySubmitSuccess": "已提交",
+  "courseCopyUpdateSuccess": "已更新",
+  "courseCopyDelete": "删除",
+  "courseCopyDeleteReviewTitle": "删除评价",
+  "courseCopyConfirmDeleteReview": "确定删除这条评价吗？删除后不可恢复。",
+  "courseCopyReviewDeleted": "评价已删除",
+  "courseCopyOperationFailed": "操作失败，请稍后重试。",
+  "courseCopyReviewsLoadFailed": "评价加载失败，请稍后重试。",
+  "courseCopyAuthorAnonymousLabel": "匿名同学",
+  "courseCopyAuthorLegacyLabel": "历史匿名评价",
+  "courseCopyRelatedTeacherCoursesTitle": "同教师其他课程",
+  "courseCopyRelatedOtherTeachersTitle": "同课程其他教师",
+  "courseCopyRelatedEmpty": "暂无相关内容",
+  "courseCopyRelationEquivalent": "等价",
+  "courseCopyRelationRenamed": "改名",
+  "courseCopyRelationSplit": "拆分",
+  "courseCopyRelationMerged": "合并",
+  "courseCopyRelationRelated": "相关",
+  "courseCopySummaryConsensusStrongRecommend": "强烈推荐",
+  "courseCopySummaryConsensusRecommend": "推荐",
+  "courseCopySummaryConsensusNeutral": "褒贬不一",
+  "courseCopySummaryConsensusCautious": "谨慎选择",
+  "courseCopySummaryConsensusNotRecommend": "不推荐",
+  "courseCopySummaryConsensusTextStrongRecommend": "多数同学强烈推荐这门课程。",
+  "courseCopySummaryConsensusTextRecommend": "多数同学推荐这门课程。",
+  "courseCopySummaryConsensusTextNeutral": "同学们对这门课程的评价褒贬不一。",
+  "courseCopySummaryConsensusTextCautious": "多数同学建议谨慎选择这门课程。",
+  "courseCopySummaryConsensusTextNotRecommend": "多数同学不推荐这门课程。"
 }

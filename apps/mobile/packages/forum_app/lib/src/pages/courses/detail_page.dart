@@ -580,7 +580,10 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
         ? offering.className!
         : (offering.classCode ?? '');
     return <String>[
-      shortTerm(offering.termCode),
+      shortTerm(
+        offering.termCode,
+        locale: AppLocalizations.of(context).localeName,
+      ),
       classLabel,
       offering.campus ?? '',
       offering.instructors?.join('、') ?? '',
@@ -770,7 +773,7 @@ class _OfferingFocusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
-    final String label = _offeringShortLabel();
+    final String label = _offeringShortLabel(context);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -808,7 +811,7 @@ class _OfferingFocusBanner extends StatelessWidget {
     );
   }
 
-  String _offeringShortLabel() {
+  String _offeringShortLabel(BuildContext context) {
     final CourseOfferingPayload? offering = detail.offerings
         ?.where((CourseOfferingPayload o) => o.id == offeringId)
         .firstOrNull;
@@ -816,7 +819,13 @@ class _OfferingFocusBanner extends StatelessWidget {
     final String classLabel = (offering.className?.isNotEmpty ?? false)
         ? offering.className!
         : (offering.classCode ?? '');
-    return <String>[shortTerm(offering.termCode), classLabel].join(' · ');
+    return <String>[
+      shortTerm(
+        offering.termCode,
+        locale: AppLocalizations.of(context).localeName,
+      ),
+      classLabel,
+    ].join(' · ');
   }
 }
 
@@ -1770,7 +1779,9 @@ class _OfferingTermGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
     final GfTypography type = GfTheme.typographyOf(context);
-    final String termName = offerings.first.termName ?? shortTerm(termCode);
+    final String termName =
+        offerings.first.termName ??
+        shortTerm(termCode, locale: AppLocalizations.of(context).localeName);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2487,7 +2498,10 @@ class _ReviewFormSheetState extends State<_ReviewFormSheet> {
                 children: <Widget>[
                   Text(
                     <String>[
-                      shortTerm(offering.termCode),
+                      shortTerm(
+                        offering.termCode,
+                        locale: AppLocalizations.of(context).localeName,
+                      ),
                       classLabel,
                     ].join(' · '),
                     maxLines: 1,

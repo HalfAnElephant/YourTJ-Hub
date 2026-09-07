@@ -17,6 +17,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
+import '../../app_locale.dart';
 import 'admin_navigation.dart';
 
 /// The complete first-party console shares Web's authorization and forms. The
@@ -128,11 +129,26 @@ class _AdminPageState extends ConsumerState<AdminPage> {
         _failed = false;
         _progress = 0;
       });
+      final language = resolveAppLocale(
+        ref.read(appLocaleProvider),
+      ).languageCode;
+      await WebViewCookieManager().setCookie(
+        WebViewCookie(
+          name: 'lang',
+          value: language,
+          domain: _navigation.origin.host,
+          path: '/',
+        ),
+      );
+      if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
       await controller.loadRequest(
         _navigation.origin
             .resolve('/api/auth/mobile-web-session')
             .replace(queryParameters: {'target': widget.target.name}),
-        headers: {'Authorization': 'Bearer $token'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept-Language': language,
+        },
       );
     } catch (_) {
       _fail();

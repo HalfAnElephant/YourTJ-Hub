@@ -9,10 +9,12 @@ class GfBadgeIcon extends StatelessWidget {
     required this.url,
     required this.label,
     this.size = 28,
+    this.framed = true,
   });
   final String url;
   final String label;
   final double size;
+  final bool framed;
   @override
   Widget build(BuildContext context) {
     final colors = GfTheme.colorsOf(context);
@@ -32,11 +34,13 @@ class GfBadgeIcon extends StatelessWidget {
           width: size,
           height: size,
           padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: colors.base100,
-            shape: BoxShape.circle,
-            border: Border.all(color: colors.line),
-          ),
+          decoration: !framed
+              ? null
+              : BoxDecoration(
+                  color: colors.base100,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.line),
+                ),
           child: ExcludeSemantics(
             child: url.isEmpty
                 ? fallback
