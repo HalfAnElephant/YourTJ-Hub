@@ -10,6 +10,7 @@ import {
   Compass,
   Eraser,
   Eye,
+  History,
   Lightbulb,
   MapPin,
   Search,
@@ -26,6 +27,7 @@ import InfiniteScrollFooter from '@/site/components/InfiniteScrollFooter.vue'
 import PageHeader from '@/site/components/PageHeader.vue'
 import { bookmarkCourse, listCourses } from '@/runtime/api'
 import { useFlashMessages } from '@/runtime/flash-message'
+import { wikiHref } from '@/runtime/wiki-path'
 import { mergeCourses } from '@/site/utils/course-merge'
 import { rememberCourseCatalogUrl } from '@/site/utils/course-catalog-return'
 import { shortTerm, sortedRecentTerms } from '@/site/utils/term'
@@ -39,6 +41,7 @@ const page = defineProps<{
 
 const { t } = useI18n()
 const { push: pushFlash } = useFlashMessages()
+const historicalWikiHref = wikiHref('老乌龙茶/index')
 
 const viewer = computed(() => page.layout.viewer)
 const isAuthenticated = computed(() => viewer.value.isAuthenticated)
@@ -574,6 +577,15 @@ async function loadMore() {
                 "
               >
                 {{ chip.label }}
+              </a>
+              <a
+                :href="historicalWikiHref"
+                class="group inline-flex min-h-8 items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px] font-medium text-base-content/60 underline decoration-dotted decoration-base-content/40 underline-offset-4 transition-colors duration-150 hover:text-primary hover:decoration-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                :aria-label="t('coursesPage.historicalWikiEntry')"
+                data-testid="course-historical-wiki-link"
+              >
+                <History class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span class="whitespace-nowrap">{{ t('coursesPage.historicalWikiEntry') }}</span>
               </a>
             </div>
           </div>
