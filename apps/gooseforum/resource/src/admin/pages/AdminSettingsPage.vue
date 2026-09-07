@@ -227,6 +227,7 @@ const mailForm = reactive<MailSettings>({
 const securityForm = reactive<SecuritySettings>({
   enableSignup: true,
   enableEmailVerification: false,
+  maxDailySignups: -1,
   allowedDomains: [],
   reservedUsernames: [],
   bannedUsernames: [],
@@ -403,9 +404,15 @@ function mailPayload() {
 }
 
 function normalizeSecurity(settings: Partial<SecuritySettings> = {}) {
+  const maxDailySignupsValue = Number(settings.maxDailySignups)
+  const maxDailySignups = String(settings.maxDailySignups ?? '').trim() === '' || !Number.isFinite(maxDailySignupsValue)
+    ? -1
+    : Math.max(-1, Math.trunc(maxDailySignupsValue))
+
   return {
     enableSignup: toBool(settings.enableSignup, true),
     enableEmailVerification: toBool(settings.enableEmailVerification, false),
+    maxDailySignups,
     allowedDomains: Array.isArray(settings.allowedDomains)
       ? settings.allowedDomains.map(item => String(item).trim().toLowerCase()).filter(Boolean)
       : [],
@@ -1275,6 +1282,11 @@ onUnmounted(stopSyncPolling)
         <div class="flex items-center justify-between">
           <div><div class="text-base font-medium">{{ adminText('k008y') }}</div><p class="text-sm text-muted-foreground">{{ adminText('k008z') }}</p></div>
           <Switch v-model="securityForm.enableSignup" />
+        </div>
+        <div class="space-y-2">
+          <div class="text-base font-medium">{{ adminText('k00lk') }}</div>
+          <p class="text-sm text-muted-foreground">{{ adminText('k00ll') }}</p>
+          <Input v-model.number="securityForm.maxDailySignups" type="number" min="-1" step="1" class="max-w-sm" />
         </div>
         <div class="flex items-center justify-between">
           <div><div class="flex items-center gap-2 text-base font-medium"><MailCheck class="size-4" />{{ adminText('k0090') }}</div><p class="text-sm text-muted-foreground">{{ adminText('k0091') }}</p></div>
