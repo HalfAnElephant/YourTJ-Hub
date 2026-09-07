@@ -36,11 +36,20 @@ void main() {
         GfApiClient(dio: dio, tokenStorage: _Tokens()),
       ).search('保研');
       expect(result.searchUnavailable, isFalse);
+      expect(result.query, '保研');
+      expect(result.items.first.titleHit, isTrue);
+      expect(result.items.first.score, 0.92);
+      expect(result.items.first.hitType, 'title');
+      expect(result.items.last.titleHit, isFalse);
+      expect(result.items.last.hitType, 'body');
       expect(result.items.first.path, '同济新手教程/academics/保研');
       expect(result.items.first.anchors, ['s-1', 's-2']);
       expect(result.items.first.snippet, contains('<mark>保研</mark>'));
       expect(
         WikiSearchResult.fromJson({
+          'query': '保研',
+          'total': 0,
+          'items': [],
           'searchUnavailable': true,
         }).searchUnavailable,
         isTrue,

@@ -825,8 +825,34 @@ curl -fsS -H "Host: f.yourtj.de" http://127.0.0.1/ | head -5   # 经 1Panel 反�
   Meilisearch 恢复后检查 `task_queue`，并运行 `rebuild-search-index` 做一次全量对账；
   该命令是运维恢复动作，不依赖旧任务仍处于 pending。
 
+## Built-in OIDC configuration
+
+`Current`: the deployment template enables the built-in provider for both instances. CI derives
+`oidc.issuer` from `deploy/instances/<env>.json` (`server_url` + `/api/oauth`): production uses
+`https://f.yourtj.de/api/oauth`, dev uses `https://dev.yourtj.de/api/oauth`. The explicit issuer keeps
+the dev identity endpoint independent of the production database snapshot's site settings.
+
+The registered `yourtj-mobile` client is public (no client secret), requires PKCE S256, and permits
+only `yourtj://callback`. The RS256 key is generated on first initialization at
+`./storage/oidc/signing_key.pem`, inside the instance's persistent storage mount. Preserve that
+file across restarts, image updates and migrations; do not share the key between dev and production.
+Google/GitHub retain their own provider credentials and existing HTTPS OAuth callback URLs;
+enabling the built-in provider does not configure those upstream providers.
+
+Apply through the regular image/config workflow. After the instance restarts, verify discovery:
+
+```bash
+curl --fail --silent --show-error https://dev.yourtj.de/api/oauth/.well-known/openid-configuration
+curl --fail --silent --show-error https://f.yourtj.de/api/oauth/.well-known/openid-configuration
+```
+
+The response must be JSON with the matching instance issuer and authorization/token/JWKS endpoints.
+A 404 means routes were not registered; check the deployed configuration and OIDC startup errors
+(including issuer validation and signing-key storage permissions). To disable the provider, set
+`oidc.enabled = false` in the deployment template and apply/restart through the same workflow.
+Password and Web social login remain separate from that switch.
+
 ## Runbooks to write
 
-- Built-in OIDC Provider production config ([oidc] in config.toml: enabled, issuer, signing key, clients)
 - Meilisearch index rebuild, backup
 - Logging & monitoring (config [log] slow SQL, rolling logs; health probes)

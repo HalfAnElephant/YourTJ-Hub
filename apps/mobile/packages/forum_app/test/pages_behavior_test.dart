@@ -26,6 +26,7 @@ import 'package:forum_app/src/pages/settings/settings_page.dart';
 import 'package:forum_app/src/pages/topic/topic_page.dart';
 import 'package:forum_app/src/providers.dart';
 import 'package:forum_app/src/router.dart';
+import 'package:forum_app/src/navigation/tab_scroll_registry.dart';
 import 'package:forum_app/src/widgets/topic_list.dart';
 import 'package:forum_app/src/widgets/status_views.dart';
 import 'package:forum_app/src/widgets/skeletons.dart';
@@ -33,6 +34,14 @@ import 'package:forum_app/src/widgets/skeletons.dart';
 import 'fixtures/page_fixtures.dart';
 
 /// 内存 TokenStorage(与 pages_smoke_test 同款)。
+class _RootScrollController extends GfScrollToTopController {
+  int calls = 0;
+  @override
+  Future<void> scrollToTop() async {
+    calls++;
+  }
+}
+
 class MemTokenStorage implements TokenStorage {
   String? _token;
 
@@ -2276,6 +2285,34 @@ void main() {
       expect(find.text('publish-42'), findsOneWidget);
     });
   });
+
+  testWidgets(
+    'pushed conversation preserves mounted Messages root registration',
+    (tester) async {
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final container = await makeContainer(
+        pageRepo: CountingPageRepository(client),
+        chatRepo: RecordingChatRepository(client),
+      );
+      final registry = container.read(tabScrollRegistryProvider);
+      final root = _RootScrollController();
+      registry.register(GfShellDestination.messages, root);
+      await tester.pumpWidget(
+        app(
+          container,
+          const MessagesPage(targetUserId: 2, targetUsername: 'bob'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await registry.scrollToTop(GfShellDestination.messages);
+      expect(root.calls, 1);
+    },
+  );
 
   group('个人主页发私信', () {
     test('messageUrl 正确解码 Go QueryEscape 的空格', () {

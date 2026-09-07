@@ -1,15 +1,18 @@
 /// Mirror of the existing WikiSearchResult contract. Search is grouped by page.
 class WikiSearchResult {
   const WikiSearchResult({
+    required this.query,
     required this.items,
     required this.total,
     required this.searchUnavailable,
   });
+  final String query;
   final List<WikiSearchItem> items;
   final int total;
   final bool searchUnavailable;
   factory WikiSearchResult.fromJson(Map<String, dynamic> json) =>
       WikiSearchResult(
+        query: json['query'] as String? ?? '',
         items: (json['items'] as List? ?? [])
             .map(
               (e) =>
@@ -29,10 +32,19 @@ class WikiSearchItem {
     required this.snippet,
     required this.anchors,
     required this.namespace,
+    required this.titleHit,
+    required this.score,
+    required this.hitType,
   });
   final String path, title, heading, snippet, namespace;
   final List<String> anchors;
+  final bool titleHit;
+  final double score;
+  final String hitType;
   factory WikiSearchItem.fromJson(Map<String, dynamic> json) => WikiSearchItem(
+    titleHit: json['titleHit'] == true,
+    score: (json['score'] as num?)?.toDouble() ?? 0,
+    hitType: json['hitType'] as String? ?? '',
     path: json['path'] as String? ?? '',
     title: json['title'] as String? ?? '',
     heading: json['heading'] as String? ?? '',

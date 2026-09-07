@@ -18,8 +18,14 @@ import (
 // ProviderLogin 开始OAuth登录/绑定流程（根据登录状态自动判断）
 func ProviderLogin(c *gin.Context) {
 	q := c.Request.URL.Query()
-	q.Add("provider", c.Param("provider"))
+	q.Set("provider", c.Param("provider"))
 	c.Request.URL.RawQuery = q.Encode()
+	// Account binding retains its settings destination, even if a caller supplies
+	// an OIDC continuation. Existing browser authentication is authoritative here.
+	if component.GetLoginUser(c).UserId > 0 {
+		q.Del("redirect")
+		c.Request.URL.RawQuery = q.Encode()
+	}
 	// 开始 OAuth 流程
 	oauthservice.BeginOAuthAuthHandler(c.Writer, c.Request)
 }
@@ -27,11 +33,11 @@ func ProviderLogin(c *gin.Context) {
 // ProviderCallback 处理OAuth登录/绑定回调（根据登录状态自动判断）
 func ProviderCallback(c *gin.Context) {
 	q := c.Request.URL.Query()
-	q.Add("provider", c.Param("provider"))
+	q.Set("provider", c.Param("provider"))
 	c.Request.URL.RawQuery = q.Encode()
 
 	// 完成 OAuth 流程
-	gothUser, err := oauthservice.CompleteOAuthUserAuth(c.Writer, c.Request)
+	gothUser, continuation, err := oauthservice.CompleteOAuthUserAuth(c.Writer, c.Request)
 	if err != nil {
 		slog.Error("OAuth callback failed", "error", err)
 		forum.RenderInternalOAuthErrorPage(c, component.MessageOAuthCallbackFailed)
@@ -42,7 +48,8 @@ func ProviderCallback(c *gin.Context) {
 	currentUserInfo := component.GetLoginUser(c)
 	currentUserId := currentUserInfo.UserId
 
-	if currentUserId > 0 {
+	// A signed OIDC continuation was started as login, not account binding.
+	if currentUserId > 0 && continuation == "" {
 		if user, ok := userservice.GetUserInfo(currentUserId); !ok || user.IsFrozen == users.StatusFrozen || user.ActorType == users.ActorTypeBot {
 			forum.RenderOAuthErrorPage(c, http.StatusForbidden, component.MessagePermissionUserFrozen)
 			return
@@ -101,7 +108,10 @@ func ProviderCallback(c *gin.Context) {
 		}
 
 		jwtopt.TokenSetting(c, token)
-		c.Redirect(http.StatusFound, "/")
+		if continuation == "" {
+			continuation = "/"
+		}
+		c.Redirect(http.StatusFound, continuation)
 	}
 }
 

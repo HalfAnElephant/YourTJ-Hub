@@ -55,8 +55,13 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   @override
   void initState() {
     super.initState();
-    _tabScrollRegistry = ref.read(tabScrollRegistryProvider)
-      ..register(GfShellDestination.messages, _scrollToTopController);
+    _tabScrollRegistry = ref.read(tabScrollRegistryProvider);
+    if (widget.targetUserId == null) {
+      _tabScrollRegistry.register(
+        GfShellDestination.messages,
+        _scrollToTopController,
+      );
+    }
     _load();
   }
 
@@ -84,6 +89,17 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   @override
   void didUpdateWidget(covariant MessagesPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.targetUserId == null && widget.targetUserId != null) {
+      _tabScrollRegistry.unregister(
+        GfShellDestination.messages,
+        _scrollToTopController,
+      );
+    } else if (oldWidget.targetUserId != null && widget.targetUserId == null) {
+      _tabScrollRegistry.register(
+        GfShellDestination.messages,
+        _scrollToTopController,
+      );
+    }
     if (oldWidget.targetUserId == widget.targetUserId &&
         oldWidget.targetUsername == widget.targetUsername &&
         oldWidget.targetAvatarUrl == widget.targetAvatarUrl) {

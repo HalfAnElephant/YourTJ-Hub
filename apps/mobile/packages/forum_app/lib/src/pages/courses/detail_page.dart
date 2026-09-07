@@ -415,7 +415,9 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
             child: ListView(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 96),
+              padding: EdgeInsets.only(
+                bottom: 96 + MediaQuery.paddingOf(context).bottom,
+              ),
               children: <Widget>[
                 _CourseHeader(detail: detail),
                 const GfDivider(),

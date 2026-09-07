@@ -21,10 +21,15 @@ class _Repository extends WikiRepository {
 }
 
 WikiSearchResult _result(String title) => WikiSearchResult.fromJson({
+  'query': '选课',
+  'searchUnavailable': false,
   'total': 1,
   'items': [
     {
       'title': title,
+      'titleHit': false,
+      'score': 0.61,
+      'hitType': 'body',
       'path': '指南/选课',
       'anchors': ['s-2'],
       'namespace': '指南',

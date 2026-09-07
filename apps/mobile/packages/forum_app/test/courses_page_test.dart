@@ -527,6 +527,39 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('bottom safe area does not cover the last related course', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.reset);
+      final course = FakeCourseRepository(
+        _client(),
+        detailPayload: _detailPayload(),
+        relatedPayload: _relatedPayload(),
+        reviewPayloads: _reviewPayloads(),
+      );
+      await tester.pumpWidget(
+        _app(
+          _container(courseRepo: course),
+          const CourseDetailPage(courseId: 42),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final list = find.byType(ListView).first;
+      await tester.drag(list, const Offset(0, -6000));
+      await tester.pumpAndSettle();
+      final lastRow = find.text('等价');
+      final dock = find
+          .ancestor(of: find.text('写课评'), matching: find.byType(ColoredBox))
+          .first;
+      expect(
+        tester.getBottomLeft(lastRow).dy,
+        lessThanOrEqualTo(tester.getTopLeft(dock).dy),
+      );
+    });
+
     testWidgets('展示评分分布、开课班级、相关课程与沿革', (tester) async {
       final FakeCourseRepository course = FakeCourseRepository(
         _client(),

@@ -55,6 +55,12 @@ captcha and TOTP. Google follows the public Web provider configuration. Social s
 and persists the request, the server may redirect its own login bridge to the selected existing
 OAuth route. Unknown hints and already-authenticated redirects retain the standard flow; browser
 binding, exact redirect matching, nonce and PKCE requirements are unchanged.
+The social OAuth hop retains only the fixed `/api/oauth/authorize/callback?id=…` destination
+in a signed HttpOnly, SameSite=Lax cookie (10-minute lifetime), bound to a fresh OAuth state
+and the selected provider. The callback clears that continuation, validates it and completes
+upstream authentication before resuming OIDC. Callback-supplied redirects are ignored. Ordinary
+Web login returns home; account binding returns to settings. A continuation started as login
+cannot become an account-binding operation if another forum session appears in the browser.
 
 1. AppAuth + PKCE opens the forum built-in OIDC authorization page and receives the callback
    authorization code; the app retains the matching PKCE verifier and nonce in memory;
