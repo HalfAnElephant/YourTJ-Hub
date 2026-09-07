@@ -54,14 +54,15 @@ type pkOfferingAgg struct {
 // （否则会漏卡，且选中教师依赖查询顺序）。身份键 = teacher_code（身份主锚），
 // 缺失时回退自然键 (normalized_name, department)（review Should）。
 type pkCourseAgg struct {
-	CourseCode      string
-	IdentityTeacher string // 该组身份教师名（教学班首位教师）；无教师为空串
-	Name            string
-	Credit          float64
-	Department      string
-	TeacherRefs     []pkTeacherRef
-	Aliases         []string
-	ClassOfferings  []*pkOfferingAgg // 该组课程下全部教学班（offering 物化输入）
+	CourseCode        string
+	SourceCourseCodes []string // 一系统原始课号；改码升级时用于复用旧课程卡
+	IdentityTeacher   string   // 该组身份教师名（教学班首位教师）；无教师为空串
+	Name              string
+	Credit            float64
+	Department        string
+	TeacherRefs       []pkTeacherRef
+	Aliases           []string
+	ClassOfferings    []*pkOfferingAgg // 该组课程下全部教学班（offering 物化输入）
 }
 
 // MaterializeFromPk 将指定学期的一系统（PK）课程物化到课程目录：缺教师按名创建、缺课程按
@@ -183,7 +184,7 @@ func aggregatePkCourses(calendarIds []uint64) ([]*pkCourseAgg, error) {
 	order := make([]string, 0, len(details))
 	byKey := map[string]*pkCourseAgg{}
 	for _, d := range details {
-		code := strings.TrimSpace(d.CourseCode)
+		code := d.EffectiveCourseCode()
 		if code == "" {
 			continue
 		}
@@ -225,6 +226,7 @@ func aggregatePkCourses(calendarIds []uint64) ([]*pkCourseAgg, error) {
 			agg.Credit = *d.Credit
 		}
 		agg.TeacherRefs = appendTeacherRefs(agg.TeacherRefs, classTeachers...)
+		agg.SourceCourseCodes = appendUnique(agg.SourceCourseCodes, strings.TrimSpace(d.CourseCode))
 		for _, v := range []string{d.CourseCode, d.Code, d.NewCourseCode, d.NewCode} {
 			v = strings.TrimSpace(v)
 			if v != "" {
@@ -235,7 +237,7 @@ func aggregatePkCourses(calendarIds []uint64) ([]*pkCourseAgg, error) {
 		offering := &pkOfferingAgg{
 			TeachingClassId: d.Id,
 			CalendarId:      d.CalendarId,
-			ClassCode:       strings.TrimSpace(d.Code),
+			ClassCode:       d.EffectiveClassCode(),
 			ClassName:       strings.TrimSpace(d.Name),
 			Campus:          campusI18n[d.Campus],
 			Faculty:         dept,
@@ -315,11 +317,11 @@ func upsertPkCourseTx(tx *gorm.DB, agg *pkCourseAgg, instructorCache map[string]
 		Status:         course.StatusVisible,
 	}
 
-	existing, err := course.GetCourseByCodeTeacherTx(tx, agg.CourseCode, teacherId)
+	existing, err := findPkCourseForMaterializeTx(tx, agg, teacherId)
 	inserted := false
 	switch {
 	case err == nil:
-		if err := tx.Model(&course.Entity{}).Where("id = ?", existing.Id).Updates(map[string]any{
+		updates := map[string]any{
 			"name":            entity.Name,
 			"department":      entity.Department,
 			"credit_x10":      entity.CreditX10,
@@ -327,7 +329,11 @@ func upsertPkCourseTx(tx *gorm.DB, agg *pkCourseAgg, instructorCache map[string]
 			"name_pinyin":     entity.NamePinyin,
 			"name_initials":   entity.NameInitials,
 			// 不写 status：避免复活管理员隐藏课程。
-		}).Error; err != nil {
+		}
+		if existing.PrimaryCode != agg.CourseCode {
+			updates["primary_code"] = agg.CourseCode
+		}
+		if err := tx.Model(&course.Entity{}).Where("id = ?", existing.Id).Updates(updates).Error; err != nil {
 			return nil, false, fmt.Errorf("materialize: update course %s: %w", agg.CourseCode, err)
 		}
 		entity.Id = existing.Id
@@ -346,6 +352,25 @@ func upsertPkCourseTx(tx *gorm.DB, agg *pkCourseAgg, instructorCache map[string]
 		return nil, false, err
 	}
 	return &entity, inserted, nil
+}
+
+// findPkCourseForMaterializeTx 优先按当前有效码定位；未命中时按原始课号和同一身份教师
+// 复用旧版本已经物化的课程卡，使改码只提升 primary_code，不拆分课评与 offering。
+func findPkCourseForMaterializeTx(tx *gorm.DB, agg *pkCourseAgg, teacherId uint64) (course.Entity, error) {
+	entity, err := findCourseByCodeOrAliasTeacherTx(tx, agg.CourseCode, teacherId)
+	if err == nil || !errors.Is(err, gorm.ErrRecordNotFound) {
+		return entity, err
+	}
+	for _, sourceCode := range agg.SourceCourseCodes {
+		if Normalize(sourceCode) == Normalize(agg.CourseCode) {
+			continue
+		}
+		entity, err = course.GetCourseByCodeTeacherTx(tx, sourceCode, teacherId)
+		if err == nil || !errors.Is(err, gorm.ErrRecordNotFound) {
+			return entity, err
+		}
+	}
+	return course.Entity{}, gorm.ErrRecordNotFound
 }
 
 // resolveOfferingCourseIdTx 解析 offering 写入用的 courseId：课程卡已被确认合并

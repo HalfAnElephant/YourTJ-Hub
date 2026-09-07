@@ -26,7 +26,8 @@ func ListMajorCourseRows(calendarId int, code string, grade int) ([]MajorCourseR
 	var rows []MajorCourseRow
 	err := courseDetailBuilder().
 		Select(
-			`pk_course_detail.id, pk_course_detail.code, pk_course_detail.course_code,
+			`pk_course_detail.id, `+effectiveClassCodeSQL+` AS code,
+			 `+effectiveCourseCodeSQL+` AS course_code,
 			 pk_course_detail.course_name, pk_course_detail.course_label_id,
 			 pk_course_detail.credit, pk_course_detail.campus, pk_course_detail.faculty,
 			 pk_course_detail.teaching_language, pk_course_detail.calendar_id,
@@ -41,7 +42,7 @@ func ListMajorCourseRows(calendarId int, code string, grade int) ([]MajorCourseR
 		Where("pk_course_detail.calendar_id = ?", calendarId).
 		Where("pk_major.code = ?", code).
 		Where("pk_major.grade <= ?", grade).
-		Order("pk_course_detail.course_code ASC, pk_course_detail.code ASC").
+		Order(effectiveCourseCodeSQL + " ASC, " + effectiveClassCodeSQL + " ASC").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, err
@@ -54,6 +55,7 @@ type CourseDetailRow struct {
 	Id                   uint64
 	Code                 string
 	CourseCode           string
+	SourceCourseCode     string
 	CourseName           string
 	CourseLabelId        int
 	Credit               float64
@@ -90,7 +92,9 @@ func ListCourseDetailRowsByCodes(calendarId int, codes []string) ([]CourseDetail
 		var batch []CourseDetailRow
 		if err := courseDetailBuilder().
 			Select(
-				`pk_course_detail.id, pk_course_detail.code, pk_course_detail.course_code,
+				`pk_course_detail.id, `+effectiveClassCodeSQL+` AS code,
+				 `+effectiveCourseCodeSQL+` AS course_code,
+				 pk_course_detail.course_code AS source_course_code,
 				 pk_course_detail.course_name, pk_course_detail.course_label_id,
 				 pk_course_detail.credit, pk_course_detail.campus,
 				 pk_course_detail.teaching_language, pk_course_detail.faculty,
@@ -98,8 +102,8 @@ func ListCourseDetailRowsByCodes(calendarId int, codes []string) ([]CourseDetail
 			Joins("LEFT JOIN pk_campus ca ON ca.campus = pk_course_detail.campus").
 			Joins("LEFT JOIN pk_language l ON l.teaching_language = pk_course_detail.teaching_language").
 			Where("pk_course_detail.calendar_id = ?", calendarId).
-			Where("pk_course_detail.course_code IN ?", part).
-			Order("pk_course_detail.course_code ASC, pk_course_detail.code ASC").
+			Where("("+effectiveCourseCodeSQL+" IN ? OR pk_course_detail.course_code IN ?)", part, part).
+			Order(effectiveCourseCodeSQL + " ASC, " + effectiveClassCodeSQL + " ASC").
 			Scan(&batch).Error; err != nil {
 			return nil, err
 		}
@@ -132,7 +136,8 @@ func ListAllCourseDetailRowsByCodes(calendarId int, codes []string) ([]MajorCour
 		var batch []MajorCourseRow
 		if err := courseDetailBuilder().
 			Select(
-				`pk_course_detail.id, pk_course_detail.code, pk_course_detail.course_code,
+				`pk_course_detail.id, `+effectiveClassCodeSQL+` AS code,
+				 `+effectiveCourseCodeSQL+` AS course_code,
 				 pk_course_detail.course_name, pk_course_detail.course_label_id,
 				 pk_course_detail.credit, pk_course_detail.campus, pk_course_detail.faculty,
 				 pk_course_detail.teaching_language, pk_course_detail.calendar_id,
@@ -142,8 +147,8 @@ func ListAllCourseDetailRowsByCodes(calendarId int, codes []string) ([]MajorCour
 			Joins("LEFT JOIN pk_course_nature_by_calendar n ON n.course_label_id = pk_course_detail.course_label_id AND n.calendar_id = pk_course_detail.calendar_id").
 			Joins("LEFT JOIN pk_language l ON l.teaching_language = pk_course_detail.teaching_language").
 			Where("pk_course_detail.calendar_id = ?", calendarId).
-			Where("pk_course_detail.course_code IN ?", part).
-			Order("pk_course_detail.course_code ASC, pk_course_detail.code ASC").
+			Where("("+effectiveCourseCodeSQL+" IN ? OR pk_course_detail.course_code IN ?)", part, part).
+			Order(effectiveCourseCodeSQL + " ASC, " + effectiveClassCodeSQL + " ASC").
 			Scan(&batch).Error; err != nil {
 			return nil, err
 		}
@@ -159,13 +164,14 @@ func FindCourseDetailByCodeAnyCalendar(code string) (CourseDetailRow, error) {
 	var row CourseDetailRow
 	err := courseDetailBuilder().
 		Select(
-			`pk_course_detail.id, pk_course_detail.code, pk_course_detail.course_code,
+			`pk_course_detail.id, `+effectiveClassCodeSQL+` AS code,
+			 `+effectiveCourseCodeSQL+` AS course_code,
 			 pk_course_detail.course_name, pk_course_detail.course_label_id,
 			 pk_course_detail.credit, pk_course_detail.campus,
 			 pk_course_detail.teaching_language, pk_course_detail.faculty,
 			 pk_course_detail.calendar_id, pk_course_detail.new_course_code,
 			 pk_course_detail.new_code`).
-		Where("pk_course_detail.course_code = ?", code).
+		Where("("+effectiveCourseCodeSQL+" = ? OR pk_course_detail.course_code = ?)", code, code).
 		Order("pk_course_detail.calendar_id DESC, pk_course_detail.id ASC").
 		Limit(1).
 		Scan(&row).Error
@@ -188,14 +194,14 @@ func ListClassCodesByCourseCode(courseCode string, calendarId uint64) ([]string,
 		return []string{}, nil
 	}
 	b := courseDetailBuilder().
-		Where("pk_course_detail.course_code = ?", code).
-		Where("pk_course_detail.code <> ''")
+		Where("("+effectiveCourseCodeSQL+" = ? OR pk_course_detail.course_code = ?)", code, code).
+		Where(effectiveClassCodeSQL + " <> ''")
 	if calendarId > 0 {
 		b = b.Where("pk_course_detail.calendar_id = ?", calendarId)
 	}
 	var codes []string
 	err := b.Order("pk_course_detail.calendar_id DESC, pk_course_detail.id ASC").
-		Pluck("pk_course_detail.code", &codes).Error
+		Pluck(effectiveClassCodeSQL, &codes).Error
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +232,8 @@ func searchCourseFilter(q CourseSearchQuery) *gorm.DB {
 		b = b.Where("pk_course_detail.course_name LIKE ?", "%"+q.CourseName+"%")
 	}
 	if q.CourseCode != "" {
-		b = b.Where("(pk_course_detail.course_code = ? OR pk_course_detail.code = ?)", q.CourseCode, q.CourseCode)
+		b = b.Where("("+effectiveCourseCodeSQL+" = ? OR "+effectiveClassCodeSQL+" = ? OR pk_course_detail.course_code = ? OR pk_course_detail.code = ?)",
+			q.CourseCode, q.CourseCode, q.CourseCode, q.CourseCode)
 	}
 	if q.Campus != "" {
 		b = b.Where("(pk_course_detail.campus = ? OR ca.campus_i18n = ?)", q.Campus, q.Campus)
@@ -248,15 +255,21 @@ func SearchCourseCodes(q CourseSearchQuery) ([]string, error) {
 	if q.SizeLimit <= 0 {
 		q.SizeLimit = 100
 	}
-	var codes []string
+	var rows []struct {
+		CourseCode string
+	}
 	err := searchCourseFilter(q).
-		Distinct("pk_course_detail.course_code").
-		Where("pk_course_detail.course_code <> ''").
-		Order("pk_course_detail.course_code ASC").
+		Select("DISTINCT " + effectiveCourseCodeSQL + " AS course_code").
+		Where(effectiveCourseCodeSQL + " <> ''").
+		Order(effectiveCourseCodeSQL + " ASC").
 		Limit(q.SizeLimit).
-		Pluck("pk_course_detail.course_code", &codes).Error
+		Scan(&rows).Error
 	if err != nil {
 		return nil, err
+	}
+	codes := make([]string, 0, len(rows))
+	for _, row := range rows {
+		codes = append(codes, row.CourseCode)
 	}
 	return codes, nil
 }

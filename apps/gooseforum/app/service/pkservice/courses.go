@@ -189,11 +189,9 @@ func FindCourseDetailsByCodes(calendarId int, courseCodes []string) (map[string]
 	}
 	byCourseCode := map[string][]pk.CourseDetailRow{}
 	for _, row := range rows {
-		cc := normalizeText(row.CourseCode)
-		if cc == "" {
-			continue
+		if cc, ok := matchingRequestedCourseCode(row, out); ok {
+			byCourseCode[cc] = append(byCourseCode[cc], row)
 		}
-		byCourseCode[cc] = append(byCourseCode[cc], row)
 	}
 	for code, courseRows := range byCourseCode {
 		items := make([]CourseDetailBriefItem, 0, len(courseRows))
@@ -320,11 +318,9 @@ func SyncCourseInfo(p SyncCourseInfoParams) (map[string][]CourseDetailBriefItem,
 
 	byCourseCode := map[string][]pk.CourseDetailRow{}
 	for _, row := range rows {
-		cc := normalizeText(row.CourseCode)
-		if cc == "" {
-			continue
+		if cc, ok := matchingRequestedCourseCode(row, out); ok {
+			byCourseCode[cc] = append(byCourseCode[cc], row)
 		}
-		byCourseCode[cc] = append(byCourseCode[cc], row)
 	}
 	for code, courseRows := range byCourseCode {
 		_, isMajor := majorSet[code]
@@ -368,6 +364,20 @@ func normalizeCodes(codes []string) []string {
 		out = append(out, c)
 	}
 	return out
+}
+
+// matchingRequestedCourseCode 返回该行唯一命中的请求键。正常路径优先使用改码后的
+// courseCode；仅当新码未被请求时，旧版前端持久化的原始 courseCode 才作为兼容回退。
+func matchingRequestedCourseCode(row pk.CourseDetailRow, requested map[string][]CourseDetailBriefItem) (string, bool) {
+	effectiveCode := normalizeText(row.CourseCode)
+	if _, ok := requested[effectiveCode]; effectiveCode != "" && ok {
+		return effectiveCode, true
+	}
+	sourceCode := normalizeText(row.SourceCourseCode)
+	if _, ok := requested[sourceCode]; sourceCode != "" && sourceCode != effectiveCode && ok {
+		return sourceCode, true
+	}
+	return "", false
 }
 
 // loadTeacherRows 从明细行集合提取教学班 id 并批量查教师（保留 arrangeInfoText）。

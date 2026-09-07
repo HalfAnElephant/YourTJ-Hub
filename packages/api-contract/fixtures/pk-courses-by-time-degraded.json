@@ -5,7 +5,7 @@
     "auxiliaryReady": false,
     "courses": [
       {
-        "courseCode": "TJCS201",
+        "courseCode": "CS201",
         "courseName": "数据结构与算法",
         "faculty": "计算机科学与技术系",
         "facultyI18n": "计算机科学与技术系",

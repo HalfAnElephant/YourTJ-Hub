@@ -3,7 +3,7 @@
   "msg": "查询成功",
   "data": [
     {
-      "code": "TJCS10101",
+      "code": "CS10101",
       "teachingClassId": 900001,
       "teachers": [
         {
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "code": "TJCS10102",
+      "code": "CS10102",
       "teachingClassId": 900002,
       "teachers": [
         {
