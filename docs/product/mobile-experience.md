@@ -28,6 +28,7 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   same gallery is used in the publishing preview.
 - `Current`: root headers, filter rails and bottom navigation overlay the reading viewport. They
   hide after 48 logical pixels downward and return after 12 pixels upward, with 200 ms transitions.
+  Hidden headers are clipped at the system safe-area edge; the reading viewport stays stable.
   Reaching the top, changing destination or opening the account drawer restores the controls.
   Reduced motion removes the transition; keyboard/modal interaction keeps controls visible.
   Editors and scheduler grids are pushed pages outside this behavior.
@@ -46,6 +47,14 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 - `Current`: reply edits preserve unsaved text on failed saves and confirm before discarding.
   Server-required reply captchas can be refreshed without losing the draft. Session changes
   invalidate pending edits and destructive confirmations; share failures remain visible in-app.
+
+- `Current`: embedded reply Markdown adds no device safe-area spacing. Dates and reply actions
+  share a compact footer, wrapping on narrow screens or large text. Reply references use Web's
+  subtle background and left rule, an author/avatar/floor header, and a four-line preview with
+  expand/collapse controls only when the rendered text overflows.
+- `Current`: notification headings resolve the same template keys and event types as Web in the
+  selected language, with actor names and topic/content previews. Legacy literal headings remain
+  readable; unresolved translation keys are never displayed as titles.
 
 ## Publishing
 
@@ -105,12 +114,17 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 - `Current`: profile editing includes nickname, bio, signature, website name/URL, profile language
   and the six Web social providers. Saving preserves unedited fields and unknown social providers;
   website/social destinations accept HTTP(S), and social usernames expand to provider URLs.
-  Public profiles display website/social links and open them in the system browser. Returning
+  Public profiles display website/social links with the corresponding provider marks and open
+  them in the system browser. Worn badges appear on the avatar independently of the badge list;
+  administrator identity has a localized role label. Returning
   from settings refreshes profile identity and media immediately.
 
 - `Current`: the root avatar opens an account drawer with profile, bookmarks, a folded content
   management group (drafts, content and recycle bin), settings and permission-gated workspaces.
   The profile overflow retains these infrequent entries. Account controls are outside the public profile.
+- `Current`: activity entries distinguish signup, post, like, follow and comment with matching
+  icons and localized captions. Stream changes preserve the profile header and vertical position,
+  including short/empty streams and failures; retry feedback stays within the stream.
 - `Current`: only the active profile tab displays its label; all tabs retain accessible names.
   Activity, topics, likes, own bookmarks, follows/followers and badges fetch their corresponding
   server streams. Cursor pagination uses the server's next URL within the same user's profile.

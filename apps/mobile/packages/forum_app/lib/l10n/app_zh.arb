@@ -739,5 +739,72 @@
   "loginGithub": "使用 GitHub 登录",
   "wikiSearchUnavailable": "搜索暂不可用，你仍可以返回目录浏览。",
   "wikiSearchHint": "搜索校园知识",
-  "wikiExploreTitle": "你的校园生活指南"
+  "wikiExploreTitle": "你的校园生活指南",
+  "notificationComment": "{actor} 评论了你的主题",
+  "@notificationComment": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationPostReply": "{actor} 回复了你",
+  "@notificationPostReply": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationTopicPost": "{actor} 在你关注的主题中发表了回复",
+  "@notificationTopicPost": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationFollow": "{actor} 关注了你",
+  "@notificationFollow": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationLike": "{actor} 赞了你的回复",
+  "@notificationLike": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationWikiUpdated": "{actor} 更新了你关注的 Wiki 页面",
+  "@notificationWikiUpdated": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationBadge": "你获得了“{badge}”徽章",
+  "@notificationBadge": {
+    "placeholders": {
+      "badge": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationNew": "新通知",
+  "notificationSomeone": "有人",
+  "profileRoleAdmin": "管理员",
+  "profileActionSignup": "加入社区",
+  "profileActionPost": "发布主题",
+  "profileActionLike": "点赞",
+  "profileActionFollow": "关注用户",
+  "profileActionComment": "发表回复",
+  "replyQuoteExpand": "展开引用",
+  "replyQuoteCollapse": "收起引用",
+  "notificationBadgeUnnamed": "你获得了一枚新徽章"
 }

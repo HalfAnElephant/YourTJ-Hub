@@ -739,5 +739,72 @@
   "loginGithub": "Continue with GitHub",
   "wikiSearchUnavailable": "Search is unavailable. You can still browse the directory.",
   "wikiSearchHint": "Search campus knowledge",
-  "wikiExploreTitle": "Your campus companion"
+  "wikiExploreTitle": "Your campus companion",
+  "notificationComment": "{actor} commented on your topic",
+  "@notificationComment": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationPostReply": "{actor} replied to you",
+  "@notificationPostReply": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationTopicPost": "{actor} posted in a topic you watch",
+  "@notificationTopicPost": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationFollow": "{actor} followed you",
+  "@notificationFollow": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationLike": "{actor} liked your reply",
+  "@notificationLike": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationWikiUpdated": "{actor} updated a wiki page you watch",
+  "@notificationWikiUpdated": {
+    "placeholders": {
+      "actor": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationBadge": "You earned the “{badge}” badge",
+  "@notificationBadge": {
+    "placeholders": {
+      "badge": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationNew": "New notification",
+  "notificationSomeone": "Someone",
+  "profileRoleAdmin": "Admin",
+  "profileActionSignup": "Joined the community",
+  "profileActionPost": "Published a topic",
+  "profileActionLike": "Liked",
+  "profileActionFollow": "Followed",
+  "profileActionComment": "Replied",
+  "replyQuoteExpand": "Show full quote",
+  "replyQuoteCollapse": "Collapse quote",
+  "notificationBadgeUnnamed": "You earned a new badge"
 }

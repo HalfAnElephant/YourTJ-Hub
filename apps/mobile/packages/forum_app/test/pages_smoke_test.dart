@@ -210,7 +210,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('嵌套回复'), findsOneWidget);
-    expect(find.text('回复 @bob'), findsOneWidget);
+    expect(find.text('@bob'), findsOneWidget);
     expect(find.text('移动端测试话题'), findsWidgets);
 
     // markdown_widget 的 VisibilityDetector 会创建 500ms 延迟 Timer,

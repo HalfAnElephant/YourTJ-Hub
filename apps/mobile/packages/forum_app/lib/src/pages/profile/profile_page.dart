@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -58,6 +60,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   int _tabIndex = 0;
   int _request = 0;
   bool _loadingMore = false;
+  bool _streamLoading = false;
+  Object? _streamError;
+  UserProfileProps? _headerProps;
+  double _minimumScrollOffset = 0;
   String _stream = 'timeline';
   bool _following = false;
   bool _loginRequired = false;
@@ -79,7 +85,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _load();
   }
 
-  Future<void> _load({bool silent = false, String? nextUrl}) async {
+  Future<void> _load({
+    bool silent = false,
+    String? nextUrl,
+    bool streamChange = false,
+  }) async {
     final request = ++_request;
     final previous = _page.valueOrNull;
     if (!silent && mounted) {
@@ -119,16 +129,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           followers: [...previous.followers, ...props.followers],
         );
       }
+      if (props == null) {
+        throw FormatException(AppLocalizations.of(context).commonParseFailed);
+      }
       final loaded = props;
       setState(() {
         _loginRequired = false;
-        _page = loaded == null
-            ? AsyncValue.error(
-                AppLocalizations.of(context).commonParseFailed,
-                StackTrace.current,
-              )
-            : AsyncValue.data(loaded);
-        _following = loaded?.user.isFollowing ?? false;
+        _page = AsyncValue.data(loaded);
+        if (!streamChange && nextUrl == null) _headerProps = loaded;
+        _streamLoading = false;
+        _streamError = null;
+        _following = loaded.user.isFollowing;
         _canAccessAdmin = payload.layout.viewer.canAccessAdmin;
         _canModerate = payload.layout.viewer.isModerator;
         _canManageCourses = payload.layout.viewer.canManageCourses;
@@ -137,7 +148,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       if (mounted && request == _request) {
         setState(() {
           _loginRequired = false;
-          _page = AsyncValue.error(e, st);
+          if (streamChange && previous != null) {
+            _page = AsyncValue.data(previous);
+            _streamLoading = false;
+            _streamError = e;
+          } else {
+            _page = AsyncValue.error(e, st);
+          }
         });
       }
     }
@@ -320,7 +337,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   controller: controller,
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: <Widget>[
-                    SliverToBoxAdapter(child: _profileCard(props)),
+                    SliverToBoxAdapter(
+                      child: _profileCard(_headerProps ?? props),
+                    ),
                     const SliverToBoxAdapter(child: GfDivider()),
                     if (tabs.isNotEmpty)
                       SliverToBoxAdapter(
@@ -330,16 +349,45 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           onChanged: (int index) {
                             if (_stream == tabs[index].key) return;
                             setState(() {
+                              _minimumScrollOffset = math.max(
+                                0,
+                                controller.offset,
+                              );
                               _tabIndex = index;
                               _stream = tabs[index].key;
+                              _streamLoading = true;
+                              _streamError = null;
                             });
-                            _load(silent: true);
+                            _load(silent: true, streamChange: true);
                           },
                         ),
                       ),
                     const SliverToBoxAdapter(child: GfDivider()),
-                    _ProfileBody(props: props, selectedKey: _stream),
-                    if (props.pagination.hasNext)
+                    if (_streamLoading)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(child: GfLoadingIndicator(small: true)),
+                        ),
+                      )
+                    else if (_streamError != null)
+                      SliverToBoxAdapter(
+                        child: GfErrorRetry(
+                          message: resolveErrorMessage(l10n, _streamError!),
+                          onRetry: () {
+                            setState(() {
+                              _streamLoading = true;
+                              _streamError = null;
+                            });
+                            _load(silent: true, streamChange: true);
+                          },
+                        ),
+                      )
+                    else
+                      _ProfileBody(props: props, selectedKey: _stream),
+                    if (!_streamLoading &&
+                        _streamError == null &&
+                        props.pagination.hasNext)
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -351,7 +399,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                       ),
 
-                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                    // Short/empty streams must not clamp the shared header back
+                    // into view. Reserve only the offset captured at tab change.
+                    SliverLayoutBuilder(
+                      builder: (context, constraints) => SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: math.max(
+                            32,
+                            _minimumScrollOffset +
+                                constraints.viewportMainAxisExtent -
+                                constraints.precedingScrollExtent,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -376,8 +437,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       );
     }
     if (user.isAdmin) {
-      badges['admin'] = const GfUserBadge(
-        label: 'Admin',
+      badges['admin'] = GfUserBadge(
+        label: l10n.profileRoleAdmin,
         color: Color(0xFFB45309),
       );
     }
@@ -423,6 +484,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return GfUserCard(
       coverUrl: resolveApiAssetUrl(user.profileCoverUrl),
       avatarUrl: resolveApiAssetUrl(user.avatarUrl),
+      avatarBadge: user.wornBadge == null
+          ? null
+          : GfBadgeIcon(
+              url: resolveApiAssetUrl(
+                user.wornBadge!.iconUrl.isEmpty
+                    ? '/static/badges/contributor.svg'
+                    : user.wornBadge!.iconUrl,
+              ),
+              label: user.wornBadge!.name,
+            ),
       name: user.nickname.isEmpty ? user.username : user.nickname,
       username: user.username,
       bio: user.bio,
@@ -433,12 +504,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               spacing: 4,
               runSpacing: 4,
               children: [
-                for (final (label, uri) in links)
+                for (final (label, uri, provider) in links)
                   TextButton.icon(
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
-                    icon: const Icon(Icons.link, size: 16),
+                    icon: switch (provider) {
+                      'github' => const GfSymbol('github', size: 18),
+                      'twitter' => const GfSymbol('twitter', size: 18),
+                      'linkedIn' => const GfSymbol('linkedin', size: 18),
+                      'weibo' => const GfSymbol('weibo', size: 18),
+                      'bilibili' => const GfSymbol('bilibili', size: 18),
+                      'zhihu' => const GfSymbol('zhihu', size: 18),
+                      _ => const Icon(Icons.link, size: 18),
+                    },
                     label: Text(
                       label,
                       maxLines: 1,
@@ -653,9 +732,34 @@ class _ProfileBody extends StatelessWidget {
       itemBuilder: (BuildContext context, int index) {
         final UserActivityPayload activity = props.activities[index];
         final String? route = _activityRoute(activity);
+        final action = switch (activity.action) {
+          1 => 'signup',
+          2 => 'post',
+          3 => 'like',
+          4 => 'follow',
+          5 => 'comment',
+          _ => activity.label,
+        };
         return GfSettingRow(
-          icon: Icons.bolt_outlined,
-          title: activity.contentPreview,
+          icon: switch (action) {
+            'signup' => Icons.person_add_alt_1_outlined,
+            'post' => Icons.edit_outlined,
+            'like' => Icons.favorite_border,
+            'follow' => Icons.person_add_outlined,
+            'comment' => Icons.chat_bubble_outline,
+            _ => Icons.bolt_outlined,
+          },
+          title: [
+            switch (action) {
+              'signup' => l10n.profileActionSignup,
+              'post' => l10n.profileActionPost,
+              'like' => l10n.profileActionLike,
+              'follow' => l10n.profileActionFollow,
+              'comment' => l10n.profileActionComment,
+              _ => activity.label,
+            },
+            activity.contentPreview,
+          ].where((s) => s.isNotEmpty).join(' · '),
           description: timeAgo(activity.createdAt, l10n: l10n),
           onTap: route == null ? null : () => context.push(route),
         );

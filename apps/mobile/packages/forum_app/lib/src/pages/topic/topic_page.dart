@@ -1327,6 +1327,7 @@ class _PostCard extends StatelessWidget {
             if (showReplyQuote)
               _ReplyQuote(
                 username: post.replyToUsername!,
+                avatarUrl: quoteTarget?.author.avatarUrl ?? '',
                 postNo: quoteTarget?.postNo,
                 contentPreview: _plainTextFromHtml(
                   quoteTarget?.renderedContent,
@@ -1348,20 +1349,38 @@ class _PostCard extends StatelessWidget {
           else
             GfMarkdownView(data: post.content),
           const SizedBox(height: 10),
-          Text(
-            timeAgo(post.createdAt, l10n: l10n),
-            style: GfTheme.typographyOf(
-              context,
-            ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: PostActions(
-              post: post,
-              onChanged: onChanged,
-              onReply: onReply,
-              onReport: onReport,
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final timestamp = Text(
+                timeAgo(post.createdAt, l10n: l10n),
+                style: GfTheme.typographyOf(
+                  context,
+                ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
+              );
+              final actions = PostActions(
+                post: post,
+                onChanged: onChanged,
+                onReply: onReply,
+                onReport: onReport,
+              );
+              // Keep controls tappable at large text sizes and narrow widths.
+              if (constraints.maxWidth < 340 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 20) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    timestamp,
+                    Align(alignment: Alignment.centerRight, child: actions),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: timestamp),
+                  actions,
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1393,11 +1412,13 @@ class _ReplyQuote extends StatefulWidget {
     required this.unavailable,
     this.postNo,
     this.contentPreview,
+    this.avatarUrl = '',
   });
 
   final String username;
   final int? postNo;
   final String? contentPreview;
+  final String avatarUrl;
   final bool unavailable;
 
   @override
@@ -1406,69 +1427,109 @@ class _ReplyQuote extends StatefulWidget {
 
 class _ReplyQuoteState extends State<_ReplyQuote> {
   bool _expanded = false;
+  @override
+  void didUpdateWidget(covariant _ReplyQuote oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.contentPreview != widget.contentPreview ||
+        oldWidget.postNo != widget.postNo) {
+      _expanded = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final String header = widget.postNo == null
-        ? '${l10n.topicReply} @${widget.username}'
-        : '${l10n.topicReply} @${widget.username} #${widget.postNo}';
     final String preview = widget.contentPreview ?? '';
     final bool hasPreview = !widget.unavailable && preview.isNotEmpty;
-
+    final style = GfTheme.typographyOf(context).small.copyWith(
+      color: colors.baseContent.withValues(alpha: 0.75),
+      height: 1.45,
+    );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: colors.base200,
-        border: Border(left: BorderSide(color: colors.primary, width: 2)),
-        borderRadius: BorderRadius.circular(4),
+        color: colors.base200.withValues(alpha: 0.4),
+        border: Border(
+          left: BorderSide(
+            color: colors.primary.withValues(alpha: 0.45),
+            width: 2,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            header,
-            style: TextStyle(
-              color: colors.baseContent.withValues(alpha: 0.55),
-              fontSize: 12,
-            ),
-          ),
-          if (widget.unavailable) ...<Widget>[
-            const SizedBox(height: 4),
-            Text(
-              l10n.topicReplyTargetUnavailable,
-              style: TextStyle(
-                color: colors.baseContent.withValues(alpha: 0.45),
-                fontSize: 12,
-              ),
-            ),
-          ] else if (hasPreview) ...<Widget>[
-            const SizedBox(height: 4),
-            Text(
-              preview,
-              maxLines: _expanded ? null : 3,
-              overflow: _expanded ? TextOverflow.clip : TextOverflow.ellipsis,
-              style: TextStyle(
-                color: colors.baseContent.withValues(alpha: 0.75),
-                fontSize: 13,
-                height: 1.35,
-              ),
-            ),
-            if (preview.length > 120)
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _expanded = !_expanded),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 18,
-                    color: colors.baseContent.withValues(alpha: 0.45),
-                  ),
+        children: [
+          Row(
+            children: [
+              if (!widget.unavailable) ...[
+                GfAvatar(src: resolveApiAssetUrl(widget.avatarUrl), size: 20),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  '@${widget.username}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
+              if (widget.postNo != null)
+                Text(
+                  '#${widget.postNo}',
+                  style: style.copyWith(color: colors.iconMuted),
+                ),
+            ],
+          ),
+          if (widget.unavailable) ...[
+            const SizedBox(height: 6),
+            Text(l10n.topicReplyTargetUnavailable, style: style),
+          ] else if (hasPreview) ...[
+            const SizedBox(height: 6),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final painter = TextPainter(
+                  text: TextSpan(text: preview, style: style),
+                  maxLines: 4,
+                  textDirection: Directionality.of(context),
+                  textScaler: MediaQuery.textScalerOf(context),
+                )..layout(maxWidth: constraints.maxWidth);
+                final overflowing = painter.didExceedMaxLines;
+                painter.dispose();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      preview,
+                      maxLines: _expanded ? null : 4,
+                      overflow: _expanded
+                          ? TextOverflow.clip
+                          : TextOverflow.ellipsis,
+                      style: style,
+                    ),
+                    if (overflowing)
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(44, 44),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => setState(() => _expanded = !_expanded),
+                        icon: Icon(
+                          _expanded ? Icons.expand_less : Icons.expand_more,
+                          size: 16,
+                        ),
+                        label: Text(
+                          _expanded
+                              ? l10n.replyQuoteCollapse
+                              : l10n.replyQuoteExpand,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ],
         ],
       ),

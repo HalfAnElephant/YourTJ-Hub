@@ -1497,4 +1497,72 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wikiExploreTitle => 'Your campus companion';
+
+  @override
+  String notificationComment(String actor) {
+    return '$actor commented on your topic';
+  }
+
+  @override
+  String notificationPostReply(String actor) {
+    return '$actor replied to you';
+  }
+
+  @override
+  String notificationTopicPost(String actor) {
+    return '$actor posted in a topic you watch';
+  }
+
+  @override
+  String notificationFollow(String actor) {
+    return '$actor followed you';
+  }
+
+  @override
+  String notificationLike(String actor) {
+    return '$actor liked your reply';
+  }
+
+  @override
+  String notificationWikiUpdated(String actor) {
+    return '$actor updated a wiki page you watch';
+  }
+
+  @override
+  String notificationBadge(String badge) {
+    return 'You earned the “$badge” badge';
+  }
+
+  @override
+  String get notificationNew => 'New notification';
+
+  @override
+  String get notificationSomeone => 'Someone';
+
+  @override
+  String get profileRoleAdmin => 'Admin';
+
+  @override
+  String get profileActionSignup => 'Joined the community';
+
+  @override
+  String get profileActionPost => 'Published a topic';
+
+  @override
+  String get profileActionLike => 'Liked';
+
+  @override
+  String get profileActionFollow => 'Followed';
+
+  @override
+  String get profileActionComment => 'Replied';
+
+  @override
+  String get replyQuoteExpand => 'Show full quote';
+
+  @override
+  String get replyQuoteCollapse => 'Collapse quote';
+
+  @override
+  String get notificationBadgeUnnamed => 'You earned a new badge';
 }

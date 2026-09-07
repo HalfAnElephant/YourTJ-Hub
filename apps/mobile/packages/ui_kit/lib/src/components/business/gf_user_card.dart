@@ -30,6 +30,7 @@ class GfUserCard extends StatelessWidget {
     this.stats = const <(String, String)>[],
     this.actions,
     this.details,
+    this.avatarBadge,
   });
 
   final String avatarUrl;
@@ -53,6 +54,9 @@ class GfUserCard extends StatelessWidget {
 
   /// Public metadata such as website and social links, below the bio.
   final Widget? details;
+
+  /// The selected, worn badge attached to the profile avatar.
+  final Widget? avatarBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +87,7 @@ class GfUserCard extends StatelessWidget {
               // Avatar overlapping the cover by 36px.
               Transform.translate(
                 offset: const Offset(0, -36),
-                child: GfAvatar(src: avatarUrl, size: 80),
+                child: GfAvatar(src: avatarUrl, size: 80, badge: avatarBadge),
               ),
               Transform.translate(
                 offset: const Offset(0, -32),

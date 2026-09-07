@@ -1470,4 +1470,72 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get wikiExploreTitle => '你的校园生活指南';
+
+  @override
+  String notificationComment(String actor) {
+    return '$actor 评论了你的主题';
+  }
+
+  @override
+  String notificationPostReply(String actor) {
+    return '$actor 回复了你';
+  }
+
+  @override
+  String notificationTopicPost(String actor) {
+    return '$actor 在你关注的主题中发表了回复';
+  }
+
+  @override
+  String notificationFollow(String actor) {
+    return '$actor 关注了你';
+  }
+
+  @override
+  String notificationLike(String actor) {
+    return '$actor 赞了你的回复';
+  }
+
+  @override
+  String notificationWikiUpdated(String actor) {
+    return '$actor 更新了你关注的 Wiki 页面';
+  }
+
+  @override
+  String notificationBadge(String badge) {
+    return '你获得了“$badge”徽章';
+  }
+
+  @override
+  String get notificationNew => '新通知';
+
+  @override
+  String get notificationSomeone => '有人';
+
+  @override
+  String get profileRoleAdmin => '管理员';
+
+  @override
+  String get profileActionSignup => '加入社区';
+
+  @override
+  String get profileActionPost => '发布主题';
+
+  @override
+  String get profileActionLike => '点赞';
+
+  @override
+  String get profileActionFollow => '关注用户';
+
+  @override
+  String get profileActionComment => '发表回复';
+
+  @override
+  String get replyQuoteExpand => '展开引用';
+
+  @override
+  String get replyQuoteCollapse => '收起引用';
+
+  @override
+  String get notificationBadgeUnnamed => '你获得了一枚新徽章';
 }

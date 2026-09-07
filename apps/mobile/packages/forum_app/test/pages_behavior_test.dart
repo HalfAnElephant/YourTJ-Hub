@@ -490,16 +490,21 @@ class FailAfterFirstMessagesRepository extends CountingPageRepository {
 
 /// Returns richer, long-form fixtures for the redesigned content pages.
 class RedesignPageRepository extends PageRepository {
-  RedesignPageRepository(super.client, {this.profilePayload});
+  RedesignPageRepository(
+    super.client, {
+    this.profilePayload,
+    this.topicPayload,
+  });
 
   final Map<String, dynamic>? profilePayload;
+  final Map<String, dynamic>? topicPayload;
   final paths = <String>[];
 
   @override
   Future<PagePayload> fetch(String path) async {
     paths.add(path);
     if (path.startsWith('/p/post/')) {
-      return parsePayload(redesignedTopicPayloadJson());
+      return parsePayload(topicPayload ?? redesignedTopicPayloadJson());
     }
     if (path.startsWith('/u/')) {
       return parsePayload(profilePayload ?? redesignedProfilePayloadJson());
@@ -508,6 +513,29 @@ class RedesignPageRepository extends PageRepository {
       return parsePayload(homePayloadJson());
     }
     throw UnimplementedError('unexpected page path: $path');
+  }
+}
+
+class _ShortProfileStreams extends RedesignPageRepository {
+  _ShortProfileStreams(super.client);
+  bool fail = false;
+  @override
+  Future<PagePayload> fetch(String path) async {
+    if (fail) throw StateError('stream unavailable');
+    final payload = redesignedProfilePayloadJson();
+    final props = payload['props'] as Map<String, dynamic>;
+    if (path.endsWith('/likes')) {
+      props['likes'] = [];
+      props['topics'] = [];
+      props['activities'] = [];
+    } else {
+      final activities = props['activities'] as List;
+      props['activities'] = List.generate(
+        30,
+        (i) => {...(activities.first as Map<String, dynamic>), 'id': i + 1},
+      );
+    }
+    return parsePayload(payload);
   }
 }
 
@@ -1024,6 +1052,7 @@ class DraftsPageRepository extends PageRepository {
 
 /// 记录 filter 的 NotificationRepository。
 class FilteringNotificationRepository extends NotificationRepository {
+  NotificationPayload? overrideItem;
   FilteringNotificationRepository(super.client);
 
   final List<String> filters = [];
@@ -1046,7 +1075,7 @@ class FilteringNotificationRepository extends NotificationRepository {
       payload: const NotificationInnerPayload(actorId: 1),
     );
     return NotificationListResponse(
-      items: [n],
+      items: [overrideItem ?? n],
       nextCursor: 0,
       hasNext: false,
       unreadCount: 1,
@@ -1401,6 +1430,217 @@ void main() {
       ),
     );
   }
+
+  testWidgets('short multiline quotes expand by actual line overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final payload = redesignedTopicPayloadJson();
+    final stream =
+        (payload['props'] as Map<String, dynamic>)['postStream']
+            as Map<String, dynamic>;
+    final posts = stream['posts'] as List;
+    final reply = posts[2] as Map<String, dynamic>;
+    reply['replyToPostId'] = 9002;
+    reply['replyToUsername'] = 'quoted';
+    stream['posts'] = [posts.first, reply];
+    stream['replyTargets'] = [
+      {
+        'id': 9002,
+        'postNo': 2,
+        'unavailable': false,
+        'author': {'id': 2, 'username': 'quoted', 'avatarUrl': ''},
+        'renderedContent': 'one<br>two<br>three<br>four<br>five<br>six',
+      },
+    ];
+    final container = await makeContainer(
+      pageRepo: RedesignPageRepository(client, topicPayload: payload),
+    );
+    await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+    await tester.pumpAndSettle();
+    const preview = 'one\ntwo\nthree\nfour\nfive\nsix';
+    await tester.ensureVisible(find.text(preview));
+    expect(tester.widget<Text>(find.text(preview)).maxLines, 4);
+    await tester.tap(find.text('展开引用'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.text(preview)).maxLines, isNull);
+    await tester.tap(find.text('收起引用'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.text(preview)).maxLines, 4);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 600));
+  });
+
+  testWidgets('profile activity types have distinct semantic icons', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    for (final entry in <int, IconData>{
+      1: Icons.person_add_alt_1_outlined,
+      2: Icons.edit_outlined,
+      3: Icons.favorite_border,
+      4: Icons.person_add_outlined,
+      5: Icons.chat_bubble_outline,
+      999: Icons.bolt_outlined,
+    }.entries) {
+      final payload = redesignedProfilePayloadJson();
+      final props = payload['props'] as Map<String, dynamic>;
+      final activity =
+          (props['activities'] as List).first as Map<String, dynamic>;
+      activity['action'] = entry.key;
+      activity['label'] = 'unknown';
+      activity['contentPreview'] = '活动内容';
+      final container = await makeContainer(
+        pageRepo: RedesignPageRepository(client, profilePayload: payload),
+      );
+      await tester.pumpWidget(
+        app(container, ProfilePage(key: UniqueKey(), userId: 1)),
+      );
+      await tester.pumpAndSettle();
+      final rows = tester.widgetList<GfSettingRow>(find.byType(GfSettingRow));
+      expect(
+        rows.singleWhere((r) => r.title.contains('活动内容')).icon,
+        entry.value,
+      );
+    }
+  });
+
+  testWidgets(
+    'notifications resolve template keys instead of showing raw titles',
+    (tester) async {
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final notifications = FilteringNotificationRepository(client)
+        ..overrideItem = const NotificationPayload(
+          id: 9,
+          eventType: 'comment',
+          isRead: false,
+          createdAt: '2026-09-07',
+          title: 'notifications.templates.comment',
+          content: '',
+          actor: NotificationActorPayload(id: 2, username: 'Bob'),
+          topic: NotificationTopicPayload(id: 1, title: '选课经验', url: '/p/1'),
+          payload: NotificationInnerPayload(
+            actorId: 2,
+            templateKey: 'notifications.templates.comment',
+          ),
+        );
+      final container = await makeContainer(
+        pageRepo: CountingPageRepository(client),
+        notifRepo: notifications,
+      );
+      await tester.pumpWidget(app(container, const NotificationsPage()));
+      await tester.pumpAndSettle();
+      expect(find.text('notifications.templates.comment'), findsNothing);
+      expect(find.textContaining('Bob'), findsWidgets);
+      expect(find.text('选课经验'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'profile renders provider marks and worn badge even without badge list',
+    (tester) async {
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final payload = redesignedProfilePayloadJson();
+      final props = payload['props'] as Map<String, dynamic>;
+      final user = props['user'] as Map<String, dynamic>;
+      user['badges'] = [];
+      props['badges'] = [];
+      user['wornBadge'] = {
+        'code': 'moderator',
+        'type': 'system',
+        'grantMode': 'manual',
+        'name': '社区维护者',
+        'description': '维护社区',
+        'iconType': 'asset',
+        'iconKey': '',
+        'iconUrl': '/test-badge.png',
+        'color': 'emerald',
+        'level': 'special',
+        'isEnabled': true,
+        'isWearable': true,
+        'sortOrder': 120,
+        'source': 'manual',
+        'reason': '',
+        'grantedAt': '',
+      };
+      user['externalInformation'] = {
+        'github': {'link': 'https://github.com/alice'},
+        'twitter': {'link': 'https://x.com/alice'},
+      };
+      final container = await makeContainer(
+        pageRepo: RedesignPageRepository(client, profilePayload: payload),
+      );
+      await tester.pumpWidget(app(container, const ProfilePage(userId: 1)));
+      await tester.pumpAndSettle();
+      final avatar = tester
+          .widgetList<GfAvatar>(find.byType(GfAvatar))
+          .firstWhere((a) => a.size == 80);
+      expect(avatar.badge, isNotNull);
+      expect(
+        find.byWidgetPredicate((w) => w is GfSymbol && w.name == 'github'),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate((w) => w is GfSymbol && w.name == 'twitter'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'profile tab changes retain vertical position with short and failed streams',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final repo = _ShortProfileStreams(client);
+      final container = await makeContainer(pageRepo: repo);
+      await tester.pumpWidget(app(container, const ProfilePage(userId: 1)));
+      await tester.pumpAndSettle();
+      final scroll = tester
+          .widget<CustomScrollView>(find.byType(CustomScrollView))
+          .controller!;
+      scroll.jumpTo(180);
+      await tester.pump();
+      final offset = scroll.offset;
+      await tester.tap(find.byTooltip('获赞'));
+      await tester.pumpAndSettle();
+      expect(scroll.offset, offset);
+      repo.fail = true;
+      await tester.tap(find.byTooltip('主题'));
+      await tester.pumpAndSettle();
+      expect(find.byType(GfUserCard), findsOneWidget);
+      expect(scroll.offset, offset);
+    },
+  );
 
   group('首页下拉刷新', () {
     testWidgets(

@@ -26,18 +26,22 @@ String? normalizeProfileLink(String value, {String? prefix}) {
 
 /// Display only explicit public HTTP(S) destinations from the server. Unknown
 /// providers retain their label; editing them must not erase their stored URL.
-List<(String, Uri)> publicProfileLinks(UserCardPayload user) {
-  final links = <(String, Uri)>[];
-  void add(String label, String? raw) {
+List<(String, Uri, String?)> publicProfileLinks(UserCardPayload user) {
+  final links = <(String, Uri, String?)>[];
+  void add(String label, String? raw, [String? provider]) {
     final url = normalizeProfileLink(raw ?? '');
     if (url == null || url.isEmpty) return;
     final uri = Uri.parse(url);
-    links.add((label.trim().isEmpty ? uri.host : label, uri));
+    links.add((label.trim().isEmpty ? uri.host : label, uri, provider));
   }
 
   add(user.websiteName, user.website);
   for (final entry in user.externalInformation.entries) {
-    add(profileSocialProviders[entry.key]?.$1 ?? entry.key, entry.value.link);
+    add(
+      profileSocialProviders[entry.key]?.$1 ?? entry.key,
+      entry.value.link,
+      entry.key,
+    );
   }
   return links;
 }

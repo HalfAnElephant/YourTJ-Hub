@@ -2851,6 +2851,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your campus companion'**
   String get wikiExploreTitle;
+
+  /// No description provided for @notificationComment.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} commented on your topic'**
+  String notificationComment(String actor);
+
+  /// No description provided for @notificationPostReply.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} replied to you'**
+  String notificationPostReply(String actor);
+
+  /// No description provided for @notificationTopicPost.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} posted in a topic you watch'**
+  String notificationTopicPost(String actor);
+
+  /// No description provided for @notificationFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} followed you'**
+  String notificationFollow(String actor);
+
+  /// No description provided for @notificationLike.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} liked your reply'**
+  String notificationLike(String actor);
+
+  /// No description provided for @notificationWikiUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} updated a wiki page you watch'**
+  String notificationWikiUpdated(String actor);
+
+  /// No description provided for @notificationBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'You earned the “{badge}” badge'**
+  String notificationBadge(String badge);
+
+  /// No description provided for @notificationNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New notification'**
+  String get notificationNew;
+
+  /// No description provided for @notificationSomeone.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone'**
+  String get notificationSomeone;
+
+  /// No description provided for @profileRoleAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get profileRoleAdmin;
+
+  /// No description provided for @profileActionSignup.
+  ///
+  /// In en, this message translates to:
+  /// **'Joined the community'**
+  String get profileActionSignup;
+
+  /// No description provided for @profileActionPost.
+  ///
+  /// In en, this message translates to:
+  /// **'Published a topic'**
+  String get profileActionPost;
+
+  /// No description provided for @profileActionLike.
+  ///
+  /// In en, this message translates to:
+  /// **'Liked'**
+  String get profileActionLike;
+
+  /// No description provided for @profileActionFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Followed'**
+  String get profileActionFollow;
+
+  /// No description provided for @profileActionComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Replied'**
+  String get profileActionComment;
+
+  /// No description provided for @replyQuoteExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Show full quote'**
+  String get replyQuoteExpand;
+
+  /// No description provided for @replyQuoteCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse quote'**
+  String get replyQuoteCollapse;
+
+  /// No description provided for @notificationBadgeUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'You earned a new badge'**
+  String get notificationBadgeUnnamed;
 }
 
 class _AppLocalizationsDelegate
