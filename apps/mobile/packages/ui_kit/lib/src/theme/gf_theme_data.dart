@@ -72,7 +72,7 @@ ThemeData gfThemeData(Brightness brightness, {GfColors? overrides}) {
     // TDesign mobile pages use a quiet page canvas and raised white/black
     // content surfaces. This also makes rows, cards and dialogs visually
     // distinct without inventing a second set of brand tokens.
-    scaffoldBackgroundColor: colors.base200,
+    scaffoldBackgroundColor: colors.base100,
     canvasColor: colors.base100,
     dividerColor: colors.line,
     extensions: extensions,
@@ -84,10 +84,10 @@ ThemeData gfThemeData(Brightness brightness, {GfColors? overrides}) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: false,
+      centerTitle: true,
       toolbarHeight: 56,
       titleTextStyle: TextStyle(
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: FontWeight.w700,
         color: colors.baseContent,
       ),

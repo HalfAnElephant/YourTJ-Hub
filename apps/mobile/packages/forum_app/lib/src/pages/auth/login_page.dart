@@ -110,6 +110,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // 被后续新 shell 读取)。
       ref.invalidate(currentUserProvider);
       _cacheClearFuture = _clearOfflineCacheOnce();
+      _loadRegistration();
     });
   }
 
@@ -215,7 +216,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
-  Future<void> _loginOidc() async {
+  Future<void> _loginOidc(String provider) async {
     if (_oidcBusy) return;
     setState(() {
       _oidcBusy = true;
@@ -228,7 +229,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       clientId: AppConfig.oidcClientId,
     );
     try {
-      final bool ok = await controller.login();
+      final bool ok = await controller.login(provider: provider);
       if (!mounted) return;
       if (!ok) {
         setState(() => _oidcError = controller.error);
@@ -376,11 +377,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return PopScope(
       canPop: !_authBlocked && !_finishingAuthentication,
       child: Scaffold(
-        backgroundColor: colors.base200,
+        backgroundColor: colors.base100,
         body: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            const GfDotGridBackground(),
             SafeArea(
               child: Stack(
                 children: <Widget>[
@@ -412,8 +412,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 520),
                         child: GfCard(
-                          emphasized: true,
-                          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                          showDivider: false,
+                          padding: const EdgeInsets.fromLTRB(4, 16, 4, 24),
                           child: ListenableBuilder(
                             listenable: _authController,
                             builder: (BuildContext context, Widget? child) {
@@ -443,13 +443,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       children: <Widget>[
         Align(
           alignment: Alignment.centerLeft,
-          child: Image.asset(
-            'assets/images/brand-default.png',
-            width: 176,
-            height: 44,
-            fit: BoxFit.contain,
-            alignment: Alignment.centerLeft,
-          ),
+          child: Text('YourTJ', style: GfTheme.typographyOf(context).display),
         ),
         const SizedBox(height: 24),
         Text(
@@ -661,17 +655,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
         if (_mode == _AuthMode.login) ...<Widget>[
           const SizedBox(height: 12),
-          GfButton(
-            label: l10n.authOidcLogin,
-            variant: GfButtonVariant.outline,
-            size: GfButtonSize.extraLarge,
-            expanded: true,
-            loading: _oidcBusy || _finishingAuthentication,
-            onPressed:
-                _authController.busy || _oidcBusy || _finishingAuthentication
-                ? null
-                : _loginOidc,
-          ),
+          for (final provider in ['google', 'github']) ...[
+            OutlinedButton.icon(
+              icon: GfSymbol(provider, size: 22),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              label: Text(
+                provider == 'google' ? l10n.loginGoogle : l10n.loginGithub,
+              ),
+              onPressed:
+                  _authController.busy ||
+                      _oidcBusy ||
+                      _finishingAuthentication ||
+                      _registration == null ||
+                      (provider == 'google' && !_registration!.googleReady)
+                  ? null
+                  : () => _loginOidc(provider),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (_registrationError != null)
+            TextButton(
+              onPressed: _loadRegistration,
+              child: Text(l10n.commonRetry),
+            ),
         ],
         if (_mode == _AuthMode.forgotPassword) ...<Widget>[
           const SizedBox(height: 8),

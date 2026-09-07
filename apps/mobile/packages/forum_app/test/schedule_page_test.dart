@@ -549,9 +549,17 @@ void main() {
 
       await tester.pumpWidget(wrapApp(container));
       await tester.pumpAndSettle();
+      expect(find.text('完整版排课器，请到网页端体验'), findsOneWidget);
+      await tester.ensureVisible(find.text('方案预览'));
+      await tester.tap(find.text('方案预览'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).first, const Offset(0, -260));
+      await tester.pumpAndSettle();
 
       // 网格课程卡：高等数学（周一 1-2 节 → 第一行第一列）。
       expect(find.text('高等数学'), findsWidgets);
+      await tester.drag(find.byType(ListView).first, const Offset(0, 600));
+      await tester.pumpAndSettle();
       // 统计卡：1 门。
       expect(find.text('1 门'), findsOneWidget);
       // 方案条 + 默认方案名。
@@ -567,6 +575,12 @@ void main() {
 
       await tester.pumpWidget(wrapApp(container));
       await tester.pumpAndSettle();
+      expect(find.text('完整版排课器，请到网页端体验'), findsOneWidget);
+      await tester.ensureVisible(find.text('方案预览'));
+      await tester.tap(find.text('方案预览'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).first, const Offset(0, -260));
+      await tester.pumpAndSettle();
       expect(find.text('高等数学'), findsWidgets);
 
       // 切到第 2 周（课程只占第 1 周）。
@@ -576,6 +590,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('高等数学'), findsNothing);
+      await tester.drag(find.byType(ListView).first, const Offset(0, 600));
+      await tester.pumpAndSettle();
       // 统计仍按方案计（周次过滤不影响统计）。
       expect(find.text('1 门'), findsOneWidget);
     });
@@ -590,6 +606,12 @@ void main() {
       addTearDown(container.dispose);
 
       await tester.pumpWidget(wrapApp(container));
+      await tester.pumpAndSettle();
+      expect(find.text('完整版排课器，请到网页端体验'), findsOneWidget);
+      await tester.ensureVisible(find.text('方案预览'));
+      await tester.tap(find.text('方案预览'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListView).first, const Offset(0, -260));
       await tester.pumpAndSettle();
 
       expect(find.text('有事'), findsWidgets);

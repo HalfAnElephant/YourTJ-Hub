@@ -140,7 +140,9 @@ class GfButton extends StatelessWidget {
         ),
         shape: WidgetStatePropertyAll<OutlinedBorder>(
           RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radii.field),
+            borderRadius: BorderRadius.circular(
+              variant == GfButtonVariant.primary ? 999 : radii.field,
+            ),
           ),
         ),
         textStyle: WidgetStatePropertyAll<TextStyle>(textStyle),

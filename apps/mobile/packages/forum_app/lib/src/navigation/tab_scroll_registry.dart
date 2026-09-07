@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 /// Stable destinations owned by the persistent mobile shell.
-enum GfShellDestination { home, campus, messages, profile }
+enum GfShellDestination { home, campus, notifications, messages }
 
 /// Connects persistent shell destinations with their page-owned scroll views.
 ///

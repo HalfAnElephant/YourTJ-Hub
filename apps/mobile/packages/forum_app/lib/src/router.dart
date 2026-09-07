@@ -9,6 +9,8 @@ import 'package:ui_kit/ui_kit.dart';
 
 import '../l10n/app_localizations.dart';
 import 'navigation/tab_scroll_registry.dart';
+import 'navigation/reading_chrome.dart';
+import 'widgets/account_drawer.dart';
 import 'pages/auth/login_page.dart';
 import 'pages/admin/admin_page.dart';
 import 'pages/campus/campus_page.dart';
@@ -25,6 +27,7 @@ import 'pages/profile/profile_page.dart';
 import 'pages/publish/publish_page.dart';
 import 'pages/wiki/wiki_home_page.dart';
 import 'pages/wiki/wiki_page.dart';
+import 'pages/wiki/wiki_search_page.dart';
 import 'pages/schedule/schedule_page.dart';
 import 'pages/search/search_page.dart';
 import 'pages/settings/settings_page.dart';
@@ -37,21 +40,21 @@ extension on GfShellDestination {
     GfShellDestination.home => Icons.home_outlined,
     GfShellDestination.campus => Icons.school_outlined,
     GfShellDestination.messages => Icons.forum_outlined,
-    GfShellDestination.profile => Icons.person_outline,
+    GfShellDestination.notifications => Icons.notifications_outlined,
   };
 
   IconData get activeIcon => switch (this) {
     GfShellDestination.home => Icons.home,
     GfShellDestination.campus => Icons.school,
     GfShellDestination.messages => Icons.forum,
-    GfShellDestination.profile => Icons.person,
+    GfShellDestination.notifications => Icons.notifications,
   };
 
   String label(AppLocalizations l10n) => switch (this) {
     GfShellDestination.home => l10n.navHome,
     GfShellDestination.campus => l10n.navCampus,
     GfShellDestination.messages => l10n.navMessages,
-    GfShellDestination.profile => l10n.navProfile,
+    GfShellDestination.notifications => l10n.notificationsTitle,
   };
 }
 
@@ -129,6 +132,7 @@ class _GfShellState extends ConsumerState<GfShell> {
   }
 
   void _selectDestination(int index) {
+    ref.read(readingChromeProvider).show();
     if (index == widget.navigationShell.currentIndex) {
       ref
           .read(tabScrollRegistryProvider)
@@ -154,32 +158,77 @@ class _GfShellState extends ConsumerState<GfShell> {
       }
     });
 
+    final chrome = ref.watch(readingChromeProvider);
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 200);
     return Scaffold(
-      body: widget.navigationShell,
-      floatingActionButton: widget.navigationShell.currentIndex == 3
-          ? FloatingActionButton(
-              heroTag: null,
-              tooltip: l10n.navPublish,
-              onPressed: () => context.push('/publish?type=2'),
-              child: const Icon(Icons.add),
-            )
-          : null,
-      bottomNavigationBar: GfBottomNavigation(
-        currentIndex: widget.navigationShell.currentIndex,
-        onSelected: _selectDestination,
-        showLabels: false,
-        items: <GfBottomNavigationItem>[
-          for (final GfShellDestination destination
-              in GfShellDestination.values)
-            GfBottomNavigationItem(
-              icon: destination.icon,
-              selectedIcon: destination.activeIcon,
-              label: destination.label(l10n),
-              badge: destination == GfShellDestination.messages
-                  ? (_unreadMessages || _unreadNotifications)
-                  : false,
+      drawer: const AccountDrawer(),
+      onDrawerChanged: (_) => ref.read(readingChromeProvider).show(),
+      body: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification.depth != 0 ||
+              notification.metrics.axis != Axis.vertical) {
+            return false;
+          }
+          if (notification is ScrollUpdateNotification) {
+            ref
+                .read(readingChromeProvider)
+                .update(
+                  notification.scrollDelta ?? 0,
+                  notification.metrics.pixels,
+                  locked:
+                      MediaQuery.viewInsetsOf(context).bottom > 0 ||
+                      ModalRoute.of(context)?.isCurrent == false,
+                );
+          }
+          return false;
+        },
+        child: Stack(
+          children: [
+            Positioned.fill(child: widget.navigationShell),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: AnimatedSlide(
+                offset: chrome.hidden ? const Offset(0, 1) : Offset.zero,
+                duration: duration,
+                curve: Curves.easeOut,
+                child: IgnorePointer(
+                  ignoring: chrome.hidden,
+                  child: ExcludeSemantics(
+                    excluding: chrome.hidden,
+                    child: GfBottomNavigation(
+                      currentIndex: widget.navigationShell.currentIndex,
+                      onSelected: _selectDestination,
+                      showLabels: false,
+                      items: [
+                        for (final destination in GfShellDestination.values)
+                          GfBottomNavigationItem(
+                            icon: destination.icon,
+                            selectedIcon: destination.activeIcon,
+                            symbol: switch (destination) {
+                              GfShellDestination.home => 'house',
+                              GfShellDestination.campus => 'graduation-cap',
+                              GfShellDestination.notifications => 'bell',
+                              GfShellDestination.messages => 'mail',
+                            },
+                            label: destination.label(l10n),
+                            badge:
+                                destination == GfShellDestination.notifications
+                                ? _unreadNotifications
+                                : destination == GfShellDestination.messages &&
+                                      _unreadMessages,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -215,26 +264,42 @@ final GoRouter appRouter = GoRouter(
           ],
         ),
         StatefulShellBranch(
-          routes: <RouteBase>[
+          routes: [
             GoRoute(
-              path: '/messages',
-              builder: (BuildContext context, GoRouterState state) =>
-                  MessagesPage(
-                    targetUserId: int.tryParse(
-                      state.uri.queryParameters['userId'] ?? '',
-                    ),
-                    targetUsername: state.uri.queryParameters['username'] ?? '',
-                    targetAvatarUrl: state.uri.queryParameters['avatar'] ?? '',
-                  ),
+              path: '/notifications',
+              builder: (_, _) => const NotificationsPage(),
             ),
           ],
         ),
         StatefulShellBranch(
           routes: <RouteBase>[
-            GoRoute(path: '/profile', builder: (_, _) => const ProfilePage()),
+            GoRoute(
+              path: '/messages',
+              redirect: (_, state) =>
+                  int.tryParse(state.uri.queryParameters['userId'] ?? '') !=
+                      null
+                  ? Uri(
+                      path: '/chat',
+                      queryParameters: state.uri.queryParameters,
+                    ).toString()
+                  : null,
+              builder: (_, _) => const MessagesPage(),
+            ),
           ],
         ),
       ],
+    ),
+    GoRoute(
+      path: '/chat',
+      redirect: (_, state) =>
+          (int.tryParse(state.uri.queryParameters['userId'] ?? '') ?? 0) > 0
+          ? null
+          : '/messages',
+      builder: (_, state) => MessagesPage(
+        targetUserId: int.tryParse(state.uri.queryParameters['userId'] ?? ''),
+        targetUsername: state.uri.queryParameters['username'] ?? '',
+        targetAvatarUrl: state.uri.queryParameters['avatar'] ?? '',
+      ),
     ),
     GoRoute(path: '/search', builder: (_, _) => const SearchPage()),
     GoRoute(
@@ -280,8 +345,12 @@ final GoRouter appRouter = GoRouter(
       builder: (_, _) => const ContentPage(deleted: true),
     ),
     GoRoute(
-      path: '/notifications',
-      builder: (_, _) => const NotificationsPage(),
+      path: '/profile',
+      builder: (_, state) => ProfilePage(
+        initialStream: state.uri.queryParameters['stream'] == 'bookmarks'
+            ? 'bookmarks'
+            : 'timeline',
+      ),
     ),
     GoRoute(
       path: '/moderation',
@@ -316,13 +385,16 @@ final GoRouter appRouter = GoRouter(
         ),
       ),
     ),
+    GoRoute(path: '/wiki/search', builder: (_, _) => const WikiSearchPage()),
     GoRoute(path: '/wiki', builder: (_, _) => const WikiHomePage()),
     GoRoute(
       // 多段 wiki 路径（如 /wiki/guide/getting-started）经 (.*) 通配捕获；
       // go_router 对 path 参数自动 percent-decode，页面内按段重新编码。
       path: '/wiki/:wikiPath(.*)',
-      builder: (BuildContext context, GoRouterState state) =>
-          WikiPage(wikiPath: state.pathParameters['wikiPath']!),
+      builder: (BuildContext context, GoRouterState state) => WikiPage(
+        wikiPath: state.pathParameters['wikiPath']!,
+        initialAnchor: state.uri.fragment,
+      ),
     ),
   ],
 );

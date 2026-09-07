@@ -151,14 +151,14 @@ void main() {
         final GfTypography t = gfThemeData(
           brightness,
         ).extension<GfTypography>()!;
-        expect(t.display.fontSize, 22);
-        expect(t.title1.fontSize, 20);
+        expect(t.display.fontSize, 24);
+        expect(t.title1.fontSize, 24);
         expect(t.title2.fontSize, 18);
         expect(t.title3.fontSize, 17);
         expect(t.heading.fontSize, 16);
         expect(t.body.fontSize, 15);
         expect(t.bodyStrong.fontSize, 15);
-        expect(t.small.fontSize, 13);
+        expect(t.small.fontSize, 14);
         expect(t.caption.fontSize, 12);
         expect(t.meta.fontSize, 11);
         expect(t.label.fontSize, 10);
@@ -171,15 +171,15 @@ void main() {
       expect(t.title1.fontWeight, FontWeight.w700);
       expect(t.title2.fontWeight, FontWeight.w700);
       expect(t.title3.fontWeight, FontWeight.w700);
-      expect(t.heading.fontWeight, FontWeight.w600);
+      expect(t.heading.fontWeight, FontWeight.w700);
       expect(t.body.fontWeight, FontWeight.w400);
       expect(t.bodyStrong.fontWeight, FontWeight.w600);
       expect(t.label.fontWeight, FontWeight.w700);
     });
 
-    test('body uses relaxed line height like web leading-relaxed (1.625)', () {
+    test('body uses the mobile 15/24 reading scale', () {
       final GfTypography t = GfTypography.standard(GfColors.light.baseContent);
-      expect(t.body.height, 1.625);
+      expect(t.body.height, 1.6);
       expect(
         t.display.fontFeatures,
         contains(const FontFeature.tabularFigures()),

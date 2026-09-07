@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'yourtj';
+  String get appTitle => 'YourTJ';
 
   @override
   String get navHome => 'Home';
@@ -191,7 +191,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Failed to save the new session securely. Please retry.';
 
   @override
-  String get loginWelcome => 'Welcome back to yourtj';
+  String get loginWelcome => 'Welcome to YourTJ';
 
   @override
   String get loginModeLogin => 'Sign in';
@@ -855,10 +855,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get topicNewTopic => 'New topic';
 
   @override
-  String get scheduleTitle => 'Schedule';
+  String get scheduleTitle => 'Scheduler';
 
   @override
-  String get scheduleTabTimetable => 'Timetable';
+  String get scheduleTabTimetable => 'Plan preview';
 
   @override
   String get scheduleTabPick => 'Pick courses';
@@ -1460,4 +1460,41 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authPasswordMismatch => 'The passwords do not match';
+
+  @override
+  String get schedulerWebTitle => 'Explore the full scheduler on the Web';
+
+  @override
+  String get schedulerWebAction => 'Open f.yourtj.de';
+
+  @override
+  String get schedulerPlanDisclaimer =>
+      'This is a course plan. Final enrolment is determined by the university.';
+
+  @override
+  String get campusExploreCourses =>
+      'Find your next course through student reviews';
+
+  @override
+  String get campusPlanTitle => 'Turn your course shortlist into a plan';
+
+  @override
+  String get campusPlanDescription =>
+      'Compare offerings and check conflicts before choosing.';
+
+  @override
+  String get loginGoogle => 'Continue with Google';
+
+  @override
+  String get loginGithub => 'Continue with GitHub';
+
+  @override
+  String get wikiSearchUnavailable =>
+      'Search is unavailable. You can still browse the directory.';
+
+  @override
+  String get wikiSearchHint => 'Search campus knowledge';
+
+  @override
+  String get wikiExploreTitle => 'Your campus companion';
 }

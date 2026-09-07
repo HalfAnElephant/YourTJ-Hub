@@ -11,11 +11,11 @@
 The Flutter app combines the forum, course catalog, scheduler and Wiki. Ordinary browsing and
 writing use native pages. Management uses the same first-party workspaces and permission checks as
 Web inside an authenticated in-app browser. The navigation and management boundary are recorded in
-[0011](../decisions/0011-mobile-navigation-and-management.md).
+[0012](../decisions/0012-unified-mobile-reading-navigation.md).
 
 ## Navigation and reading
 
-- `Current`: four persistent destinations — Home, Campus, Messages and Profile — use icon-only
+- `Current`: four persistent destinations — Home, Campus, Notifications and Messages — use icon-only
   navigation with accessible labels. Search is a pushed page, reachable from Home. Campus links to
   the native course catalog, scheduler and Wiki; returning preserves the selected destination.
   About links to native friend links, sponsors, terms and privacy pages using the site’s published
@@ -26,10 +26,14 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   up to three previews with a total count. Tapping opens the full gallery with zoom.
 - `Current`: simple-content topics show an uncropped, swipeable image gallery above the body. The
   same gallery is used in the publishing preview.
-- `Current`: contextual floating actions settle after scrolling stops. Home offers compose or
-  refresh-and-return-to-top. Topic pages offer reply, return to the first post, refresh, or a jump
-  to discussion when the first post extends well beyond the viewport. Reduced-motion preferences
-  suppress the scroll animation. Actions run only on a tap.
+- `Current`: root headers, filter rails and bottom navigation overlay the reading viewport. They
+  hide after 48 logical pixels downward and return after 12 pixels upward, with 200 ms transitions.
+  Reaching the top, changing destination or opening the account drawer restores the controls.
+  Reduced motion removes the transition; keyboard/modal interaction keeps controls visible.
+  Editors and scheduler grids are pushed pages outside this behavior.
+- `Current`: Home, Campus and Notifications have a stable compose button; Messages has a new-chat
+  button. Topic pages keep reply and floor controls in the bottom dock. Pull-to-refresh and
+  reselecting the active root destination provide refresh and return-to-top without changing icons.
 - `Current`: the floor slider loads the selected server window on release. Earliest/latest
   shortcuts, reply links, and earlier/later pagination navigate the actual reply stream. Returning
   to the first post from a middle window reloads that window before offering refresh; stale
@@ -60,6 +64,24 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   composer and can be refreshed without discarding content.
 - `Planned`: text-to-image cards and offline draft autosave. No UI claims these features exist.
 
+## Campus and sign-in
+
+- `Current`: Campus previews real reviewed courses and links to the course catalog, scheduler and
+  Wiki. It does not display an official personal calendar or claim an enrollment integration.
+- `Current`: the scheduler opens in course selection. Plan preview remains a local planning grid,
+  with week filters, conflicts, custom blocks and existing plan operations. A prominent tip opens
+  the full [Web scheduler](https://f.yourtj.de/schedule) in the external browser without transferring
+  the native credential. Plans are not official enrollment results.
+- `Current`: course details retain offering-specific five-star reviews and existing review fields;
+  bookmark and write-review actions stay in a bottom dock.
+- `Current`: Wiki search uses the existing page-grouped search contract, debounces input, ignores
+  stale results and opens paragraph anchors. Search unavailability has retry feedback. Reading
+  keeps directory, Wiki search and GitHub edit actions in a bottom dock; GitHub remains the content
+  source of truth.
+- `Current`: sign-in offers account/password, Google and GitHub. Password captcha and TOTP remain
+  supported. Google availability follows the published Web configuration. Social buttons use the
+  existing OIDC code/PKCE exchange with an allowlisted provider hint, not a new credential flow.
+
 ## Registration
 
 - `Current`: registration loads the current Web login configuration before submission. Restricted
@@ -86,8 +108,9 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   Public profiles display website/social links and open them in the system browser. Returning
   from settings refreshes profile identity and media immediately.
 
-- `Current`: the overflow menu contains drafts, content management, recycle bin, account settings,
-  and permission-gated administration/moderation. Account controls are outside the public profile.
+- `Current`: the root avatar opens an account drawer with profile, bookmarks, a folded content
+  management group (drafts, content and recycle bin), settings and permission-gated workspaces.
+  The profile overflow retains these infrequent entries. Account controls are outside the public profile.
 - `Current`: only the active profile tab displays its label; all tabs retain accessible names.
   Activity, topics, likes, own bookmarks, follows/followers and badges fetch their corresponding
   server streams. Cursor pagination uses the server's next URL within the same user's profile.
@@ -130,6 +153,6 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 
 The source, contract and focused Flutter/Go tests define the implemented behavior. Figma is the
 editable visual counterpart, not an alternative API or permission model. The maintained design is
-[05 Mobile · Refined](https://www.figma.com/design/eLF6vFbmdwDQXec1IyuA4X/YourTJ_Mob_App_Design?node-id=211-2). Native device behavior,
+[06 Mobile · Unified](https://www.figma.com/design/eLF6vFbmdwDQXec1IyuA4X/YourTJ_Mob_App_Design?node-id=284-302). Native device behavior,
 Linux-rendered goldens, distribution and additional locales have independent verification gates;
 local widget tests do not imply those gates passed.

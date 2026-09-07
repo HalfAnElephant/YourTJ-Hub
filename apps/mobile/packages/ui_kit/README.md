@@ -1,6 +1,6 @@
 # ui_kit
 
-yourtj 移动端设计系统(Flutter):设计 token、`ThemeData` 与 Gf* 组件。`forum_app` 的界面组件都经由此包暴露;应用页面不直接依赖 TDesign 的预发布 API。
+YourTJ 移动端设计系统(Flutter):设计 token、`ThemeData` 与 Gf* 组件。`forum_app` 的界面组件都经由此包暴露;应用页面不直接依赖 TDesign 的预发布 API。
 
 ## 所有权与边界
 
@@ -11,7 +11,7 @@ yourtj 移动端设计系统(Flutter):设计 token、`ThemeData` 与 Gf* 组件�
 
 ## 主要组件
 
-- 导航与动作:`GfBottomNavigation`(四目的地 + 中央发布动作)、`GfTabBar`、`GfAppBar`(TDesign TNavBar 封装,默认返回 + 显式 leading)、`GfButton` / `GfIconButton` / `GfFloatingAction`。
+- 导航与动作:`GfBottomNavigation`(四个目的地,支持纯图标)、`GfTabBar`、`GfAppBar`(56px 居中导航栏,默认返回 + 显式 leading)、`GfButton` / `GfIconButton` / `GfFloatingAction`。
 - 内容:`GfTopicCard` / `GfTopicRow`(对齐 Web TopicRow 语义)、`GfPostComposer`(Markdown 回复编辑器 + 图片动作)、`GfChatInput` / `GfMessageBubble` / `GfConversationRow`、`GfDraftRow` / `GfNotificationRow` / `GfSettingRow` / `GfUserCard`。
 - 反馈与状态:`GfSkeleton`(结构化骨架)、`GfEmpty` / `GfStatusMessage` / `GfToast` / `GfAlertDialog` / `GfModal` / `GfBottomSheet` / `GfScrollToTop` / `GfLoadingIndicator`。
 - 表单与展示:`GfInput` / `GfTextarea` / `GfSegmented` / `GfPillSwitch` / `GfSelectTag` / `GfAvatar` / `GfAvatarStack` / `GfBadge` / `GfChip` / `GfDivider` / `GfTooltip` / `GfAlert` / `GfDotGridBackground`。
@@ -35,3 +35,5 @@ melos run test           # 或 melos exec -- flutter test
 
 - `ui_kit` 不依赖 `core` / `auth` / `forum_app`;业务状态与请求归上层包。
 - TDesign 预发布 API 不得泄漏到 `forum_app` / `core` / `auth`。
+
+导航符号使用 `GfSymbol` 与共享 Lucide SVG,来源和许可见 [assets](assets/README.md)。页面交互与 Figma 入口以[移动端产品说明](../../../../docs/product/mobile-experience.md)为准。

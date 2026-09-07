@@ -92,6 +92,7 @@ void main() {
     bool policies = false,
     bool fail = false,
     bool oldSession = false,
+    bool register = true,
   }) async {
     await tester.binding.setSurfaceSize(const Size(390, 1100));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -128,7 +129,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign up').first);
+    if (register) await tester.tap(find.text('Sign up').first);
     await tester.pumpAndSettle();
     return (auth: auth, options: options);
   }
@@ -149,6 +150,22 @@ void main() {
     await tester.enterText(input('Password'), 'test-password');
     await tester.enterText(input('Confirm password'), 'test-password');
   }
+
+  testWidgets(
+    'sign-in loads social availability before entering registration',
+    (tester) async {
+      final h = await pump(tester, register: false, oldSession: true);
+      expect(h.options.headers, [null]);
+      final github = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, 'Continue with GitHub'),
+      );
+      final google = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, 'Continue with Google'),
+      );
+      expect(github.onPressed, isNotNull);
+      expect(google.onPressed, isNull);
+    },
+  );
 
   testWidgets('registration options never carry the previous account session', (
     tester,

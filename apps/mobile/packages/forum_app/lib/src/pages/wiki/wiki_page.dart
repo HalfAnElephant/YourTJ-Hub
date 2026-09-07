@@ -26,10 +26,11 @@ String encodeWikiPath(String path) =>
 /// [HtmlWidget] 渲染而非 markdown_widget;标题 id 由 goldmark headingid
 /// 生成且与 `toc` 严格一致,目录跳转使用 HtmlWidget 的锚点滚动。
 class WikiPage extends ConsumerStatefulWidget {
-  const WikiPage({super.key, required this.wikiPath});
+  const WikiPage({super.key, required this.wikiPath, this.initialAnchor = ''});
 
   /// 已解码的 wiki 路径(如 `guide/getting-started`),不含前导 `/wiki/`。
   final String wikiPath;
+  final String initialAnchor;
 
   @override
   ConsumerState<WikiPage> createState() => _WikiPageState();
@@ -75,6 +76,13 @@ class _WikiPageState extends ConsumerState<WikiPage> {
           WikiPageDetail.fromJson(Map<String, dynamic>.from(pageJson)),
         ),
       );
+      if (widget.initialAnchor.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _htmlKey.currentState?.scrollToAnchor(widget.initialAnchor);
+          }
+        });
+      }
     } catch (e, st) {
       if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
       setState(() => _detail = AsyncValue.error(e, st));
@@ -198,21 +206,46 @@ class _WikiPageState extends ConsumerState<WikiPage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        actions: <Widget>[
-          if (page != null && page.toc.isNotEmpty)
-            GfIconButton(
-              icon: Icons.format_list_bulleted,
-              tooltip: l10n.wikiToc,
-              onPressed: () => _openToc(page.toc),
-            ),
-          if (page != null && page.canEdit && page.editUrl.isNotEmpty)
-            GfIconButton(
-              icon: Icons.open_in_new,
-              tooltip: l10n.wikiEditOnGithub,
-              onPressed: () => _openEdit(page.editUrl),
-            ),
-        ],
       ),
+      bottomNavigationBar: page == null
+          ? null
+          : SafeArea(
+              top: false,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: GfTheme.colorsOf(context).line),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    if (page.toc.isNotEmpty)
+                      Expanded(
+                        child: TextButton.icon(
+                          icon: const GfSymbol('list', size: 18),
+                          label: Text(l10n.wikiToc),
+                          onPressed: () => _openToc(page.toc),
+                        ),
+                      ),
+                    Expanded(
+                      child: TextButton.icon(
+                        icon: const GfSymbol('search', size: 18),
+                        label: Text(l10n.commonSearch),
+                        onPressed: () => context.push('/wiki/search'),
+                      ),
+                    ),
+                    if (page.canEdit && page.editUrl.isNotEmpty)
+                      Expanded(
+                        child: TextButton.icon(
+                          icon: const GfSymbol('external-link', size: 18),
+                          label: Text(l10n.wikiEditOnGithub),
+                          onPressed: () => _openEdit(page.editUrl),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
       body: _detail.when(
         loading: () => const _WikiPageSkeleton(),
         error: (Object e, StackTrace _) =>

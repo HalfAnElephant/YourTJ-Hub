@@ -115,9 +115,9 @@ client_id = {{GOOGLE_CLIENT_ID}}
 client_secret = {{GOOGLE_CLIENT_SECRET}}
 
 [oidc]
-enabled = false
-# issuer 默认取 site_url + /api/oauth；显式配置可覆盖
-# issuer = "https://forum.example.com/api/oauth"
+enabled = true
+# Pin to the deployment origin; dev database snapshots must not change the issuer.
+issuer = {{OIDC_ISSUER}}
 # RS256 签名私钥：内联 PEM 或密钥文件（二者都为空时自动生成并持久化到 signing_key_file）
 # signing_key = ""
 signing_key_file = "./storage/oidc/signing_key.pem"
@@ -138,7 +138,7 @@ id_token_ttl = 3600
 # ]
 [[oidc.clients]]
 id = "yourtj-mobile"
-name = "yourtj 移动端"
+name = "YourTJ 移动端"
 redirect_uris = ["yourtj://callback"]
 # secret = ""
 

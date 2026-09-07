@@ -1,3 +1,4 @@
+import 'scheduler_web_tip.dart';
 // 排课器主页面（/schedule 路由目标）：移动端双 tab（课表 / 选课）+ 方案条 +
 // 学期·年级·专业配置行 + 数据过期同步 + 自定义占位 + PNG/CSV 导出。
 //
@@ -77,7 +78,7 @@ class SchedulePage extends ConsumerStatefulWidget {
 
 class _SchedulePageState extends ConsumerState<SchedulePage> {
   bool _ready = false;
-  bool _tabTimetable = true;
+  bool _tabTimetable = false;
   bool _syncing = false;
 
   List<PkCalendarItem> _calendars = const <PkCalendarItem>[];
@@ -164,7 +165,7 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
     final bool outdated = _notifier.isDataOutdated;
 
     return Scaffold(
-      backgroundColor: colors.base200,
+      backgroundColor: colors.base100,
       appBar: GfAppBar(
         title: Text(l10n.scheduleTitle),
         actions: <Widget>[
@@ -202,8 +203,10 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
       body: !_ready
           ? const GfScheduleSkeleton()
           : ListView(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 28),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
               children: <Widget>[
+                const SchedulerWebTip(),
+                const SizedBox(height: 16),
                 _PlanBar(notifier: _notifier, state: state),
                 const SizedBox(height: 8),
                 if (state.isConfigCollapsed)
@@ -230,12 +233,17 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
                       setState(() => _tabTimetable = timetable),
                 ),
                 const SizedBox(height: 8),
-                if (_tabTimetable)
+                if (_tabTimetable) ...[
+                  Text(
+                    l10n.schedulerPlanDisclaimer,
+                    style: GfTheme.typographyOf(context).caption,
+                  ),
+                  const SizedBox(height: 12),
                   _TimetableTab(
                     boundaryKey: _gridBoundaryKey,
                     sectionOverrides: _sectionOverrides,
-                  )
-                else
+                  ),
+                ] else
                   const _PickTab(),
               ],
             ),
@@ -2011,14 +2019,14 @@ class _PickTabState extends ConsumerState<_PickTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        GfSegmented<int>(
-          segments: <(String, int)>[
-            (l10n.scheduleCompulsory, 0),
-            (l10n.scheduleOptional, 1),
-            (l10n.scheduleSearchHint, 2),
+        GfTabBar(
+          tabs: [
+            GfTab(label: l10n.scheduleCompulsory, value: 0),
+            GfTab(label: l10n.scheduleOptional, value: 1),
+            GfTab(label: l10n.commonSearch, value: 2),
           ],
           selected: _segment,
-          onSelected: _switchSegment,
+          onSelected: (value) => _switchSegment(value as int),
         ),
         const SizedBox(height: 6),
         if (!_hasMajorSelection(state))

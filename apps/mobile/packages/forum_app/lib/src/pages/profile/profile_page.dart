@@ -10,7 +10,6 @@ import '../../../l10n/app_localizations.dart';
 import '../../asset_url.dart';
 import '../../current_user.dart';
 import '../../format.dart';
-import '../../navigation/tab_scroll_registry.dart';
 import '../../providers.dart';
 import '../../profile_links.dart';
 import '../../server_messages.dart';
@@ -45,9 +44,10 @@ Color _userBadgeColor(UserBadgePayload badge) {
 /// User profile aligned with the web identity card while keeping mobile
 /// navigation, actions and content streams clear and thumb-friendly.
 class ProfilePage extends ConsumerStatefulWidget {
-  const ProfilePage({super.key, this.userId});
+  const ProfilePage({super.key, this.userId, this.initialStream = 'timeline'});
 
   final int? userId;
+  final String initialStream;
 
   @override
   ConsumerState<ProfilePage> createState() => _ProfilePageState();
@@ -67,28 +67,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   final GfScrollToTopController _scrollToTopController =
       GfScrollToTopController();
-  GfTabScrollRegistry? _tabScrollRegistry;
 
   bool get _isShellProfile => widget.userId == null;
 
   @override
   void initState() {
     super.initState();
-    if (_isShellProfile) {
-      final GfTabScrollRegistry registry = ref.read(tabScrollRegistryProvider);
-      registry.register(GfShellDestination.profile, _scrollToTopController);
-      _tabScrollRegistry = registry;
-    }
-    _load();
-  }
+    _stream = widget.initialStream;
+    _tabIndex = _stream == 'bookmarks' ? 3 : 0;
 
-  @override
-  void dispose() {
-    _tabScrollRegistry?.unregister(
-      GfShellDestination.profile,
-      _scrollToTopController,
-    );
-    super.dispose();
+    _load();
   }
 
   Future<void> _load({bool silent = false, String? nextUrl}) async {
@@ -247,7 +235,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return Scaffold(
       appBar: GfAppBar(
         title: Text(l10n.profileTitle),
-        automaticallyImplyLeading: !_isShellProfile,
+        automaticallyImplyLeading: true,
         actions: _isShellProfile || _page.valueOrNull?.isOwnProfile == true
             ? <Widget>[
                 PopupMenuButton<String>(
