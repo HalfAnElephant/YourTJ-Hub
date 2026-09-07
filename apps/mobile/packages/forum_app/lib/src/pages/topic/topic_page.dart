@@ -14,7 +14,6 @@ import '../../images/image_upload.dart';
 import '../../server_messages.dart';
 import '../../widgets/markdown_view.dart';
 import '../../widgets/status_views.dart';
-import '../../widgets/contextual_fab.dart';
 import '../../widgets/skeletons.dart';
 import 'post_actions.dart';
 import 'topic_actions.dart';
@@ -727,110 +726,99 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                   threshold: 360,
                   bottomInset: 84,
                   builder: (context, scrollController) {
-                    return ContextualFab(
-                      controller: scrollController,
-                      reply: true,
-                      onReturnToTop: () => _jumpToFloor(1),
-                      discussionKey: _discussionKey,
-                      visible: !_composerOpen && _canReply,
-                      onPrimary: () => _openComposer(),
+                    return RefreshIndicator(
                       onRefresh: () => _load(silent: true),
-                      bottom: 84,
-                      child: RefreshIndicator(
-                        onRefresh: () => _load(silent: true),
-                        child: CustomScrollView(
-                          controller: scrollController,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          slivers: <Widget>[
-                            SliverToBoxAdapter(
-                              child: _TopicHeader(
-                                topic: props.topic,
-                                mainPost: mainPost,
-                                liked: _liked,
-                                bookmarked: _bookmarked,
-                                watched: _watched,
-                                likeCount: _likeCount,
-                                canReportTopic:
-                                    _topicAvailable &&
-                                    !props.permissions.isOwnTopic,
-                                onLike: _toggleLike,
-                                onBookmark: _toggleBookmark,
-                                onWatch: _toggleWatch,
-                                onReportTopic: () => _reportTopic(props.topic),
+                      child: CustomScrollView(
+                        controller: scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: <Widget>[
+                          SliverToBoxAdapter(
+                            child: _TopicHeader(
+                              topic: props.topic,
+                              mainPost: mainPost,
+                              liked: _liked,
+                              bookmarked: _bookmarked,
+                              watched: _watched,
+                              likeCount: _likeCount,
+                              canReportTopic:
+                                  _topicAvailable &&
+                                  !props.permissions.isOwnTopic,
+                              onLike: _toggleLike,
+                              onBookmark: _toggleBookmark,
+                              onWatch: _toggleWatch,
+                              onReportTopic: () => _reportTopic(props.topic),
+                            ),
+                          ),
+                          const SliverToBoxAdapter(child: GfDivider()),
+                          SliverToBoxAdapter(
+                            child: SizedBox(
+                              key: _discussionKey,
+                              child: _ReplySectionHeader(
+                                count: props.topic.replyCount,
                               ),
                             ),
-                            const SliverToBoxAdapter(child: GfDivider()),
+                          ),
+                          if (_hasEarlierPosts)
                             SliverToBoxAdapter(
-                              child: SizedBox(
-                                key: _discussionKey,
-                                child: _ReplySectionHeader(
-                                  count: props.topic.replyCount,
-                                ),
+                              child: TextButton(
+                                onPressed: _loadingMore
+                                    ? null
+                                    : () => _loadMore(earlier: true),
+                                child: Text(l10n.topicEarlierReplies),
                               ),
                             ),
-                            if (_hasEarlierPosts)
-                              SliverToBoxAdapter(
-                                child: TextButton(
-                                  onPressed: _loadingMore
-                                      ? null
-                                      : () => _loadMore(earlier: true),
-                                  child: Text(l10n.topicEarlierReplies),
-                                ),
+                          if (replyPosts.isEmpty)
+                            SliverToBoxAdapter(
+                              child: GfEmpty(
+                                icon: Icons.forum_outlined,
+                                message: l10n.topicReplies(0),
+                                description: l10n.topicReplyHint,
                               ),
-                            if (replyPosts.isEmpty)
-                              SliverToBoxAdapter(
-                                child: GfEmpty(
-                                  icon: Icons.forum_outlined,
-                                  message: l10n.topicReplies(0),
-                                  description: l10n.topicReplyHint,
-                                ),
-                              )
-                            else
-                              SliverList.builder(
-                                itemCount: replyPosts.length,
-                                itemBuilder: (BuildContext context, int index) {
-                                  final PostPayload post = replyPosts[index];
-                                  return RepaintBoundary(
-                                    key: ValueKey(post.id),
-                                    child: Column(
-                                      children: <Widget>[
-                                        _PostCard(
-                                          post: post,
-                                          showReplyQuote: _showReplyQuote(
-                                            post,
-                                            mainPost,
-                                          ),
-                                          quoteTarget:
-                                              _replyTargets[post.replyToPostId],
-                                          onReply: _canReply
-                                              ? () =>
-                                                    _openComposer(replyTo: post)
-                                              : null,
-                                          onReport: () => _reportPost(post),
-                                          onChanged: () => _load(
-                                            silent: true,
-                                            postNo: _currentFloor,
-                                          ),
+                            )
+                          else
+                            SliverList.builder(
+                              itemCount: replyPosts.length,
+                              itemBuilder: (BuildContext context, int index) {
+                                final PostPayload post = replyPosts[index];
+                                return RepaintBoundary(
+                                  key: ValueKey(post.id),
+                                  child: Column(
+                                    children: <Widget>[
+                                      _PostCard(
+                                        post: post,
+                                        showReplyQuote: _showReplyQuote(
+                                          post,
+                                          mainPost,
                                         ),
-                                        if (index < replyPosts.length - 1)
-                                          const GfDivider(),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            SliverToBoxAdapter(
-                              child: GfListFooter(
-                                loading: _loadingMore,
-                                hasMore: _hasMorePosts,
-                                onLoadMore: _loadMore,
-                              ),
+                                        quoteTarget:
+                                            _replyTargets[post.replyToPostId],
+                                        onReply: _canReply
+                                            ? () => _openComposer(replyTo: post)
+                                            : null,
+                                        onReport: () => _reportPost(post),
+                                        onChanged: () => _load(
+                                          silent: true,
+                                          postNo: _currentFloor,
+                                        ),
+                                      ),
+                                      if (index < replyPosts.length - 1)
+                                        const GfDivider(),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: 104),
+                          SliverToBoxAdapter(
+                            child: GfListFooter(
+                              loading: _loadingMore,
+                              hasMore: _hasMorePosts,
+                              onLoadMore: _loadMore,
                             ),
-                          ],
-                        ),
+                          ),
+                          const SliverToBoxAdapter(
+                            child: SizedBox(height: 104),
+                          ),
+                        ],
                       ),
                     );
                   },

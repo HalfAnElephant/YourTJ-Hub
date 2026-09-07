@@ -1,11 +1,12 @@
 import '../../gen/wiki.dart';
+import '../../gen/wiki_search.dart';
 import '../gf_api_client.dart';
 
-/// Wiki 只读域（`/api/wiki/tree|namespaces|home`，公开只读）。
+/// Wiki 只读域（`/api/wiki/tree|namespaces|home|search`，公开只读）。
 ///
 /// 页面正文走页面级数据通道（`PageRepository.fetch('/wiki/...')`，
 /// X-Goose-Page 返回 wiki.detail 的 PagePayload），本 repository 只封
-/// 纯 JSON 三操作。
+/// 纯 JSON 读取操作。
 class WikiRepository {
   WikiRepository(this._client);
 
@@ -26,6 +27,14 @@ class WikiRepository {
     parser: (json) =>
         WikiNamespaceList.fromJson(Map<String, dynamic>.from(json as Map)),
   );
+
+  Future<WikiSearchResult> search(String query) =>
+      _client.get<WikiSearchResult>(
+        '$_base/search',
+        queryParameters: {'q': query},
+        parser: (json) =>
+            WikiSearchResult.fromJson(Map<String, dynamic>.from(json as Map)),
+      );
 
   /// 首页 feed（命名空间概览 + 最近更新）。
   Future<WikiHomeData> home() => _client.get<WikiHomeData>(

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tdesign_flutter/tdesign_flutter.dart' as td;
 import 'package:ui_kit/ui_kit.dart';
 
 import '../helpers.dart';
 
 void main() {
-  testWidgets('GfAppBar delegates navigation chrome to TDesign', (
+  testWidgets('GfAppBar uses compact centered navigation chrome', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -23,7 +22,7 @@ void main() {
       ),
     );
 
-    expect(find.byType(td.TNavBar), findsOneWidget);
+    expect(find.byType(AppBar), findsOneWidget);
     expect(find.text('首页'), findsOneWidget);
     expect(find.byIcon(Icons.settings), findsOneWidget);
 
@@ -36,7 +35,7 @@ void main() {
     expect(tester.getSize(buttonBox), const Size.square(44));
   });
 
-  testWidgets('GfAppBar keeps TDesign chrome below the status safe area', (
+  testWidgets('GfAppBar keeps navigation chrome below the status safe area', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -49,7 +48,8 @@ void main() {
       ),
     );
 
-    expect(tester.getTopLeft(find.byType(td.TNavBar)).dy, 44);
+    expect(tester.getTopLeft(find.text('安全区')).dy, greaterThanOrEqualTo(44));
+    expect(tester.getSize(find.byType(AppBar)).height, 100);
   });
 
   testWidgets('GfBottomNavigation separates destinations and compose action', (

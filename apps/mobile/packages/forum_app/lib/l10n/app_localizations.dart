@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'yourtj'**
+  /// **'YourTJ'**
   String get appTitle;
 
   /// No description provided for @navHome.
@@ -431,7 +431,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginWelcome.
   ///
   /// In en, this message translates to:
-  /// **'Welcome back to yourtj'**
+  /// **'Welcome to YourTJ'**
   String get loginWelcome;
 
   /// No description provided for @loginModeLogin.
@@ -1643,13 +1643,13 @@ abstract class AppLocalizations {
   /// No description provided for @scheduleTitle.
   ///
   /// In en, this message translates to:
-  /// **'Schedule'**
+  /// **'Scheduler'**
   String get scheduleTitle;
 
   /// No description provided for @scheduleTabTimetable.
   ///
   /// In en, this message translates to:
-  /// **'Timetable'**
+  /// **'Plan preview'**
   String get scheduleTabTimetable;
 
   /// No description provided for @scheduleTabPick.
@@ -2785,6 +2785,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The passwords do not match'**
   String get authPasswordMismatch;
+
+  /// No description provided for @schedulerWebTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore the full scheduler on the Web'**
+  String get schedulerWebTitle;
+
+  /// No description provided for @schedulerWebAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open f.yourtj.de'**
+  String get schedulerWebAction;
+
+  /// No description provided for @schedulerPlanDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a course plan. Final enrolment is determined by the university.'**
+  String get schedulerPlanDisclaimer;
+
+  /// No description provided for @campusExploreCourses.
+  ///
+  /// In en, this message translates to:
+  /// **'Find your next course through student reviews'**
+  String get campusExploreCourses;
+
+  /// No description provided for @campusPlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn your course shortlist into a plan'**
+  String get campusPlanTitle;
+
+  /// No description provided for @campusPlanDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare offerings and check conflicts before choosing.'**
+  String get campusPlanDescription;
+
+  /// No description provided for @loginGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get loginGoogle;
+
+  /// No description provided for @loginGithub.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with GitHub'**
+  String get loginGithub;
+
+  /// No description provided for @wikiSearchUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Search is unavailable. You can still browse the directory.'**
+  String get wikiSearchUnavailable;
+
+  /// No description provided for @wikiSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search campus knowledge'**
+  String get wikiSearchHint;
+
+  /// No description provided for @wikiExploreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your campus companion'**
+  String get wikiExploreTitle;
 }
 
 class _AppLocalizationsDelegate

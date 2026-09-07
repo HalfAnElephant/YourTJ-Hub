@@ -170,6 +170,45 @@ void main() {
     expect(await storage.read(), 'forum-jwt-1');
   });
 
+  for (final provider in ['google', 'github']) {
+    test('$provider selection preserves the PKCE exchange and nonce', () async {
+      final storage = MemoryTokenStorage();
+      final appAuth = FakeAppAuth(
+        response: const AuthorizationResponse(
+          authorizationCode: 'social-code',
+          codeVerifier: 'social-verifier',
+        ),
+      );
+      final auth = FakeAuthRepository();
+      final controller = buildController(
+        storage: storage,
+        appAuth: appAuth,
+        auth: auth,
+      );
+      expect(await controller.login(provider: provider), isTrue);
+      expect(appAuth.lastRequest!.additionalParameters, {
+        'login_hint': provider,
+      });
+      expect(auth.lastVerifier, 'social-verifier');
+      expect(auth.lastNonce, appAuth.lastRequest!.nonce);
+      expect(auth.lastRedirectUri, redirectUri);
+      expect(await storage.read(), 'forum-jwt');
+    });
+  }
+  test('unsupported social provider never opens the browser', () async {
+    final appAuth = FakeAppAuth();
+    final controller = buildController(
+      storage: MemoryTokenStorage(),
+      appAuth: appAuth,
+      auth: FakeAuthRepository(),
+    );
+    await expectLater(
+      controller.login(provider: 'untrusted'),
+      throwsArgumentError,
+    );
+    expect(appAuth.authorizeCalls, 0);
+  });
+
   test('授权取消(无 authorizationCode)→ 不调 exchange,不持久化', () async {
     final storage = MemoryTokenStorage();
     final appAuth = FakeAppAuth(response: const AuthorizationResponse());

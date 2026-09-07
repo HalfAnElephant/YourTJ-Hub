@@ -26,6 +26,7 @@ import 'package:forum_app/src/pages/settings/settings_page.dart';
 import 'package:forum_app/src/pages/topic/topic_page.dart';
 import 'package:forum_app/src/providers.dart';
 import 'package:forum_app/src/router.dart';
+import 'package:forum_app/src/navigation/tab_scroll_registry.dart';
 import 'package:forum_app/src/widgets/topic_list.dart';
 import 'package:forum_app/src/widgets/status_views.dart';
 import 'package:forum_app/src/widgets/skeletons.dart';
@@ -33,6 +34,14 @@ import 'package:forum_app/src/widgets/skeletons.dart';
 import 'fixtures/page_fixtures.dart';
 
 /// 内存 TokenStorage(与 pages_smoke_test 同款)。
+class _RootScrollController extends GfScrollToTopController {
+  int calls = 0;
+  @override
+  Future<void> scrollToTop() async {
+    calls++;
+  }
+}
+
 class MemTokenStorage implements TokenStorage {
   String? _token;
 
@@ -1469,7 +1478,7 @@ void main() {
   });
 
   group('首页话题布局', () {
-    testWidgets('卡片和列表可通过胶囊切换且记住选择', (tester) async {
+    testWidgets('卡片和列表可通过阅读选项切换且记住选择', (tester) async {
       final pageRepo = CountingPageRepository(
         GfApiClient(
           dio: Dio(),
@@ -1484,17 +1493,9 @@ void main() {
       expect(find.byType(GfTopicCard), findsOneWidget);
       expect(find.byType(GfTopicRow), findsNothing);
       expect(find.text('新建话题'), findsNothing);
-      final Finder feedSwitch = find.byType(GfPillSwitch<GfTopicFeedMode>);
-      expect(tester.getSize(feedSwitch).height, 32);
-      expect(
-        tester.getCenter(feedSwitch).dy,
-        closeTo(tester.getCenter(find.byType(GfTabBar)).dy, 1),
-      );
-      final Finder brandLogo = find.byType(Image);
-      expect(brandLogo, findsOneWidget);
-      expect(tester.getTopLeft(brandLogo).dx, inInclusiveRange(0, 24));
-      expect(tester.getSize(brandLogo), const Size(128, 34));
-
+      expect(find.text('YourTJ'), findsOneWidget);
+      await tester.tap(find.byType(PopupMenuButton<GfTopicFeedMode>));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('列表'));
       await tester.pumpAndSettle();
 
@@ -2285,6 +2286,34 @@ void main() {
     });
   });
 
+  testWidgets(
+    'pushed conversation preserves mounted Messages root registration',
+    (tester) async {
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final container = await makeContainer(
+        pageRepo: CountingPageRepository(client),
+        chatRepo: RecordingChatRepository(client),
+      );
+      final registry = container.read(tabScrollRegistryProvider);
+      final root = _RootScrollController();
+      registry.register(GfShellDestination.messages, root);
+      await tester.pumpWidget(
+        app(
+          container,
+          const MessagesPage(targetUserId: 2, targetUsername: 'bob'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await registry.scrollToTop(GfShellDestination.messages);
+      expect(root.calls, 1);
+    },
+  );
+
   group('个人主页发私信', () {
     test('messageUrl 正确解码 Go QueryEscape 的空格', () {
       final Uri uri = Uri.parse(
@@ -3042,7 +3071,7 @@ void main() {
   });
 
   group('核心页面移动端交互', () {
-    testWidgets('长话题出现回顶按钮，打开回复编辑器后隐藏', (tester) async {
+    testWidgets('长话题保留固定回复入口并通过楼层控制导航', (tester) async {
       tester.view.physicalSize = const Size(390, 700);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -3071,7 +3100,8 @@ void main() {
       await tester.drag(topicList, const Offset(0, 160));
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byTooltip('返回顶部'), findsOneWidget);
+      expect(find.byTooltip('返回顶部'), findsNothing);
+      expect(find.text('参与讨论'), findsOneWidget);
 
       await tester.tap(find.text('参与讨论'));
       await tester.pumpAndSettle();

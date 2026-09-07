@@ -78,7 +78,7 @@ void main() {
 
     test('overrides 生效到 Material colorScheme 与 scaffold 背景', () {
       final GfColors custom = GfRuntimeTheme.fromTokens(const {
-        'light': {'color-primary': '#123456', 'color-base-200': '#F0F0F0'},
+        'light': {'color-primary': '#123456', 'color-base-100': '#F0F0F0'},
       })!.light;
       final ThemeData themed = gfThemeData(Brightness.light, overrides: custom);
       expect(themed.colorScheme.primary, const Color(0xFF123456));

@@ -79,3 +79,5 @@ A decision starts `Proposed`. Once implemented, its status becomes `Accepted` an
 - [0009](0009-image-egress-internal-proxy.md) — 图片流量成本模型：服务端内网代理读
 - [0010](0010-mobile-route-a-native-alignment.md) — 移动端战略 Route A：原生 Flutter 全功能对齐（导航与管理范围由 0011 更新）
 - [0011](0011-mobile-navigation-and-management.md) — 移动端导航与完整管理工作台
+
+- [0012](0012-unified-mobile-reading-navigation.md) — Unified mobile reading navigation and shared management.

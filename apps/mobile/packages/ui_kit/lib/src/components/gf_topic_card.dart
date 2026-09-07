@@ -177,9 +177,9 @@ class _GfTopicCardState extends State<GfTopicCard> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: colors.baseContent.withValues(alpha: 0.55),
-                        fontSize: 14,
-                        height: 1.55,
+                        color: colors.baseContent.withValues(alpha: 0.85),
+                        fontSize: 15,
+                        height: 1.6,
                       ),
                     ),
                   ],
@@ -256,12 +256,6 @@ class _GfTopicCardState extends State<GfTopicCard> {
           ),
         ],
         const SizedBox(height: 12),
-        Divider(
-          height: 1,
-          thickness: 1,
-          color: colors.line.withValues(alpha: 0.7),
-        ),
-        const SizedBox(height: 8),
         Row(
           children: <Widget>[
             _Metric(
@@ -287,10 +281,16 @@ class _GfTopicCardState extends State<GfTopicCard> {
     );
 
     return GfCard(
-      emphasized: true,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       onTap: widget.onTap,
-      child: textContent,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GfAvatar(src: widget.authorAvatarUrl, size: 36),
+          const SizedBox(width: 12),
+          Expanded(child: textContent),
+        ],
+      ),
     );
   }
 }
@@ -318,8 +318,6 @@ class _AuthorMeta extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        GfAvatar(src: avatarUrl, size: 32, ring: true),
-        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

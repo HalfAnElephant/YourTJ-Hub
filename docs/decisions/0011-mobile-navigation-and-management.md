@@ -1,7 +1,7 @@
 # Mobile navigation and shared management workspaces
 
 ## Status
-Accepted
+Superseded by [0012](0012-unified-mobile-reading-navigation.md)
 Class: architecture
 
 ## Context and Problem Statement

@@ -194,6 +194,11 @@ expect_exit(
     ),
 )
 
+# OIDC issuer is derived from instance metadata, never a database snapshot or secret.
+for instance in (fake_instance, fake_main):
+    values, _ = rc.build_values("dev", instance, {}, {"OIDC_ISSUER"}, set())
+    check_eq("instance OIDC issuer", instance["server_url"] + "/api/oauth", values["OIDC_ISSUER"])
+
 # --- 5. example ↔ tmpl 键集一致性（仓库实际文件） ---
 rc_ok = rc.main(["compare-example"])
 check("compare-example: example 键集覆盖 tmpl", rc_ok == 0)
@@ -230,6 +235,9 @@ with tempfile.TemporaryDirectory() as td:
     if proc.returncode == 0:
         with open(out_path, encoding="utf-8") as f:
             cfg = tomllib.loads(f.read())
+        check_eq("dev OIDC enabled", True, cfg["oidc"]["enabled"])
+        check_eq("dev OIDC issuer", "https://dev.yourtj.de/api/oauth", cfg["oidc"].get("issuer"))
+        check_eq("mobile callback", ["yourtj://callback"], cfg["oidc"]["clients"][0]["redirect_uris"])
         check_eq("dev server_url", "https://dev.yourtj.de", cfg["server"]["url"])
         check_eq("dev github client_id 空", "", cfg["github"]["client_id"])
         check_eq("dev signingKey", "k" * 32, cfg["app"]["signingKey"])

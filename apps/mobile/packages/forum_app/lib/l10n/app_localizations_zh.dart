@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'yourtj';
+  String get appTitle => 'YourTJ';
 
   @override
   String get navHome => '首页';
@@ -186,7 +186,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authSessionSaveFailed => '安全保存新会话失败,请重试';
 
   @override
-  String get loginWelcome => '欢迎回到 yourtj';
+  String get loginWelcome => '欢迎回到 YourTJ';
 
   @override
   String get loginModeLogin => '登录';
@@ -847,10 +847,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get topicNewTopic => '新建话题';
 
   @override
-  String get scheduleTitle => '课表';
+  String get scheduleTitle => '排课器';
 
   @override
-  String get scheduleTabTimetable => '课表';
+  String get scheduleTabTimetable => '方案预览';
 
   @override
   String get scheduleTabPick => '选课';
@@ -1437,4 +1437,37 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get authPasswordMismatch => '两次输入的密码不一致';
+
+  @override
+  String get schedulerWebTitle => '完整版排课器，请到网页端体验';
+
+  @override
+  String get schedulerWebAction => '前往 f.yourtj.de';
+
+  @override
+  String get schedulerPlanDisclaimer => '这是你的选课规划，最终选课结果以教务为准。';
+
+  @override
+  String get campusExploreCourses => '从同学的真实评价，发现适合你的课';
+
+  @override
+  String get campusPlanTitle => '把感兴趣的课，排成自己的方案';
+
+  @override
+  String get campusPlanDescription => '比较教学班、检查时间冲突，再决定怎么选。';
+
+  @override
+  String get loginGoogle => '使用 Google 登录';
+
+  @override
+  String get loginGithub => '使用 GitHub 登录';
+
+  @override
+  String get wikiSearchUnavailable => '搜索暂不可用，你仍可以返回目录浏览。';
+
+  @override
+  String get wikiSearchHint => '搜索校园知识';
+
+  @override
+  String get wikiExploreTitle => '你的校园生活指南';
 }

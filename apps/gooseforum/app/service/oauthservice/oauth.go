@@ -121,15 +121,28 @@ func initOAuthProvidersLocked() {
 func BeginOAuthAuthHandler(w http.ResponseWriter, r *http.Request) {
 	oauthProviderMu.RLock()
 	defer oauthProviderMu.RUnlock()
+	if err := prepareOIDCResume(w, r); err != nil {
+		http.Error(w, "Invalid OAuth continuation", http.StatusBadRequest)
+		return
+	}
 	gothic.BeginAuthHandler(w, r)
 }
 
 // CompleteOAuthUserAuth serializes provider lookup and user fetching with
-// runtime provider refresh.
-func CompleteOAuthUserAuth(w http.ResponseWriter, r *http.Request) (goth.User, error) {
+// runtime provider refresh. It returns the verified upstream user and the
+// validated local continuation (empty for ordinary Web login/binding).
+func CompleteOAuthUserAuth(w http.ResponseWriter, r *http.Request) (goth.User, string, error) {
 	oauthProviderMu.RLock()
 	defer oauthProviderMu.RUnlock()
-	return gothic.CompleteUserAuth(w, r)
+	target, err := consumeOIDCResume(w, r)
+	if err != nil {
+		return goth.User{}, "", err
+	}
+	user, err := gothic.CompleteUserAuth(w, r)
+	if err != nil {
+		return goth.User{}, "", err
+	}
+	return user, target, nil
 }
 
 func initGitHubProviderWithCredentials(credentials oauthCredentials) goth.Provider {
