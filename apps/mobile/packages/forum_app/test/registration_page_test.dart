@@ -29,11 +29,12 @@ class _Options implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     expect(request.path, '/login');
-    if (fail)
+    if (fail) {
       throw DioException(
         requestOptions: request,
         type: DioExceptionType.connectionError,
       );
+    }
     final authorization = request.headers['Authorization'] as String?;
     headers.add(authorization);
     final payload = authorization != null
