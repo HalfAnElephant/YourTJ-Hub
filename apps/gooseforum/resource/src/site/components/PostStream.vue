@@ -856,9 +856,11 @@ const renderPosts = computed<PostPayload[]>(() => {
 })
 
 // #520：树状视图孤根弱提示。森林根楼层回复的是首楼以外、且目标不在当前窗口的楼层时
-// （深链跨窗 / append 边界 forceFlat），父子嵌套无法表达「回复谁」，
-// 用「回复了 @user #N」短提示承接上下文，替代全文引用条；其余场景返回 null 不渲染。
-function treeRootReplyHint(post: PostPayload): { username: string; postNo?: number } | null {
+// （深链跨窗 / append 边界 forceFlat），父子嵌套无法表达「回复谁」，用短提示承接上下文，
+// 替代全文引用条；其余场景返回 null 不渲染。目标不可见时（隐藏/审核移除/隐私清除，
+// 后端 buildReplyTargetPayload 早退只下发 { id, unavailable }，无作者与楼号）降级为
+// unavailable 态，保证「回复了某楼」这一事实仍可见且不泄漏被隐藏目标的作者与楼号。
+function treeRootReplyHint(post: PostPayload): { username?: string; postNo?: number; unavailable?: boolean } | null {
   if (postViewMode.value !== 'tree') return null
   if (!post.replyToPostId) return null
   const firstId = firstPost.value?.id
@@ -866,7 +868,7 @@ function treeRootReplyHint(post: PostPayload): { username: string; postNo?: numb
   const target = replyTargetMap.value.get(post.replyToPostId)
   // 首楼不在当前窗口时用 replyTargets.postNo 判定目标是否首楼（深链打开后段楼层）。
   if (!firstId && (!target || target.postNo === 1)) return null
-  if (!target?.author.username) return null
+  if (!target || target.unavailable || !target.author.username) return { unavailable: true }
   return { username: target.author.username, postNo: target.postNo }
 }
 
@@ -2178,15 +2180,19 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
               </div>
             </div>
             <PostReplyReference v-if="postViewMode !== 'tree' && showReplyReference(post)" :target="replyTargetFor(post)" />
-            <!-- #520：树状视图不渲染全文引用条；孤根（目标在窗口外）以短提示兜底上下文 -->
+            <!-- #520：树状视图不渲染全文引用条；孤根（目标在窗口外）以短提示兜底上下文，
+                 目标不可见（隐藏/移除/清理）时降级为「原回复不可见」 -->
             <p
               v-else-if="postViewMode === 'tree' && treeRootReplyHint(post)"
               data-test="reply-context-hint"
               class="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-base-200/60 px-2.5 py-1 text-xs font-medium text-base-content/55"
             >
               <CornerDownLeft class="h-3 w-3 shrink-0" aria-hidden="true" />
-              <span class="min-w-0 truncate">{{ t('topic.replyTo', { user: `@${treeRootReplyHint(post)!.username}` }) }}</span>
-              <span v-if="treeRootReplyHint(post)!.postNo" class="shrink-0 tabular-nums">#{{ treeRootReplyHint(post)!.postNo }}</span>
+              <span v-if="treeRootReplyHint(post)!.unavailable" class="min-w-0 truncate">{{ t('topic.replyTargetUnavailable') }}</span>
+              <template v-else>
+                <span class="min-w-0 truncate">{{ t('topic.replyTo', { user: `@${treeRootReplyHint(post)!.username}` }) }}</span>
+                <span v-if="treeRootReplyHint(post)!.postNo" class="shrink-0 tabular-nums">#{{ treeRootReplyHint(post)!.postNo }}</span>
+              </template>
             </p>
             <div v-if="post.isAuthorDeleted" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
               <div class="font-semibold text-base-content/70">{{ t('topic.authorDeletedTitle') }}</div>

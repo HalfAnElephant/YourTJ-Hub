@@ -238,9 +238,10 @@ describe('楼层流树状/扁平双视图（组件级集成）', () => {
       makePost({ id: 1, postNo: 1 }),
       makePost({ id: 5, postNo: 5, replyToPostId: 4 }),
     ]
-    // 深链场景：后端对窗口外目标返回 replyTargets 摘要（此处目标已删除标记 unavailable）
+    // 深链场景：目标楼层在窗口外但仍可见 → 后端下发带作者与楼号的 replyTargets 摘要
+    // （buildReplyTargetPayload available 分支；unavailable=false 经 omitempty 省略）
     const wrapper = await mountPostStream(1, posts, [
-      { id: 4, postNo: 4, author: { id: 9, username: 'alice', avatarUrl: '' }, unavailable: true },
+      { id: 4, postNo: 4, author: { id: 9, username: 'alice', avatarUrl: '' } },
     ])
 
     // 兜底孤根仍渲染为主流顶层楼层
@@ -253,5 +254,28 @@ describe('楼层流树状/扁平双视图（组件级集成）', () => {
     expect(hint.exists()).toBe(true)
     expect(hint.text()).toContain('@alice')
     expect(hint.text()).toContain('#4')
+  })
+
+  test('#520 树状孤根目标不可见时降级为「原回复不可见」短提示（不泄漏作者与楼号）', async () => {
+    const posts = [
+      makePost({ id: 1, postNo: 1 }),
+      makePost({ id: 5, postNo: 5, replyToPostId: 4 }),
+    ]
+    // 生产真实形态：目标被隐藏/删除/清理时后端只下发 { id, unavailable }（作者/楼号为零值，
+    // 见 app/http/controllers/forum/payload.go buildReplyTargetPayload 早退分支）
+    const wrapper = await mountPostStream(1, posts, [
+      { id: 4, author: { id: 0, username: '', avatarUrl: '' }, unavailable: true },
+    ])
+
+    const orphanRoot = wrapper.find('article[data-post-no="5"]')
+    expect(orphanRoot.exists()).toBe(true)
+    // 全文引用条不渲染，短提示兜底上下文
+    expect(orphanRoot.find('aside').exists()).toBe(false)
+    const hint = wrapper.find('[data-test="reply-context-hint"]')
+    expect(hint.exists()).toBe(true)
+    expect(hint.text()).toContain(i18n.global.t('topic.replyTargetUnavailable'))
+    // 不泄漏被隐藏目标的作者与楼号
+    expect(hint.text()).not.toContain('@')
+    expect(hint.text()).not.toContain('#')
   })
 })
