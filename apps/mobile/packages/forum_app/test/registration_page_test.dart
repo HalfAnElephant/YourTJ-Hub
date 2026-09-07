@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:auth/auth.dart';
 import 'package:core/core.dart';
 import 'package:dio/dio.dart';
@@ -12,36 +14,53 @@ import 'fixtures/page_fixtures.dart';
 import 'pages_behavior_test.dart' show NoopCache;
 import 'pages_smoke_test.dart' show MemoryTokenStorage;
 
-class _Options extends PageRepository {
-  _Options(
-    super.client, {
-    required this.domains,
-    required this.policies,
-    this.fail = false,
-  });
+class _Options implements HttpClientAdapter {
+  _Options({required this.domains, required this.policies, this.fail = false});
+  final headers = <String?>[];
+  @override
+  void close({bool force = false}) {}
   final List<String> domains;
   final bool policies;
   bool fail;
   @override
-  Future<PagePayload> fetch(String path) async {
-    expect(path, '/login');
-    if (fail) throw StateError('offline');
-    return PagePayload.fromJson({
-      'component': 'auth.login',
-      'props': {
-        'initialMode': 'login',
-        'redirectUrl': '/',
-        'githubUrl': '',
-        'googleReady': false,
-        'allowedDomains': domains,
-        'termsOfServiceEnabled': policies,
-        'privacyPolicyEnabled': policies,
+  Future<ResponseBody> fetch(
+    RequestOptions request,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    expect(request.path, '/login');
+    if (fail)
+      throw DioException(
+        requestOptions: request,
+        type: DioExceptionType.connectionError,
+      );
+    final authorization = request.headers['Authorization'] as String?;
+    headers.add(authorization);
+    final payload = authorization != null
+        ? homePayloadJson()
+        : {
+            'component': 'auth.login',
+            'props': {
+              'initialMode': 'login',
+              'redirectUrl': '/',
+              'githubUrl': '',
+              'googleReady': false,
+              'allowedDomains': domains,
+              'termsOfServiceEnabled': policies,
+              'privacyPolicyEnabled': policies,
+            },
+            'layout': minimalLayoutJson(),
+            'url': '/login',
+            'version': '1',
+            'meta': {'title': 'Login'},
+          };
+    return ResponseBody.fromString(
+      jsonEncode(payload),
+      200,
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
       },
-      'layout': minimalLayoutJson(),
-      'url': '/login',
-      'version': '1',
-      'meta': {'title': 'Login'},
-    });
+    );
   }
 }
 
@@ -71,25 +90,24 @@ void main() {
     List<String> domains = const [],
     bool policies = false,
     bool fail = false,
+    bool oldSession = false,
   }) async {
     await tester.binding.setSurfaceSize(const Size(390, 1100));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final storage = MemoryTokenStorage();
+    if (oldSession) await storage.write('old-token');
+    final staged = MemoryTokenStorage();
     final client = GfApiClient(
       dio: Dio(),
       tokenStorage: storage,
       baseUrl: 'http://fake.local',
     );
-    final auth = _Auth(client, storage);
-    final options = _Options(
-      client,
-      domains: domains,
-      policies: policies,
-      fail: fail,
-    );
+    final auth = _Auth(client, staged);
+    final options = _Options(domains: domains, policies: policies, fail: fail);
     final container = ProviderContainer(
       overrides: [
-        pageRepositoryProvider.overrideWithValue(options),
+        dioProvider.overrideWithValue(Dio()..httpClientAdapter = options),
+        authDioProvider.overrideWithValue(Dio()..httpClientAdapter = options),
         tokenStorageProvider.overrideWithValue(storage),
         offlineTopicCacheProvider.overrideWithValue(NoopCache()),
         offlineChatCacheProvider.overrideWithValue(NoopCache()),
@@ -104,7 +122,7 @@ void main() {
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: LoginPage(authController: auth, authTokenStorage: storage),
+          home: LoginPage(authController: auth, authTokenStorage: staged),
         ),
       ),
     );
@@ -131,6 +149,13 @@ void main() {
     await tester.enterText(input('Confirm password'), 'test-password');
   }
 
+  testWidgets('registration options never carry the previous account session', (
+    tester,
+  ) async {
+    final h = await pump(tester, oldSession: true, domains: ['tongji.edu.cn']);
+    expect(find.byKey(const Key('register-email-domain')), findsOneWidget);
+    expect(h.options.headers, [null]);
+  });
   testWidgets(
     'registration joins selected domain and requires published policies',
     (tester) async {

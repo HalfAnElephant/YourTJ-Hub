@@ -331,7 +331,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       _registrationError = null;
     });
     try {
-      final payload = await ref.read(pageRepositoryProvider).fetch('/login');
+      // The shared page client still owns the previous account credential.
+      final payload = await PageRepository(_authClient).fetch('/login');
       final options = parsePageProps<LoginPageProps>(payload);
       if (options == null) throw StateError('Invalid login page');
       if (!mounted) return;

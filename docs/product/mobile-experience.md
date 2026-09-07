@@ -102,7 +102,7 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 
 - `Partial`: the complete Web admin console and moderation workspace are reachable in the App.
   The native wrapper and authenticated handoff pass local iOS and Android login/draft/console
-  journeys; all 27 administrative modules fit both viewports, including the link editor.
+  journeys; all 28 administrative modules fit both viewports, including the link editor.
   The journey creates and deletes a friend link through the real administrative form.
   Both independent course workspaces also pass authenticated handoff and viewport checks on iOS
   and Android.
@@ -129,6 +129,7 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 ## Verification boundaries
 
 The source, contract and focused Flutter/Go tests define the implemented behavior. Figma is the
-editable visual counterpart, not an alternative API or permission model. Native device behavior,
+editable visual counterpart, not an alternative API or permission model. The maintained design is
+[05 Mobile · Refined](https://www.figma.com/design/eLF6vFbmdwDQXec1IyuA4X/YourTJ_Mob_App_Design?node-id=211-2). Native device behavior,
 Linux-rendered goldens, distribution and additional locales have independent verification gates;
 local widget tests do not imply those gates passed.
