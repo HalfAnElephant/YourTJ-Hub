@@ -169,6 +169,10 @@
   },
   {
     "method": "GET",
+    "path": "/api/auth/mobile-web-session"
+  },
+  {
+    "method": "GET",
     "path": "/api/forum/courses"
   },
   {

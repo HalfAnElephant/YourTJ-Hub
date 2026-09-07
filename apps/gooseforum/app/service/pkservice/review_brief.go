@@ -61,6 +61,7 @@ func FindCourseReviewBrief(courseCode, teacherName string, calendarId, teachingC
 	}
 	candidateCodes := []string{}
 	if err == nil {
+		brief.CourseCode = normalizeText(row.CourseCode)
 		brief.CourseName = row.CourseName
 		if newCode := normalizeText(row.NewCourseCode); newCode != "" {
 			candidateCodes = append(candidateCodes, newCode)

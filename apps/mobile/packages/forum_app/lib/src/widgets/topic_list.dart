@@ -17,12 +17,16 @@ class GfTopicList extends StatelessWidget {
     required this.loading,
     required this.topics,
     this.controller,
+    this.padding = EdgeInsets.zero,
+    this.header,
     this.feedMode = GfTopicFeedMode.list,
     required this.hasMore,
     required this.onLoadMore,
   });
 
   final bool loading;
+  final EdgeInsets padding;
+  final Widget? header;
   final ScrollController? controller;
   final List<TopicPayload> topics;
   final GfTopicFeedMode feedMode;
@@ -33,18 +37,42 @@ class GfTopicList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (loading && topics.isEmpty) return const GfLoading();
     if (topics.isEmpty) {
-      return GfEmpty(message: AppLocalizations.of(context).topicEmpty);
+      return CustomScrollView(
+        controller: controller,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: EdgeInsets.only(top: padding.top),
+            sliver: SliverToBoxAdapter(
+              child: header ?? const SizedBox.shrink(),
+            ),
+          ),
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                padding.left,
+                0,
+                padding.right,
+                padding.bottom,
+              ),
+              child: GfEmpty(message: AppLocalizations.of(context).topicEmpty),
+            ),
+          ),
+        ],
+      );
     }
     return ListView.separated(
       controller: controller,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: feedMode == GfTopicFeedMode.card
-          ? const EdgeInsets.all(12)
-          : EdgeInsets.zero,
-      itemCount: topics.length + 1,
-      separatorBuilder: (_, _) =>
-          SizedBox(height: feedMode == GfTopicFeedMode.card ? 12 : 1),
+      padding: padding,
+      itemCount: topics.length + 1 + (header == null ? 0 : 1),
+      separatorBuilder: (_, _) => const SizedBox.shrink(),
       itemBuilder: (context, index) {
+        if (header != null) {
+          if (index == 0) return header!;
+          index -= 1;
+        }
         if (index == topics.length) {
           return GfListFooter(
             loading: loading,

@@ -1429,6 +1429,7 @@ mixin _$TopicPayload {
   int get id => throw _privateConstructorUsedError;
   String get title => throw _privateConstructorUsedError;
   String get description => throw _privateConstructorUsedError;
+  int get contentType => throw _privateConstructorUsedError;
   String? get firstImageUrl => throw _privateConstructorUsedError;
   List<String>? get images => throw _privateConstructorUsedError;
   String get url => throw _privateConstructorUsedError;
@@ -1465,6 +1466,7 @@ abstract class $TopicPayloadCopyWith<$Res> {
     int id,
     String title,
     String description,
+    int contentType,
     String? firstImageUrl,
     List<String>? images,
     String url,
@@ -1501,6 +1503,7 @@ class _$TopicPayloadCopyWithImpl<$Res, $Val extends TopicPayload>
     Object? id = null,
     Object? title = null,
     Object? description = null,
+    Object? contentType = null,
     Object? firstImageUrl = freezed,
     Object? images = freezed,
     Object? url = null,
@@ -1529,6 +1532,10 @@ class _$TopicPayloadCopyWithImpl<$Res, $Val extends TopicPayload>
                 ? _value.description
                 : description // ignore: cast_nullable_to_non_nullable
                       as String,
+            contentType: null == contentType
+                ? _value.contentType
+                : contentType // ignore: cast_nullable_to_non_nullable
+                      as int,
             firstImageUrl: freezed == firstImageUrl
                 ? _value.firstImageUrl
                 : firstImageUrl // ignore: cast_nullable_to_non_nullable
@@ -1610,6 +1617,7 @@ abstract class _$$TopicPayloadImplCopyWith<$Res>
     int id,
     String title,
     String description,
+    int contentType,
     String? firstImageUrl,
     List<String>? images,
     String url,
@@ -1646,6 +1654,7 @@ class __$$TopicPayloadImplCopyWithImpl<$Res>
     Object? id = null,
     Object? title = null,
     Object? description = null,
+    Object? contentType = null,
     Object? firstImageUrl = freezed,
     Object? images = freezed,
     Object? url = null,
@@ -1674,6 +1683,10 @@ class __$$TopicPayloadImplCopyWithImpl<$Res>
             ? _value.description
             : description // ignore: cast_nullable_to_non_nullable
                   as String,
+        contentType: null == contentType
+            ? _value.contentType
+            : contentType // ignore: cast_nullable_to_non_nullable
+                  as int,
         firstImageUrl: freezed == firstImageUrl
             ? _value.firstImageUrl
             : firstImageUrl // ignore: cast_nullable_to_non_nullable
@@ -1738,6 +1751,7 @@ class _$TopicPayloadImpl implements _TopicPayload {
     required this.id,
     required this.title,
     required this.description,
+    this.contentType = 3,
     this.firstImageUrl,
     final List<String>? images,
     required this.url,
@@ -1764,6 +1778,9 @@ class _$TopicPayloadImpl implements _TopicPayload {
   final String title;
   @override
   final String description;
+  @override
+  @JsonKey()
+  final int contentType;
   @override
   final String? firstImageUrl;
   final List<String>? _images;
@@ -1813,7 +1830,7 @@ class _$TopicPayloadImpl implements _TopicPayload {
 
   @override
   String toString() {
-    return 'TopicPayload(id: $id, title: $title, description: $description, firstImageUrl: $firstImageUrl, images: $images, url: $url, author: $author, participants: $participants, categories: $categories, replyCount: $replyCount, viewCount: $viewCount, pinWeight: $pinWeight, processStatus: $processStatus, activityText: $activityText, lastUpdateTime: $lastUpdateTime, unseen: $unseen)';
+    return 'TopicPayload(id: $id, title: $title, description: $description, contentType: $contentType, firstImageUrl: $firstImageUrl, images: $images, url: $url, author: $author, participants: $participants, categories: $categories, replyCount: $replyCount, viewCount: $viewCount, pinWeight: $pinWeight, processStatus: $processStatus, activityText: $activityText, lastUpdateTime: $lastUpdateTime, unseen: $unseen)';
   }
 
   @override
@@ -1825,6 +1842,8 @@ class _$TopicPayloadImpl implements _TopicPayload {
             (identical(other.title, title) || other.title == title) &&
             (identical(other.description, description) ||
                 other.description == description) &&
+            (identical(other.contentType, contentType) ||
+                other.contentType == contentType) &&
             (identical(other.firstImageUrl, firstImageUrl) ||
                 other.firstImageUrl == firstImageUrl) &&
             const DeepCollectionEquality().equals(other._images, _images) &&
@@ -1860,6 +1879,7 @@ class _$TopicPayloadImpl implements _TopicPayload {
     id,
     title,
     description,
+    contentType,
     firstImageUrl,
     const DeepCollectionEquality().hash(_images),
     url,
@@ -1894,6 +1914,7 @@ abstract class _TopicPayload implements TopicPayload {
     required final int id,
     required final String title,
     required final String description,
+    final int contentType,
     final String? firstImageUrl,
     final List<String>? images,
     required final String url,
@@ -1918,6 +1939,8 @@ abstract class _TopicPayload implements TopicPayload {
   String get title;
   @override
   String get description;
+  @override
+  int get contentType;
   @override
   String? get firstImageUrl;
   @override
@@ -1962,11 +1985,14 @@ mixin _$TopicDetailPayload {
   int get id => throw _privateConstructorUsedError;
   String get title => throw _privateConstructorUsedError;
   String get description => throw _privateConstructorUsedError;
+  int get contentType => throw _privateConstructorUsedError;
   String? get firstImageUrl => throw _privateConstructorUsedError;
   List<String>? get images => throw _privateConstructorUsedError;
   String get url => throw _privateConstructorUsedError;
   int get topicStatus => throw _privateConstructorUsedError;
   int get processStatus => throw _privateConstructorUsedError;
+  bool get authorDeleted => throw _privateConstructorUsedError;
+  bool get moderatorRemoved => throw _privateConstructorUsedError;
   UserBriefPayload get author => throw _privateConstructorUsedError;
   List<UserBriefPayload> get participants => throw _privateConstructorUsedError;
   List<CategoryBriefPayload> get categories =>
@@ -2002,11 +2028,14 @@ abstract class $TopicDetailPayloadCopyWith<$Res> {
     int id,
     String title,
     String description,
+    int contentType,
     String? firstImageUrl,
     List<String>? images,
     String url,
     int topicStatus,
     int processStatus,
+    bool authorDeleted,
+    bool moderatorRemoved,
     UserBriefPayload author,
     List<UserBriefPayload> participants,
     List<CategoryBriefPayload> categories,
@@ -2042,11 +2071,14 @@ class _$TopicDetailPayloadCopyWithImpl<$Res, $Val extends TopicDetailPayload>
     Object? id = null,
     Object? title = null,
     Object? description = null,
+    Object? contentType = null,
     Object? firstImageUrl = freezed,
     Object? images = freezed,
     Object? url = null,
     Object? topicStatus = null,
     Object? processStatus = null,
+    Object? authorDeleted = null,
+    Object? moderatorRemoved = null,
     Object? author = null,
     Object? participants = null,
     Object? categories = null,
@@ -2074,6 +2106,10 @@ class _$TopicDetailPayloadCopyWithImpl<$Res, $Val extends TopicDetailPayload>
                 ? _value.description
                 : description // ignore: cast_nullable_to_non_nullable
                       as String,
+            contentType: null == contentType
+                ? _value.contentType
+                : contentType // ignore: cast_nullable_to_non_nullable
+                      as int,
             firstImageUrl: freezed == firstImageUrl
                 ? _value.firstImageUrl
                 : firstImageUrl // ignore: cast_nullable_to_non_nullable
@@ -2094,6 +2130,14 @@ class _$TopicDetailPayloadCopyWithImpl<$Res, $Val extends TopicDetailPayload>
                 ? _value.processStatus
                 : processStatus // ignore: cast_nullable_to_non_nullable
                       as int,
+            authorDeleted: null == authorDeleted
+                ? _value.authorDeleted
+                : authorDeleted // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            moderatorRemoved: null == moderatorRemoved
+                ? _value.moderatorRemoved
+                : moderatorRemoved // ignore: cast_nullable_to_non_nullable
+                      as bool,
             author: null == author
                 ? _value.author
                 : author // ignore: cast_nullable_to_non_nullable
@@ -2171,11 +2215,14 @@ abstract class _$$TopicDetailPayloadImplCopyWith<$Res>
     int id,
     String title,
     String description,
+    int contentType,
     String? firstImageUrl,
     List<String>? images,
     String url,
     int topicStatus,
     int processStatus,
+    bool authorDeleted,
+    bool moderatorRemoved,
     UserBriefPayload author,
     List<UserBriefPayload> participants,
     List<CategoryBriefPayload> categories,
@@ -2211,11 +2258,14 @@ class __$$TopicDetailPayloadImplCopyWithImpl<$Res>
     Object? id = null,
     Object? title = null,
     Object? description = null,
+    Object? contentType = null,
     Object? firstImageUrl = freezed,
     Object? images = freezed,
     Object? url = null,
     Object? topicStatus = null,
     Object? processStatus = null,
+    Object? authorDeleted = null,
+    Object? moderatorRemoved = null,
     Object? author = null,
     Object? participants = null,
     Object? categories = null,
@@ -2243,6 +2293,10 @@ class __$$TopicDetailPayloadImplCopyWithImpl<$Res>
             ? _value.description
             : description // ignore: cast_nullable_to_non_nullable
                   as String,
+        contentType: null == contentType
+            ? _value.contentType
+            : contentType // ignore: cast_nullable_to_non_nullable
+                  as int,
         firstImageUrl: freezed == firstImageUrl
             ? _value.firstImageUrl
             : firstImageUrl // ignore: cast_nullable_to_non_nullable
@@ -2263,6 +2317,14 @@ class __$$TopicDetailPayloadImplCopyWithImpl<$Res>
             ? _value.processStatus
             : processStatus // ignore: cast_nullable_to_non_nullable
                   as int,
+        authorDeleted: null == authorDeleted
+            ? _value.authorDeleted
+            : authorDeleted // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        moderatorRemoved: null == moderatorRemoved
+            ? _value.moderatorRemoved
+            : moderatorRemoved // ignore: cast_nullable_to_non_nullable
+                  as bool,
         author: null == author
             ? _value.author
             : author // ignore: cast_nullable_to_non_nullable
@@ -2323,11 +2385,14 @@ class _$TopicDetailPayloadImpl implements _TopicDetailPayload {
     required this.id,
     required this.title,
     required this.description,
+    this.contentType = 3,
     this.firstImageUrl,
     final List<String>? images,
     required this.url,
     required this.topicStatus,
     required this.processStatus,
+    this.authorDeleted = false,
+    this.moderatorRemoved = false,
     required this.author,
     required final List<UserBriefPayload> participants,
     required final List<CategoryBriefPayload> categories,
@@ -2354,6 +2419,9 @@ class _$TopicDetailPayloadImpl implements _TopicDetailPayload {
   @override
   final String description;
   @override
+  @JsonKey()
+  final int contentType;
+  @override
   final String? firstImageUrl;
   final List<String>? _images;
   @override
@@ -2371,6 +2439,12 @@ class _$TopicDetailPayloadImpl implements _TopicDetailPayload {
   final int topicStatus;
   @override
   final int processStatus;
+  @override
+  @JsonKey()
+  final bool authorDeleted;
+  @override
+  @JsonKey()
+  final bool moderatorRemoved;
   @override
   final UserBriefPayload author;
   final List<UserBriefPayload> _participants;
@@ -2410,7 +2484,7 @@ class _$TopicDetailPayloadImpl implements _TopicDetailPayload {
 
   @override
   String toString() {
-    return 'TopicDetailPayload(id: $id, title: $title, description: $description, firstImageUrl: $firstImageUrl, images: $images, url: $url, topicStatus: $topicStatus, processStatus: $processStatus, author: $author, participants: $participants, categories: $categories, replyCount: $replyCount, maxPostNo: $maxPostNo, viewCount: $viewCount, likeCount: $likeCount, isLiked: $isLiked, isBookmarked: $isBookmarked, isWatched: $isWatched, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'TopicDetailPayload(id: $id, title: $title, description: $description, contentType: $contentType, firstImageUrl: $firstImageUrl, images: $images, url: $url, topicStatus: $topicStatus, processStatus: $processStatus, authorDeleted: $authorDeleted, moderatorRemoved: $moderatorRemoved, author: $author, participants: $participants, categories: $categories, replyCount: $replyCount, maxPostNo: $maxPostNo, viewCount: $viewCount, likeCount: $likeCount, isLiked: $isLiked, isBookmarked: $isBookmarked, isWatched: $isWatched, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -2422,6 +2496,8 @@ class _$TopicDetailPayloadImpl implements _TopicDetailPayload {
             (identical(other.title, title) || other.title == title) &&
             (identical(other.description, description) ||
                 other.description == description) &&
+            (identical(other.contentType, contentType) ||
+                other.contentType == contentType) &&
             (identical(other.firstImageUrl, firstImageUrl) ||
                 other.firstImageUrl == firstImageUrl) &&
             const DeepCollectionEquality().equals(other._images, _images) &&
@@ -2430,6 +2506,10 @@ class _$TopicDetailPayloadImpl implements _TopicDetailPayload {
                 other.topicStatus == topicStatus) &&
             (identical(other.processStatus, processStatus) ||
                 other.processStatus == processStatus) &&
+            (identical(other.authorDeleted, authorDeleted) ||
+                other.authorDeleted == authorDeleted) &&
+            (identical(other.moderatorRemoved, moderatorRemoved) ||
+                other.moderatorRemoved == moderatorRemoved) &&
             (identical(other.author, author) || other.author == author) &&
             const DeepCollectionEquality().equals(
               other._participants,
@@ -2465,11 +2545,14 @@ class _$TopicDetailPayloadImpl implements _TopicDetailPayload {
     id,
     title,
     description,
+    contentType,
     firstImageUrl,
     const DeepCollectionEquality().hash(_images),
     url,
     topicStatus,
     processStatus,
+    authorDeleted,
+    moderatorRemoved,
     author,
     const DeepCollectionEquality().hash(_participants),
     const DeepCollectionEquality().hash(_categories),
@@ -2506,11 +2589,14 @@ abstract class _TopicDetailPayload implements TopicDetailPayload {
     required final int id,
     required final String title,
     required final String description,
+    final int contentType,
     final String? firstImageUrl,
     final List<String>? images,
     required final String url,
     required final int topicStatus,
     required final int processStatus,
+    final bool authorDeleted,
+    final bool moderatorRemoved,
     required final UserBriefPayload author,
     required final List<UserBriefPayload> participants,
     required final List<CategoryBriefPayload> categories,
@@ -2535,6 +2621,8 @@ abstract class _TopicDetailPayload implements TopicDetailPayload {
   @override
   String get description;
   @override
+  int get contentType;
+  @override
   String? get firstImageUrl;
   @override
   List<String>? get images;
@@ -2544,6 +2632,10 @@ abstract class _TopicDetailPayload implements TopicDetailPayload {
   int get topicStatus;
   @override
   int get processStatus;
+  @override
+  bool get authorDeleted;
+  @override
+  bool get moderatorRemoved;
   @override
   UserBriefPayload get author;
   @override
@@ -2590,6 +2682,8 @@ mixin _$PostPayload {
   String get renderedContent => throw _privateConstructorUsedError;
   int get processStatus => throw _privateConstructorUsedError;
   bool get isHidden => throw _privateConstructorUsedError;
+  bool get isAuthorDeleted => throw _privateConstructorUsedError;
+  bool get isModeratorRemoved => throw _privateConstructorUsedError;
   bool get canModerate => throw _privateConstructorUsedError;
   UserBriefPayload get author => throw _privateConstructorUsedError;
   String get createdAt => throw _privateConstructorUsedError;
@@ -2630,6 +2724,8 @@ abstract class $PostPayloadCopyWith<$Res> {
     String renderedContent,
     int processStatus,
     bool isHidden,
+    bool isAuthorDeleted,
+    bool isModeratorRemoved,
     bool canModerate,
     UserBriefPayload author,
     String createdAt,
@@ -2672,6 +2768,8 @@ class _$PostPayloadCopyWithImpl<$Res, $Val extends PostPayload>
     Object? renderedContent = null,
     Object? processStatus = null,
     Object? isHidden = null,
+    Object? isAuthorDeleted = null,
+    Object? isModeratorRemoved = null,
     Object? canModerate = null,
     Object? author = null,
     Object? createdAt = null,
@@ -2716,6 +2814,14 @@ class _$PostPayloadCopyWithImpl<$Res, $Val extends PostPayload>
             isHidden: null == isHidden
                 ? _value.isHidden
                 : isHidden // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            isAuthorDeleted: null == isAuthorDeleted
+                ? _value.isAuthorDeleted
+                : isAuthorDeleted // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            isModeratorRemoved: null == isModeratorRemoved
+                ? _value.isModeratorRemoved
+                : isModeratorRemoved // ignore: cast_nullable_to_non_nullable
                       as bool,
             canModerate: null == canModerate
                 ? _value.canModerate
@@ -2820,6 +2926,8 @@ abstract class _$$PostPayloadImplCopyWith<$Res>
     String renderedContent,
     int processStatus,
     bool isHidden,
+    bool isAuthorDeleted,
+    bool isModeratorRemoved,
     bool canModerate,
     UserBriefPayload author,
     String createdAt,
@@ -2863,6 +2971,8 @@ class __$$PostPayloadImplCopyWithImpl<$Res>
     Object? renderedContent = null,
     Object? processStatus = null,
     Object? isHidden = null,
+    Object? isAuthorDeleted = null,
+    Object? isModeratorRemoved = null,
     Object? canModerate = null,
     Object? author = null,
     Object? createdAt = null,
@@ -2907,6 +3017,14 @@ class __$$PostPayloadImplCopyWithImpl<$Res>
         isHidden: null == isHidden
             ? _value.isHidden
             : isHidden // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        isAuthorDeleted: null == isAuthorDeleted
+            ? _value.isAuthorDeleted
+            : isAuthorDeleted // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        isModeratorRemoved: null == isModeratorRemoved
+            ? _value.isModeratorRemoved
+            : isModeratorRemoved // ignore: cast_nullable_to_non_nullable
                   as bool,
         canModerate: null == canModerate
             ? _value.canModerate
@@ -2980,6 +3098,8 @@ class _$PostPayloadImpl implements _PostPayload {
     required this.renderedContent,
     required this.processStatus,
     required this.isHidden,
+    this.isAuthorDeleted = false,
+    this.isModeratorRemoved = false,
     required this.canModerate,
     required this.author,
     required this.createdAt,
@@ -3014,6 +3134,12 @@ class _$PostPayloadImpl implements _PostPayload {
   @override
   final bool isHidden;
   @override
+  @JsonKey()
+  final bool isAuthorDeleted;
+  @override
+  @JsonKey()
+  final bool isModeratorRemoved;
+  @override
   final bool canModerate;
   @override
   final UserBriefPayload author;
@@ -3044,7 +3170,7 @@ class _$PostPayloadImpl implements _PostPayload {
 
   @override
   String toString() {
-    return 'PostPayload(id: $id, topicId: $topicId, postNo: $postNo, content: $content, renderedContent: $renderedContent, processStatus: $processStatus, isHidden: $isHidden, canModerate: $canModerate, author: $author, createdAt: $createdAt, replyToPostId: $replyToPostId, replyToUserId: $replyToUserId, replyToUsername: $replyToUsername, isOwnPost: $isOwnPost, updatedAt: $updatedAt, lastEditor: $lastEditor, lastEditedAt: $lastEditedAt, revisionCount: $revisionCount, likeCount: $likeCount, isLiked: $isLiked, isBookmarked: $isBookmarked)';
+    return 'PostPayload(id: $id, topicId: $topicId, postNo: $postNo, content: $content, renderedContent: $renderedContent, processStatus: $processStatus, isHidden: $isHidden, isAuthorDeleted: $isAuthorDeleted, isModeratorRemoved: $isModeratorRemoved, canModerate: $canModerate, author: $author, createdAt: $createdAt, replyToPostId: $replyToPostId, replyToUserId: $replyToUserId, replyToUsername: $replyToUsername, isOwnPost: $isOwnPost, updatedAt: $updatedAt, lastEditor: $lastEditor, lastEditedAt: $lastEditedAt, revisionCount: $revisionCount, likeCount: $likeCount, isLiked: $isLiked, isBookmarked: $isBookmarked)';
   }
 
   @override
@@ -3062,6 +3188,10 @@ class _$PostPayloadImpl implements _PostPayload {
                 other.processStatus == processStatus) &&
             (identical(other.isHidden, isHidden) ||
                 other.isHidden == isHidden) &&
+            (identical(other.isAuthorDeleted, isAuthorDeleted) ||
+                other.isAuthorDeleted == isAuthorDeleted) &&
+            (identical(other.isModeratorRemoved, isModeratorRemoved) ||
+                other.isModeratorRemoved == isModeratorRemoved) &&
             (identical(other.canModerate, canModerate) ||
                 other.canModerate == canModerate) &&
             (identical(other.author, author) || other.author == author) &&
@@ -3101,6 +3231,8 @@ class _$PostPayloadImpl implements _PostPayload {
     renderedContent,
     processStatus,
     isHidden,
+    isAuthorDeleted,
+    isModeratorRemoved,
     canModerate,
     author,
     createdAt,
@@ -3140,6 +3272,8 @@ abstract class _PostPayload implements PostPayload {
     required final String renderedContent,
     required final int processStatus,
     required final bool isHidden,
+    final bool isAuthorDeleted,
+    final bool isModeratorRemoved,
     required final bool canModerate,
     required final UserBriefPayload author,
     required final String createdAt,
@@ -3173,6 +3307,10 @@ abstract class _PostPayload implements PostPayload {
   int get processStatus;
   @override
   bool get isHidden;
+  @override
+  bool get isAuthorDeleted;
+  @override
+  bool get isModeratorRemoved;
   @override
   bool get canModerate;
   @override

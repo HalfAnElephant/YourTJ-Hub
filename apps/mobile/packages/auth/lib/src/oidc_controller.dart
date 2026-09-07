@@ -48,7 +48,10 @@ class OidcController extends ChangeNotifier {
   bool get isAuthenticated => _authenticated;
 
   /// 发起 OIDC 登录:授权 → 后端兑换 → 存 token。
-  Future<bool> login() async {
+  Future<bool> login({String? provider}) async {
+    if (provider != null && provider != 'google' && provider != 'github') {
+      throw ArgumentError.value(provider, 'provider');
+    }
     _busy = true;
     _error = '';
     notifyListeners();
@@ -62,6 +65,9 @@ class OidcController extends ChangeNotifier {
           redirectUri,
           issuer: _issuer,
           scopes: ['openid', 'profile', 'email'],
+          additionalParameters: provider == null
+              ? null
+              : {'login_hint': provider},
           nonce: nonce,
           allowInsecureConnections: kDebugMode,
         ),

@@ -227,6 +227,7 @@ const mailForm = reactive<MailSettings>({
 const securityForm = reactive<SecuritySettings>({
   enableSignup: true,
   enableEmailVerification: false,
+  maxDailySignups: -1,
   allowedDomains: [],
   reservedUsernames: [],
   bannedUsernames: [],
@@ -403,9 +404,15 @@ function mailPayload() {
 }
 
 function normalizeSecurity(settings: Partial<SecuritySettings> = {}) {
+  const maxDailySignupsValue = Number(settings.maxDailySignups)
+  const maxDailySignups = String(settings.maxDailySignups ?? '').trim() === '' || !Number.isFinite(maxDailySignupsValue)
+    ? -1
+    : Math.max(-1, Math.trunc(maxDailySignupsValue))
+
   return {
     enableSignup: toBool(settings.enableSignup, true),
     enableEmailVerification: toBool(settings.enableEmailVerification, false),
+    maxDailySignups,
     allowedDomains: Array.isArray(settings.allowedDomains)
       ? settings.allowedDomains.map(item => String(item).trim().toLowerCase()).filter(Boolean)
       : [],
@@ -1276,6 +1283,11 @@ onUnmounted(stopSyncPolling)
           <div><div class="text-base font-medium">{{ adminText('k008y') }}</div><p class="text-sm text-muted-foreground">{{ adminText('k008z') }}</p></div>
           <Switch v-model="securityForm.enableSignup" />
         </div>
+        <div class="space-y-2">
+          <div class="text-base font-medium">{{ adminText('k00lk') }}</div>
+          <p class="text-sm text-muted-foreground">{{ adminText('k00ll') }}</p>
+          <Input v-model.number="securityForm.maxDailySignups" type="number" min="-1" step="1" class="max-w-sm" />
+        </div>
         <div class="flex items-center justify-between">
           <div><div class="flex items-center gap-2 text-base font-medium"><MailCheck class="size-4" />{{ adminText('k0090') }}</div><p class="text-sm text-muted-foreground">{{ adminText('k0091') }}</p></div>
           <Switch v-model="securityForm.enableEmailVerification" />
@@ -1385,8 +1397,8 @@ onUnmounted(stopSyncPolling)
         <section class="space-y-3">
           <div class="flex items-center gap-2 border-b pb-2 text-lg font-medium"><FileText class="size-5 text-muted-foreground" />{{ adminText('k00ip') }}</div>
           <div class="grid gap-3">
-            <div v-for="(rule, index) in rateLimitForm.actions" :key="rule.action" class="grid grid-cols-[minmax(120px,1fr)_110px_110px_110px] items-center gap-3 rounded-lg border p-3">
-              <span class="truncate font-mono text-sm">{{ rule.action }}</span>
+            <div v-for="(rule, index) in rateLimitForm.actions" :key="rule.action" class="grid grid-cols-3 items-center sm:grid-cols-[minmax(120px,1fr)_110px_110px_110px] gap-3 rounded-lg border p-3">
+              <span class="col-span-3 truncate font-mono text-sm sm:col-span-1">{{ rule.action }}</span>
               <label class="grid gap-1 text-xs text-muted-foreground">{{ adminText('k00iq') }}<Input v-model.number="rateLimitForm.actions[index].windowSeconds" :disabled="!rateLimitForm.enabled" type="number" min="1" /></label>
               <label class="grid gap-1 text-xs text-muted-foreground">{{ adminText('k00ir') }}<Input v-model.number="rateLimitForm.actions[index].limitPerIp" :disabled="!rateLimitForm.enabled" type="number" min="0" /></label>
               <label class="grid gap-1 text-xs text-muted-foreground">{{ adminText('k00is') }}<Input v-model.number="rateLimitForm.actions[index].limitPerUser" :disabled="!rateLimitForm.enabled" type="number" min="0" /></label>

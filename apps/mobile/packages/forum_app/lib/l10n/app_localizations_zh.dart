@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'yourtj';
+  String get appTitle => 'YourTJ';
 
   @override
   String get navHome => '首页';
@@ -186,7 +186,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authSessionSaveFailed => '安全保存新会话失败,请重试';
 
   @override
-  String get loginWelcome => '欢迎回到 yourtj';
+  String get loginWelcome => '欢迎回到 YourTJ';
 
   @override
   String get loginModeLogin => '登录';
@@ -847,10 +847,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get topicNewTopic => '新建话题';
 
   @override
-  String get scheduleTitle => '课表';
+  String get scheduleTitle => '排课器';
 
   @override
-  String get scheduleTabTimetable => '课表';
+  String get scheduleTabTimetable => '方案预览';
 
   @override
   String get scheduleTabPick => '选课';
@@ -1108,4 +1108,366 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get entryWiki => 'Wiki';
+
+  @override
+  String get navCampus => '校园';
+
+  @override
+  String get campusTitle => '在同济，发现更多';
+
+  @override
+  String get campusSubtitle => '选好课，排好每一天，分享你的校园经验。';
+
+  @override
+  String get campusCoursesHint => '查课程、看评价，选课更有底气';
+
+  @override
+  String get campusScheduleHint => '多方案排课、冲突提示与课表导出';
+
+  @override
+  String get campusWikiHint => '校园指南，与大家一起完善的知识库';
+
+  @override
+  String get publishMoment => '瞬间';
+
+  @override
+  String get publishQuestion => '提问';
+
+  @override
+  String get publishArticle => '文章';
+
+  @override
+  String get publishNext => '下一步';
+
+  @override
+  String get publishGallery => '先选图片，再记录这一刻';
+
+  @override
+  String get publishGalleryHint => '最多 9 张，长按拖动排序';
+
+  @override
+  String get publishFormatting => '文字格式';
+
+  @override
+  String get publishClassification => '选择分区与标签';
+
+  @override
+  String get publishLeaveTitle => '保留这次创作？';
+
+  @override
+  String get publishLeaveBody => '尚有未保存的内容。返回编辑，或放弃本次修改。';
+
+  @override
+  String get publishDiscard => '放弃修改';
+
+  @override
+  String get publishContinue => '继续编辑';
+
+  @override
+  String get publishImageOnlyTitle => '分享此刻';
+
+  @override
+  String get publishTypeLocked => '编辑已有帖子时保留原类型';
+
+  @override
+  String get profileMore => '更多功能';
+
+  @override
+  String get profileContent => '内容管理';
+
+  @override
+  String get profileTrash => '回收站';
+
+  @override
+  String get profileSecurity => '账号、安全与隐私';
+
+  @override
+  String get profileAdmin => '管理工作台';
+
+  @override
+  String get fabDiscussion => '前往讨论区';
+
+  @override
+  String get fabRefresh => '刷新并回到顶部';
+
+  @override
+  String get contentRestore => '恢复';
+
+  @override
+  String get contentDelete => '删除';
+
+  @override
+  String get contentPurge => '永久删除';
+
+  @override
+  String get contentPrivacyErase => '隐私清除';
+
+  @override
+  String get contentDeleteConfirm => '内容会移入回收站，符合恢复条件时可在 30 天内恢复。';
+
+  @override
+  String get contentPurgeConfirm => '此操作不可撤销。正文和图片将被永久清除。';
+
+  @override
+  String get contentPassword => '请输入当前密码以确认操作';
+
+  @override
+  String get contentSelected => '已选择';
+
+  @override
+  String get contentSelectAll => '全选当前列表';
+
+  @override
+  String get contentEmpty => '这里还没有内容';
+
+  @override
+  String get contentTrashHint => '可恢复的内容保留 30 天；审核移除的内容不能自行恢复。';
+
+  @override
+  String get commonConfirm => '确认';
+
+  @override
+  String get adminUnavailable => '管理后台暂不可用。请确认账号有管理权限、登录未过期，并检查网络后重试。';
+
+  @override
+  String get adminDownloadFailed => '导出下载失败，请稍后重试。';
+
+  @override
+  String get publishGalleryTooMany => '内容最多支持 9 张图片，请先减少图片或继续使用文章编辑器。';
+
+  @override
+  String get profileActivity => '动态';
+
+  @override
+  String get profileBookmarks => '收藏';
+
+  @override
+  String get profileModeration => '审核工作台';
+
+  @override
+  String get settingsCloseAccount => '注销账号';
+
+  @override
+  String get settingsCloseAccountWarning =>
+      '注销不可撤销，所有设备都会退出登录。你可以保留匿名化后的历史内容，或请求删除自己的内容；受保留规则限制的内容可能仍会保留。请输入当前账号密码以确认。';
+
+  @override
+  String get settingsCloseKeepContent => '保留匿名内容';
+
+  @override
+  String get settingsCloseDeleteContent => '请求删除内容';
+
+  @override
+  String get publishUndo => '撤销';
+
+  @override
+  String get publishRedo => '重做';
+
+  @override
+  String get publishHeading => '标题';
+
+  @override
+  String get publishToolLink => '插入链接';
+
+  @override
+  String get publishLinkInvalid => '请输入有效的 http、https 或邮件链接。';
+
+  @override
+  String get publishPhotoLibrary => '从相册选择';
+
+  @override
+  String get publishCamera => '拍摄照片';
+
+  @override
+  String get settingsWebsiteName => '网站名称';
+
+  @override
+  String get settingsWebsite => '个人网站';
+
+  @override
+  String get settingsSocialLinks => '社交链接';
+
+  @override
+  String get settingsProfileLanguage => '资料语言';
+
+  @override
+  String get settingsInvalidLink => '请输入有效的 http 或 https 链接';
+
+  @override
+  String get siteInfoTitle => '关于社区';
+
+  @override
+  String get siteInfoLinks => '友情链接';
+
+  @override
+  String get siteInfoSponsors => '支持与赞助';
+
+  @override
+  String get siteInfoTerms => '服务条款';
+
+  @override
+  String get siteInfoPrivacy => '隐私政策';
+
+  @override
+  String get siteInfoEmpty => '暂无公开内容';
+
+  @override
+  String get settingsUsernameHint => '这是用于登录的用户名，需符合站点命名规则。';
+
+  @override
+  String get settingsUsernameUpdated => '用户名已更新';
+
+  @override
+  String get settingsPresetAvatar => '选择预设头像';
+
+  @override
+  String get coursesManagement => '课程管理';
+
+  @override
+  String get coursesReviewModeration => '课评审核';
+
+  @override
+  String get settingsCover => '主页封面';
+
+  @override
+  String get settingsCoverDescription => '选择图片并调整裁切范围';
+
+  @override
+  String get settingsCoverRemove => '移除封面';
+
+  @override
+  String get settingsCoverRemoveConfirm => '移除后将恢复默认主页背景。';
+
+  @override
+  String get settingsCoverMinSize => '请选择至少 1200 × 240 像素的图片';
+
+  @override
+  String get settingsCoverSafeArea => '中间明亮区域是手机上主要显示的部分；完整横图会保留给宽屏。';
+
+  @override
+  String get settingsCropHint => '拖动图片调整位置，双指缩放查看效果';
+
+  @override
+  String get settingsCropPreview => '图片裁切预览';
+
+  @override
+  String get settingsCropZoom => '缩放';
+
+  @override
+  String get settingsCropReset => '重置位置';
+
+  @override
+  String get settingsImageSaved => '图片已更新';
+
+  @override
+  String settingsImageTooLarge(int maxMb) {
+    return '图片不能超过 $maxMb MB';
+  }
+
+  @override
+  String get settingsOAuthUnavailable => '站点尚未启用';
+
+  @override
+  String get settingsOAuthOpenBrowser => '在浏览器中管理绑定';
+
+  @override
+  String settingsOAuthBrowserHint(String username) {
+    return '请在浏览器中使用当前账号 @$username 登录并完成绑定，返回 App 后会刷新绑定状态。';
+  }
+
+  @override
+  String get commonRefresh => '刷新';
+
+  @override
+  String get topicEarliest => '最早';
+
+  @override
+  String get topicLatest => '最新';
+
+  @override
+  String get topicEarlierReplies => '加载更早回复';
+
+  @override
+  String get topicHistory => '修订记录';
+
+  @override
+  String get topicHistoryUnavailable => '此版本的内容不可见';
+
+  @override
+  String get topicHistoryEmpty => '暂无修订记录';
+
+  @override
+  String get topicDeleteConfirm => '确定删除这条内容？可以在回收站中查看可恢复的内容。';
+
+  @override
+  String get topicModerateBan => '屏蔽内容';
+
+  @override
+  String get topicModerateUnban => '恢复显示';
+
+  @override
+  String get topicModerateConfirm => '确定更改这条内容的可见状态？';
+
+  @override
+  String get topicShare => '分享';
+
+  @override
+  String get topicEditReply => '编辑回复';
+
+  @override
+  String get topicRemoved => '这条内容已被删除或移除';
+
+  @override
+  String get topicBookmark => '收藏';
+
+  @override
+  String get topicBookmarked => '取消收藏';
+
+  @override
+  String get topicLike => '点赞';
+
+  @override
+  String get authEmailPrefix => '邮箱前缀';
+
+  @override
+  String get authEmailDomain => '邮箱域名';
+
+  @override
+  String get authAgreePolicies => '我已阅读并同意已发布的协议';
+
+  @override
+  String get authPasswordMismatch => '两次输入的密码不一致';
+
+  @override
+  String get schedulerWebTitle => '完整版排课器，请到网页端体验';
+
+  @override
+  String get schedulerWebAction => '前往 f.yourtj.de';
+
+  @override
+  String get schedulerPlanDisclaimer => '这是你的选课规划，最终选课结果以教务为准。';
+
+  @override
+  String get campusExploreCourses => '从同学的真实评价，发现适合你的课';
+
+  @override
+  String get campusPlanTitle => '把感兴趣的课，排成自己的方案';
+
+  @override
+  String get campusPlanDescription => '比较教学班、检查时间冲突，再决定怎么选。';
+
+  @override
+  String get loginGoogle => '使用 Google 登录';
+
+  @override
+  String get loginGithub => '使用 GitHub 登录';
+
+  @override
+  String get wikiSearchUnavailable => '搜索暂不可用，你仍可以返回目录浏览。';
+
+  @override
+  String get wikiSearchHint => '搜索校园知识';
+
+  @override
+  String get wikiExploreTitle => '你的校园生活指南';
 }

@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'yourtj'**
+  /// **'YourTJ'**
   String get appTitle;
 
   /// No description provided for @navHome.
@@ -431,7 +431,7 @@ abstract class AppLocalizations {
   /// No description provided for @loginWelcome.
   ///
   /// In en, this message translates to:
-  /// **'Welcome back to yourtj'**
+  /// **'Welcome to YourTJ'**
   String get loginWelcome;
 
   /// No description provided for @loginModeLogin.
@@ -1643,13 +1643,13 @@ abstract class AppLocalizations {
   /// No description provided for @scheduleTitle.
   ///
   /// In en, this message translates to:
-  /// **'Schedule'**
+  /// **'Scheduler'**
   String get scheduleTitle;
 
   /// No description provided for @scheduleTabTimetable.
   ///
   /// In en, this message translates to:
-  /// **'Timetable'**
+  /// **'Plan preview'**
   String get scheduleTabTimetable;
 
   /// No description provided for @scheduleTabPick.
@@ -2137,6 +2137,720 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wiki'**
   String get entryWiki;
+
+  /// No description provided for @navCampus.
+  ///
+  /// In en, this message translates to:
+  /// **'Campus'**
+  String get navCampus;
+
+  /// No description provided for @campusTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your campus, connected'**
+  String get campusTitle;
+
+  /// No description provided for @campusSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find courses, plan your week and share campus knowledge.'**
+  String get campusSubtitle;
+
+  /// No description provided for @campusCoursesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore courses and student reviews'**
+  String get campusCoursesHint;
+
+  /// No description provided for @campusScheduleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan your week, check conflicts and export'**
+  String get campusScheduleHint;
+
+  /// No description provided for @campusWikiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A campus guide built by the community'**
+  String get campusWikiHint;
+
+  /// No description provided for @publishMoment.
+  ///
+  /// In en, this message translates to:
+  /// **'Moment'**
+  String get publishMoment;
+
+  /// No description provided for @publishQuestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Question'**
+  String get publishQuestion;
+
+  /// No description provided for @publishArticle.
+  ///
+  /// In en, this message translates to:
+  /// **'Article'**
+  String get publishArticle;
+
+  /// No description provided for @publishNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get publishNext;
+
+  /// No description provided for @publishGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose photos, then tell your story'**
+  String get publishGallery;
+
+  /// No description provided for @publishGalleryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to 9 photos. Hold and drag to reorder.'**
+  String get publishGalleryHint;
+
+  /// No description provided for @publishFormatting.
+  ///
+  /// In en, this message translates to:
+  /// **'Formatting'**
+  String get publishFormatting;
+
+  /// No description provided for @publishClassification.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose categories'**
+  String get publishClassification;
+
+  /// No description provided for @publishLeaveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep your work?'**
+  String get publishLeaveTitle;
+
+  /// No description provided for @publishLeaveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved changes. Continue editing or discard them.'**
+  String get publishLeaveBody;
+
+  /// No description provided for @publishDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes'**
+  String get publishDiscard;
+
+  /// No description provided for @publishContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get publishContinue;
+
+  /// No description provided for @publishImageOnlyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A moment to share'**
+  String get publishImageOnlyTitle;
+
+  /// No description provided for @publishTypeLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'The original type is retained when editing'**
+  String get publishTypeLocked;
+
+  /// No description provided for @profileMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get profileMore;
+
+  /// No description provided for @profileContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage content'**
+  String get profileContent;
+
+  /// No description provided for @profileTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Recycle bin'**
+  String get profileTrash;
+
+  /// No description provided for @profileSecurity.
+  ///
+  /// In en, this message translates to:
+  /// **'Account, security & privacy'**
+  String get profileSecurity;
+
+  /// No description provided for @profileAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin workspace'**
+  String get profileAdmin;
+
+  /// No description provided for @fabDiscussion.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to discussion'**
+  String get fabDiscussion;
+
+  /// No description provided for @fabRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh and return to top'**
+  String get fabRefresh;
+
+  /// No description provided for @contentRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get contentRestore;
+
+  /// No description provided for @contentDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get contentDelete;
+
+  /// No description provided for @contentPurge.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get contentPurge;
+
+  /// No description provided for @contentPrivacyErase.
+  ///
+  /// In en, this message translates to:
+  /// **'Erase personal content'**
+  String get contentPrivacyErase;
+
+  /// No description provided for @contentDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Content moves to the recycle bin and can be restored within 30 days when eligible.'**
+  String get contentDeleteConfirm;
+
+  /// No description provided for @contentPurgeConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This cannot be undone. Text and images will be permanently erased.'**
+  String get contentPurgeConfirm;
+
+  /// No description provided for @contentPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your current password to confirm'**
+  String get contentPassword;
+
+  /// No description provided for @contentSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get contentSelected;
+
+  /// No description provided for @contentSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select loaded items'**
+  String get contentSelectAll;
+
+  /// No description provided for @contentEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No content here yet'**
+  String get contentEmpty;
+
+  /// No description provided for @contentTrashHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Eligible content can be restored for 30 days. Moderated removals cannot be restored here.'**
+  String get contentTrashHint;
+
+  /// No description provided for @commonConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get commonConfirm;
+
+  /// No description provided for @adminUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The admin console is unavailable. Check your permissions, session and connection, then retry.'**
+  String get adminUnavailable;
+
+  /// No description provided for @adminDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download the export. Please try again.'**
+  String get adminDownloadFailed;
+
+  /// No description provided for @publishGalleryTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Content supports up to 9 images. Remove some images or continue with the article editor.'**
+  String get publishGalleryTooMany;
+
+  /// No description provided for @profileActivity.
+  ///
+  /// In en, this message translates to:
+  /// **'Activity'**
+  String get profileActivity;
+
+  /// No description provided for @profileBookmarks.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmarks'**
+  String get profileBookmarks;
+
+  /// No description provided for @profileModeration.
+  ///
+  /// In en, this message translates to:
+  /// **'Moderation workspace'**
+  String get profileModeration;
+
+  /// No description provided for @settingsCloseAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Close account'**
+  String get settingsCloseAccount;
+
+  /// No description provided for @settingsCloseAccountWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Account closure is irreversible and signs out all devices. Keep historical content under an anonymized identity, or request deletion of your content. Retention rules may preserve some content. Enter your current password to confirm.'**
+  String get settingsCloseAccountWarning;
+
+  /// No description provided for @settingsCloseKeepContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep anonymized content'**
+  String get settingsCloseKeepContent;
+
+  /// No description provided for @settingsCloseDeleteContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Request content deletion'**
+  String get settingsCloseDeleteContent;
+
+  /// No description provided for @publishUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get publishUndo;
+
+  /// No description provided for @publishRedo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get publishRedo;
+
+  /// No description provided for @publishHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Heading'**
+  String get publishHeading;
+
+  /// No description provided for @publishToolLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert link'**
+  String get publishToolLink;
+
+  /// No description provided for @publishLinkInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid http, https or email link.'**
+  String get publishLinkInvalid;
+
+  /// No description provided for @publishPhotoLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from library'**
+  String get publishPhotoLibrary;
+
+  /// No description provided for @publishCamera.
+  ///
+  /// In en, this message translates to:
+  /// **'Take a photo'**
+  String get publishCamera;
+
+  /// No description provided for @settingsWebsiteName.
+  ///
+  /// In en, this message translates to:
+  /// **'Website name'**
+  String get settingsWebsiteName;
+
+  /// No description provided for @settingsWebsite.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get settingsWebsite;
+
+  /// No description provided for @settingsSocialLinks.
+  ///
+  /// In en, this message translates to:
+  /// **'Social links'**
+  String get settingsSocialLinks;
+
+  /// No description provided for @settingsProfileLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile language'**
+  String get settingsProfileLanguage;
+
+  /// No description provided for @settingsInvalidLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid http or https link'**
+  String get settingsInvalidLink;
+
+  /// No description provided for @siteInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'About the community'**
+  String get siteInfoTitle;
+
+  /// No description provided for @siteInfoLinks.
+  ///
+  /// In en, this message translates to:
+  /// **'Community links'**
+  String get siteInfoLinks;
+
+  /// No description provided for @siteInfoSponsors.
+  ///
+  /// In en, this message translates to:
+  /// **'Supporters'**
+  String get siteInfoSponsors;
+
+  /// No description provided for @siteInfoTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms of service'**
+  String get siteInfoTerms;
+
+  /// No description provided for @siteInfoPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy policy'**
+  String get siteInfoPrivacy;
+
+  /// No description provided for @siteInfoEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No public content yet'**
+  String get siteInfoEmpty;
+
+  /// No description provided for @settingsUsernameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This is your sign-in name. Site naming rules apply.'**
+  String get settingsUsernameHint;
+
+  /// No description provided for @settingsUsernameUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Username updated'**
+  String get settingsUsernameUpdated;
+
+  /// No description provided for @settingsPresetAvatar.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a preset avatar'**
+  String get settingsPresetAvatar;
+
+  /// No description provided for @coursesManagement.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage courses'**
+  String get coursesManagement;
+
+  /// No description provided for @coursesReviewModeration.
+  ///
+  /// In en, this message translates to:
+  /// **'Review moderation'**
+  String get coursesReviewModeration;
+
+  /// No description provided for @settingsCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile cover'**
+  String get settingsCover;
+
+  /// No description provided for @settingsCoverDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image and adjust the crop'**
+  String get settingsCoverDescription;
+
+  /// No description provided for @settingsCoverRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove cover'**
+  String get settingsCoverRemove;
+
+  /// No description provided for @settingsCoverRemoveConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile will use the default background.'**
+  String get settingsCoverRemoveConfirm;
+
+  /// No description provided for @settingsCoverMinSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an image at least 1200 × 240 pixels'**
+  String get settingsCoverMinSize;
+
+  /// No description provided for @settingsCoverSafeArea.
+  ///
+  /// In en, this message translates to:
+  /// **'The bright center is the main mobile view. The full width is preserved for wider screens.'**
+  String get settingsCoverSafeArea;
+
+  /// No description provided for @settingsCropHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to reposition. Pinch to zoom.'**
+  String get settingsCropHint;
+
+  /// No description provided for @settingsCropPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Image crop preview'**
+  String get settingsCropPreview;
+
+  /// No description provided for @settingsCropZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom'**
+  String get settingsCropZoom;
+
+  /// No description provided for @settingsCropReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset position'**
+  String get settingsCropReset;
+
+  /// No description provided for @settingsImageSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Image updated'**
+  String get settingsImageSaved;
+
+  /// No description provided for @settingsImageTooLarge.
+  ///
+  /// In en, this message translates to:
+  /// **'Image must be no larger than {maxMb} MB'**
+  String settingsImageTooLarge(int maxMb);
+
+  /// No description provided for @settingsOAuthUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enabled on this site'**
+  String get settingsOAuthUnavailable;
+
+  /// No description provided for @settingsOAuthOpenBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage connections in browser'**
+  String get settingsOAuthOpenBrowser;
+
+  /// No description provided for @settingsOAuthBrowserHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in as @{username} in the browser to connect an account. Connections refresh when you return to the app.'**
+  String settingsOAuthBrowserHint(String username);
+
+  /// No description provided for @commonRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get commonRefresh;
+
+  /// No description provided for @topicEarliest.
+  ///
+  /// In en, this message translates to:
+  /// **'Earliest'**
+  String get topicEarliest;
+
+  /// No description provided for @topicLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest'**
+  String get topicLatest;
+
+  /// No description provided for @topicEarlierReplies.
+  ///
+  /// In en, this message translates to:
+  /// **'Load earlier replies'**
+  String get topicEarlierReplies;
+
+  /// No description provided for @topicHistory.
+  ///
+  /// In en, this message translates to:
+  /// **'Revision history'**
+  String get topicHistory;
+
+  /// No description provided for @topicHistoryUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This version is unavailable'**
+  String get topicHistoryUnavailable;
+
+  /// No description provided for @topicHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No revisions yet'**
+  String get topicHistoryEmpty;
+
+  /// No description provided for @topicDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this content? Recoverable items can be found in the recycle bin.'**
+  String get topicDeleteConfirm;
+
+  /// No description provided for @topicModerateBan.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide content'**
+  String get topicModerateBan;
+
+  /// No description provided for @topicModerateUnban.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore visibility'**
+  String get topicModerateUnban;
+
+  /// No description provided for @topicModerateConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Change the visibility of this content?'**
+  String get topicModerateConfirm;
+
+  /// No description provided for @topicShare.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get topicShare;
+
+  /// No description provided for @topicEditReply.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit reply'**
+  String get topicEditReply;
+
+  /// No description provided for @topicRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'This content has been deleted or removed'**
+  String get topicRemoved;
+
+  /// No description provided for @topicBookmark.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark'**
+  String get topicBookmark;
+
+  /// No description provided for @topicBookmarked.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove bookmark'**
+  String get topicBookmarked;
+
+  /// No description provided for @topicLike.
+  ///
+  /// In en, this message translates to:
+  /// **'Like'**
+  String get topicLike;
+
+  /// No description provided for @authEmailPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Email username'**
+  String get authEmailPrefix;
+
+  /// No description provided for @authEmailDomain.
+  ///
+  /// In en, this message translates to:
+  /// **'Email domain'**
+  String get authEmailDomain;
+
+  /// No description provided for @authAgreePolicies.
+  ///
+  /// In en, this message translates to:
+  /// **'I have read and agree to the published policies'**
+  String get authAgreePolicies;
+
+  /// No description provided for @authPasswordMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The passwords do not match'**
+  String get authPasswordMismatch;
+
+  /// No description provided for @schedulerWebTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore the full scheduler on the Web'**
+  String get schedulerWebTitle;
+
+  /// No description provided for @schedulerWebAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open f.yourtj.de'**
+  String get schedulerWebAction;
+
+  /// No description provided for @schedulerPlanDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a course plan. Final enrolment is determined by the university.'**
+  String get schedulerPlanDisclaimer;
+
+  /// No description provided for @campusExploreCourses.
+  ///
+  /// In en, this message translates to:
+  /// **'Find your next course through student reviews'**
+  String get campusExploreCourses;
+
+  /// No description provided for @campusPlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn your course shortlist into a plan'**
+  String get campusPlanTitle;
+
+  /// No description provided for @campusPlanDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare offerings and check conflicts before choosing.'**
+  String get campusPlanDescription;
+
+  /// No description provided for @loginGoogle.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with Google'**
+  String get loginGoogle;
+
+  /// No description provided for @loginGithub.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with GitHub'**
+  String get loginGithub;
+
+  /// No description provided for @wikiSearchUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Search is unavailable. You can still browse the directory.'**
+  String get wikiSearchUnavailable;
+
+  /// No description provided for @wikiSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search campus knowledge'**
+  String get wikiSearchHint;
+
+  /// No description provided for @wikiExploreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your campus companion'**
+  String get wikiExploreTitle;
 }
 
 class _AppLocalizationsDelegate

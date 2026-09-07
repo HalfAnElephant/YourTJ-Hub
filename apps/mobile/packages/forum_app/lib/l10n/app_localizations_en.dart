@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'yourtj';
+  String get appTitle => 'YourTJ';
 
   @override
   String get navHome => 'Home';
@@ -191,7 +191,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Failed to save the new session securely. Please retry.';
 
   @override
-  String get loginWelcome => 'Welcome back to yourtj';
+  String get loginWelcome => 'Welcome to YourTJ';
 
   @override
   String get loginModeLogin => 'Sign in';
@@ -855,10 +855,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get topicNewTopic => 'New topic';
 
   @override
-  String get scheduleTitle => 'Schedule';
+  String get scheduleTitle => 'Scheduler';
 
   @override
-  String get scheduleTabTimetable => 'Timetable';
+  String get scheduleTabTimetable => 'Plan preview';
 
   @override
   String get scheduleTabPick => 'Pick courses';
@@ -1117,4 +1117,384 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get entryWiki => 'Wiki';
+
+  @override
+  String get navCampus => 'Campus';
+
+  @override
+  String get campusTitle => 'Your campus, connected';
+
+  @override
+  String get campusSubtitle =>
+      'Find courses, plan your week and share campus knowledge.';
+
+  @override
+  String get campusCoursesHint => 'Explore courses and student reviews';
+
+  @override
+  String get campusScheduleHint => 'Plan your week, check conflicts and export';
+
+  @override
+  String get campusWikiHint => 'A campus guide built by the community';
+
+  @override
+  String get publishMoment => 'Moment';
+
+  @override
+  String get publishQuestion => 'Question';
+
+  @override
+  String get publishArticle => 'Article';
+
+  @override
+  String get publishNext => 'Next';
+
+  @override
+  String get publishGallery => 'Choose photos, then tell your story';
+
+  @override
+  String get publishGalleryHint => 'Up to 9 photos. Hold and drag to reorder.';
+
+  @override
+  String get publishFormatting => 'Formatting';
+
+  @override
+  String get publishClassification => 'Choose categories';
+
+  @override
+  String get publishLeaveTitle => 'Keep your work?';
+
+  @override
+  String get publishLeaveBody =>
+      'You have unsaved changes. Continue editing or discard them.';
+
+  @override
+  String get publishDiscard => 'Discard changes';
+
+  @override
+  String get publishContinue => 'Keep editing';
+
+  @override
+  String get publishImageOnlyTitle => 'A moment to share';
+
+  @override
+  String get publishTypeLocked => 'The original type is retained when editing';
+
+  @override
+  String get profileMore => 'More options';
+
+  @override
+  String get profileContent => 'Manage content';
+
+  @override
+  String get profileTrash => 'Recycle bin';
+
+  @override
+  String get profileSecurity => 'Account, security & privacy';
+
+  @override
+  String get profileAdmin => 'Admin workspace';
+
+  @override
+  String get fabDiscussion => 'Jump to discussion';
+
+  @override
+  String get fabRefresh => 'Refresh and return to top';
+
+  @override
+  String get contentRestore => 'Restore';
+
+  @override
+  String get contentDelete => 'Delete';
+
+  @override
+  String get contentPurge => 'Delete permanently';
+
+  @override
+  String get contentPrivacyErase => 'Erase personal content';
+
+  @override
+  String get contentDeleteConfirm =>
+      'Content moves to the recycle bin and can be restored within 30 days when eligible.';
+
+  @override
+  String get contentPurgeConfirm =>
+      'This cannot be undone. Text and images will be permanently erased.';
+
+  @override
+  String get contentPassword => 'Enter your current password to confirm';
+
+  @override
+  String get contentSelected => 'Selected';
+
+  @override
+  String get contentSelectAll => 'Select loaded items';
+
+  @override
+  String get contentEmpty => 'No content here yet';
+
+  @override
+  String get contentTrashHint =>
+      'Eligible content can be restored for 30 days. Moderated removals cannot be restored here.';
+
+  @override
+  String get commonConfirm => 'Confirm';
+
+  @override
+  String get adminUnavailable =>
+      'The admin console is unavailable. Check your permissions, session and connection, then retry.';
+
+  @override
+  String get adminDownloadFailed =>
+      'Could not download the export. Please try again.';
+
+  @override
+  String get publishGalleryTooMany =>
+      'Content supports up to 9 images. Remove some images or continue with the article editor.';
+
+  @override
+  String get profileActivity => 'Activity';
+
+  @override
+  String get profileBookmarks => 'Bookmarks';
+
+  @override
+  String get profileModeration => 'Moderation workspace';
+
+  @override
+  String get settingsCloseAccount => 'Close account';
+
+  @override
+  String get settingsCloseAccountWarning =>
+      'Account closure is irreversible and signs out all devices. Keep historical content under an anonymized identity, or request deletion of your content. Retention rules may preserve some content. Enter your current password to confirm.';
+
+  @override
+  String get settingsCloseKeepContent => 'Keep anonymized content';
+
+  @override
+  String get settingsCloseDeleteContent => 'Request content deletion';
+
+  @override
+  String get publishUndo => 'Undo';
+
+  @override
+  String get publishRedo => 'Redo';
+
+  @override
+  String get publishHeading => 'Heading';
+
+  @override
+  String get publishToolLink => 'Insert link';
+
+  @override
+  String get publishLinkInvalid => 'Enter a valid http, https or email link.';
+
+  @override
+  String get publishPhotoLibrary => 'Choose from library';
+
+  @override
+  String get publishCamera => 'Take a photo';
+
+  @override
+  String get settingsWebsiteName => 'Website name';
+
+  @override
+  String get settingsWebsite => 'Website';
+
+  @override
+  String get settingsSocialLinks => 'Social links';
+
+  @override
+  String get settingsProfileLanguage => 'Profile language';
+
+  @override
+  String get settingsInvalidLink => 'Enter a valid http or https link';
+
+  @override
+  String get siteInfoTitle => 'About the community';
+
+  @override
+  String get siteInfoLinks => 'Community links';
+
+  @override
+  String get siteInfoSponsors => 'Supporters';
+
+  @override
+  String get siteInfoTerms => 'Terms of service';
+
+  @override
+  String get siteInfoPrivacy => 'Privacy policy';
+
+  @override
+  String get siteInfoEmpty => 'No public content yet';
+
+  @override
+  String get settingsUsernameHint =>
+      'This is your sign-in name. Site naming rules apply.';
+
+  @override
+  String get settingsUsernameUpdated => 'Username updated';
+
+  @override
+  String get settingsPresetAvatar => 'Choose a preset avatar';
+
+  @override
+  String get coursesManagement => 'Manage courses';
+
+  @override
+  String get coursesReviewModeration => 'Review moderation';
+
+  @override
+  String get settingsCover => 'Profile cover';
+
+  @override
+  String get settingsCoverDescription => 'Choose an image and adjust the crop';
+
+  @override
+  String get settingsCoverRemove => 'Remove cover';
+
+  @override
+  String get settingsCoverRemoveConfirm =>
+      'Your profile will use the default background.';
+
+  @override
+  String get settingsCoverMinSize =>
+      'Choose an image at least 1200 × 240 pixels';
+
+  @override
+  String get settingsCoverSafeArea =>
+      'The bright center is the main mobile view. The full width is preserved for wider screens.';
+
+  @override
+  String get settingsCropHint => 'Drag to reposition. Pinch to zoom.';
+
+  @override
+  String get settingsCropPreview => 'Image crop preview';
+
+  @override
+  String get settingsCropZoom => 'Zoom';
+
+  @override
+  String get settingsCropReset => 'Reset position';
+
+  @override
+  String get settingsImageSaved => 'Image updated';
+
+  @override
+  String settingsImageTooLarge(int maxMb) {
+    return 'Image must be no larger than $maxMb MB';
+  }
+
+  @override
+  String get settingsOAuthUnavailable => 'Not enabled on this site';
+
+  @override
+  String get settingsOAuthOpenBrowser => 'Manage connections in browser';
+
+  @override
+  String settingsOAuthBrowserHint(String username) {
+    return 'Sign in as @$username in the browser to connect an account. Connections refresh when you return to the app.';
+  }
+
+  @override
+  String get commonRefresh => 'Refresh';
+
+  @override
+  String get topicEarliest => 'Earliest';
+
+  @override
+  String get topicLatest => 'Latest';
+
+  @override
+  String get topicEarlierReplies => 'Load earlier replies';
+
+  @override
+  String get topicHistory => 'Revision history';
+
+  @override
+  String get topicHistoryUnavailable => 'This version is unavailable';
+
+  @override
+  String get topicHistoryEmpty => 'No revisions yet';
+
+  @override
+  String get topicDeleteConfirm =>
+      'Delete this content? Recoverable items can be found in the recycle bin.';
+
+  @override
+  String get topicModerateBan => 'Hide content';
+
+  @override
+  String get topicModerateUnban => 'Restore visibility';
+
+  @override
+  String get topicModerateConfirm => 'Change the visibility of this content?';
+
+  @override
+  String get topicShare => 'Share';
+
+  @override
+  String get topicEditReply => 'Edit reply';
+
+  @override
+  String get topicRemoved => 'This content has been deleted or removed';
+
+  @override
+  String get topicBookmark => 'Bookmark';
+
+  @override
+  String get topicBookmarked => 'Remove bookmark';
+
+  @override
+  String get topicLike => 'Like';
+
+  @override
+  String get authEmailPrefix => 'Email username';
+
+  @override
+  String get authEmailDomain => 'Email domain';
+
+  @override
+  String get authAgreePolicies =>
+      'I have read and agree to the published policies';
+
+  @override
+  String get authPasswordMismatch => 'The passwords do not match';
+
+  @override
+  String get schedulerWebTitle => 'Explore the full scheduler on the Web';
+
+  @override
+  String get schedulerWebAction => 'Open f.yourtj.de';
+
+  @override
+  String get schedulerPlanDisclaimer =>
+      'This is a course plan. Final enrolment is determined by the university.';
+
+  @override
+  String get campusExploreCourses =>
+      'Find your next course through student reviews';
+
+  @override
+  String get campusPlanTitle => 'Turn your course shortlist into a plan';
+
+  @override
+  String get campusPlanDescription =>
+      'Compare offerings and check conflicts before choosing.';
+
+  @override
+  String get loginGoogle => 'Continue with Google';
+
+  @override
+  String get loginGithub => 'Continue with GitHub';
+
+  @override
+  String get wikiSearchUnavailable =>
+      'Search is unavailable. You can still browse the directory.';
+
+  @override
+  String get wikiSearchHint => 'Search campus knowledge';
+
+  @override
+  String get wikiExploreTitle => 'Your campus companion';
 }

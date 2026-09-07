@@ -9,14 +9,13 @@ import 'package:core/core.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 import '../../../l10n/app_localizations.dart';
-import '../../asset_url.dart';
 import '../../providers.dart';
 import '../../navigation/tab_scroll_registry.dart';
 import '../../server_messages.dart';
-import '../../theme_mode.dart';
 import '../../widgets/skeletons.dart';
 import '../../widgets/status_views.dart';
 import '../../widgets/topic_list.dart';
+import '../../widgets/root_surface.dart';
 
 /// 首页:公告 + 话题流(web HomePage.vue 的移动端形态)。
 class HomePage extends ConsumerStatefulWidget {
@@ -30,7 +29,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   static const String _feedModeKey = 'goose:home-feed-mode';
 
   AsyncValue<HomeProps> _page = const AsyncValue.loading();
-  LayoutPayload? _layout;
   String _sort = '';
   final List<TopicPayload> _topics = <TopicPayload>[];
   bool _loadingMore = false;
@@ -105,7 +103,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       }
       setState(() {
         _page = AsyncValue.data(props);
-        _layout = payload.layout;
         _topics.clear();
         _topics.addAll(props.topics);
       });
@@ -150,124 +147,51 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final Brightness brightness = Theme.of(context).brightness;
-    final LayoutPayload? layout = _layout;
-    final bool authenticated = layout?.viewer.isAuthenticated == true;
-
-    return Scaffold(
-      appBar: GfAppBar(
-        automaticallyImplyLeading: false,
-        leading: _BrandLogo(layout: layout),
-        title: const SizedBox.shrink(),
-        actions: <Widget>[
-          GfIconButton(
-            icon: Icons.search,
-            size: 44,
-            tooltip: l10n.commonSearch,
-            onPressed: () => context.go('/search'),
-          ),
-          GfIconButton(
-            icon: brightness == Brightness.dark
-                ? Icons.light_mode_outlined
-                : Icons.dark_mode_outlined,
-            size: 44,
-            tooltip: brightness == Brightness.dark
-                ? l10n.commonUseLightTheme
-                : l10n.commonUseDarkTheme,
-            onPressed: () => ref
-                .read(themeModeProvider.notifier)
-                .toggleDark(brightness != Brightness.dark),
-          ),
-          Semantics(
-            button: true,
-            label: authenticated ? l10n.navProfile : l10n.loginModeLogin,
-            child: SizedBox.square(
-              dimension: 44,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: () => authenticated
-                    ? context.go('/profile')
-                    : context.push('/login'),
-                child: Center(
-                  child: GfAvatar(
-                    src: layout == null
-                        ? ''
-                        : resolveApiAssetUrl(layout.viewer.avatarUrl),
-                    size: 34,
-                    ring: true,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: _page.when(
-        loading: () => const GfTopicFeedSkeleton(),
+    return RootSurface(
+      title: 'YourTJ',
+      actions: [
+        IconButton(
+          tooltip: l10n.commonSearch,
+          icon: const GfSymbol('search'),
+          onPressed: () => context.push('/search'),
+        ),
+      ],
+      toolbarHeight: 44,
+      toolbar: _page.hasValue
+          ? _HomeToolbar(
+              props: _page.requireValue,
+              selected: _sort,
+              feedMode: _feedMode,
+              onSelected: _switchSort,
+              onFeedModeSelected: _setFeedMode,
+            )
+          : const SizedBox.shrink(),
+      body: (top, bottom) => _page.when(
+        loading: () => Padding(
+          padding: EdgeInsets.only(top: top),
+          child: const GfTopicFeedSkeleton(),
+        ),
         error: (e, _) =>
             GfErrorRetry(message: resolveErrorMessage(l10n, e), onRetry: _load),
-        data: (props) {
-          return Column(
-            children: [
-              _AnnouncementBanner(props: props),
-              const _QuickEntries(),
-              _HomeToolbar(
-                props: props,
-                selected: _sort,
-                feedMode: _feedMode,
-                onSelected: _switchSort,
-                onFeedModeSelected: _setFeedMode,
-              ),
-              Expanded(
-                child: GfScrollToTop(
-                  semanticLabel: AppLocalizations.of(context).commonBackToTop,
-                  controller: _scrollToTopController,
-                  builder: (_, ScrollController controller) => RefreshIndicator(
-                    onRefresh: () => _load(silent: true),
-                    child: GfTopicList(
-                      controller: controller,
-                      loading: _loadingMore,
-                      topics: _topics,
-                      feedMode: _feedMode,
-                      hasMore: props.pagination.hasNext,
-                      onLoadMore: _loadMore,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+        data: (props) => GfScrollToTop(
+          semanticLabel: l10n.commonBackToTop,
+          controller: _scrollToTopController,
+          showButton: false,
+          builder: (_, controller) => RefreshIndicator(
+            onRefresh: () => _load(silent: true),
+            child: GfTopicList(
+              controller: controller,
+              padding: EdgeInsets.only(top: top, bottom: bottom),
+              header: _AnnouncementBanner(props: props),
+              loading: _loadingMore,
+              topics: _topics,
+              feedMode: _feedMode,
+              hasMore: props.pagination.hasNext,
+              onLoadMore: _loadMore,
+            ),
+          ),
+        ),
       ),
-    );
-  }
-}
-
-class _BrandLogo extends StatelessWidget {
-  const _BrandLogo({required this.layout});
-
-  final LayoutPayload? layout;
-
-  @override
-  Widget build(BuildContext context) {
-    const Widget fallback = Image(
-      image: AssetImage('assets/images/brand-default.png'),
-      width: 128,
-      height: 34,
-      fit: BoxFit.contain,
-      alignment: Alignment.centerLeft,
-    );
-    final String brandImage = layout?.site.brandImage ?? '';
-    if (layout?.site.brandType != 'image' || brandImage.isEmpty) {
-      return fallback;
-    }
-    return Image.network(
-      resolveApiAssetUrl(brandImage),
-      width: 128,
-      height: 34,
-      fit: BoxFit.contain,
-      alignment: Alignment.centerLeft,
-      errorBuilder: (_, _, _) => fallback,
     );
   }
 }
@@ -425,7 +349,7 @@ class _HomeToolbar extends ConsumerWidget {
     // already has a persistent center entry in the bottom navigation.
     return Container(
       color: colors.base100,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
@@ -445,21 +369,20 @@ class _HomeToolbar extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 8),
-          GfPillSwitch<GfTopicFeedMode>(
-            options: <GfPillOption<GfTopicFeedMode>>[
-              GfPillOption<GfTopicFeedMode>(
-                label: l10n.topicFeedModeList,
+          PopupMenuButton<GfTopicFeedMode>(
+            tooltip: l10n.topicFeedModeList,
+            icon: const GfSymbol('sliders-horizontal', size: 20),
+            onSelected: onFeedModeSelected,
+            itemBuilder: (_) => [
+              PopupMenuItem(
                 value: GfTopicFeedMode.list,
-                icon: Icons.view_list_outlined,
+                child: Text(l10n.topicFeedModeList),
               ),
-              GfPillOption<GfTopicFeedMode>(
-                label: l10n.topicFeedModeCard,
+              PopupMenuItem(
                 value: GfTopicFeedMode.card,
-                icon: Icons.grid_view_outlined,
+                child: Text(l10n.topicFeedModeCard),
               ),
             ],
-            selected: feedMode,
-            onSelected: onFeedModeSelected,
           ),
         ],
       ),
@@ -477,92 +400,5 @@ class _HomeToolbar extends ConsumerWidget {
       'popular' => l10n.sortPopular,
       _ => key,
     };
-  }
-}
-
-/// 快捷入口行:课程/课表/Wiki 三域固定入口(Route A),首页工具条上方。
-class _QuickEntries extends StatelessWidget {
-  const _QuickEntries();
-
-  @override
-  Widget build(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context);
-    final GfColors colors = GfTheme.colorsOf(context);
-    final GfTypography typography = GfTheme.typographyOf(context);
-
-    return Container(
-      color: colors.base100,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: <Widget>[
-          _QuickEntry(
-            label: l10n.entryCourses,
-            icon: Icons.menu_book_outlined,
-            route: '/courses',
-            colors: colors,
-            typography: typography,
-          ),
-          _entryDivider(colors),
-          _QuickEntry(
-            label: l10n.entrySchedule,
-            icon: Icons.calendar_month_outlined,
-            route: '/schedule',
-            colors: colors,
-            typography: typography,
-          ),
-          _entryDivider(colors),
-          _QuickEntry(
-            label: l10n.entryWiki,
-            icon: Icons.auto_stories_outlined,
-            route: '/wiki',
-            colors: colors,
-            typography: typography,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _entryDivider(GfColors colors) =>
-      Container(width: 1, height: 26, color: colors.line);
-}
-
-class _QuickEntry extends StatelessWidget {
-  const _QuickEntry({
-    required this.label,
-    required this.icon,
-    required this.route,
-    required this.colors,
-    required this.typography,
-  });
-
-  final String label;
-  final IconData icon;
-  final String route;
-  final GfColors colors;
-  final GfTypography typography;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () => context.push(route),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(icon, size: 17, color: colors.primary),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: typography.small.copyWith(color: colors.baseContent),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

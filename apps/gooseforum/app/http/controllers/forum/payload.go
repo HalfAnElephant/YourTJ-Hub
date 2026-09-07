@@ -16,7 +16,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/setting"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/urlutil"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
-	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/markdown2html"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/transform"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/vo"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/defaultconfig"
@@ -118,13 +118,14 @@ type ErrorPageProps struct {
 }
 
 type LoginPageProps struct {
-	InitialMode           string `json:"initialMode"`
-	RedirectURL           string `json:"redirectUrl"`
-	GitHubURL             string `json:"githubUrl"`
-	GoogleURL             string `json:"googleUrl"`
-	GoogleReady           bool   `json:"googleReady"`
-	TermsOfServiceEnabled bool   `json:"termsOfServiceEnabled"`
-	PrivacyPolicyEnabled  bool   `json:"privacyPolicyEnabled"`
+	InitialMode           string   `json:"initialMode"`
+	RedirectURL           string   `json:"redirectUrl"`
+	GitHubURL             string   `json:"githubUrl"`
+	GoogleURL             string   `json:"googleUrl"`
+	GoogleReady           bool     `json:"googleReady"`
+	TermsOfServiceEnabled bool     `json:"termsOfServiceEnabled"`
+	PrivacyPolicyEnabled  bool     `json:"privacyPolicyEnabled"`
+	AllowedDomains        []string `json:"allowedDomains"`
 }
 
 type ResetPasswordPageProps struct {
@@ -961,6 +962,7 @@ func buildLoginPageProps(c *gin.Context) LoginPageProps {
 		GoogleReady:           oauthservice.IsGoogleOAuthReady(),
 		TermsOfServiceEnabled: hotdataserve.GetTermsOfServiceConfigCache().Enabled,
 		PrivacyPolicyEnabled:  hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
+		AllowedDomains:        hotdataserve.GetSecuritySettingsConfigCache().AllowedDomains,
 	}
 }
 

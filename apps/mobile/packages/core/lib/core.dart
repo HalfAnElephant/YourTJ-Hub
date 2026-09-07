@@ -51,3 +51,10 @@ export 'src/schedule/pk_grid.dart';
 export 'src/schedule/pk_models.dart';
 export 'src/schedule/pk_section_times.dart';
 export 'src/schedule/pk_timetable.dart';
+
+export 'src/gen/user_content.dart';
+export 'src/api/repositories/content_repository.dart';
+
+export 'src/gen/post_revision.dart';
+
+export 'src/gen/wiki_search.dart';

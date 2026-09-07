@@ -45,3 +45,16 @@ jobs:
           path: page-goldens.tar.gz
           if-no-files-found: error
           retention-days: 1
+      - name: Render component goldens
+        working-directory: apps/mobile/packages/ui_kit
+        run: flutter test --update-goldens test/golden/components_golden_test.dart
+      - name: Archive component goldens
+        run: >-
+          tar -czf component-goldens.tar.gz
+          -C apps/mobile/packages/ui_kit/test/golden golden
+      - uses: actions/upload-artifact@v4
+        with:
+          name: component-goldens
+          path: component-goldens.tar.gz
+          if-no-files-found: error
+          retention-days: 1

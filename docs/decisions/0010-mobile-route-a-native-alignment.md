@@ -1,7 +1,7 @@
 # 移动端战略 Route A：原生 Flutter 全功能对齐
 
 ## Status
-Accepted
+Superseded by 0011
 Class: architecture
 
 ## Context and Problem Statement

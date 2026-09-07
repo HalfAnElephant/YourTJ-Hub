@@ -523,6 +523,28 @@ func mapKeys[K comparable, V any](m map[K]V) []K {
 	return keys
 }
 
+// findCourseByCodeOrAliasTeacherTx 先按主码+教师查课程；未命中时允许历史数据包
+// 用一系统保留的旧课号别名复用改码后的课程卡。别名跨课程唯一，但仍校验教师身份，
+// 避免复合身份模型下把同码不同教师的课程错误合并。
+func findCourseByCodeOrAliasTeacherTx(tx *gorm.DB, code string, teacherId uint64) (course.Entity, error) {
+	entity, err := course.GetCourseByCodeTeacherTx(tx, code, teacherId)
+	if err == nil || !errors.Is(err, gorm.ErrRecordNotFound) {
+		return entity, err
+	}
+	alias, aliasErr := course.GetAliasByNormalizedValueTx(tx, course.AliasKindCode, Normalize(code))
+	if aliasErr != nil {
+		if errors.Is(aliasErr, gorm.ErrRecordNotFound) {
+			return entity, gorm.ErrRecordNotFound
+		}
+		return entity, aliasErr
+	}
+	candidate := course.GetCourseByIdTx(tx, alias.CourseId)
+	if candidate.Id == 0 || candidate.TeacherId != teacherId {
+		return entity, gorm.ErrRecordNotFound
+	}
+	return candidate, nil
+}
+
 func applyCourseRow(tx *gorm.DB, runID uint64, source string, row importCourseRow, report *CatalogImportReport) error {
 	code := strings.TrimSpace(row.Code)
 	name := strings.TrimSpace(row.Name)
@@ -586,10 +608,15 @@ func applyCourseRow(tx *gorm.DB, runID uint64, source string, row importCourseRo
 		}
 		report.Updated++
 	case errors.Is(refErr, gorm.ErrRecordNotFound):
-		// 兼容旧导入数据：按 (code, teacher_id) 复合查找；找不到则创建。
-		existing, err := course.GetCourseByCodeTeacherTx(tx, code, teacherId)
+		// 兼容旧导入数据：按 (code, teacher_id) 复合查找；一系统已改码时
+		// 旧 code 可经 code 别名复用新主码课程卡，找不到才创建。
+		existing, err := findCourseByCodeOrAliasTeacherTx(tx, code, teacherId)
 		if err == nil {
 			entity.Id = existing.Id
+			if existing.PrimaryCode != code {
+				entity.PrimaryCode = existing.PrimaryCode
+				updates["primary_code"] = existing.PrimaryCode
+			}
 			if err := tx.Model(&course.Entity{}).Where("id = ?", existing.Id).Updates(updates).Error; err != nil {
 				return fmt.Errorf("update course %s: %w", code, err)
 			}

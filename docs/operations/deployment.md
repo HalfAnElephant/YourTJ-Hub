@@ -612,6 +612,10 @@ CLI 同步（运维 cron 等自动化场景）：
 学期码规范化：中文学期标记 → 标准码 `YYYY-YYYY-N` 才建 `course_term` 行，无法识别的
 标记（如短学期）保持 `term_id=0` 不建垃圾行。
 
+一系统返回 `newCourseCode` / `newCode` 时，PK 公开查询与课程目录物化以新课号/新班号
+作为当前有效编号；原 `courseCode` / `code` 仍保留为来源证据和历史输入别名。已有同步数据
+无需迁移，补跑 `course-materialize <学期>` 即可按新编号刷新课程目录。
+
 凭证优先级：`--onesystem-cookie` 参数 > `ONESYSTEM_COOKIE` 环境变量 > 管理端设置
 （设置 → 一系统同步；`save-onesystem-settings` 仅落库 securestore 密文，不存明文）。
 - 运维 cron（每日，选课季加频；应用内不自造调度器）：
@@ -821,8 +825,34 @@ curl -fsS -H "Host: f.yourtj.de" http://127.0.0.1/ | head -5   # 经 1Panel 反�
   Meilisearch 恢复后检查 `task_queue`，并运行 `rebuild-search-index` 做一次全量对账；
   该命令是运维恢复动作，不依赖旧任务仍处于 pending。
 
+## Built-in OIDC configuration
+
+`Current`: the deployment template enables the built-in provider for both instances. CI derives
+`oidc.issuer` from `deploy/instances/<env>.json` (`server_url` + `/api/oauth`): production uses
+`https://f.yourtj.de/api/oauth`, dev uses `https://dev.yourtj.de/api/oauth`. The explicit issuer keeps
+the dev identity endpoint independent of the production database snapshot's site settings.
+
+The registered `yourtj-mobile` client is public (no client secret), requires PKCE S256, and permits
+only `yourtj://callback`. The RS256 key is generated on first initialization at
+`./storage/oidc/signing_key.pem`, inside the instance's persistent storage mount. Preserve that
+file across restarts, image updates and migrations; do not share the key between dev and production.
+Google/GitHub retain their own provider credentials and existing HTTPS OAuth callback URLs;
+enabling the built-in provider does not configure those upstream providers.
+
+Apply through the regular image/config workflow. After the instance restarts, verify discovery:
+
+```bash
+curl --fail --silent --show-error https://dev.yourtj.de/api/oauth/.well-known/openid-configuration
+curl --fail --silent --show-error https://f.yourtj.de/api/oauth/.well-known/openid-configuration
+```
+
+The response must be JSON with the matching instance issuer and authorization/token/JWKS endpoints.
+A 404 means routes were not registered; check the deployed configuration and OIDC startup errors
+(including issuer validation and signing-key storage permissions). To disable the provider, set
+`oidc.enabled = false` in the deployment template and apply/restart through the same workflow.
+Password and Web social login remain separate from that switch.
+
 ## Runbooks to write
 
-- Built-in OIDC Provider production config ([oidc] in config.toml: enabled, issuer, signing key, clients)
 - Meilisearch index rebuild, backup
 - Logging & monitoring (config [log] slow SQL, rolling logs; health probes)

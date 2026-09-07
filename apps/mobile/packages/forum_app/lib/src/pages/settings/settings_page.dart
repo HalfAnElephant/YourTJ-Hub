@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image/image.dart' as img;
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -13,12 +12,19 @@ import 'package:core/core.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../format.dart';
+import '../../asset_url.dart';
 import '../../server_messages.dart';
 import '../../theme_mode.dart';
 import '../../site_theme.dart';
 import '../../push/push_service.dart';
 import '../../widgets/status_views.dart';
 import '../../current_user.dart';
+import 'account_closure_dialog.dart';
+import 'profile_edit_dialog.dart';
+import 'username_edit_dialog.dart';
+import 'profile_image_editor.dart';
+import 'oauth_bindings_sheet.dart';
+import '../../widgets/profile_image_crop.dart';
 import '../../widgets/skeletons.dart';
 
 enum _SettingsTab {
@@ -41,7 +47,8 @@ enum _SettingsTab {
 ///
 /// 5 tab 对齐 web:资料 / 账户 / 隐私 / 绑定 / 安全。
 class SettingsPage extends ConsumerStatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.initialSection});
+  final String? initialSection;
 
   @override
   ConsumerState<SettingsPage> createState() => _SettingsPageState();
@@ -52,11 +59,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   AsyncValue<List<UserSessionPayload>> _sessions = const AsyncValue.loading();
   AsyncValue<SettingsUserPayload> _user = const AsyncValue.loading();
   bool _uploadingAvatar = false;
+  bool _accountClosing = false;
+  bool _googleOAuthReady = false;
   final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    _tab = _SettingsTab.values.firstWhere(
+      (tab) => tab.name == widget.initialSection,
+      orElse: () => _SettingsTab.profile,
+    );
     _loadSessions();
     _loadUser();
   }
@@ -76,6 +89,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       );
       if (!mounted) return;
       setState(() {
+        _googleOAuthReady = props?.googleOAuthReady ?? false;
         _user = props == null
             ? AsyncValue.error(
                 AppLocalizations.of(context).commonParseFailed,
@@ -236,58 +250,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
-  /// 资料编辑:昵称/简介/签名 → set-user-info。
   Future<void> _editProfile(SettingsUserPayload user) async {
-    final AppLocalizations l10n = AppLocalizations.of(context);
-    final nickCtrl = TextEditingController(text: user.nickname);
-    final bioCtrl = TextEditingController(text: user.bio);
-    final sigCtrl = TextEditingController(text: user.signature);
-    final ok = await showGfAlertDialog<bool>(
-      context,
-      builder: (ctx) => GfAlertDialog(
-        title: Text(l10n.settingsEditProfile),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GfInput(
-              controller: nickCtrl,
-              maxLength: 30,
-              decoration: InputDecoration(labelText: l10n.settingsNickname),
-            ),
-            GfInput(
-              controller: bioCtrl,
-              maxLines: 3,
-              decoration: InputDecoration(labelText: l10n.settingsBio),
-            ),
-            GfInput(
-              controller: sigCtrl,
-              maxLines: 2,
-              decoration: InputDecoration(labelText: l10n.settingsSignature),
-            ),
-          ],
-        ),
-        actions: [
-          GfButton(
-            label: l10n.commonCancel,
-            variant: GfButtonVariant.ghost,
-            onPressed: () => Navigator.pop(ctx, false),
-          ),
-          GfButton(
-            label: l10n.commonSave,
-            onPressed: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
+    final l10n = AppLocalizations.of(context);
+    final updated = await showDialog<SettingsUserPayload>(
+      context: context,
+      builder: (_) => ProfileEditDialog(user: user),
     );
-    if (ok != true) return;
+    if (updated == null || !mounted) return;
     try {
       await ref
           .read(userRepositoryProvider)
           .saveUserInfo(
-            nickname: nickCtrl.text.trim(),
-            bio: bioCtrl.text.trim(),
-            signature: sigCtrl.text.trim(),
-            websiteName: '',
+            nickname: updated.nickname,
+            bio: updated.bio,
+            signature: updated.signature,
+            websiteName: updated.websiteName,
+            website: updated.website,
+            locale: updated.locale,
+            externalInformation: updated.externalInformation,
           );
       if (mounted) {
         showGfToast(context, l10n.settingsInfoSaved);
@@ -296,6 +276,111 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     } catch (e) {
       if (mounted) {
         showGfToast(context, l10n.settingsInfoFailed('$e'), error: true);
+      }
+    }
+  }
+
+  Future<void> _changeUsername() async {
+    final user = _user.value;
+    if (user == null) return;
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => UsernameEditDialog(
+        username: user.username,
+        onSave: ref.read(userRepositoryProvider).saveUserName,
+      ),
+    );
+    if (saved != true || !mounted) return;
+    ref.invalidate(currentUserProvider);
+    await _loadUser(silent: true);
+    if (mounted) {
+      showGfToast(
+        context,
+        AppLocalizations.of(context).settingsUsernameUpdated,
+      );
+    }
+  }
+
+  Future<void> _pickPresetAvatar() async {
+    final l10n = AppLocalizations.of(context);
+    var selected = _user.value?.avatarUrl ?? '';
+    final choice = await showGfBottomSheet<String>(
+      context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.settingsPresetAvatar,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                        ),
+                    itemCount: 12,
+                    itemBuilder: (context, index) {
+                      final path = '/static/pic/${index + 1}.webp';
+                      return Semantics(
+                        label: '${l10n.settingsPresetAvatar} ${index + 1}',
+                        selected: selected == path,
+                        button: true,
+                        child: InkWell(
+                          onTap: () => setSheetState(() => selected = path),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: selected == path
+                                    ? GfTheme.colorsOf(context).primary
+                                    : Colors.transparent,
+                                width: 3,
+                              ),
+                            ),
+                            child: GfAvatar(
+                              src: resolveApiAssetUrl(path),
+                              size: 64,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 16),
+                GfButton(
+                  label: l10n.commonSave,
+                  onPressed: selected.startsWith('/static/pic/')
+                      ? () => Navigator.pop(context, selected)
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+    try {
+      await ref.read(userRepositoryProvider).savePresetAvatar(choice);
+      ref.invalidate(currentUserProvider);
+      await _loadUser(silent: true);
+      if (mounted) showGfToast(context, l10n.settingsInfoSaved);
+    } catch (error) {
+      if (mounted) {
+        showGfToast(context, resolveErrorMessage(l10n, error), error: true);
       }
     }
   }
@@ -369,70 +454,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
-  /// OAuth 绑定管理:列出绑定状态,可解绑。
   Future<void> _manageOAuth() async {
-    final AppLocalizations l10n = AppLocalizations.of(context);
-    try {
-      final bindings = await ref
-          .read(userRepositoryProvider)
-          .getOAuthBindings();
-      if (!mounted) return;
-      await showGfBottomSheet<void>(
-        context,
-        builder: (ctx) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  l10n.settingsOAuthBindings,
-                  style: GfTheme.typographyOf(
-                    context,
-                  ).heading.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ),
-              for (final entry in bindings.entries)
-                GfSettingRow(
-                  icon: Icons.link,
-                  title: entry.key,
-                  description: entry.value.bound
-                      ? l10n.settingsBound
-                      : l10n.settingsUnbound,
-                  trailing: entry.value.bound
-                      ? GfButton(
-                          label: l10n.settingsUnbind,
-                          variant: GfButtonVariant.ghost,
-                          size: GfButtonSize.small,
-                          onPressed: () async {
-                            Navigator.pop(ctx);
-                            try {
-                              await ref
-                                  .read(userRepositoryProvider)
-                                  .unbindOAuth(entry.key);
-                              if (mounted) {
-                                showGfToast(context, l10n.settingsUnboundDone);
-                              }
-                            } catch (e) {
-                              if (mounted) {
-                                showGfToast(
-                                  context,
-                                  l10n.settingsUnbindFailed('$e'),
-                                  error: true,
-                                );
-                              }
-                            }
-                          },
-                        )
-                      : null,
-                ),
-            ],
-          ),
-        ),
-      );
-    } catch (e) {
-      if (mounted) _snack(l10n.settingsLoadBindingsFailed('$e'));
-    }
+    if (_user.value == null) await _loadUser();
+    final user = _user.value;
+    if (!mounted || user == null) return;
+    await showGfBottomSheet<void>(
+      context,
+      builder: (_) => OAuthBindingsSheet(
+        username: user.username,
+        googleReady: _googleOAuthReady,
+      ),
+    );
   }
 
   /// TOTP 管理:状态 → 启用(密码+密钥+恢复码)/禁用。
@@ -629,39 +661,106 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     ref.read(themeModeProvider.notifier).toggleDark(value);
   }
 
-  /// 选择头像图片,前端转码为 webp 后上传(与验收标准"头像上传(前端转 webp)"一致)。
-  Future<void> _pickAvatar() async {
-    final AppLocalizations l10n = AppLocalizations.of(context);
+  Future<void> _pickProfileImage({bool cover = false}) async {
     if (_uploadingAvatar) return;
-    final XFile? picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 90,
-    );
-    if (picked == null) return;
-
+    final l10n = AppLocalizations.of(context);
+    final epoch = ref.read(offlineCacheEpochProvider);
     setState(() => _uploadingAvatar = true);
     try {
-      final img.Image? decoded = img.decodeImage(await picked.readAsBytes());
-      if (decoded == null) {
-        throw StateError(l10n.settingsImageDecodeFailed);
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 4096,
+        maxHeight: 4096,
+      );
+      if (picked == null || !mounted) return;
+      final maxMb = cover ? 10 : 5;
+      if (await picked.length() > maxMb * 1024 * 1024) {
+        if (mounted) _snack(l10n.settingsImageTooLarge(maxMb));
+        return;
       }
-      final Uint8List webp = img.encodeWebP(decoded);
-      final String url = await ref
-          .read(fileRepositoryProvider)
-          .uploadAvatar(bytes: webp, filename: 'avatar.webp');
-      if (mounted) {
-        showGfToast(context, l10n.settingsAvatarUploaded(url));
+      final source = await compute(
+        prepareProfileCrop,
+        await picked.readAsBytes(),
+      );
+      if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
+      if (cover && (source.width < 1200 || source.height < 240)) {
+        _snack(l10n.settingsCoverMinSize);
+        return;
       }
-    } catch (e) {
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => ProfileImageEditor(
+            source: source,
+            cover: cover,
+            onSave: (bytes) async {
+              if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) {
+                throw const UnauthorizedException();
+              }
+              final files = ref.read(fileRepositoryProvider);
+              if (cover) {
+                final url = await files.uploadImage(
+                  bytes: bytes,
+                  filename: 'cover.webp',
+                );
+                if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) {
+                  throw const UnauthorizedException();
+                }
+                await ref
+                    .read(userRepositoryProvider)
+                    .saveUserProfileCover(url);
+              } else {
+                await files.uploadAvatar(bytes: bytes, filename: 'avatar.webp');
+              }
+            },
+          ),
+        ),
+      );
+      if (mounted && saved == true) {
+        ref.invalidate(currentUserProvider);
+        await _loadUser(silent: true);
+        if (mounted) _snack(l10n.settingsImageSaved);
+      }
+    } catch (error) {
       if (mounted) {
-        showGfToast(
-          context,
-          l10n.settingsAvatarUploadFailed('$e'),
-          error: true,
+        _snack(
+          error is FormatException
+              ? l10n.settingsImageDecodeFailed
+              : resolveErrorMessage(l10n, error),
         );
       }
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  Future<void> _removeCover() async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.settingsCoverRemove),
+        content: Text(l10n.settingsCoverRemoveConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.commonConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted || _uploadingAvatar) return;
+    setState(() => _uploadingAvatar = true);
+    try {
+      await ref.read(userRepositoryProvider).saveUserProfileCover('');
+      if (!mounted) return;
+      ref.invalidate(currentUserProvider);
+      if (mounted) await _loadUser(silent: true);
+    } catch (error) {
+      if (mounted) _snack(resolveErrorMessage(l10n, error));
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
@@ -681,6 +780,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           onPressed: _leaveSettings,
         ),
         title: Text(l10n.settingsTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: l10n.siteInfoTitle,
+            onPressed: () => context.push('/about'),
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -788,8 +894,33 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ? l10n.settingsAvatarUploading
                     : l10n.settingsAvatarUpload,
                 trailing: const Icon(Icons.chevron_right, size: 18),
-                onTap: _pickAvatar,
+                onTap: _uploadingAvatar ? null : () => _pickProfileImage(),
               ),
+              const GfDivider(),
+              GfSettingRow(
+                icon: Icons.face_outlined,
+                title: l10n.settingsPresetAvatar,
+                trailing: const Icon(Icons.chevron_right, size: 18),
+                onTap: _uploadingAvatar ? null : _pickPresetAvatar,
+              ),
+              const GfDivider(),
+              GfSettingRow(
+                icon: Icons.panorama_outlined,
+                title: l10n.settingsCover,
+                description: l10n.settingsCoverDescription,
+                trailing: const Icon(Icons.chevron_right, size: 18),
+                onTap: _uploadingAvatar
+                    ? null
+                    : () => _pickProfileImage(cover: true),
+              ),
+              if (_user.value?.profileCoverUrl.isNotEmpty == true) ...[
+                const GfDivider(),
+                GfSettingRow(
+                  icon: Icons.hide_image_outlined,
+                  title: l10n.settingsCoverRemove,
+                  onTap: _uploadingAvatar ? null : _removeCover,
+                ),
+              ],
             ],
           ),
         ),
@@ -809,6 +940,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           title: l10n.settingsTabAccount,
           child: Column(
             children: [
+              GfSettingRow(
+                icon: Icons.alternate_email,
+                title: l10n.authUsername,
+                description: _user.value?.username ?? '',
+                trailing: const Icon(Icons.chevron_right, size: 18),
+                onTap: _user.value == null ? null : _changeUsername,
+              ),
+              const GfDivider(),
               GfSettingRow(
                 icon: Icons.email_outlined,
                 title: l10n.settingsEmail,
@@ -863,24 +1002,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        _settingsSection(
-          context,
-          title: l10n.settingsTabPrivacy,
-          child: Column(
-            children: [
-              GfSwitchRow(
-                title: l10n.settingsPrivacyDirect,
-                value: false,
-                onChanged: (_) => _snack(l10n.settingsSecondPhase),
-              ),
-              const GfDivider(),
-              GfSwitchRow(
-                title: l10n.settingsPrivacyLikes,
-                value: true,
-                onChanged: (_) => _snack(l10n.settingsSecondPhase),
-              ),
-            ],
-          ),
+        GfSettingRow(
+          icon: Icons.folder_outlined,
+          title: l10n.profileContent,
+          onTap: () => context.push('/my-content'),
+        ),
+        GfSettingRow(
+          icon: Icons.delete_outline,
+          title: l10n.profileTrash,
+          onTap: () => context.push('/recycle-bin'),
+        ),
+        const SizedBox(height: 24),
+        Text(l10n.settingsCloseAccountWarning),
+        const SizedBox(height: 12),
+        GfButton(
+          label: l10n.settingsCloseAccount,
+          variant: GfButtonVariant.danger,
+          loading: _accountClosing,
+          onPressed: _accountClosing ? null : _closeAccount,
         ),
       ],
     );
@@ -1110,6 +1249,31 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   ///
   /// 离线缓存(drift)保存私信与已浏览话题,登出必须清空,否则同一设备
   /// 换账号后仍可读到上一账号的缓存数据(跨账号数据泄漏)。
+  Future<void> _closeAccount() async {
+    final choice = await showDialog<({String mode, String password})>(
+      context: context,
+      builder: (_) => const AccountClosureDialog(),
+    );
+    if (choice == null || !mounted) return;
+    setState(() => _accountClosing = true);
+    try {
+      await ref
+          .read(contentRepositoryProvider)
+          .closeAccount(mode: choice.mode, password: choice.password);
+      await _signOutLocally();
+    } catch (error) {
+      if (mounted) {
+        showGfToast(
+          context,
+          resolveErrorMessage(AppLocalizations.of(context), error),
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _accountClosing = false);
+    }
+  }
+
   Future<void> _logout() async {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final bool? ok = await showGfAlertDialog<bool>(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/gf_theme.dart';
+import 'gf_symbol.dart';
 
 class GfBottomNavigationItem {
   const GfBottomNavigationItem({
@@ -8,20 +9,19 @@ class GfBottomNavigationItem {
     required this.icon,
     required this.selectedIcon,
     this.badge = false,
+    this.symbol,
   });
 
   final String label;
   final IconData icon;
   final IconData selectedIcon;
   final bool badge;
+  final String? symbol;
 }
 
-/// Content-first bottom navigation with a dedicated central compose action.
-///
-/// Navigation destinations remain labelled and preserve their selected state;
-/// the raised centre button is intentionally a separate action rather than a
-/// fifth destination. This mirrors the mobile information architecture used
-/// by the web app without making compose a persistent tab.
+/// Four accessible navigation destinations. The unified mobile shell uses
+/// icon-only items; labels and an optional compose slot remain available to
+/// other callers of this shared component.
 class GfBottomNavigation extends StatelessWidget {
   const GfBottomNavigation({
     super.key,
@@ -31,6 +31,7 @@ class GfBottomNavigation extends StatelessWidget {
     this.onAction,
     this.actionLabel = '发布',
     this.actionIcon = Icons.add,
+    this.showLabels = true,
   });
 
   final int currentIndex;
@@ -39,6 +40,7 @@ class GfBottomNavigation extends StatelessWidget {
   final VoidCallback? onAction;
   final String actionLabel;
   final IconData actionIcon;
+  final bool showLabels;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +57,7 @@ class GfBottomNavigation extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Container(
-          height: 72,
+          height: showLabels ? 72 : 56,
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: colors.line)),
           ),
@@ -63,26 +65,31 @@ class GfBottomNavigation extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               _Destination(
+                showLabel: showLabels,
                 item: items[0],
                 selected: currentIndex == 0,
                 onTap: () => onSelected(0),
               ),
               _Destination(
+                showLabel: showLabels,
                 item: items[1],
                 selected: currentIndex == 1,
                 onTap: () => onSelected(1),
               ),
-              _ComposeAction(
-                icon: actionIcon,
-                label: actionLabel,
-                onTap: onAction,
-              ),
+              if (onAction != null)
+                _ComposeAction(
+                  icon: actionIcon,
+                  label: actionLabel,
+                  onTap: onAction,
+                ),
               _Destination(
+                showLabel: showLabels,
                 item: items[2],
                 selected: currentIndex == 2,
                 onTap: () => onSelected(2),
               ),
               _Destination(
+                showLabel: showLabels,
                 item: items[3],
                 selected: currentIndex == 3,
                 onTap: () => onSelected(3),
@@ -100,8 +107,10 @@ class _Destination extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    required this.showLabel,
   });
 
+  final bool showLabel;
   final GfBottomNavigationItem item;
   final bool selected;
   final VoidCallback onTap;
@@ -109,7 +118,7 @@ class _Destination extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
-    final Color foreground = selected ? colors.primary : colors.iconMuted;
+    final Color foreground = colors.baseContent;
 
     return Expanded(
       child: Semantics(
@@ -130,11 +139,17 @@ class _Destination extends StatelessWidget {
                     clipBehavior: Clip.none,
                     children: <Widget>[
                       Center(
-                        child: Icon(
-                          selected ? item.selectedIcon : item.icon,
-                          size: 24,
-                          color: foreground,
-                        ),
+                        child: item.symbol != null
+                            ? GfSymbol(
+                                item.symbol!,
+                                size: 26,
+                                color: foreground,
+                              )
+                            : Icon(
+                                selected ? item.selectedIcon : item.icon,
+                                size: 24,
+                                color: foreground,
+                              ),
                       ),
                       if (item.badge)
                         Positioned(
@@ -144,7 +159,7 @@ class _Destination extends StatelessWidget {
                             width: 7,
                             height: 7,
                             decoration: BoxDecoration(
-                              color: colors.error,
+                              color: colors.primary,
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: colors.base100,
@@ -156,16 +171,26 @@ class _Destination extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.fade,
-                  style: GfTheme.typographyOf(context).meta.copyWith(
-                    color: foreground,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                if (!showLabel)
+                  Container(
+                    width: selected ? 4 : 0,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: foreground,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
+                if (showLabel) const SizedBox(height: 2),
+                if (showLabel)
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    style: GfTheme.typographyOf(context).meta.copyWith(
+                      color: foreground,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    ),
+                  ),
               ],
             ),
           ),

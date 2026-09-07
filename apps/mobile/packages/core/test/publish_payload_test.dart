@@ -2,6 +2,16 @@ import 'package:core/core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('editing preserves the web content type', () {
+    final payload = PublishTopicPayload.fromJson({
+      'title': 'Moment',
+      'content': 'Body',
+      'categoryIds': [1],
+      'topicStatus': 1,
+      'contentType': 2,
+    });
+    expect(payload.toJson()['contentType'], 2);
+  });
   test('new topic payload normalizes Go nil categoryIds to an empty list', () {
     final PublishTopicPayload payload = PublishTopicPayload.fromJson(
       <String, dynamic>{

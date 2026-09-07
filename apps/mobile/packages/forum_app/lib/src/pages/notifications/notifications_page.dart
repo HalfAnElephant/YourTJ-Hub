@@ -9,6 +9,8 @@ import '../../server_messages.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../format.dart';
 import '../../providers.dart';
+import '../../navigation/tab_scroll_registry.dart';
+import '../../widgets/root_surface.dart';
 import '../../widgets/status_views.dart';
 
 /// 通知页(web notifications.index 的移动端形态):
@@ -26,10 +28,20 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   int _cursor = 0;
   final List<NotificationPayload> _items = [];
   bool _loadingMore = false;
+  final _scroll = GfScrollToTopController();
+  late final GfTabScrollRegistry _registry;
+
+  @override
+  void dispose() {
+    _registry.unregister(GfShellDestination.notifications, _scroll);
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
+    _registry = ref.read(tabScrollRegistryProvider)
+      ..register(GfShellDestination.notifications, _scroll);
     _load();
   }
 
@@ -124,39 +136,36 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
 
-    return Scaffold(
-      appBar: GfAppBar(
-        title: Text(l10n.notificationsTitle),
-        actions: <Widget>[
-          GfIconButton(
-            icon: Icons.done_all_rounded,
-            size: 44,
-            tooltip: l10n.notificationsMarkAllRead,
-            onPressed: _markAllRead,
-          ),
-        ],
+    return RootSurface(
+      title: l10n.notificationsTitle,
+      actions: <Widget>[
+        GfIconButton(
+          icon: Icons.done_all_rounded,
+          size: 44,
+          tooltip: l10n.notificationsMarkAllRead,
+          onPressed: _markAllRead,
+        ),
+      ],
+      toolbarHeight: 44,
+      toolbar: Container(
+        height: 44,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: GfTabBar(
+          tabs: <GfTab>[
+            GfTab(label: l10n.notificationsAll, value: 'all'),
+            GfTab(label: l10n.notificationsUnread, value: 'unread'),
+          ],
+          selected: _filter,
+          onSelected: (Object value) {
+            if (value == _filter) return;
+            setState(() => _filter = value as String);
+            _load();
+          },
+        ),
       ),
-      body: Column(
+      body: (top, bottom) => Column(
         children: [
-          // 筛选:全部 / 未读(web all/unread tabs)。
-          Container(
-            height: 44,
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: GfTabBar(
-              tabs: <GfTab>[
-                GfTab(label: l10n.notificationsAll, value: 'all'),
-                GfTab(label: l10n.notificationsUnread, value: 'unread'),
-              ],
-              selected: _filter,
-              onSelected: (Object value) {
-                if (value == _filter) return;
-                setState(() => _filter = value as String);
-                _load();
-              },
-            ),
-          ),
-          const GfDivider(),
           Expanded(
             child: _list.when(
               loading: () => const GfLoading(),
@@ -165,8 +174,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 onRetry: _load,
               ),
               data: (resp) => GfScrollToTop(
+                controller: _scroll,
                 semanticLabel: l10n.commonBackToTop,
                 threshold: 360,
+                showButton: false,
                 builder: (BuildContext context, ScrollController controller) {
                   return RefreshIndicator(
                     onRefresh: () => _load(silent: true),
@@ -186,6 +197,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                         : ListView.separated(
                             controller: controller,
                             physics: const AlwaysScrollableScrollPhysics(),
+                            padding: EdgeInsets.only(top: top, bottom: bottom),
                             itemCount: _items.length + 1,
                             separatorBuilder: (_, _) => const GfDivider(),
                             itemBuilder: (context, i) {

@@ -11,6 +11,7 @@ import 'package:core/core.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../app_config.dart';
 import '../../providers.dart';
+import '../../server_messages.dart';
 import '../../current_user.dart';
 import '../../theme_mode.dart';
 
@@ -55,6 +56,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final TextEditingController _captcha = TextEditingController();
   final TextEditingController _totp = TextEditingController();
 
+  final _confirmPassword = TextEditingController();
+  LoginPageProps? _registration;
+  bool _registrationLoading = false;
+  String? _registrationError;
+  String? _emailDomain;
+  bool _agreed = false;
   _AuthMode _mode = _AuthMode.login;
   bool _oidcBusy = false;
   bool _finishingAuthentication = false;
@@ -103,6 +110,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       // 被后续新 shell 读取)。
       ref.invalidate(currentUserProvider);
       _cacheClearFuture = _clearOfflineCacheOnce();
+      _loadRegistration();
     });
   }
 
@@ -130,6 +138,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   void dispose() {
+    _confirmPassword.dispose();
     _username.dispose();
     _password.dispose();
     _email.dispose();
@@ -157,11 +166,26 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _register() async {
+    final options = _registration;
+    if (options == null || _registrationLoading) return;
+    final l10n = AppLocalizations.of(context);
+    if (_password.text != _confirmPassword.text) {
+      setState(() => _registrationError = l10n.authPasswordMismatch);
+      return;
+    }
+    if ((options.termsOfServiceEnabled || options.privacyPolicyEnabled) &&
+        !_agreed) {
+      return;
+    }
+    setState(() => _registrationError = null);
+    final email = options.allowedDomains.isEmpty
+        ? _email.text.trim()
+        : '${_email.text.trim()}@$_emailDomain';
     final String? captchaId = _authController.captcha?.captchaId;
     final String captchaCode = _captcha.text.trim();
     await _authController.register(
       username: _username.text.trim(),
-      email: _email.text.trim(),
+      email: email,
       password: _password.text,
       captchaId: (captchaId == null || captchaId.isEmpty) ? null : captchaId,
       captchaCode: captchaCode.isEmpty ? null : captchaCode,
@@ -192,7 +216,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     }
   }
 
-  Future<void> _loginOidc() async {
+  Future<void> _loginOidc(String provider) async {
     if (_oidcBusy) return;
     setState(() {
       _oidcBusy = true;
@@ -205,7 +229,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       clientId: AppConfig.oidcClientId,
     );
     try {
-      final bool ok = await controller.login();
+      final bool ok = await controller.login(provider: provider);
       if (!mounted) return;
       if (!ok) {
         setState(() => _oidcError = controller.error);
@@ -301,7 +325,41 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     _AuthMode.forgotPassword => l10n.authForgotSubtitle,
   };
 
+  Future<void> _loadRegistration() async {
+    if (_registrationLoading) return;
+    setState(() {
+      _registrationLoading = true;
+      _registrationError = null;
+    });
+    try {
+      // The shared page client still owns the previous account credential.
+      final payload = await PageRepository(_authClient).fetch('/login');
+      final options = parsePageProps<LoginPageProps>(payload);
+      if (options == null) throw StateError('Invalid login page');
+      if (!mounted) return;
+      setState(() {
+        _registration = options;
+        _emailDomain = options.allowedDomains.firstOrNull;
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _registrationError = resolveErrorMessage(
+            AppLocalizations.of(context),
+            error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _registrationLoading = false);
+    }
+  }
+
   void _switchMode(_AuthMode mode) {
+    if (_authController.busy || _finishingAuthentication) return;
+    if (mode == _AuthMode.register && _registration == null) {
+      _loadRegistration();
+    }
     _captcha.clear();
     setState(() {
       _mode = mode;
@@ -319,11 +377,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return PopScope(
       canPop: !_authBlocked && !_finishingAuthentication,
       child: Scaffold(
-        backgroundColor: colors.base200,
+        backgroundColor: colors.base100,
         body: Stack(
           fit: StackFit.expand,
           children: <Widget>[
-            const GfDotGridBackground(),
             SafeArea(
               child: Stack(
                 children: <Widget>[
@@ -355,8 +412,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 520),
                         child: GfCard(
-                          emphasized: true,
-                          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                          showDivider: false,
+                          padding: const EdgeInsets.fromLTRB(4, 16, 4, 24),
                           child: ListenableBuilder(
                             listenable: _authController,
                             builder: (BuildContext context, Widget? child) {
@@ -386,13 +443,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       children: <Widget>[
         Align(
           alignment: Alignment.centerLeft,
-          child: Image.asset(
-            'assets/images/brand-default.png',
-            width: 176,
-            height: 44,
-            fit: BoxFit.contain,
-            alignment: Alignment.centerLeft,
-          ),
+          child: Text('YourTJ', style: GfTheme.typographyOf(context).display),
         ),
         const SizedBox(height: 24),
         Text(
@@ -432,9 +483,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           GfInput(
             controller: _email,
             keyboardType: TextInputType.emailAddress,
-            labelText: l10n.authEmail,
+            labelText:
+                _mode == _AuthMode.register &&
+                    _registration?.allowedDomains.isNotEmpty == true
+                ? l10n.authEmailPrefix
+                : l10n.authEmail,
             prefixIcon: const Icon(Icons.mail_outline, size: 20),
           ),
+          if (_mode == _AuthMode.register &&
+              _registration?.allowedDomains.isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              key: const Key('register-email-domain'),
+              initialValue: _emailDomain,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: l10n.authEmailDomain),
+              items: _registration!.allowedDomains
+                  .map(
+                    (domain) => DropdownMenuItem(
+                      value: domain,
+                      child: Text('@$domain'),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _emailDomain = value),
+            ),
+          ],
           const SizedBox(height: 12),
         ],
         if (_mode != _AuthMode.forgotPassword) ...<Widget>[
@@ -457,6 +531,49 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             ),
           ] else
             const SizedBox(height: 12),
+        ],
+        if (_mode == _AuthMode.register) ...[
+          GfInput(
+            controller: _confirmPassword,
+            labelText: l10n.authConfirmPassword,
+            obscureText: true,
+          ),
+          if (_registrationLoading) const LinearProgressIndicator(),
+          if (_registrationError != null) ...[
+            GfStatusMessage(message: _registrationError!),
+            if (_registration == null)
+              TextButton(
+                onPressed: _loadRegistration,
+                child: Text(l10n.commonRetry),
+              ),
+          ],
+          if (_registration?.termsOfServiceEnabled == true ||
+              _registration?.privacyPolicyEnabled == true) ...[
+            Material(
+              color: Colors.transparent,
+              child: CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _agreed,
+                onChanged: (value) => setState(() => _agreed = value == true),
+                title: Text(l10n.authAgreePolicies),
+              ),
+            ),
+            Wrap(
+              children: [
+                if (_registration!.termsOfServiceEnabled)
+                  TextButton(
+                    onPressed: () => context.push('/terms'),
+                    child: Text(l10n.siteInfoTerms),
+                  ),
+                if (_registration!.privacyPolicyEnabled)
+                  TextButton(
+                    onPressed: () => context.push('/privacy'),
+                    child: Text(l10n.siteInfoPrivacy),
+                  ),
+              ],
+            ),
+          ],
         ],
         if (_authController.phase == LoginPhase.needsCaptcha) ...<Widget>[
           const SizedBox(height: 4),
@@ -524,23 +641,45 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           expanded: true,
           loading: _authController.busy || _finishingAuthentication,
           onPressed:
-              _authController.busy || _oidcBusy || _finishingAuthentication
+              _authController.busy ||
+                  _oidcBusy ||
+                  _finishingAuthentication ||
+                  (_mode == _AuthMode.register &&
+                      (_registration == null ||
+                          _registrationLoading ||
+                          ((_registration!.termsOfServiceEnabled ||
+                                  _registration!.privacyPolicyEnabled) &&
+                              !_agreed)))
               ? null
               : _submit,
         ),
         if (_mode == _AuthMode.login) ...<Widget>[
           const SizedBox(height: 12),
-          GfButton(
-            label: l10n.authOidcLogin,
-            variant: GfButtonVariant.outline,
-            size: GfButtonSize.extraLarge,
-            expanded: true,
-            loading: _oidcBusy || _finishingAuthentication,
-            onPressed:
-                _authController.busy || _oidcBusy || _finishingAuthentication
-                ? null
-                : _loginOidc,
-          ),
+          for (final provider in ['google', 'github']) ...[
+            OutlinedButton.icon(
+              icon: GfSymbol(provider, size: 22),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              label: Text(
+                provider == 'google' ? l10n.loginGoogle : l10n.loginGithub,
+              ),
+              onPressed:
+                  _authController.busy ||
+                      _oidcBusy ||
+                      _finishingAuthentication ||
+                      _registration == null ||
+                      (provider == 'google' && !_registration!.googleReady)
+                  ? null
+                  : () => _loginOidc(provider),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (_registrationError != null)
+            TextButton(
+              onPressed: _loadRegistration,
+              child: Text(l10n.commonRetry),
+            ),
         ],
         if (_mode == _AuthMode.forgotPassword) ...<Widget>[
           const SizedBox(height: 8),

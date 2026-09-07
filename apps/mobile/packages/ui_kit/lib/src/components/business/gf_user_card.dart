@@ -29,6 +29,7 @@ class GfUserCard extends StatelessWidget {
     this.coloredBadges = const <GfUserBadge>[],
     this.stats = const <(String, String)>[],
     this.actions,
+    this.details,
   });
 
   final String avatarUrl;
@@ -50,6 +51,9 @@ class GfUserCard extends StatelessWidget {
   /// Optional action buttons row (e.g. follow / message / edit).
   final Widget? actions;
 
+  /// Public metadata such as website and social links, below the bio.
+  final Widget? details;
+
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
@@ -59,7 +63,7 @@ class GfUserCard extends StatelessWidget {
       children: <Widget>[
         // Cover.
         Container(
-          height: 80,
+          height: 132,
           width: double.infinity,
           decoration: BoxDecoration(
             color: colors.base300,
@@ -79,7 +83,7 @@ class GfUserCard extends StatelessWidget {
               // Avatar overlapping the cover by 36px.
               Transform.translate(
                 offset: const Offset(0, -36),
-                child: GfAvatar(src: avatarUrl, size: 96),
+                child: GfAvatar(src: avatarUrl, size: 80),
               ),
               Transform.translate(
                 offset: const Offset(0, -32),
@@ -94,7 +98,7 @@ class GfUserCard extends StatelessWidget {
                         Text(
                           name,
                           style: TextStyle(
-                            fontSize: 17,
+                            fontSize: 24,
                             fontWeight: FontWeight.w700,
                             color: colors.baseContent,
                           ),
@@ -109,7 +113,7 @@ class GfUserCard extends StatelessWidget {
                     Text(
                       '@$username',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         color: colors.baseContent.withValues(alpha: 0.55),
                       ),
                     ),
@@ -135,11 +139,15 @@ class GfUserCard extends StatelessWidget {
                         child: Text(
                           signature!,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 14,
                             color: colors.baseContent.withValues(alpha: 0.55),
                           ),
                         ),
                       ),
+                    ],
+                    if (details != null) ...<Widget>[
+                      const SizedBox(height: 8),
+                      details!,
                     ],
                     if (actions != null) ...<Widget>[
                       const SizedBox(height: 12),

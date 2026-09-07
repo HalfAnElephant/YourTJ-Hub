@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tdesign_flutter/tdesign_flutter.dart' as td;
 import 'package:ui_kit/ui_kit.dart';
 
 import '../helpers.dart';
@@ -26,10 +25,17 @@ void main() {
         for (final GfTab tab in tabs) {
           expect(find.text(tab.label), findsOneWidget);
         }
-        final td.TSelectTag active = tester.widget<td.TSelectTag>(
-          find.widgetWithText(td.TSelectTag, '热门'),
+        final active = tester.widget<Semantics>(
+          find
+              .ancestor(
+                of: find.text('热门'),
+                matching: find.byWidgetPredicate(
+                  (w) => w is Semantics && w.properties.selected == true,
+                ),
+              )
+              .first,
         );
-        expect(active.value, isTrue);
+        expect(active.properties.selected, isTrue);
       });
     });
 

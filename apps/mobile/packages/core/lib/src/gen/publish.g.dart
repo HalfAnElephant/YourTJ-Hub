@@ -33,6 +33,7 @@ _$PublishTopicPayloadImpl _$$PublishTopicPayloadImplFromJson(
           .toList() ??
       const <int>[],
   topicStatus: (json['topicStatus'] as num).toInt(),
+  contentType: (json['contentType'] as num?)?.toInt() ?? 3,
 );
 
 Map<String, dynamic> _$$PublishTopicPayloadImplToJson(
@@ -42,6 +43,7 @@ Map<String, dynamic> _$$PublishTopicPayloadImplToJson(
   'content': instance.content,
   'categoryIds': instance.categoryIds,
   'topicStatus': instance.topicStatus,
+  'contentType': instance.contentType,
 };
 
 _$PublishPagePropsImpl _$$PublishPagePropsImplFromJson(

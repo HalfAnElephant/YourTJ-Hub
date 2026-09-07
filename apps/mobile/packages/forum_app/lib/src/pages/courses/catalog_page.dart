@@ -36,6 +36,7 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
   Timer? _debounce;
 
   AsyncValue<CourseListResultPayload> _page = const AsyncValue.loading();
+  bool _canManageCourses = false;
   List<CourseSummaryPayload> _courses = const <CourseSummaryPayload>[];
   bool _hasNext = false;
   bool _loadingMore = false;
@@ -127,6 +128,7 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
               .toList();
       if (!mounted) return;
       setState(() {
+        _canManageCourses = payload.layout.viewer.canManageCourses;
         _departmentOptions = departments;
         _termOptions = terms;
         _campusOptions = campuses;
@@ -399,6 +401,23 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        actions: [
+          if (_canManageCourses)
+            PopupMenuButton<String>(
+              tooltip: l10n.coursesManagement,
+              onSelected: (path) => context.push(path),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: '/moderation/courses',
+                  child: Text(l10n.coursesManagement),
+                ),
+                PopupMenuItem(
+                  value: '/moderation/course-reviews',
+                  child: Text(l10n.coursesReviewModeration),
+                ),
+              ],
+            ),
+        ],
       ),
       body: Column(
         children: <Widget>[
@@ -835,15 +854,17 @@ class _CourseRow extends StatelessWidget {
         child: Container(
           height: 22,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: colors.base200.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(999),
           ),
-          child: Text(
-            label,
-            style: type.meta.copyWith(
-              color: colors.baseContent.withValues(alpha: 0.7),
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label,
+              style: type.meta.copyWith(
+                color: colors.baseContent.withValues(alpha: 0.7),
+              ),
             ),
           ),
         ),

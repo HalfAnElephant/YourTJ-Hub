@@ -439,6 +439,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('课程 A1'), findsOneWidget);
+      expect(
+        tester
+            .getSize(
+              find
+                  .ancestor(
+                    of: find.text('+1').first,
+                    matching: find.byType(InkWell),
+                  )
+                  .first,
+            )
+            .width,
+        lessThan(100),
+      );
       // ListView 懒加载只构建可视行，A20 未必在首帧内；靠滚动断言翻页。
       expect(find.text('4.5'), findsWidgets);
 
@@ -514,6 +527,39 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('bottom safe area does not cover the last related course', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      tester.view.padding = FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.reset);
+      final course = FakeCourseRepository(
+        _client(),
+        detailPayload: _detailPayload(),
+        relatedPayload: _relatedPayload(),
+        reviewPayloads: _reviewPayloads(),
+      );
+      await tester.pumpWidget(
+        _app(
+          _container(courseRepo: course),
+          const CourseDetailPage(courseId: 42),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final list = find.byType(ListView).first;
+      await tester.drag(list, const Offset(0, -6000));
+      await tester.pumpAndSettle();
+      final lastRow = find.text('等价');
+      final dock = find
+          .ancestor(of: find.text('写课评'), matching: find.byType(ColoredBox))
+          .first;
+      expect(
+        tester.getBottomLeft(lastRow).dy,
+        lessThanOrEqualTo(tester.getTopLeft(dock).dy),
+      );
+    });
+
     testWidgets('展示评分分布、开课班级、相关课程与沿革', (tester) async {
       final FakeCourseRepository course = FakeCourseRepository(
         _client(),
@@ -569,15 +615,15 @@ void main() {
       );
       await pumpDetail(tester, course);
 
-      await tester.tap(find.byIcon(Icons.bookmark_border));
+      await tester.tap(find.byTooltip('收藏'));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.bookmark), findsOneWidget);
+      expect(find.byTooltip('已收藏'), findsOneWidget);
 
       course.failBookmark = true;
-      // 再点已收藏态：乐观取消 → 失败 → 回滚恢复已收藏（filled）。
-      await tester.tap(find.byIcon(Icons.bookmark));
+      // 再点已收藏态：乐观取消 → 失败 → 回滚恢复已收藏。
+      await tester.tap(find.byTooltip('已收藏'));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.bookmark), findsOneWidget);
+      expect(find.byTooltip('已收藏'), findsOneWidget);
 
       // 消化错误 toast 计时器。
       await tester.pump(const Duration(seconds: 5));

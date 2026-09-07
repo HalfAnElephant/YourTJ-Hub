@@ -8,6 +8,7 @@ import {
   CalendarClock,
   ExternalLink,
   Hammer,
+  ScrollText,
   SlidersHorizontal,
   X,
 } from '@lucide/vue'
@@ -19,10 +20,12 @@ import {
   PopoverRoot,
   PopoverTrigger,
 } from 'reka-ui'
+import { wikiHref } from '@/runtime/wiki-path'
 
 const { t } = useI18n()
 const open = ref(false)
 const pinned = ref(false)
+const historicalWikiHref = wikiHref('老乌龙茶/index')
 let hoverTimer: ReturnType<typeof setTimeout> | null = null
 
 function handleMouseEnter() {
@@ -217,6 +220,18 @@ const tools = computed<ExternalToolItem[]>(() => [
             </div>
           </a>
         </div>
+
+        <!-- 历史文档入口收纳在工具浮层内，避免占用排课器顶部的横向空间。 -->
+        <a
+          :href="historicalWikiHref"
+          class="group mt-2 flex min-h-9 items-center gap-2 rounded-xl border border-dashed border-line/60 bg-base-200/20 px-2.5 py-2 text-[11px] font-medium text-base-content/65 transition-colors duration-150 hover:border-primary/40 hover:bg-base-200/60 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 active:scale-[0.99]"
+          :aria-label="t('schedule.historicalWikiEntry')"
+          data-testid="schedule-historical-wiki-link"
+        >
+          <ScrollText class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span class="min-w-0 flex-1 truncate">{{ t('schedule.historicalWikiEntry') }}</span>
+          <ExternalLink class="h-3.5 w-3.5 shrink-0 text-base-content/40 transition-colors group-hover:text-primary" aria-hidden="true" />
+        </a>
 
         <!-- 气泡底栏微提示 -->
         <div

@@ -36,7 +36,7 @@ describe('ScheduleExternalToolsTip', () => {
     expect(trigger.attributes('aria-label')).toBe('其他选课与排课工具')
   })
 
-  test('clicking trigger opens popover bubble with 2 external tools', async () => {
+  test('clicking trigger opens popover bubble with 2 external tools and the historical Wiki entry', async () => {
     wrapper = mount(ScheduleExternalToolsTip, {
       global: { plugins: [i18n] },
       attachTo: document.body,
@@ -53,7 +53,7 @@ describe('ScheduleExternalToolsTip', () => {
     expect(popover?.textContent).toContain('同济同学开发的实用辅助工具')
 
     const links = popover?.querySelectorAll('a')
-    expect(links?.length).toBe(2)
+    expect(links?.length).toBe(3)
 
     // Tool 1: 同济排课助手
     const tool1 = links![0]
@@ -73,8 +73,13 @@ describe('ScheduleExternalToolsTip', () => {
     expect(tool2.textContent).toContain('course.f1justin.com')
     expect(tool2.textContent).toContain('强大的课程筛选工具')
 
+    const historicalWiki = popover?.querySelector('[data-testid="schedule-historical-wiki-link"]')
+    expect(historicalWiki?.getAttribute('href')).toBe('/wiki/%E8%80%81%E4%B9%8C%E9%BE%99%E8%8C%B6/index')
+    expect(historicalWiki?.getAttribute('aria-label')).toBe('历史乌龙茶文档入口')
+    expect(historicalWiki?.textContent).toContain('历史乌龙茶文档入口')
+
     // No truncate, uses break-words
-    for (const link of links!) {
+    for (const link of [tool1, tool2]) {
       const desc = link.querySelector('p')
       expect(desc?.className).toContain('break-words')
       expect(desc?.className).not.toContain('truncate')

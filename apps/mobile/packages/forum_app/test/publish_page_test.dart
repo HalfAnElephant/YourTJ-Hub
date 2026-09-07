@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:core/core.dart';
+import 'package:image/image.dart' as img;
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -48,8 +51,23 @@ class _CountingMarkdownConverter extends MarkdownConverter {
   }
 }
 
+class _RejectingMarkdownConverter extends MarkdownConverter {
+  @override
+  Document mdToDocument(String markdown) {
+    if (markdown.isNotEmpty) {
+      throw const FormatException('Unsupported document');
+    }
+    return super.mdToDocument(markdown);
+  }
+}
+
 class _RecordingTopicRepository extends TopicRepository {
-  _RecordingTopicRepository(super.client, {this.resultId = 99});
+  _RecordingTopicRepository(
+    super.client, {
+    this.resultId = 99,
+    this.requireCaptcha = false,
+  });
+  final bool requireCaptcha;
 
   final int resultId;
   final List<
@@ -79,9 +97,17 @@ class _RecordingTopicRepository extends TopicRepository {
     required String content,
     required List<int> categoryIds,
     required int topicStatus,
+    int contentType = 3,
+    List<String>? images,
     String? captchaId,
     String? captchaCode,
   }) async {
+    if (requireCaptcha && (captchaId != 'challenge' || captchaCode != 'ABCD')) {
+      throw const ApiException(
+        fallbackMessage: 'Captcha required',
+        messageCode: 'common.captchaRequired',
+      );
+    }
     writes.add((
       topicId: topicId,
       title: title,
@@ -93,7 +119,16 @@ class _RecordingTopicRepository extends TopicRepository {
   }
 }
 
-PagePayload _publishPayload({required bool editing}) {
+class _CaptchaAuthRepository extends AuthRepository {
+  _CaptchaAuthRepository(super.client);
+  @override
+  Future<CaptchaPayload> getCaptcha() async => CaptchaPayload(
+    captchaId: 'challenge',
+    captchaImg: base64Encode(img.encodePng(img.Image(width: 2, height: 2))),
+  );
+}
+
+PagePayload _publishPayload({required bool editing, int contentType = 0}) {
   return PagePayload.fromJson(<String, dynamic>{
     'component': PageComponent.publish,
     'props': <String, dynamic>{
@@ -110,6 +145,7 @@ PagePayload _publishPayload({required bool editing}) {
         'content': editing ? '## 预览标题\n\n**正文内容**' : '',
         'categoryIds': editing ? <int>[2] : null,
         'topicStatus': editing ? 1 : 0,
+        'contentType': contentType,
       },
     },
     'meta': <String, dynamic>{'title': editing ? '编辑话题' : '发布话题'},
@@ -161,8 +197,10 @@ void main() {
     WidgetTester tester, {
     required bool editing,
     String editQueryKey = 'topicId',
+    int contentType = 0,
     int resultId = 99,
     MarkdownConverter? markdownConverter,
+    bool requireCaptcha = false,
   }) async {
     final _MemoryTokenStorage storage = _MemoryTokenStorage();
     final GfApiClient client = GfApiClient(
@@ -172,11 +210,12 @@ void main() {
     );
     final _PublishPageRepository pageRepository = _PublishPageRepository(
       client,
-      _publishPayload(editing: editing),
+      _publishPayload(editing: editing, contentType: contentType),
     );
     final _RecordingTopicRepository topicRepository = _RecordingTopicRepository(
       client,
       resultId: resultId,
+      requireCaptcha: requireCaptcha,
     );
     final GoRouter router = GoRouter(
       initialLocation: editing ? '/publish?$editQueryKey=42' : '/publish',
@@ -201,6 +240,9 @@ void main() {
       ProviderScope(
         overrides: <Override>[
           tokenStorageProvider.overrideWithValue(storage),
+          authRepositoryProvider.overrideWithValue(
+            _CaptchaAuthRepository(client),
+          ),
           pageRepositoryProvider.overrideWithValue(pageRepository),
           topicRepositoryProvider.overrideWithValue(topicRepository),
         ],
@@ -222,6 +264,46 @@ void main() {
     );
   }
 
+  testWidgets(
+    'an unreadable existing gallery blocks editing instead of clearing photos',
+    (tester) async {
+      final result = await pumpPublishPage(
+        tester,
+        editing: true,
+        contentType: 2,
+      );
+      expect(find.byKey(const Key('publish-editor')), findsNothing);
+      expect(
+        tester
+            .widget<GfButton>(find.byKey(const Key('publish-appbar-submit')))
+            .onPressed,
+        isNull,
+      );
+      expect(result.topicRepository.writes, isEmpty);
+    },
+  );
+
+  testWidgets('a document parse failure can be retried and disposed safely', (
+    tester,
+  ) async {
+    await pumpPublishPage(
+      tester,
+      editing: true,
+      markdownConverter: _RejectingMarkdownConverter(),
+    );
+    expect(
+      tester
+          .widget<GfButton>(find.byKey(const Key('publish-appbar-submit')))
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('编辑模式加载完整载荷，窄屏可在编辑与实时预览间切换', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -230,11 +312,14 @@ void main() {
     final result = await pumpPublishPage(tester, editing: true);
 
     expect(result.pageRepository.paths, <String>['/publish?id=42']);
-    expect(find.text('原始标题'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField).first).controller!.text,
+      '原始标题',
+    );
     expect(find.byKey(const Key('publish-editor')), findsOneWidget);
     expect(find.byKey(const Key('publish-preview')), findsNothing);
 
-    await tester.tap(find.text('预览'));
+    await tester.tap(find.byKey(const Key('publish-appbar-submit')));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.byKey(const Key('publish-editor')), findsNothing);
@@ -312,6 +397,36 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
   });
 
+  testWidgets(
+    'required publishing captcha loads a challenge and retries without losing the draft',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final result = await pumpPublishPage(
+        tester,
+        editing: true,
+        requireCaptcha: true,
+      );
+      await tester.tap(find.byKey(const Key('publish-appbar-submit')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('publish-appbar-submit')));
+      await tester.pumpAndSettle();
+      final captcha = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.labelText == '验证码',
+      );
+      expect(captcha, findsOneWidget);
+      expect(find.text('原始标题'), findsOneWidget);
+      await tester.enterText(captcha, 'ABCD');
+      await tester.tap(find.byKey(const Key('publish-appbar-submit')));
+      await tester.pumpAndSettle();
+      expect(result.topicRepository.writes.single.title, '原始标题');
+      expect(result.router.state.uri.path, '/p/99');
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    },
+  );
+
   testWidgets('服务端草稿 editUrl 的 id 参数进入编辑模式', (tester) async {
     final result = await pumpPublishPage(
       tester,
@@ -323,7 +438,10 @@ void main() {
       'id': '42',
     });
     expect(result.pageRepository.paths, <String>['/publish?id=42']);
-    expect(find.text('原始标题'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField).first).controller!.text,
+      '原始标题',
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 600));
@@ -332,6 +450,11 @@ void main() {
   testWidgets('发布提交编辑载荷并替换到话题详情路由', (tester) async {
     final result = await pumpPublishPage(tester, editing: true, resultId: 99);
 
+    await tester.tap(find.byKey(const Key('publish-appbar-submit')));
+    await tester.pumpAndSettle();
+
+    expect(result.topicRepository.writes, isEmpty);
+    expect(find.text('选择分区与标签'), findsOneWidget);
     await tester.tap(find.byKey(const Key('publish-appbar-submit')));
     await tester.pumpAndSettle();
 
@@ -401,6 +524,8 @@ void main() {
     await tester.tap(find.byKey(const Key('publish-appbar-submit')));
     await tester.pump();
 
+    await tester.tap(find.byKey(const Key('publish-appbar-submit')));
+    await tester.pump();
     expect(find.text('标题不能为空'), findsOneWidget);
     expect(find.byType(GfStatusMessage), findsOneWidget);
   });

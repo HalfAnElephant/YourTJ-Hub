@@ -73,6 +73,8 @@ paths:
     $ref: ./paths/auth-totp.yaml#/disable
   /api/auth/oidc/exchange:
     $ref: ./paths/auth.yaml#/oidcExchange
+  /api/auth/mobile-web-session:
+    $ref: ./paths/auth-sessions.yaml#/mobileWebSession
   /api/user/sessions:
     $ref: ./paths/auth-sessions.yaml#/listSessions
   /api/user/sessions/revoke:

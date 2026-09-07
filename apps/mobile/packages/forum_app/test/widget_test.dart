@@ -100,27 +100,30 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 四个持久导航目的地与中央发布动作均可见。
-    expect(find.text('首页'), findsOneWidget);
-    expect(find.text('搜索'), findsOneWidget);
-    expect(find.text('发布'), findsOneWidget);
-    expect(find.text('消息'), findsOneWidget);
-    expect(find.text('我的'), findsOneWidget);
-    final GfBottomNavigation initialNavigation = tester.widget(
-      find.byType(GfBottomNavigation),
-    );
-    expect(initialNavigation.items, hasLength(4));
-    expect(initialNavigation.actionLabel, '发布');
-    expect(initialNavigation.actionIcon, Icons.add);
-
-    // 顶部搜索入口跳转后，底部导航的选中态也必须同步。
-    await tester.tap(find.byIcon(Icons.search).first);
-    await tester.pumpAndSettle();
     final GfBottomNavigation navigation = tester.widget(
       find.byType(GfBottomNavigation),
     );
+    expect(navigation.items.map((item) => item.label), [
+      '首页',
+      '校园',
+      '通知',
+      '消息',
+    ]);
+    expect(navigation.showLabels, isFalse);
+    expect(navigation.onAction, isNull);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+
+    navigation.onSelected(1);
+    await tester.pumpAndSettle();
+    expect(appRouter.state.uri.path, '/campus');
+    expect(find.text('从同学的真实评价，发现适合你的课'), findsOneWidget);
+    await tester.tap(find.byTooltip('搜索'));
+    await tester.pumpAndSettle();
     expect(appRouter.state.uri.path, '/search');
-    expect(navigation.currentIndex, 1);
+    expect(appRouter.canPop(), isTrue);
+    appRouter.pop();
+    await tester.pumpAndSettle();
+    expect(appRouter.state.uri.path, '/campus');
 
     appRouter.go('/');
     await tester.pumpAndSettle();
@@ -152,22 +155,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 首页顶部对齐 Web：搜索、主题切换和头像入口。
-    expect(find.byIcon(Icons.search), findsWidgets);
-    expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);
-
-    // 底部导航切到“我的”。
-    await tester.tap(find.text('我的'));
+    expect(find.text('YourTJ'), findsOneWidget);
+    appRouter.push('/profile');
     await tester.pumpAndSettle();
 
-    // 账户快捷入口位于个人信息与动态之后，CustomScrollView 会懒构建；
-    // 模拟真实移动端向下滚动后再验证入口，而不是假设其首屏可见。
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -560));
+    await tester.tap(find.byTooltip('更多功能'));
     await tester.pumpAndSettle();
-
-    // 我的页三入口：设置/通知/草稿。
     expect(find.text('设置'), findsOneWidget);
-    expect(find.text('通知'), findsOneWidget);
+    expect(find.text('内容管理'), findsOneWidget);
+    expect(find.text('回收站'), findsOneWidget);
     expect(find.text('草稿箱'), findsOneWidget);
 
     // 点击“草稿箱”导航到 /drafts。
@@ -194,7 +190,7 @@ void main() {
     ];
     expect(
       shellPaths,
-      containsAll(<String>['/', '/search', '/messages', '/profile']),
+      containsAll(<String>['/', '/campus', '/notifications', '/messages']),
     );
     expect(shellPaths, isNot(contains('/publish')));
 
