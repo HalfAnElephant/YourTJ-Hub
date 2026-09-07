@@ -257,6 +257,9 @@ paths:
   /api/forum/moderation/course-review-reveal:
     post:
       $ref: ./paths/course-reviews.yaml#/moderationCourseReviewReveal/post
+  /api/forum/moderation/post-reveal:
+    post:
+      $ref: ./paths/forum-posts.yaml#/moderationPostReveal/post
   /api/wiki/tree:
     get:
       $ref: ./paths/wiki.yaml#/getWikiTree/get

@@ -445,6 +445,7 @@ type CreatePostReq struct {
 	TopicId       uint64 `json:"topicId"`
 	Content       string `json:"content"`
 	ReplyToPostId uint64 `json:"replyToPostId"`
+	IsAnonymous   bool   `json:"isAnonymous"` // 匿名发布（仅 wiki 评论区，issue #524）
 	Website       string `json:"website,omitempty"` // 蜜罐字段，正常用户不可见
 	CaptchaId     string `json:"captchaId,omitempty"`
 	CaptchaCode   string `json:"captchaCode,omitempty"`
@@ -548,6 +549,13 @@ func createPost(req component.BetterRequest[CreatePostReq], agent bool) componen
 		}
 	}
 
+	// 匿名发布仅限 wiki 页面评论区（topic_type=wiki 的回复，issue #524）：
+	// 普通论坛主题不支持匿名，拒绝避免匿名能力越界扩散到论坛正文。
+	if req.Params.IsAnonymous &&
+		(topicEntity.TopicType != topics.TopicTypeWiki || req.Params.ReplyToPostId == 0) {
+		return component.FailResponseCode(component.MessageCommentAnonymousNotAllowed, nil)
+	}
+
 	postEntity := &posts.Entity{
 		TopicId:         req.Params.TopicId,
 		Content:         content,
@@ -555,6 +563,7 @@ func createPost(req component.BetterRequest[CreatePostReq], agent bool) componen
 		RenderedVersion: markdown2html.GetPostVersion(),
 		UserId:          req.UserId,
 		ReplyToPostId:   req.Params.ReplyToPostId,
+		IsAnonymous:     req.Params.IsAnonymous,
 	}
 
 	// 敏感词检查
@@ -602,6 +611,7 @@ func createPost(req component.BetterRequest[CreatePostReq], agent bool) componen
 			TopicAuthorId:       topicEntity.UserId,
 			ReplyToPostId:       req.Params.ReplyToPostId,
 			ReplyToPostAuthorId: parentPostAuthorID,
+			IsAnonymous:         postEntity.IsAnonymous,
 		})
 	}
 	// 发帖计数无条件累加（与 WriteTopic 的 topic.write 一致），

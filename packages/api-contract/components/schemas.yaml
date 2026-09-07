@@ -735,6 +735,9 @@ PostPayload:
       type: boolean
     author:
       $ref: '#/TopicAuthorPayload'
+    isAnonymous:
+      type: boolean
+      description: Whether the post is an anonymous wiki comment (issue #524). When true, `author` is an anonymous placeholder (id 0, empty avatar); real identity is never serialized publicly.
     createdAt:
       type: string
       description: Post creation time in the server's `2006-01-02 15:04:05` format.
@@ -793,6 +796,9 @@ ReplyTargetPayload:
     author:
       $ref: '#/TopicAuthorPayload'
       description: The zero author payload when unavailable is true.
+    isAnonymous:
+      type: boolean
+      description: Whether the replied-to post is an anonymous wiki comment (issue #524); when true, `author` is an anonymous placeholder and the real identity is never serialized.
     renderedContent:
       type: string
       description: Present only when the target post is available and not author or moderator removed.
@@ -1766,6 +1772,53 @@ ModerationCourseReviewRevealResponse:
               $ref: '#/CourseReviewAuthorRevealPayload'
     - $ref: '#/ApiFailure'
 
+ModerationPostRevealRequest:
+  type: object
+  required: [postId, reason]
+  properties:
+    postId:
+      type: integer
+      format: uint64
+      minimum: 1
+    reason:
+      type: string
+      minLength: 1
+      description: Mandatory justification; recorded in the restricted operation log.
+  additionalProperties: false
+
+PostAuthorRevealPayload:
+  type: object
+  required: [postId, isAnonymous]
+  properties:
+    postId:
+      type: integer
+      format: uint64
+      minimum: 1
+    authorUserId:
+      type: integer
+      format: uint64
+      description: Present only for posts with a linked author.
+    username:
+      type: string
+      description: Present only for posts with a linked author.
+    nickname:
+      type: string
+      description: Present only for posts with a linked author.
+    isAnonymous:
+      type: boolean
+  additionalProperties: false
+
+ModerationPostRevealResponse:
+  oneOf:
+    - allOf:
+        - $ref: '#/ApiSuccess'
+        - type: object
+          required: [result]
+          properties:
+            result:
+              $ref: '#/PostAuthorRevealPayload'
+    - $ref: '#/ApiFailure'
+
 AdminCourseListRequest:
   type: object
   properties:
@@ -2417,6 +2470,9 @@ CreatePostRequest:
       format: uint64
       minimum: 1
       description: Optional parent post inside the same topic; an id outside the topic fails with `comment.parentPostMissing` (HTTP 200).
+    isAnonymous:
+      type: boolean
+      description: Publish the reply anonymously (issue #524). Only accepted on wiki subsite page comment topics (`topic_type=wiki` replies); requesting it elsewhere fails with `comment.anonymousNotAllowed` (HTTP 200). Anonymous posts hide the author identity publicly; the author still manages the post via `isOwnPost`, and governance surfaces never leak the identity.
     website:
       type: string
       description: Compatibility honeypot field. Normal clients must not render or submit it; a populated value silently succeeds with result true and creates nothing.

@@ -1172,6 +1172,8 @@ export default {
     loginRequiredToComment: 'Nur angemeldete Benutzer können kommentieren',
     loginRequiredToCommentHint: 'Melde dich an, um an der Diskussion teilzunehmen und mit anderen Mitgliedern zu interagieren.',
     loginToComment: 'Anmelden',
+    publishAnonymous: 'Anonym veröffentlichen (Identität vor der Öffentlichkeit verbergen)',
+    authorAnonymous: 'Anonym',
     fullEditor: 'Vollständiger Editor',
     overview: 'Themenübersicht',
     createdAt: 'Erstellt',
@@ -2268,6 +2270,9 @@ export default {
       docVersion: 'Dokumentversion',
       docContent: 'Dokumentinhalt',
       category: 'Kategorie',
+      courseReview: 'Kursbewertung',
+      course: 'Kurs',
+      post: 'Beitrag',
     },
     messages: {
       userUpdated: 'Benutzer {userId} aktualisiert: {changedFields}',

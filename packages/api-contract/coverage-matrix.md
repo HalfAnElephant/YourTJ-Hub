@@ -4,11 +4,11 @@
 
 路由快照来自 `TestRoutesSnapshot`（`fixtures/routes-snapshot.json`，默认配置装配，不含 OIDC `/api/oauth/*` 端点——OIDC 另有专项）。
 
-- 快照路由总数：294
-- /api JSON 路由：231，已入契约：232（100%），已知未覆盖：0
+- 快照路由总数：295
+- /api JSON 路由：232，已入契约：233（100%），已知未覆盖：0
 - 非 API 排除路由：62
 
-## 已覆盖（232）
+## 已覆盖（233）
 
 | Method | Path | operationId |
 | --- | --- | --- |
@@ -181,6 +181,7 @@
 | POST | `/api/forum/moderation/course-stats-rebuild` | `adminCourseStatsRebuild` |
 | POST | `/api/forum/moderation/course-update` | `adminCourseUpdate` |
 | POST | `/api/forum/moderation/logs` | `listModerationLogs` |
+| POST | `/api/forum/moderation/post-reveal` | `moderationPostReveal` |
 | POST | `/api/forum/moderation/post-status` | `moderationUpdatePostStatus` |
 | POST | `/api/forum/moderation/report-status` | `moderationUpdateReportStatus` |
 | POST | `/api/forum/moderation/reports` | `listModerationReports` |

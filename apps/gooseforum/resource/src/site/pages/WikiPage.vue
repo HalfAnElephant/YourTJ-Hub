@@ -298,6 +298,7 @@ function sameUrl(left: string, right: string) {
         :initial-post-stream-hidden="true"
         :sync-url="false"
         auto-load-first-window
+        :allow-anonymous="true"
         wide
         @interaction-state="handleInteractionChange"
       />

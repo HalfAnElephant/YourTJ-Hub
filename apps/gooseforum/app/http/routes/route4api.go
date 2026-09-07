@@ -350,6 +350,9 @@ func apiRoute(ginApp *gin.Engine) {
 	forumLoginApi.POST("moderation/course-review-status", middleware.CheckWritableAccount, middleware.CheckPermission(permission.CourseManager), middleware.RateLimit(middleware.RateLimitReviewModerate), UpButterReq(forum.ModerationCourseReviewStatus))
 	forumLoginApi.POST("moderation/course-review-reports", middleware.NoUpdateUserActivity, middleware.CheckPermission(permission.CourseManager), middleware.RateLimit(middleware.RateLimitReviewModerate), UpButterReq(forum.ModerationCourseReviewReportList))
 	forumLoginApi.POST("moderation/course-review-reveal", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitReviewReveal), UpButterReq(forum.ModerationCourseReviewReveal))
+	// 匿名楼层作者揭示（issue #524）：仅 Admin（控制器内 IsAdmin 校验），
+	// 理由必填并写 opt_record 审计；独立 post.reveal 限流。
+	forumLoginApi.POST("moderation/post-reveal", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPostReveal), UpButterReq(forum.ModerationPostReveal))
 	// 课评管理：课程/评价 CRUD + 统计重建（CourseManager 权限，控制器内校验）。
 	forumLoginApi.POST("moderation/course-list", middleware.NoUpdateUserActivity, UpButterReq(forum.AdminCourseList))
 	forumLoginApi.POST("moderation/course-create", middleware.CheckWritableAccount, UpButterReq(forum.AdminCourseCreate))

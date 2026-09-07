@@ -43,6 +43,11 @@ func handleHttpNotifyCommentCreated(ctx context.Context, event *CommentCreatedEv
 	if !httpnotifyservice.ShouldNotify(httpnotifyservice.EventCommentCreated) {
 		return nil
 	}
+	// 匿名楼层不推 webhook（issue #524）：webhook 负载含完整评论者用户信息，
+	// 会向订阅方泄露匿名身份。与 in-app 通知同口径。
+	if event.IsAnonymous {
+		return nil
+	}
 	topic := topics.GetSimple(event.TopicId)
 	topicPayload := topicNotifyPayloadFromSmall(topic)
 	commenter := userNotifyPayload(event.UserId)

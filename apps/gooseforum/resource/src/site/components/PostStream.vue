@@ -42,6 +42,7 @@ import TopicFloatingControls from '@/site/components/TopicFloatingControls.vue'
 import TopicImageGallery from '@/site/components/TopicImageGallery.vue'
 import TopicList from '@/site/components/TopicList.vue'
 import UserAvatar from '@/site/components/UserAvatar.vue'
+import { buildBeamAvatarDataUri } from '@/site/utils/course-review-share'
 import type { PostPayload, PostWindowPayload, ReplyTargetPayload, TopicPayload, ViewerPayload } from '@gooseforum/client'
 import { useI18n } from 'vue-i18n'
 import { useCaptchaChallenge } from '@/site/composables/useCaptchaChallenge'
@@ -69,6 +70,8 @@ const props = withDefaults(defineProps<{
   syncUrl?: boolean
   /** 初始流为空时自动加载第一页（Wiki 页面无 SSR 评论流）。 */
   autoLoadFirstWindow?: boolean
+  /** 是否允许匿名发布（wiki 评论区，issue #524）；true 时发布栏显示匿名勾选项。 */
+  allowAnonymous?: boolean
   /** 宽版卡片（默认）：右栏概览 + 卡片右伸 292px（对齐内容页 rail）。嵌入 Wiki 正文区时关闭。 */
   wide?: boolean
 }>(), {
@@ -103,6 +106,7 @@ const {
 } = useCaptchaChallenge()
 const postContent = ref('')
 const targetPostId = ref(0)
+const anonymous = ref(false)
 const likeCount = ref(props.interactions?.likeCount ?? props.topicActions?.likeCount ?? 0)
 const isLiked = ref(props.interactions?.isLiked ?? props.topicActions?.isLiked ?? false)
 const isBookmarked = ref(props.interactions?.isBookmarked ?? props.topicActions?.isBookmarked ?? false)
@@ -860,7 +864,7 @@ const renderPosts = computed<PostPayload[]>(() => {
 // 替代全文引用条；其余场景返回 null 不渲染。目标不可见时（隐藏/审核移除/隐私清除，
 // 后端 buildReplyTargetPayload 早退只下发 { id, unavailable }，无作者与楼号）降级为
 // unavailable 态，保证「回复了某楼」这一事实仍可见且不泄漏被隐藏目标的作者与楼号。
-function treeRootReplyHint(post: PostPayload): { username?: string; postNo?: number; unavailable?: boolean } | null {
+function treeRootReplyHint(post: PostPayload): { username?: string; postNo?: number; unavailable?: boolean; isAnonymous?: boolean } | null {
   if (postViewMode.value !== 'tree') return null
   if (!post.replyToPostId) return null
   const firstId = firstPost.value?.id
@@ -869,7 +873,7 @@ function treeRootReplyHint(post: PostPayload): { username?: string; postNo?: num
   // 首楼不在当前窗口时用 replyTargets.postNo 判定目标是否首楼（深链打开后段楼层）。
   if (!firstId && (!target || target.postNo === 1)) return null
   if (!target || target.unavailable || !target.author.username) return { unavailable: true }
-  return { username: target.author.username, postNo: target.postNo }
+  return { username: target.author.username, postNo: target.postNo, isAnonymous: Boolean(target.isAnonymous) }
 }
 
 // 引用条规则：回复话题首楼（或无目标）视为话题级回复，不重复引用首楼正文；
@@ -1370,9 +1374,18 @@ function isTopicRemoved() {
   return Boolean(props.topicActions?.authorDeleted || props.topicActions?.moderatorRemoved)
 }
 
-// 优先展示用户昵称，未设置昵称时回退到账号名
+// 优先展示用户昵称，未设置昵称时回退到账号名；匿名楼层展示匿名占位
 function authorDisplayName(author: { username: string; nickname?: string }) {
   return author.nickname || author.username
+}
+
+function isAnonymousPost(post: PostPayload) {
+  return Boolean(post.isAnonymous)
+}
+
+// 匿名楼层占位头像：复用课程评价的 boring-avatars beam 占位（seed 用楼层 id，跨语言稳定）
+function anonymousAvatarSrc(post: PostPayload, size = 36): string {
+  return buildBeamAvatarDataUri(`anonymous-${post.id}`, size)
 }
 
 function canEditPost(post: PostPayload) {
@@ -1506,9 +1519,11 @@ async function submitPost() {
     const createdPost = await createPost(props.topicId, content, postId, {
       captchaId: captchaId.value,
       captchaCode: captchaCode.value,
+      isAnonymous: props.allowAnonymous ? anonymous.value : undefined,
     })
     clearCaptcha()
     postContent.value = ''
+    anonymous.value = false
     targetPostId.value = 0
     composerOpen.value = false
     pushFlash(t('topic.replyPosted'), 'success')
@@ -1951,6 +1966,7 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
           >
             <div class="flex items-center gap-2.5 min-w-0">
               <a
+                v-if="!isAnonymousPost(post)"
                 :href="`/u/${post.author.id}`"
                 class="shrink-0 pt-0.5"
                 @click="showUserCard(post.author, $event)"
@@ -1963,14 +1979,19 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                   img-class="rounded-full"
                 />
               </a>
+              <span v-else class="shrink-0 pt-0.5">
+                <UserAvatar :src="anonymousAvatarSrc(post)" :alt="t('topic.authorAnonymous')" class="h-9 w-9 rounded-full ring-1 ring-line" img-class="rounded-full" />
+              </span>
               <div class="min-w-0 flex flex-col">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <a
+                    v-if="!isAnonymousPost(post)"
                     :href="`/u/${post.author.id}`"
                     class="min-w-0 truncate font-semibold text-sm text-base-content hover:text-primary"
                   >
                     {{ authorDisplayName(post.author) }}
                   </a>
+                  <span v-else class="min-w-0 truncate font-semibold text-sm text-base-content/55">{{ t('topic.authorAnonymous') }}</span>
                   <span
                     v-if="props.contentType === 1"
                     class="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-success/15 px-1.5 py-0.2 text-[10px] font-semibold text-success"
@@ -2005,6 +2026,7 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
           </div>
 
           <a
+            v-if="!isAnonymousPost(post)"
             :href="`/u/${post.author.id}`"
             class="sticky top-19 self-start pt-1"
             :class="isFirstPost(post) && hasShortFormImages ? 'hidden sm:block' : 'block'"
@@ -2012,6 +2034,13 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
           >
             <UserAvatar :src="post.author.avatarUrl" :alt="post.author.username" :badge="post.author.wornBadge" class="h-9 w-9 rounded-full ring-1 ring-line sm:h-10 sm:w-10" img-class="rounded-full" />
           </a>
+          <span
+            v-else
+            class="sticky top-19 self-start pt-1"
+            :class="isFirstPost(post) && hasShortFormImages ? 'hidden sm:block' : 'block'"
+          >
+            <UserAvatar :src="anonymousAvatarSrc(post)" :alt="t('topic.authorAnonymous')" class="h-9 w-9 rounded-full ring-1 ring-line sm:h-10 sm:w-10" img-class="rounded-full" />
+          </span>
           <div class="min-w-0">
             <div
               class="mb-1.5 min-w-0 items-start justify-between gap-2"
@@ -2019,7 +2048,8 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
             >
               <div class="min-w-0">
                 <div class="flex min-w-0 items-center gap-2">
-                  <a :href="`/u/${post.author.id}`" class="min-w-0 truncate font-semibold text-base-content hover:text-primary">{{ authorDisplayName(post.author) }}</a>
+                  <a v-if="!isAnonymousPost(post)" :href="`/u/${post.author.id}`" class="min-w-0 truncate font-semibold text-base-content hover:text-primary">{{ authorDisplayName(post.author) }}</a>
+                  <span v-else class="min-w-0 truncate font-semibold text-base-content/55">{{ t('topic.authorAnonymous') }}</span>
                   <span v-if="post.postNo" class="hidden shrink-0 text-xs font-semibold tabular-nums text-base-content/55 sm:inline">#{{ formatNumber(post.postNo) }}</span>
                   <span v-if="isQuestionTopic && post.isAnswer" class="hidden shrink-0 rounded bg-success/20 px-1.5 py-0.5 text-[11px] font-semibold text-success sm:inline">{{ t('topic.answer') }}</span>
                 </div>
@@ -2190,7 +2220,8 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
               <CornerDownLeft class="h-3 w-3 shrink-0" aria-hidden="true" />
               <span v-if="treeRootReplyHint(post)!.unavailable" class="min-w-0 truncate">{{ t('topic.replyTargetUnavailable') }}</span>
               <template v-else>
-                <span class="min-w-0 truncate">{{ t('topic.replyTo', { user: `@${treeRootReplyHint(post)!.username}` }) }}</span>
+                <span v-if="treeRootReplyHint(post)!.isAnonymous" class="min-w-0 truncate">{{ t('topic.authorAnonymous') }}</span>
+                <span v-else class="min-w-0 truncate">{{ t('topic.replyTo', { user: `@${treeRootReplyHint(post)!.username}` }) }}</span>
                 <span v-if="treeRootReplyHint(post)!.postNo" class="shrink-0 tabular-nums">#{{ treeRootReplyHint(post)!.postNo }}</span>
               </template>
             </p>
@@ -2676,6 +2707,8 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
     v-if="composerMounted"
     v-model="postContent"
     v-model:captcha-code="captchaCode"
+    v-model:anonymous="anonymous"
+    :allow-anonymous="allowAnonymous"
     :open="composerOpen"
     :authenticated="viewer.isAuthenticated"
     :captcha-img="captchaImg"
@@ -2733,12 +2766,20 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
             <div class="mt-4 rounded-[var(--gf-radius-field)] border border-line bg-base-200/55 p-3">
               <div class="flex min-w-0 items-center gap-2">
                 <UserAvatar
+                  v-if="!isAnonymousPost(pendingDeletePost)"
                   :src="pendingDeletePost.author.avatarUrl"
                   :alt="pendingDeletePost.author.username"
                   class="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-line"
                 />
+                <UserAvatar
+                  v-else
+                  :src="anonymousAvatarSrc(pendingDeletePost, 24)"
+                  :alt="t('topic.authorAnonymous')"
+                  class="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-line"
+                />
                 <div class="min-w-0 truncate text-xs font-semibold text-base-content/55">
-                  @{{ pendingDeletePost.author.username }}
+                  <template v-if="isAnonymousPost(pendingDeletePost)">{{ t('topic.authorAnonymous') }}</template>
+                  <template v-else>@{{ pendingDeletePost.author.username }}</template>
                   <span class="ml-1.5 font-medium tabular-nums text-base-content/40">#{{ formatNumber(pendingDeletePost.postNo) }}</span>
                 </div>
               </div>

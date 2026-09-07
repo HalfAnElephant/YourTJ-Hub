@@ -353,6 +353,7 @@ type PostPayload struct {
 	IsModeratorRemoved bool                `json:"isModeratorRemoved"`
 	CanModerate        bool                `json:"canModerate"`
 	Author             TopicAuthorPayload  `json:"author"`
+	IsAnonymous        bool                `json:"isAnonymous"`
 	CreatedAt          string              `json:"createdAt"`
 	ReplyToPostID      uint64              `json:"replyToPostId,omitempty"`
 	ReplyToUserID      uint64              `json:"replyToUserId,omitempty"`
@@ -372,6 +373,7 @@ type ReplyTargetPayload struct {
 	ID                 uint64             `json:"id"`
 	PostNo             uint64             `json:"postNo,omitempty"`
 	Author             TopicAuthorPayload `json:"author"`
+	IsAnonymous        bool               `json:"isAnonymous"`
 	RenderedContent    string             `json:"renderedContent,omitempty"`
 	IsAuthorDeleted    bool               `json:"isAuthorDeleted,omitempty"`
 	IsModeratorRemoved bool               `json:"isModeratorRemoved,omitempty"`
@@ -1146,6 +1148,11 @@ func buildTopicDetailProps(c *gin.Context, topic *topics.Entity, firstPost *post
 		if item == nil {
 			continue
 		}
+		// 匿名楼层作者不进 userMap：不进入 participants 身份表面（issue #524）。
+		// IsOwnPost 是 currentUserID == item.UserId 的直接比较，不依赖 userMap。
+		if item.IsAnonymous {
+			continue
+		}
 		if _, seen := seenUserIDs[item.UserId]; seen {
 			continue
 		}
@@ -1290,14 +1297,24 @@ func buildPostPayloads(postEntities []*posts.Entity, userMap map[uint64]*users.E
 		if item == nil {
 			continue
 		}
-		author := authorPayload(item.UserId)
+		var author TopicAuthorPayload
+		if item.IsAnonymous {
+			author = anonymousPostAuthor()
+		} else {
+			author = authorPayload(item.UserId)
+		}
 		postservice.EnsureRenderedHTML(item)
 		replyToName, replyToUserID := "", uint64(0)
 		if item.ReplyToPostId > 0 {
 			if parent, ok := postMap[item.ReplyToPostId]; ok && parent != nil && parent.TopicId == item.TopicId && (parent.ProcessStatus == 0 || canModerate) {
-				parentAuthor := authorPayload(parent.UserId)
-				replyToName = parentAuthor.Username
-				replyToUserID = parentAuthor.ID
+				// 回复对象为匿名楼层时，不暴露其真实作者（issue #524）。
+				if parent.IsAnonymous {
+					replyToName = "匿名同学"
+				} else {
+					parentAuthor := authorPayload(parent.UserId)
+					replyToName = parentAuthor.Username
+					replyToUserID = parentAuthor.ID
+				}
 			}
 			if _, seen := seenReplyTargets[item.ReplyToPostId]; !seen {
 				seenReplyTargets[item.ReplyToPostId] = struct{}{}
@@ -1342,6 +1359,7 @@ func buildPostPayloads(postEntities []*posts.Entity, userMap map[uint64]*users.E
 			IsModeratorRemoved: isModeratorRemoved,
 			CanModerate:        canModerate,
 			Author:             author,
+			IsAnonymous:        item.IsAnonymous,
 			CreatedAt:          item.CreatedAt.Format(time.RFC3339),
 			ReplyToPostID:      item.ReplyToPostId,
 			ReplyToUserID:      replyToUserID,
@@ -1388,7 +1406,12 @@ func buildReplyTargetPayload(topicID, postID uint64, postMap map[uint64]*posts.E
 		return target
 	}
 	target.PostNo = parent.PostNo
-	target.Author = userPayloadWithWornBadge(parent.UserId, userMap, wornBadges[parent.UserId])
+	if parent.IsAnonymous {
+		target.Author = anonymousPostAuthor()
+		target.IsAnonymous = true
+	} else {
+		target.Author = userPayloadWithWornBadge(parent.UserId, userMap, wornBadges[parent.UserId])
+	}
 	target.IsAuthorDeleted = isAuthorDeletedVisibility(parent.VisibilityStatus)
 	target.IsModeratorRemoved = isModeratorRemovedVisibility(parent.VisibilityStatus)
 	if !target.IsAuthorDeleted && !target.IsModeratorRemoved {
@@ -1527,6 +1550,12 @@ func userPayload(userID uint64, userMap map[uint64]*users.EntityComplete) TopicA
 		return TopicAuthorPayload{ID: userID, Username: "已注销用户", AvatarURL: urlconfig.GetDefaultAvatar()}
 	}
 	return userPayloadWithWornBadge(userID, userMap, badgeservice.GetWornBadge(userID, user.WornBadgeCode))
+}
+
+// anonymousPostAuthor 返回匿名楼层（issue #524）的公开作者占位：隐藏真实
+// user_id/用户名/头像，前端按 isAnonymous 渲染本地化占位；作者管理仍走 IsOwnPost。
+func anonymousPostAuthor() TopicAuthorPayload {
+	return TopicAuthorPayload{ID: 0, Username: "匿名同学", AvatarURL: ""}
 }
 
 func selectedWornBadges(userMap map[uint64]*users.EntityComplete) map[uint64]string {

@@ -2686,6 +2686,7 @@ mixin _$PostPayload {
   bool get isModeratorRemoved => throw _privateConstructorUsedError;
   bool get canModerate => throw _privateConstructorUsedError;
   UserBriefPayload get author => throw _privateConstructorUsedError;
+  bool get isAnonymous => throw _privateConstructorUsedError;
   String get createdAt => throw _privateConstructorUsedError;
   int? get replyToPostId => throw _privateConstructorUsedError;
   int? get replyToUserId => throw _privateConstructorUsedError;
@@ -2728,6 +2729,7 @@ abstract class $PostPayloadCopyWith<$Res> {
     bool isModeratorRemoved,
     bool canModerate,
     UserBriefPayload author,
+    bool isAnonymous,
     String createdAt,
     int? replyToPostId,
     int? replyToUserId,
@@ -2772,6 +2774,7 @@ class _$PostPayloadCopyWithImpl<$Res, $Val extends PostPayload>
     Object? isModeratorRemoved = null,
     Object? canModerate = null,
     Object? author = null,
+    Object? isAnonymous = null,
     Object? createdAt = null,
     Object? replyToPostId = freezed,
     Object? replyToUserId = freezed,
@@ -2831,6 +2834,10 @@ class _$PostPayloadCopyWithImpl<$Res, $Val extends PostPayload>
                 ? _value.author
                 : author // ignore: cast_nullable_to_non_nullable
                       as UserBriefPayload,
+            isAnonymous: null == isAnonymous
+                ? _value.isAnonymous
+                : isAnonymous // ignore: cast_nullable_to_non_nullable
+                      as bool,
             createdAt: null == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
@@ -2930,6 +2937,7 @@ abstract class _$$PostPayloadImplCopyWith<$Res>
     bool isModeratorRemoved,
     bool canModerate,
     UserBriefPayload author,
+    bool isAnonymous,
     String createdAt,
     int? replyToPostId,
     int? replyToUserId,
@@ -2975,6 +2983,7 @@ class __$$PostPayloadImplCopyWithImpl<$Res>
     Object? isModeratorRemoved = null,
     Object? canModerate = null,
     Object? author = null,
+    Object? isAnonymous = null,
     Object? createdAt = null,
     Object? replyToPostId = freezed,
     Object? replyToUserId = freezed,
@@ -3034,6 +3043,10 @@ class __$$PostPayloadImplCopyWithImpl<$Res>
             ? _value.author
             : author // ignore: cast_nullable_to_non_nullable
                   as UserBriefPayload,
+        isAnonymous: null == isAnonymous
+            ? _value.isAnonymous
+            : isAnonymous // ignore: cast_nullable_to_non_nullable
+                  as bool,
         createdAt: null == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -3102,6 +3115,7 @@ class _$PostPayloadImpl implements _PostPayload {
     this.isModeratorRemoved = false,
     required this.canModerate,
     required this.author,
+    this.isAnonymous = false,
     required this.createdAt,
     this.replyToPostId,
     this.replyToUserId,
@@ -3144,6 +3158,9 @@ class _$PostPayloadImpl implements _PostPayload {
   @override
   final UserBriefPayload author;
   @override
+  @JsonKey()
+  final bool isAnonymous;
+  @override
   final String createdAt;
   @override
   final int? replyToPostId;
@@ -3170,7 +3187,7 @@ class _$PostPayloadImpl implements _PostPayload {
 
   @override
   String toString() {
-    return 'PostPayload(id: $id, topicId: $topicId, postNo: $postNo, content: $content, renderedContent: $renderedContent, processStatus: $processStatus, isHidden: $isHidden, isAuthorDeleted: $isAuthorDeleted, isModeratorRemoved: $isModeratorRemoved, canModerate: $canModerate, author: $author, createdAt: $createdAt, replyToPostId: $replyToPostId, replyToUserId: $replyToUserId, replyToUsername: $replyToUsername, isOwnPost: $isOwnPost, updatedAt: $updatedAt, lastEditor: $lastEditor, lastEditedAt: $lastEditedAt, revisionCount: $revisionCount, likeCount: $likeCount, isLiked: $isLiked, isBookmarked: $isBookmarked)';
+    return 'PostPayload(id: $id, topicId: $topicId, postNo: $postNo, content: $content, renderedContent: $renderedContent, processStatus: $processStatus, isHidden: $isHidden, isAuthorDeleted: $isAuthorDeleted, isModeratorRemoved: $isModeratorRemoved, canModerate: $canModerate, author: $author, isAnonymous: $isAnonymous, createdAt: $createdAt, replyToPostId: $replyToPostId, replyToUserId: $replyToUserId, replyToUsername: $replyToUsername, isOwnPost: $isOwnPost, updatedAt: $updatedAt, lastEditor: $lastEditor, lastEditedAt: $lastEditedAt, revisionCount: $revisionCount, likeCount: $likeCount, isLiked: $isLiked, isBookmarked: $isBookmarked)';
   }
 
   @override
@@ -3195,6 +3212,8 @@ class _$PostPayloadImpl implements _PostPayload {
             (identical(other.canModerate, canModerate) ||
                 other.canModerate == canModerate) &&
             (identical(other.author, author) || other.author == author) &&
+            (identical(other.isAnonymous, isAnonymous) ||
+                other.isAnonymous == isAnonymous) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.replyToPostId, replyToPostId) ||
@@ -3235,6 +3254,7 @@ class _$PostPayloadImpl implements _PostPayload {
     isModeratorRemoved,
     canModerate,
     author,
+    isAnonymous,
     createdAt,
     replyToPostId,
     replyToUserId,
@@ -3276,6 +3296,7 @@ abstract class _PostPayload implements PostPayload {
     final bool isModeratorRemoved,
     required final bool canModerate,
     required final UserBriefPayload author,
+    final bool isAnonymous,
     required final String createdAt,
     final int? replyToPostId,
     final int? replyToUserId,
@@ -3315,6 +3336,8 @@ abstract class _PostPayload implements PostPayload {
   bool get canModerate;
   @override
   UserBriefPayload get author;
+  @override
+  bool get isAnonymous;
   @override
   String get createdAt;
   @override
@@ -3357,6 +3380,7 @@ mixin _$ReplyTargetPayload {
   int get id => throw _privateConstructorUsedError;
   int? get postNo => throw _privateConstructorUsedError;
   UserBriefPayload get author => throw _privateConstructorUsedError;
+  bool get isAnonymous => throw _privateConstructorUsedError;
   String? get renderedContent => throw _privateConstructorUsedError;
   bool? get unavailable => throw _privateConstructorUsedError;
 
@@ -3381,6 +3405,7 @@ abstract class $ReplyTargetPayloadCopyWith<$Res> {
     int id,
     int? postNo,
     UserBriefPayload author,
+    bool isAnonymous,
     String? renderedContent,
     bool? unavailable,
   });
@@ -3406,6 +3431,7 @@ class _$ReplyTargetPayloadCopyWithImpl<$Res, $Val extends ReplyTargetPayload>
     Object? id = null,
     Object? postNo = freezed,
     Object? author = null,
+    Object? isAnonymous = null,
     Object? renderedContent = freezed,
     Object? unavailable = freezed,
   }) {
@@ -3423,6 +3449,10 @@ class _$ReplyTargetPayloadCopyWithImpl<$Res, $Val extends ReplyTargetPayload>
                 ? _value.author
                 : author // ignore: cast_nullable_to_non_nullable
                       as UserBriefPayload,
+            isAnonymous: null == isAnonymous
+                ? _value.isAnonymous
+                : isAnonymous // ignore: cast_nullable_to_non_nullable
+                      as bool,
             renderedContent: freezed == renderedContent
                 ? _value.renderedContent
                 : renderedContent // ignore: cast_nullable_to_non_nullable
@@ -3460,6 +3490,7 @@ abstract class _$$ReplyTargetPayloadImplCopyWith<$Res>
     int id,
     int? postNo,
     UserBriefPayload author,
+    bool isAnonymous,
     String? renderedContent,
     bool? unavailable,
   });
@@ -3485,6 +3516,7 @@ class __$$ReplyTargetPayloadImplCopyWithImpl<$Res>
     Object? id = null,
     Object? postNo = freezed,
     Object? author = null,
+    Object? isAnonymous = null,
     Object? renderedContent = freezed,
     Object? unavailable = freezed,
   }) {
@@ -3502,6 +3534,10 @@ class __$$ReplyTargetPayloadImplCopyWithImpl<$Res>
             ? _value.author
             : author // ignore: cast_nullable_to_non_nullable
                   as UserBriefPayload,
+        isAnonymous: null == isAnonymous
+            ? _value.isAnonymous
+            : isAnonymous // ignore: cast_nullable_to_non_nullable
+                  as bool,
         renderedContent: freezed == renderedContent
             ? _value.renderedContent
             : renderedContent // ignore: cast_nullable_to_non_nullable
@@ -3522,6 +3558,7 @@ class _$ReplyTargetPayloadImpl implements _ReplyTargetPayload {
     required this.id,
     this.postNo,
     required this.author,
+    this.isAnonymous = false,
     this.renderedContent,
     this.unavailable,
   });
@@ -3536,13 +3573,16 @@ class _$ReplyTargetPayloadImpl implements _ReplyTargetPayload {
   @override
   final UserBriefPayload author;
   @override
+  @JsonKey()
+  final bool isAnonymous;
+  @override
   final String? renderedContent;
   @override
   final bool? unavailable;
 
   @override
   String toString() {
-    return 'ReplyTargetPayload(id: $id, postNo: $postNo, author: $author, renderedContent: $renderedContent, unavailable: $unavailable)';
+    return 'ReplyTargetPayload(id: $id, postNo: $postNo, author: $author, isAnonymous: $isAnonymous, renderedContent: $renderedContent, unavailable: $unavailable)';
   }
 
   @override
@@ -3553,6 +3593,8 @@ class _$ReplyTargetPayloadImpl implements _ReplyTargetPayload {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.postNo, postNo) || other.postNo == postNo) &&
             (identical(other.author, author) || other.author == author) &&
+            (identical(other.isAnonymous, isAnonymous) ||
+                other.isAnonymous == isAnonymous) &&
             (identical(other.renderedContent, renderedContent) ||
                 other.renderedContent == renderedContent) &&
             (identical(other.unavailable, unavailable) ||
@@ -3566,6 +3608,7 @@ class _$ReplyTargetPayloadImpl implements _ReplyTargetPayload {
     id,
     postNo,
     author,
+    isAnonymous,
     renderedContent,
     unavailable,
   );
@@ -3592,6 +3635,7 @@ abstract class _ReplyTargetPayload implements ReplyTargetPayload {
     required final int id,
     final int? postNo,
     required final UserBriefPayload author,
+    final bool isAnonymous,
     final String? renderedContent,
     final bool? unavailable,
   }) = _$ReplyTargetPayloadImpl;
@@ -3605,6 +3649,8 @@ abstract class _ReplyTargetPayload implements ReplyTargetPayload {
   int? get postNo;
   @override
   UserBriefPayload get author;
+  @override
+  bool get isAnonymous;
   @override
   String? get renderedContent;
   @override

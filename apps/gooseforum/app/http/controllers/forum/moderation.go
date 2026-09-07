@@ -26,8 +26,10 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/eventhandlers"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/llmsservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/moderationservice"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/optlogger"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/searchservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/urlconfig"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/userservice"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -290,6 +292,12 @@ func buildReportEvidenceSnapshot(targetType string, targetID uint64, topicID uin
 			snapshot.Excerpt = moderationExcerpt(post.Content)
 			snapshot.TopicID = post.TopicId
 			snapshot.TargetURL = fmt.Sprintf("%s#post-%d", urlconfig.PostDetail(post.TopicId), post.Id)
+			// 匿名楼层（issue #524）举报快照不得定格真实作者身份：否则举报
+			// 记录即泄露匿名作者。版主需揭示时走 Admin reveal 端点。
+			if post.IsAnonymous {
+				snapshot.AuthorID = 0
+				snapshot.AuthorName = ""
+			}
 			topic := topics.GetSimple(post.TopicId)
 			if topic.Id > 0 {
 				snapshot.CategoryIDs = topic.CategoryIds
@@ -337,6 +345,53 @@ func UpdateModerationPostStatus(req component.BetterRequest[ModerationPostStatus
 		Excerpt:      moderationExcerpt(post.Content),
 	}, nextStatus == 1)
 	return component.SuccessResponse(true)
+}
+
+// ModerationPostRevealReq 匿名楼层作者揭示请求体（Admin；必须填写理由）。
+type ModerationPostRevealReq struct {
+	PostId uint64 `json:"postId" validate:"required"`
+	Reason string `json:"reason" validate:"required"`
+}
+
+// PostAuthorRevealPayload Admin 专用的匿名楼层作者身份揭示 DTO。
+type PostAuthorRevealPayload struct {
+	PostId       uint64 `json:"postId"`
+	AuthorUserId uint64 `json:"authorUserId,omitempty"`
+	Username     string `json:"username,omitempty"`
+	Nickname     string `json:"nickname,omitempty"`
+	IsAnonymous  bool   `json:"isAnonymous"`
+}
+
+// ModerationPostReveal 仅 Admin 可查看匿名楼层作者真实身份（issue #524）；
+// 必须填写理由并产生 opt_record 审计记录。对齐课评 reveal 语义。
+func ModerationPostReveal(req component.BetterRequest[ModerationPostRevealReq]) component.Response {
+	// 身份揭示权限不随版主身份自动获得；仅 Admin。
+	if !moderationservice.IsAdmin(req.UserId) {
+		return component.FailResponseCode(component.MessagePermissionDenied, nil)
+	}
+	post := posts.Get(req.Params.PostId)
+	if post.Id == 0 {
+		return component.FailResponseCode(component.MessagePostNotFound, nil)
+	}
+	payload := PostAuthorRevealPayload{
+		PostId:       post.Id,
+		AuthorUserId: post.UserId,
+		IsAnonymous:  post.IsAnonymous,
+	}
+	if post.UserId > 0 {
+		if user, ok := userservice.GetUserInfo(post.UserId); ok {
+			payload.Username = user.Username
+			payload.Nickname = user.Nickname
+		}
+	}
+	// 受限审计：actor、post、reason 进入 opt_record，不写普通应用日志。
+	optlogger.UserOptCode(req.UserId, optlogger.RevealPostAuthor, post.Id,
+		"post.identityRevealed", optlogger.MessageParams{
+			"postId":   post.Id,
+			"authorId": post.UserId,
+			"reason":   req.Params.Reason,
+		})
+	return component.SuccessResponse(payload)
 }
 
 func ModerationReportList(req component.BetterRequest[ModerationReportListReq]) component.Response {
@@ -497,6 +552,11 @@ func ViewDeletedContent(req component.BetterRequest[ViewDeletedContentReq]) comp
 			DeleteReason: post.DeleteReason,
 			TargetURL:    fmt.Sprintf("%s#post-%d", urlconfig.PostDetail(post.TopicId), post.Id),
 			Categories:   categoryPayloads(topic.CategoryIds),
+		}
+		// 匿名楼层（issue #524）不向版主泄露作者；需要揭示走 Admin reveal 端点。
+		if post.IsAnonymous {
+			view.AuthorID = 0
+			view.AuthorName = ""
 		}
 	default:
 		return component.FailResponseCode(component.MessageRequestInvalidParams, nil)

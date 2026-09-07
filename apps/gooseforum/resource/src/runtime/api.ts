@@ -677,7 +677,7 @@ export async function submitTopic(topic: SubmitTopicInput): Promise<number> {
   return data.result ?? data.data ?? topic.topicId
 }
 
-export async function createPost(topicId: number, content: string, replyToPostId = 0, extra?: { captchaId?: string, captchaCode?: string, website?: string }): Promise<CreatePostResult | number | boolean> {
+export async function createPost(topicId: number, content: string, replyToPostId = 0, extra?: { captchaId?: string, captchaCode?: string, website?: string, isAnonymous?: boolean }): Promise<CreatePostResult | number | boolean> {
   const response = await fetch('/api/forum/posts/create', {
     method: 'POST',
     headers: {
