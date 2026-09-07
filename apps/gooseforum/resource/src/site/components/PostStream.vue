@@ -725,9 +725,8 @@ function replyTargetFor(post: PostPayload) {
   return post.replyToPostId ? replyTargetMap.value.get(post.replyToPostId) : undefined
 }
 
-// 楼层流：普通话题纯平铺（按 postNo 升序，引用条承接上下文）；Q&A 话题两层布局——
-// 回复 #1 的回答与无目标评论平铺下铺，链内子回复堆叠在链根楼层卡内（见下方 Q&A 逻辑）。
-// 跨窗口加载的楼层天然按楼号归位，树跨窗的孤儿引用问题随之消失。
+// 楼层流：按 postNo 升序（#519 起扁平与树状共用同一基础序列——扁平全量平铺，
+// 树状在其上构建回复森林）。跨窗口加载的楼层天然按楼号归位。
 const sortedPosts = computed<PostPayload[]>(() => {
   const list = [...posts.value]
   list.sort((a, b) => (a.postNo || 0) - (b.postNo || 0))
@@ -779,21 +778,20 @@ function renderedPostContent(post: PostPayload) {
   return html
 }
 
-// Q&A 两层布局：主流平铺层 = 首楼提问 + 回复 #1 的回答 + 无目标的评论（标准平铺，往下铺）；
-// 堆叠层 = 回复链内楼层（回复某回答/回复某条回复）的子回复，按链根聚合后直接堆叠在
-// 所属楼层的卡片内。链根不在已加载窗口时（深链场景）退回主流平铺，避免内容丢失。
+// Q&A 链上溯工具（qaPostsById / qaChainRootId）：原「两层布局」的堆叠分组已随 #519 移除，
+// 现仅用于 append 增量加载时判定哪些链内子回复需要 forceFlat 兜底为森林根节点。
 const qaPostsById = computed(() => {
   const map = new Map<number, PostPayload>()
   for (const post of posts.value) map.set(post.id, post)
   return map
 })
 
-// append 增量加载时，链根位于上一窗口边界之前的子回复改为平铺渲染（引用条保留上下文），
-// 避免把新内容插进读者早已滚过的旧楼层卡片里、出现在视口上方导致不可见。
+// append 增量加载时（树状视图），链根位于上一窗口边界之前的子回复兜底为根节点平铺，
+// 避免把新内容嵌进读者早已滚过的旧楼层卡片里、出现在视口上方导致不可见；扁平视图全量平铺，不受影响。
 const qaForceFlatPostIds = ref(new Set<number>())
 
-// 返回 post 所属回复链的根楼层 id；回复 #1 或无目标 → null（主流平铺层）；
-// 链根未加载或链异常深（>64 跳，含脏数据成环）→ null（平铺兜底，保证内容可见）。
+// 返回 post 所属回复链的根楼层 id（供 append 边界判定 forceFlat 用）；
+// 回复 #1 或无目标 → null；链根未加载或链异常深（>64 跳，含脏数据成环）→ null。
 function qaChainRootId(post: PostPayload): number | null {
   if (qaForceFlatPostIds.value.has(post.id)) return null
   if (!post.replyToPostId) return null
@@ -852,27 +850,26 @@ const renderPosts = computed<PostPayload[]>(() => {
   if (postViewMode.value === 'tree') {
     return treeRootPosts.value
   }
-  if (!isQuestionTopic.value) return sortedPosts.value
-  return sortedPosts.value.filter((post) => qaChainRootId(post) === null)
+  // #519：扁平 = 全量按楼号平铺，与普通话题一致；QA 链内子回复不再堆叠进链根卡片，
+  // 回复上下文统一由引用条（PostReplyReference）承接。
+  return sortedPosts.value
 })
 
-// 楼内堆叠分组：链根楼层 id → 该链的全部子回复（按楼号升序），渲染在链根卡片内。
-const stackedRepliesByRoot = computed<Map<number, PostPayload[]>>(() => {
-  const map = new Map<number, PostPayload[]>()
-  if (!isQuestionTopic.value) return map
-  for (const post of sortedPosts.value) {
-    const rootId = qaChainRootId(post)
-    if (rootId == null) continue
-    const list = map.get(rootId)
-    if (list) list.push(post)
-    else map.set(rootId, [post])
-  }
-  for (const list of map.values()) list.sort((a, b) => (a.postNo || 0) - (b.postNo || 0))
-  return map
-})
-
-function stackedRepliesFor(post: PostPayload) {
-  return stackedRepliesByRoot.value.get(post.id) ?? []
+// #520：树状视图孤根弱提示。森林根楼层回复的是首楼以外、且目标不在当前窗口的楼层时
+// （深链跨窗 / append 边界 forceFlat），父子嵌套无法表达「回复谁」，用短提示承接上下文，
+// 替代全文引用条；其余场景返回 null 不渲染。目标不可见时（隐藏/审核移除/隐私清除，
+// 后端 buildReplyTargetPayload 早退只下发 { id, unavailable }，无作者与楼号）降级为
+// unavailable 态，保证「回复了某楼」这一事实仍可见且不泄漏被隐藏目标的作者与楼号。
+function treeRootReplyHint(post: PostPayload): { username?: string; postNo?: number; unavailable?: boolean } | null {
+  if (postViewMode.value !== 'tree') return null
+  if (!post.replyToPostId) return null
+  const firstId = firstPost.value?.id
+  if (firstId && post.replyToPostId === firstId) return null
+  const target = replyTargetMap.value.get(post.replyToPostId)
+  // 首楼不在当前窗口时用 replyTargets.postNo 判定目标是否首楼（深链打开后段楼层）。
+  if (!firstId && (!target || target.postNo === 1)) return null
+  if (!target || target.unavailable || !target.author.username) return { unavailable: true }
+  return { username: target.author.username, postNo: target.postNo }
 }
 
 // 引用条规则：回复话题首楼（或无目标）视为话题级回复，不重复引用首楼正文；
@@ -1069,6 +1066,11 @@ function jumpToTopicBody() {
 
 function focusPostComposer() {
   mobilePostRailOpen.value = false
+  // #515：文档出现横向溢出时，移动端 fixed 浮层会随横向平移偏出视口；
+  // 呼出回复编辑器前把横向滚动归位，保证面板始终水平居中可见。
+  if (typeof document !== 'undefined' && document.scrollingElement) {
+    document.scrollingElement.scrollLeft = 0
+  }
   composerOpen.value = true
 }
 
@@ -2177,7 +2179,21 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
                 </template>
               </div>
             </div>
-            <PostReplyReference v-if="showReplyReference(post)" :target="replyTargetFor(post)" />
+            <PostReplyReference v-if="postViewMode !== 'tree' && showReplyReference(post)" :target="replyTargetFor(post)" />
+            <!-- #520：树状视图不渲染全文引用条；孤根（目标在窗口外）以短提示兜底上下文，
+                 目标不可见（隐藏/移除/清理）时降级为「原回复不可见」 -->
+            <p
+              v-else-if="postViewMode === 'tree' && treeRootReplyHint(post)"
+              data-test="reply-context-hint"
+              class="mb-2 inline-flex max-w-full items-center gap-1.5 rounded-full bg-base-200/60 px-2.5 py-1 text-xs font-medium text-base-content/55"
+            >
+              <CornerDownLeft class="h-3 w-3 shrink-0" aria-hidden="true" />
+              <span v-if="treeRootReplyHint(post)!.unavailable" class="min-w-0 truncate">{{ t('topic.replyTargetUnavailable') }}</span>
+              <template v-else>
+                <span class="min-w-0 truncate">{{ t('topic.replyTo', { user: `@${treeRootReplyHint(post)!.username}` }) }}</span>
+                <span v-if="treeRootReplyHint(post)!.postNo" class="shrink-0 tabular-nums">#{{ treeRootReplyHint(post)!.postNo }}</span>
+              </template>
+            </p>
             <div v-if="post.isAuthorDeleted" class="rounded border border-dashed border-line bg-base-200/60 px-3 py-3 text-sm text-base-content/55">
               <div class="font-semibold text-base-content/70">{{ t('topic.authorDeletedTitle') }}</div>
               <div class="mt-1 leading-6">{{ t('topic.authorDeletedPlaceholder') }}</div>
@@ -2502,41 +2518,11 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
             </div>
 
           </div>
-          <!-- 扁平视图（Q&A 两层布局）：链内子回复按链根拍平，堆叠在楼层卡片内 -->
-          <div
-            v-if="postViewMode === 'flat' && isQuestionTopic && stackedRepliesFor(post).length"
-            class="col-span-2 mt-1 space-y-2.5 border-l-2 border-line/70 pl-3 sm:pl-4"
-          >
-            <PostReplyRow
-              v-for="reply in stackedRepliesFor(post)"
-              :id="`post-${reply.id}`"
-              :key="reply.id"
-              :data-post-no="reply.postNo"
-              :post="reply"
-              :highlighted="highlightedPostId === reply.id"
-              :show-quote="showReplyReference(reply)"
-              :reply-target="replyTargetFor(reply)"
-              :authenticated="viewer.isAuthenticated"
-              :can-post="canPost"
-              :saving-edit="savingEditPostId === reply.id"
-              :deleting="deletingPostId === reply.id"
-              :moderation-busy="postModerationBusy(reply.id)"
-              :action-state="postActionState(reply)"
-              @reply="replyTo(reply)"
-              @edit="startEditPost(reply)"
-              @delete="requestDeletePost(reply)"
-              @like="togglePostLike(reply)"
-              @bookmark="togglePostBookmark(reply)"
-              @share="sharePost(reply)"
-              @report="requestPostReport(reply)"
-              @moderate="(action) => moderatePost(reply, action)"
-            />
-          </div>
-          <!-- 树状视图：真实父子嵌套；链内省略引用条（父子相邻即上下文），
-               兜底为根的子回复在 depth 0 显示引用条保留上下文 -->
+          <!-- 树状视图：真实父子嵌套；父子上下文由嵌套缩进表达（#520 不再渲染引用条），
+               孤根短提示在主流层兜底；min-w-0 + overflow-x-clip 防深层行撑破视口（#515） -->
           <div
             v-if="postViewMode === 'tree' && treeRowsFor(post).length"
-            class="col-span-2 mt-1 space-y-2 border-l-2 border-line/70"
+            class="col-span-2 mt-1 min-w-0 space-y-2 overflow-x-clip border-l-2 border-line/70"
           >
             <PostReplyRow
               v-for="row in treeRowsFor(post)"
@@ -2545,8 +2531,6 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
               :data-post-no="row.post.postNo"
               :post="row.post"
               :highlighted="highlightedPostId === row.post.id"
-              :show-quote="row.depth === 0 && showReplyReference(row.post)"
-              :reply-target="replyTargetFor(row.post)"
               :authenticated="viewer.isAuthenticated"
               :can-post="canPost"
               :saving-edit="savingEditPostId === row.post.id"
