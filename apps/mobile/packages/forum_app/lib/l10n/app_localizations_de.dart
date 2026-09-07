@@ -1863,4 +1863,45 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get topicJoinDiscussion => 'An Diskussion teilnehmen';
+
+  @override
+  String get updateCheck => 'Nach Updates suchen';
+
+  @override
+  String get updateAvailable => 'Update verfügbar';
+
+  @override
+  String get updateLatest => 'Du bist auf dem neuesten Stand';
+
+  @override
+  String get updateFailed =>
+      'Updates konnten nicht geprüft oder heruntergeladen werden. Bitte später erneut versuchen.';
+
+  @override
+  String get updateDownload => 'Update herunterladen';
+
+  @override
+  String get updateSkip => 'Diese Version überspringen';
+
+  @override
+  String get updateLater => 'Später';
+
+  @override
+  String get updatePreparing => 'Schnellste Downloadquelle wird ausgewählt…';
+
+  @override
+  String get updateDownloading => 'Wird heruntergeladen…';
+
+  @override
+  String get updateReady => 'Update geprüft und bereit zur Installation.';
+
+  @override
+  String get updateInstall => 'Update installieren';
+
+  @override
+  String get updatePermission =>
+      'Erlaube YourTJ die Installation von Apps. Kehre dann zurück und tippe erneut auf Installieren.';
+
+  @override
+  String get updateRetry => 'Erneut versuchen';
 }

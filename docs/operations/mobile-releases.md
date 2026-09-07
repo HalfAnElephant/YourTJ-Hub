@@ -1,0 +1,155 @@
+# Mobile releases
+
+> Doc type: operations runbook
+>
+> Status: Active
+>
+> Owner: Platform maintainers
+>
+> Last verified: 2026-09-07
+
+`Partial`: signed Android APK and iOS archive/export scripts, release validation and update-client
+checks exist. GitHub-hosted signing/upload requires the release workflow on `main`, configured
+`mobile-release` environment secrets, and a successful release run. Apple review and the Android
+system installer remain independent gates; a completed upload does not mean distribution approval.
+
+## Version and activation
+
+1. In a PR to `dev`, increment `apps/mobile/packages/forum_app/pubspec.yaml` to `X.Y.Z+N`.
+   Both the semantic version and base build number must increase for a new release. Update the
+   public store metadata and screenshots under `apps/mobile/store/` when the product changes.
+2. Merge through CI, then promote `dev` to `main` through a reviewed PR. The mobile release job
+   refuses tags whose commit is not reachable from `main` or whose version differs from pubspec.
+3. A repository administrator creates `mobile-vX.Y.Z` on that approved commit and pushes only
+   that tag. This triggers **Release / mobile**. To resume, rerun failed jobs or dispatch the
+   workflow with the existing tag and **main** as the workflow branch. Never move a published tag.
+
+```bash
+git fetch origin main --tags
+git tag mobile-v1.0.1 origin/main
+git push origin refs/tags/mobile-v1.0.1
+# Resume an existing tag, without creating a new version:
+gh workflow run release-mobile.yml --ref main -f tag=mobile-v1.0.1
+```
+
+Use the version actually committed to main; the command illustrates the format, not an instruction
+to release an arbitrary current checkout. Store version `1.0.0` already exists in Apple; do not
+reuse its build identity for newly compiled source. A pending Apple version can block creation of
+the next App Store version. The TestFlight upload can succeed while that App Store step waits for
+operator recovery; the job reports failure rather than claiming both channels completed.
+
+Server tags remain `vX.Y.Z`. **Release / main** opens/reuses the `dev` → `main` PR when the trees
+differ and stops. After that PR passes checks and merges, rerun to tag the approved main commit,
+publish server binaries and dispatch production deployment. It never pushes to the main branch.
+Only exact server version tags participate in server version calculation; mobile releases do not
+replace GitHub's server `latest` release.
+
+## Signing environment and secrets
+
+GitHub Settings → Environments → **mobile-release** allows branch `main` and tag `mobile-v*`.
+The `mobile-release-tags` ruleset restricts creation, updates and deletion of those tags to repository
+administrators. Keep those policies together: environment tag matching alone does not prove a tag
+contains a reviewed workflow. Pull-request CI uses no distribution secrets.
+
+| Environment secret | Value |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | Base64 of the original JKS release keystore |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_PASSWORD` | Private-key password |
+| `ANDROID_KEY_ALIAS` | `yourtj-release` |
+| `IOS_DISTRIBUTION_P12_BASE64` | Base64 of the Apple Distribution certificate **and private key**, exported as a macOS-compatible PKCS#12 file |
+| `IOS_P12_PASSWORD` | PKCS#12 export password |
+| `IOS_PROFILE_BASE64` | Base64 of the App Store provisioning profile for `tj.yourtj.forumApp` |
+| `ASC_PRIVATE_KEY_BASE64` | Base64 of the App Store Connect `.p8` API key |
+| `ASC_KEY_ID` | API key ID |
+| `ASC_ISSUER_ID` | API issuer ID |
+| `IOS_REVIEW_JSON` | JSON with `firstName`, `lastName`, `email`, `phone`, `username`, `password` for Apple review only |
+
+Use `gh secret set NAME --repo YourTongji/YourTJ-Hub --env mobile-release` with values piped
+through stdin. Do not pass secret values on the command line, commit private files or print
+base64 into workflow logs. Base64 is encoding, not encryption. `gh secret list --env mobile-release`
+can verify names and update times, not retrieve stored values.
+
+Keep an independent encrypted backup of signing assets and passwords. Android updates require the
+original signing key; generating a replacement is not a rotation strategy for installed APKs.
+The public expected certificate SHA-256 is in `apps/mobile/release-config.json`. iOS distribution
+certificates and profiles expire: renew the profile with the matching certificate and update both
+secrets as needed. The build validates expiry, bundle/team and the matching private-key identity.
+Review credentials belong only in the environment secret and Apple's review fields, never public
+release notes, metadata or screenshots. Changing the demo account requires testing its login and
+updating the secret; a visual captcha may still be required by the production login policy.
+
+## Android APK and in-app update
+
+Flutter 3.44.9 produces three signed APKs. Their **actual** Android version codes are base build `N`
+plus `1000` (armeabi-v7a), `2000` (arm64-v8a) or `4000` (x86_64). Asset names contain that actual
+code: `YourTJ-X.Y.Z+CODE-ABI.apk`. iOS uses the unmodified base `N`. The publisher verifies package,
+version, ABI and signing certificate before writing `SHA256SUMS.txt` or uploading. Changing Flutter's
+split-code algorithm requires updating the validator; a mismatch fails the release.
+
+APK assets are first uploaded to a draft GitHub release. GitHub-computed SHA-256 digests must match
+local files before it becomes public. Existing asset names with different bytes are never overwritten.
+The release is published with `latest=false`, so server downloads keep their separate latest marker.
+
+On Android, startup/resume checks at most once every six hours; About exposes a manual check. The
+user can defer, ignore a version or cancel a download. Only stable `mobile-vX.Y.Z` releases with a
+newer compatible APK and a GitHub digest are considered (the most recent 100 repository releases).
+Offline/rate-limit failures stay silent for automatic checks and produce retry feedback manually.
+
+The **authoritative metadata request goes directly to api.github.com over HTTPS**. The download
+client probes GitHub, ghfast.top, ghproxy.net and gh-proxy.com concurrently using a bounded Range
+request, then tries the fastest responsive source first. Public proxies are best-effort third-party
+services; there is no availability guarantee or claimed mainland latency measurement. When GitHub
+metadata cannot be reached, the client does not accept unsigned metadata from a proxy. Mirror URLs
+are maintained in `lib/src/updates/android_release.dart` and changing them requires an app release.
+
+Mirrors receive only public APK URLs, without forum tokens, cookies or user IDs. Downloads have size,
+time and SHA-256 checks; failure/cancellation deletes partial files and corrupt mirrors fall back.
+Before opening the installer, Android also checks package name, increasing installed version code,
+and equality with the installed app's signing certificate. Files are served only from the app-owned
+updates cache through a non-exported FileProvider. The system prompts for installation permission
+and installation confirmation. This updates the complete APK; it is not silent installation or a
+Dart hot-code update. Debug-signed installations cannot update to the distribution key in place.
+
+## iOS upload and review
+
+The workflow pins and checksum-verifies ASC CLI 5.0.0, then signs using an ephemeral keychain.
+Provisioning overrides apply only to the Runner release target, not Pods/SwiftPM dependencies.
+Private inputs, temporary profiles and keychain changes are cleaned up even after build failure.
+The exported IPA and dSYMs are retained as workflow artifacts for 30 days; private keys are excluded.
+
+App Store Connect app ID is `6809457637`, team `4HJTS3G3T2`, bundle `tj.yourtj.forumApp`. The job
+finds the exact version/build before uploading, waits for processing, submits to the existing
+**YourTJ TestFlight** external group, updates store localization/screenshots and review credentials,
+attaches the same build, validates and submits for App Store review with release after approval.
+It does not add testers or publish a TestFlight public link. Store metadata says “选课社区” and
+accurately discloses posts, comments and messaging. Privacy labels, age rating, availability,
+agreements and pricing are managed in App Store Connect; source changes affecting disclosures
+require updating those forms before release.
+
+`ITSAppUsesNonExemptEncryption=false` reflects the current authentication/TLS/system-storage use.
+Reassess the declaration when adding non-exempt encryption. An Apple account capability checkbox
+alone does not implement Sign in with Apple or enable Firebase push configuration.
+
+## Failure and recovery
+
+- **Signing failure:** check certificate/profile expiry, team/bundle and JKS alias/password. Never
+  fall back to debug signing. Local validation: `publish_android.py --verify-only` with the same
+  version/tag environment, or `build_ios.py` with file paths/password supplied via private environment.
+- **Partial Android publication:** download the signed APK artifact from the failed run into
+  `apps/mobile/packages/forum_app/build/app/outputs/flutter-apk/` and rerun `publish_android.py`
+  with `MOBILE_VERSION`, `MOBILE_BUILD_NUMBER`, `RELEASE_TAG`, `ANDROID_HOME` and authenticated `gh`.
+  Do not rebuild and overwrite existing assets; signed ZIP bytes may differ even for identical source.
+  Verify the artifact belongs to the same tag/commit first.
+- **Uncertain Apple upload:** rerun to query the exact build. Existing uploads are not duplicated.
+  An incomplete reservation without `uploadedDate` requires inspection with `asc builds uploads list`;
+  resolve that failed upload in ASC before resuming. Invalid processing fails immediately.
+- **Apple validation/rejection:** correct the reported store fields or app behavior. A binary change
+  needs a new version/build release; metadata-only corrections can resume against the existing build.
+  Already waiting/in-review/approved submissions using the same build are preserved.
+- **Bad public Android release:** mark that release as a prerelease or remove it from public
+  distribution, then publish a higher version/build with the fix. Never replace an existing APK
+  in place or lower an installed version code.
+
+See [the release decision](../decisions/0014-mobile-release-distribution.md) and
+[GitHub environment documentation](https://docs.github.com/en/actions/deployment/targeting-different-environments/managing-environments-for-deployment).

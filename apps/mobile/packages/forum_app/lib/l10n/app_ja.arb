@@ -587,5 +587,18 @@
   "courseCopySummaryConsensusTextNeutral": "学生の評価は賛否両論です。",
   "courseCopySummaryConsensusTextCautious": "多くの学生が履修前に慎重な検討をすすめています。",
   "courseCopySummaryConsensusTextNotRecommend": "多くの学生がこのコースをおすすめしていません。",
-  "topicJoinDiscussion": "ディスカッションに参加"
+  "topicJoinDiscussion": "ディスカッションに参加",
+  "updateCheck": "アップデートを確認",
+  "updateAvailable": "新しいバージョンがあります",
+  "updateLatest": "最新バージョンです",
+  "updateFailed": "更新の確認またはダウンロードに失敗しました。しばらくしてから再試行してください。",
+  "updateDownload": "更新をダウンロード",
+  "updateSkip": "このバージョンをスキップ",
+  "updateLater": "後で",
+  "updatePreparing": "最速のダウンロード元を選択中…",
+  "updateDownloading": "ダウンロード中…",
+  "updateReady": "更新の検証が完了しました。インストールできます。",
+  "updateInstall": "更新をインストール",
+  "updatePermission": "YourTJ にアプリのインストールを許可し、戻ってもう一度インストールを押してください。",
+  "updateRetry": "再試行"
 }

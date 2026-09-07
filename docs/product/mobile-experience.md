@@ -197,6 +197,18 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   redirects, require an attachment response, and share the actual JSON/CSV filename. Temporary
   files are removed after sharing. The browser's cookies/storage/cache are cleared on exit.
 
+## Distribution and updates
+
+- `Partial`: Android checks GitHub mobile releases at startup/resume with a six-hour limit and a
+  manual About action. Update prompts support defer, ignore, progress and cancellation. Public APK
+  mirrors are ranked with bounded probes; SHA-256, package and signing-certificate checks precede
+  the system installer. Unit tests and signed native builds cover the implemented paths; the first
+  GitHub-hosted release and an installed-to-updated device journey remain distribution validation.
+- `Partial`: iOS uses TestFlight and App Store distribution through the same versioned release job.
+  Apple processing/review is independent of CI. The app does not offer APK-style updates on iOS.
+  Signing, metadata, failure recovery and environment secrets are documented in the
+  [mobile release runbook](../operations/mobile-releases.md).
+
 ## Verification boundaries
 
 The source, contract and focused Flutter/Go tests define the implemented behavior. Figma is the

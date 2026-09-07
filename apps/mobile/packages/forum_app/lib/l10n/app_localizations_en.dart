@@ -1843,4 +1843,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get topicJoinDiscussion => 'Join discussion';
+
+  @override
+  String get updateCheck => 'Check for updates';
+
+  @override
+  String get updateAvailable => 'Update available';
+
+  @override
+  String get updateLatest => 'You’re up to date';
+
+  @override
+  String get updateFailed =>
+      'Unable to check or download updates. Please try again later.';
+
+  @override
+  String get updateDownload => 'Download update';
+
+  @override
+  String get updateSkip => 'Skip this version';
+
+  @override
+  String get updateLater => 'Later';
+
+  @override
+  String get updatePreparing => 'Choosing the fastest download source…';
+
+  @override
+  String get updateDownloading => 'Downloading…';
+
+  @override
+  String get updateReady => 'Update verified and ready to install.';
+
+  @override
+  String get updateInstall => 'Install update';
+
+  @override
+  String get updatePermission =>
+      'Allow YourTJ to install apps, then return and tap Install again.';
+
+  @override
+  String get updateRetry => 'Retry';
 }

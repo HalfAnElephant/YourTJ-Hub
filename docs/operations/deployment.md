@@ -226,11 +226,12 @@ webhook_secret = ""         # 兼容旧配置的明文密钥；推荐改用管�
   3. SSH: `deploy.sh main main-<sha> 5234` → pull image, compose up, health check,
      auto-rollback to previous image tag on failure; same post-deploy image pruning as dev
      (`IMAGE_KEEP_N=5`, keeps more rollback candidates for production).
-- **Release gate**: `.github/workflows/release-to-main.yml` (manual `workflow_dispatch`) merges `dev` →
-  `main`, bumps the version (`patch` / `minor` / `major`, computed from the latest `vX.Y.Z` tag, first
-  release: patch → `v0.0.1`, minor → `v0.1.0`, major → `v1.0.0`), tags it, and pushes via a PAT
-  (secret `RELEASE_TOKEN`) so `deploy-main` triggers. Run it from Actions → `Release / main` → Run
-  workflow → choose bump type.
+- **Release gate**: `.github/workflows/release-to-main.yml` (manual `workflow_dispatch`) opens or
+  reuses a `dev` → `main` PR when the trees differ, then stops for normal review and CI. After merge,
+  rerun it to increment the exact server `vX.Y.Z` tags, tag the reviewed main commit, publish server
+  binaries and dispatch deployment. It never directly pushes to main. The existing `RELEASE_TOKEN`
+  creates the PR/tag through GitHub APIs. Mobile tags use a separate namespace and workflow; see
+  [mobile releases](mobile-releases.md).
 - Why dev syncs main's db: migrations (`app/migration` AutoMigrate + versioned data migrations) run at
   startup, so each dev deploy rehearses the exact migration the next main deploy will run.
 - Config is rendered in CI from `deploy/config.toml.tmpl` + `deploy/instances/<env>.json`
@@ -269,7 +270,7 @@ Deploy/apply/drift workflows 的 job 声明对应 `environment:`，自动获得�
 | `GH_CLIENT_ID` / `GH_CLIENT_SECRET` | production only | GitHub OAuth（dev 因 DB siteUrl 无环境隔离保持空，渲染 allow-empty） |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | both（可选） | Google OAuth；为空时登录入口保持关闭 |
 | `AI_API_KEY` | both（可空） | `[ai_summary].api_key`（AI 总结默认关闭） |
-| `RELEASE_TOKEN` | repo-level | release-to-main 合并 dev→main 用 PAT |
+| `RELEASE_TOKEN` | repo-level | release-to-main 创建 dev→main PR 和发布 tag 用 PAT |
 
 > 命名注意：GitHub 保留 `GITHUB_` 前缀 secret 名，故 GitHub OAuth 凭据用 `GH_CLIENT_ID/SECRET`。
 

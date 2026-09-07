@@ -1802,4 +1802,44 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get topicJoinDiscussion => 'ディスカッションに参加';
+
+  @override
+  String get updateCheck => 'アップデートを確認';
+
+  @override
+  String get updateAvailable => '新しいバージョンがあります';
+
+  @override
+  String get updateLatest => '最新バージョンです';
+
+  @override
+  String get updateFailed => '更新の確認またはダウンロードに失敗しました。しばらくしてから再試行してください。';
+
+  @override
+  String get updateDownload => '更新をダウンロード';
+
+  @override
+  String get updateSkip => 'このバージョンをスキップ';
+
+  @override
+  String get updateLater => '後で';
+
+  @override
+  String get updatePreparing => '最速のダウンロード元を選択中…';
+
+  @override
+  String get updateDownloading => 'ダウンロード中…';
+
+  @override
+  String get updateReady => '更新の検証が完了しました。インストールできます。';
+
+  @override
+  String get updateInstall => '更新をインストール';
+
+  @override
+  String get updatePermission =>
+      'YourTJ にアプリのインストールを許可し、戻ってもう一度インストールを押してください。';
+
+  @override
+  String get updateRetry => '再試行';
 }

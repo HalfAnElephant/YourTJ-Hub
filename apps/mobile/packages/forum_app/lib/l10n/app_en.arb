@@ -917,5 +917,18 @@
   "courseCopySummaryConsensusTextNeutral": "Students have mixed opinions about this course.",
   "courseCopySummaryConsensusTextCautious": "Most students advise caution before choosing this course.",
   "courseCopySummaryConsensusTextNotRecommend": "Most students do not recommend this course.",
-  "topicJoinDiscussion": "Join discussion"
+  "topicJoinDiscussion": "Join discussion",
+  "updateCheck": "Check for updates",
+  "updateAvailable": "Update available",
+  "updateLatest": "You’re up to date",
+  "updateFailed": "Unable to check or download updates. Please try again later.",
+  "updateDownload": "Download update",
+  "updateSkip": "Skip this version",
+  "updateLater": "Later",
+  "updatePreparing": "Choosing the fastest download source…",
+  "updateDownloading": "Downloading…",
+  "updateReady": "Update verified and ready to install.",
+  "updateInstall": "Install update",
+  "updatePermission": "Allow YourTJ to install apps, then return and tap Install again.",
+  "updateRetry": "Retry"
 }
