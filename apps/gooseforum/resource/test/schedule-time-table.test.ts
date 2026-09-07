@@ -454,7 +454,10 @@ describe('ScheduleTimeTable 同格多课渲染', () => {
     const popover = document.querySelector('[data-testid="schedule-external-tools-popover"]')
     expect(popover).toBeTruthy()
     const links = popover?.querySelectorAll('a')
-    expect(links?.length).toBe(2)
+    expect(links?.length).toBe(3)
+    expect(popover?.querySelector('[data-testid="schedule-historical-wiki-link"]')?.getAttribute('href')).toBe(
+      '/wiki/%E8%80%81%E4%B9%8C%E9%BE%99%E8%8C%B6/index',
+    )
   })
 
   test('作息时间列表头自适应列宽与移动端纵向双行起止时间', async () => {
