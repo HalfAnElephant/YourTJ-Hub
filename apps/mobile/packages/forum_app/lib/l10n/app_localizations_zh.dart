@@ -1795,4 +1795,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get topicJoinDiscussion => '参与讨论';
+
+  @override
+  String get updateCheck => '检查更新';
+
+  @override
+  String get updateAvailable => '发现新版本';
+
+  @override
+  String get updateLatest => '已是最新版本';
+
+  @override
+  String get updateFailed => '暂时无法检查或下载更新，请稍后重试。';
+
+  @override
+  String get updateDownload => '下载更新';
+
+  @override
+  String get updateSkip => '忽略此版本';
+
+  @override
+  String get updateLater => '稍后';
+
+  @override
+  String get updatePreparing => '正在选择最快的下载来源…';
+
+  @override
+  String get updateDownloading => '正在下载…';
+
+  @override
+  String get updateReady => '更新已验证，可以开始安装。';
+
+  @override
+  String get updateInstall => '安装更新';
+
+  @override
+  String get updatePermission => '请允许 YourTJ 安装应用，然后返回并再次点击安装。';
+
+  @override
+  String get updateRetry => '重试';
 }

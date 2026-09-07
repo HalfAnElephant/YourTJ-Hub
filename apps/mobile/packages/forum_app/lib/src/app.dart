@@ -10,6 +10,7 @@ import 'app_locale.dart';
 import 'site_theme.dart';
 import 'theme_mode.dart';
 import 'push/push_service.dart';
+import 'updates/update_host.dart';
 
 /// yourtj 移动端根应用。
 ///
@@ -40,6 +41,11 @@ class GfApp extends ConsumerWidget {
       darkTheme: gfThemeData(Brightness.dark, overrides: runtime?.dark),
       themeMode: mode,
       routerConfig: appRouter,
+      builder: (context, child) => MobileUpdateHost(
+        key: appUpdateHostKey,
+        navigatorKey: appNavigatorKey,
+        child: child ?? const SizedBox.shrink(),
+      ),
       // The same four languages as Web, resolved without a locale flash on switching.
       localizationsDelegates: const [
         AppLocalizations.delegate,

@@ -242,7 +242,9 @@ int? publishTopicIdFromUri(Uri uri) {
   return int.tryParse(rawTopicId);
 }
 
+final appNavigatorKey = GlobalKey<NavigatorState>();
 final GoRouter appRouter = GoRouter(
+  navigatorKey: appNavigatorKey,
   initialLocation: '/',
   routes: <RouteBase>[
     StatefulShellRoute.indexedStack(

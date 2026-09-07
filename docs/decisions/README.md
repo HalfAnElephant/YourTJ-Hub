@@ -81,3 +81,4 @@ A decision starts `Proposed`. Once implemented, its status becomes `Accepted` an
 - [0011](0011-mobile-navigation-and-management.md) — 移动端导航与完整管理工作台
 - [0012](0012-unified-mobile-reading-navigation.md) — Unified mobile reading navigation and shared management.
 - [0013](0013-anonymous-wiki-comments.md) — Wiki 页面评论匿名发布（匿名楼层）
+- [0014](0014-mobile-release-distribution.md) — Mobile release signing, verified APK mirrors and Apple review automation.

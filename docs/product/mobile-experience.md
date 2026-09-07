@@ -59,6 +59,10 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 
 ## Language and presentation
 
+- `Current`: native launcher icons use Web's YourTJ cat mark. iOS includes opaque device and
+  App Store sizes; Android includes legacy densities, adaptive masks and a themed monochrome layer.
+  The launcher artwork is generated independently of the in-app horizontal wordmark.
+
 - `Current`: the native app supports the same four languages as Web: Simplified Chinese, English,
   Japanese and German. Login and Settings expose an immediate language picker with a follow-system
   option; unsupported system languages fall back to Chinese. The device preference survives restart
@@ -196,6 +200,18 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   restricted to the exact same-origin admin export endpoint. Native downloads do not follow
   redirects, require an attachment response, and share the actual JSON/CSV filename. Temporary
   files are removed after sharing. The browser's cookies/storage/cache are cleared on exit.
+
+## Distribution and updates
+
+- `Partial`: Android checks GitHub mobile releases at startup/resume with a six-hour limit and a
+  manual About action. Update prompts support defer, ignore, progress and cancellation. Public APK
+  mirrors are ranked with bounded probes; SHA-256, package and signing-certificate checks precede
+  the system installer. Unit tests and signed native builds cover the implemented paths; the first
+  GitHub-hosted release and an installed-to-updated device journey remain distribution validation.
+- `Partial`: iOS uses TestFlight and App Store distribution through the same versioned release job.
+  Apple processing/review is independent of CI. The app does not offer APK-style updates on iOS.
+  Signing, metadata, failure recovery and environment secrets are documented in the
+  [mobile release runbook](../operations/mobile-releases.md).
 
 ## Verification boundaries
 

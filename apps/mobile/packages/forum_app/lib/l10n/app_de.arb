@@ -587,5 +587,18 @@
   "courseCopySummaryConsensusTextNeutral": "Die Meinungen der Studierenden zu diesem Kurs sind gemischt.",
   "courseCopySummaryConsensusTextCautious": "Die meisten Studierenden empfehlen, diesen Kurs vor der Wahl mit Vorsicht abzuwägen.",
   "courseCopySummaryConsensusTextNotRecommend": "Die meisten Studierenden empfehlen diesen Kurs nicht.",
-  "topicJoinDiscussion": "An Diskussion teilnehmen"
+  "topicJoinDiscussion": "An Diskussion teilnehmen",
+  "updateCheck": "Nach Updates suchen",
+  "updateAvailable": "Update verfügbar",
+  "updateLatest": "Du bist auf dem neuesten Stand",
+  "updateFailed": "Updates konnten nicht geprüft oder heruntergeladen werden. Bitte später erneut versuchen.",
+  "updateDownload": "Update herunterladen",
+  "updateSkip": "Diese Version überspringen",
+  "updateLater": "Später",
+  "updatePreparing": "Schnellste Downloadquelle wird ausgewählt…",
+  "updateDownloading": "Wird heruntergeladen…",
+  "updateReady": "Update geprüft und bereit zur Installation.",
+  "updateInstall": "Update installieren",
+  "updatePermission": "Erlaube YourTJ die Installation von Apps. Kehre dann zurück und tippe erneut auf Installieren.",
+  "updateRetry": "Erneut versuchen"
 }
