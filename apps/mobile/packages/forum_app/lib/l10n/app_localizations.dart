@@ -2761,6 +2761,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Like'**
   String get topicLike;
+
+  /// No description provided for @authEmailPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Email username'**
+  String get authEmailPrefix;
+
+  /// No description provided for @authEmailDomain.
+  ///
+  /// In en, this message translates to:
+  /// **'Email domain'**
+  String get authEmailDomain;
+
+  /// No description provided for @authAgreePolicies.
+  ///
+  /// In en, this message translates to:
+  /// **'I have read and agree to the published policies'**
+  String get authAgreePolicies;
+
+  /// No description provided for @authPasswordMismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'The passwords do not match'**
+  String get authPasswordMismatch;
 }
 
 class _AppLocalizationsDelegate

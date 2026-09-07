@@ -1425,4 +1425,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get topicLike => '点赞';
+
+  @override
+  String get authEmailPrefix => '邮箱前缀';
+
+  @override
+  String get authEmailDomain => '邮箱域名';
+
+  @override
+  String get authAgreePolicies => '我已阅读并同意已发布的协议';
+
+  @override
+  String get authPasswordMismatch => '两次输入的密码不一致';
 }

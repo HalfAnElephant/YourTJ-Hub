@@ -25,6 +25,9 @@ mixin _$LoginPageProps {
   String get redirectUrl => throw _privateConstructorUsedError;
   String get githubUrl => throw _privateConstructorUsedError;
   bool get googleReady => throw _privateConstructorUsedError;
+  bool get termsOfServiceEnabled => throw _privateConstructorUsedError;
+  bool get privacyPolicyEnabled => throw _privateConstructorUsedError;
+  List<String> get allowedDomains => throw _privateConstructorUsedError;
 
   /// Serializes this LoginPageProps to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -48,6 +51,9 @@ abstract class $LoginPagePropsCopyWith<$Res> {
     String redirectUrl,
     String githubUrl,
     bool googleReady,
+    bool termsOfServiceEnabled,
+    bool privacyPolicyEnabled,
+    List<String> allowedDomains,
   });
 }
 
@@ -70,6 +76,9 @@ class _$LoginPagePropsCopyWithImpl<$Res, $Val extends LoginPageProps>
     Object? redirectUrl = null,
     Object? githubUrl = null,
     Object? googleReady = null,
+    Object? termsOfServiceEnabled = null,
+    Object? privacyPolicyEnabled = null,
+    Object? allowedDomains = null,
   }) {
     return _then(
       _value.copyWith(
@@ -89,6 +98,18 @@ class _$LoginPagePropsCopyWithImpl<$Res, $Val extends LoginPageProps>
                 ? _value.googleReady
                 : googleReady // ignore: cast_nullable_to_non_nullable
                       as bool,
+            termsOfServiceEnabled: null == termsOfServiceEnabled
+                ? _value.termsOfServiceEnabled
+                : termsOfServiceEnabled // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            privacyPolicyEnabled: null == privacyPolicyEnabled
+                ? _value.privacyPolicyEnabled
+                : privacyPolicyEnabled // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            allowedDomains: null == allowedDomains
+                ? _value.allowedDomains
+                : allowedDomains // ignore: cast_nullable_to_non_nullable
+                      as List<String>,
           )
           as $Val,
     );
@@ -109,6 +130,9 @@ abstract class _$$LoginPagePropsImplCopyWith<$Res>
     String redirectUrl,
     String githubUrl,
     bool googleReady,
+    bool termsOfServiceEnabled,
+    bool privacyPolicyEnabled,
+    List<String> allowedDomains,
   });
 }
 
@@ -130,6 +154,9 @@ class __$$LoginPagePropsImplCopyWithImpl<$Res>
     Object? redirectUrl = null,
     Object? githubUrl = null,
     Object? googleReady = null,
+    Object? termsOfServiceEnabled = null,
+    Object? privacyPolicyEnabled = null,
+    Object? allowedDomains = null,
   }) {
     return _then(
       _$LoginPagePropsImpl(
@@ -149,6 +176,18 @@ class __$$LoginPagePropsImplCopyWithImpl<$Res>
             ? _value.googleReady
             : googleReady // ignore: cast_nullable_to_non_nullable
                   as bool,
+        termsOfServiceEnabled: null == termsOfServiceEnabled
+            ? _value.termsOfServiceEnabled
+            : termsOfServiceEnabled // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        privacyPolicyEnabled: null == privacyPolicyEnabled
+            ? _value.privacyPolicyEnabled
+            : privacyPolicyEnabled // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        allowedDomains: null == allowedDomains
+            ? _value._allowedDomains
+            : allowedDomains // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
       ),
     );
   }
@@ -162,7 +201,10 @@ class _$LoginPagePropsImpl implements _LoginPageProps {
     required this.redirectUrl,
     required this.githubUrl,
     required this.googleReady,
-  });
+    this.termsOfServiceEnabled = false,
+    this.privacyPolicyEnabled = false,
+    final List<String> allowedDomains = const <String>[],
+  }) : _allowedDomains = allowedDomains;
 
   factory _$LoginPagePropsImpl.fromJson(Map<String, dynamic> json) =>
       _$$LoginPagePropsImplFromJson(json);
@@ -175,10 +217,24 @@ class _$LoginPagePropsImpl implements _LoginPageProps {
   final String githubUrl;
   @override
   final bool googleReady;
+  @override
+  @JsonKey()
+  final bool termsOfServiceEnabled;
+  @override
+  @JsonKey()
+  final bool privacyPolicyEnabled;
+  final List<String> _allowedDomains;
+  @override
+  @JsonKey()
+  List<String> get allowedDomains {
+    if (_allowedDomains is EqualUnmodifiableListView) return _allowedDomains;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_allowedDomains);
+  }
 
   @override
   String toString() {
-    return 'LoginPageProps(initialMode: $initialMode, redirectUrl: $redirectUrl, githubUrl: $githubUrl, googleReady: $googleReady)';
+    return 'LoginPageProps(initialMode: $initialMode, redirectUrl: $redirectUrl, githubUrl: $githubUrl, googleReady: $googleReady, termsOfServiceEnabled: $termsOfServiceEnabled, privacyPolicyEnabled: $privacyPolicyEnabled, allowedDomains: $allowedDomains)';
   }
 
   @override
@@ -193,7 +249,15 @@ class _$LoginPagePropsImpl implements _LoginPageProps {
             (identical(other.githubUrl, githubUrl) ||
                 other.githubUrl == githubUrl) &&
             (identical(other.googleReady, googleReady) ||
-                other.googleReady == googleReady));
+                other.googleReady == googleReady) &&
+            (identical(other.termsOfServiceEnabled, termsOfServiceEnabled) ||
+                other.termsOfServiceEnabled == termsOfServiceEnabled) &&
+            (identical(other.privacyPolicyEnabled, privacyPolicyEnabled) ||
+                other.privacyPolicyEnabled == privacyPolicyEnabled) &&
+            const DeepCollectionEquality().equals(
+              other._allowedDomains,
+              _allowedDomains,
+            ));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -204,6 +268,9 @@ class _$LoginPagePropsImpl implements _LoginPageProps {
     redirectUrl,
     githubUrl,
     googleReady,
+    termsOfServiceEnabled,
+    privacyPolicyEnabled,
+    const DeepCollectionEquality().hash(_allowedDomains),
   );
 
   /// Create a copy of LoginPageProps
@@ -229,6 +296,9 @@ abstract class _LoginPageProps implements LoginPageProps {
     required final String redirectUrl,
     required final String githubUrl,
     required final bool googleReady,
+    final bool termsOfServiceEnabled,
+    final bool privacyPolicyEnabled,
+    final List<String> allowedDomains,
   }) = _$LoginPagePropsImpl;
 
   factory _LoginPageProps.fromJson(Map<String, dynamic> json) =
@@ -242,6 +312,12 @@ abstract class _LoginPageProps implements LoginPageProps {
   String get githubUrl;
   @override
   bool get googleReady;
+  @override
+  bool get termsOfServiceEnabled;
+  @override
+  bool get privacyPolicyEnabled;
+  @override
+  List<String> get allowedDomains;
 
   /// Create a copy of LoginPageProps
   /// with the given fields replaced by the non-null parameter values.

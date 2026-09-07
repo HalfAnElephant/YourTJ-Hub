@@ -10,6 +10,9 @@ abstract class LoginPageProps with _$LoginPageProps {
     required String redirectUrl,
     required String githubUrl,
     required bool googleReady,
+    @Default(false) bool termsOfServiceEnabled,
+    @Default(false) bool privacyPolicyEnabled,
+    @Default(<String>[]) List<String> allowedDomains,
   }) = _LoginPageProps;
 
   factory LoginPageProps.fromJson(Map<String, dynamic> json) =>

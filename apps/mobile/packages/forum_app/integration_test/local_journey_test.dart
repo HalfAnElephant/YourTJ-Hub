@@ -276,6 +276,7 @@ void main() {
                 '/admin/settings/http-notify',
                 '/admin/settings/storage',
                 '/admin/settings/terms',
+                '/admin/settings/privacy',
                 '/admin/settings/onesystem',
                 '/admin/settings/schedule',
               ]) {

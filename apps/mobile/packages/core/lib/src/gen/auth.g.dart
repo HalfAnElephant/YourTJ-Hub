@@ -12,6 +12,13 @@ _$LoginPagePropsImpl _$$LoginPagePropsImplFromJson(Map<String, dynamic> json) =>
       redirectUrl: json['redirectUrl'] as String,
       githubUrl: json['githubUrl'] as String,
       googleReady: json['googleReady'] as bool,
+      termsOfServiceEnabled: json['termsOfServiceEnabled'] as bool? ?? false,
+      privacyPolicyEnabled: json['privacyPolicyEnabled'] as bool? ?? false,
+      allowedDomains:
+          (json['allowedDomains'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const <String>[],
     );
 
 Map<String, dynamic> _$$LoginPagePropsImplToJson(
@@ -21,6 +28,9 @@ Map<String, dynamic> _$$LoginPagePropsImplToJson(
   'redirectUrl': instance.redirectUrl,
   'githubUrl': instance.githubUrl,
   'googleReady': instance.googleReady,
+  'termsOfServiceEnabled': instance.termsOfServiceEnabled,
+  'privacyPolicyEnabled': instance.privacyPolicyEnabled,
+  'allowedDomains': instance.allowedDomains,
 };
 
 _$ResetPasswordPagePropsImpl _$$ResetPasswordPagePropsImplFromJson(

@@ -724,5 +724,9 @@
   "topicRemoved": "This content has been deleted or removed",
   "topicBookmark": "Bookmark",
   "topicBookmarked": "Remove bookmark",
-  "topicLike": "Like"
+  "topicLike": "Like",
+  "authEmailPrefix": "Email username",
+  "authEmailDomain": "Email domain",
+  "authAgreePolicies": "I have read and agree to the published policies",
+  "authPasswordMismatch": "The passwords do not match"
 }

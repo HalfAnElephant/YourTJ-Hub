@@ -60,6 +60,13 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   composer and can be refreshed without discarding content.
 - `Planned`: text-to-image cards and offline draft autosave. No UI claims these features exist.
 
+## Registration
+
+- `Current`: registration loads the current Web login configuration before submission. Restricted
+  email domains use a prefix field and domain selector; unrestricted sites accept the full address.
+  Password confirmation is checked locally. Only published terms/privacy policies are linked and
+  require explicit agreement. Configuration failures preserve the form and offer retry.
+
 ## Profile and privacy
 
 - `Current`: avatar and cover uploads open a native drag/pinch crop preview with an accessible

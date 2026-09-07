@@ -724,5 +724,9 @@
   "topicRemoved": "这条内容已被删除或移除",
   "topicBookmark": "收藏",
   "topicBookmarked": "取消收藏",
-  "topicLike": "点赞"
+  "topicLike": "点赞",
+  "authEmailPrefix": "邮箱前缀",
+  "authEmailDomain": "邮箱域名",
+  "authAgreePolicies": "我已阅读并同意已发布的协议",
+  "authPasswordMismatch": "两次输入的密码不一致"
 }

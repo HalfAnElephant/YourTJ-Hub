@@ -1447,4 +1447,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get topicLike => 'Like';
+
+  @override
+  String get authEmailPrefix => 'Email username';
+
+  @override
+  String get authEmailDomain => 'Email domain';
+
+  @override
+  String get authAgreePolicies =>
+      'I have read and agree to the published policies';
+
+  @override
+  String get authPasswordMismatch => 'The passwords do not match';
 }
