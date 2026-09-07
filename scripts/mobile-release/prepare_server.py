@@ -23,8 +23,7 @@ def read(*args):
     return subprocess.check_output(args, text=True).strip()
 
 
-def main():
-    subprocess.run(["git", "fetch", "origin", "dev", "main", "--tags"], check=True)
+def ensure_promoted():
     # Content equivalence accepts squash/rebase merges without requiring matching ancestry.
     comparison = subprocess.run(["git", "diff", "--quiet", "origin/main", "origin/dev"]).returncode
     if comparison not in (0, 1):
@@ -36,8 +35,15 @@ def main():
         else:
             with tempfile.TemporaryDirectory() as folder:
                 body = Path(folder) / "body.md"
-                body.write_text("Promote the tested dev snapshot to production. Merge through the required PR checks, then rerun Release / main to tag and publish the server binaries. Mobile releases use their separate mobile-vX.Y.Z tags.\n")
+                body.write_text("Promote the tested dev snapshot to production. Merge through the required PR checks, then rerun the requested release workflow to tag and publish its release artifacts. Mobile releases use their separate mobile-vX.Y.Z tags.\n")
                 print(read("gh", "pr", "create", "--base", "main", "--head", "dev", "--title", "chore: promote dev to main", "--body-file", str(body)))
+        return False
+    return True
+
+
+def main():
+    subprocess.run(["git", "fetch", "origin", "dev", "main", "--tags"], check=True)
+    if not ensure_promoted():
         return
     tag = next_version(read("git", "tag", "--list").splitlines(), os.environ["BUMP"])
     # Ref creation through the API avoids putting a PAT in Git remote URLs.

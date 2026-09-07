@@ -2,7 +2,7 @@ name: forum_app
 description: "yourtj mobile forum client."
 publish_to: 'none'
 resolution: workspace
-version: 1.0.1+2
+version: 1.0.0+1
 
 environment:
   sdk: ^3.12.2

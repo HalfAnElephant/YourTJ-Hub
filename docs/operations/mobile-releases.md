@@ -15,28 +15,42 @@ system installer remain independent gates; a completed upload does not mean dist
 
 ## Version and activation
 
-1. In a PR to `dev`, increment `apps/mobile/packages/forum_app/pubspec.yaml` to `X.Y.Z+N`.
-   Both the semantic version and base build number must increase for a new release. Update the
-   public store metadata and screenshots under `apps/mobile/store/` when the product changes.
-2. Merge through CI, then promote `dev` to `main` through a reviewed PR. The mobile release job
-   refuses tags whose commit is not reachable from `main` or whose version differs from pubspec.
-3. A repository administrator creates `mobile-vX.Y.Z` on that approved commit and pushes only
-   that tag. This triggers **Release / mobile**. To resume, rerun failed jobs or dispatch the
-   workflow with the existing tag and **main** as the workflow branch. Never move a published tag.
+1. Open GitHub Actions → **Release / mobile** → **Run workflow**, choose `patch`, `minor` or
+   `major`, and leave the optional recovery tag empty. Both `dev` and `main` are accepted as the
+   workflow branch. If dev and main differ, the workflow opens/reuses their release PR and stops.
+   Merge it through normal review/CI, then rerun with the intended bump. A dev dispatch forwards
+   to a main run once the trees agree, keeping signing secrets restricted to main.
+2. The workflow increments the highest stable mobile release version (falling back to the pubspec
+   floor) and increments the highest base build number independently. For example, from `1.2.3+8`:
+   `patch` → `1.2.4+9`, `minor` → `1.3.0+9`, `major` → `2.0.0+9`. Server tags and prerelease names
+   are excluded. The bootstrap floor is `1.0.0+1`, matching the existing Apple build; the first
+   patch reservation is therefore `1.0.1+2`.
+3. An annotated `mobile-vX.Y.Z` tag records `{schema: 1, version, buildNumber}` and points at the
+   reviewed main commit. These immutable values are passed to Flutter's build flags for both
+   platforms. No manual pubspec edit or tag push is needed. The source pubspec is a development
+   floor, not the current distributed version. Raising it explicitly raises the next release floor.
+4. The same workflow builds and publishes both channels. There is deliberately no tag-push trigger:
+   automatic tag creation must not start a second upload. A single concurrency group serializes
+   version reservation and distribution. A commit already carrying a mobile tag requires the
+   recovery field instead of silently allocating another version.
 
 ```bash
-git fetch origin main --tags
-git tag mobile-v1.0.1 origin/main
-git push origin refs/tags/mobile-v1.0.1
-# Resume an existing tag, without creating a new version:
-gh workflow run release-mobile.yml --ref main -f tag=mobile-v1.0.1
+# Normal release (also available as a dropdown in GitHub Actions):
+gh workflow run release-mobile.yml --ref main -f bump=patch
+# Resume the exact failed version; bump is ignored when tag is supplied:
+gh workflow run release-mobile.yml --ref main -f bump=patch -f tag=mobile-v1.0.1
 ```
 
-Use the version actually committed to main; the command illustrates the format, not an instruction
-to release an arbitrary current checkout. Store version `1.0.0` already exists in Apple; do not
-reuse its build identity for newly compiled source. A pending Apple version can block creation of
-the next App Store version. The TestFlight upload can succeed while that App Store step waits for
-operator recovery; the job reports failure rather than claiming both channels completed.
+Recovery still checks that the tag's source is reachable from main, but does not require newer dev
+changes to be promoted. Existing lightweight tags from the manual workflow are accepted only if
+their source pubspec exactly matches their version. Annotated tags must carry valid release metadata;
+never move or rewrite a release tag. An uncertain API response after reserving a tag should be
+resolved by inspecting that tag and using recovery, rather than selecting another bump.
+
+Update public store metadata/screenshots under `apps/mobile/store/` through normal product PRs.
+A pending Apple version can block creation of the next App Store version. TestFlight can succeed
+while that App Store step requires recovery; the job reports failure rather than claiming both
+channels completed. Apple agreements, review decisions and the system installer are not bypassed.
 
 Server tags remain `vX.Y.Z`. **Release / main** opens/reuses the `dev` → `main` PR when the trees
 differ and stops. After that PR passes checks and merges, rerun to tag the approved main commit,
@@ -49,7 +63,10 @@ replace GitHub's server `latest` release.
 GitHub Settings → Environments → **mobile-release** allows branch `main` and tag `mobile-v*`.
 The `mobile-release-tags` ruleset restricts creation, updates and deletion of those tags to repository
 administrators. Keep those policies together: environment tag matching alone does not prove a tag
-contains a reviewed workflow. Pull-request CI uses no distribution secrets.
+contains a reviewed workflow. The existing repository `RELEASE_TOKEN` is used only for PR creation, main workflow dispatch and
+annotated tag/ref creation; its account needs repository administration rights to create protected
+mobile tags, plus Actions write and pull-request write permissions. Pull-request CI uses no
+distribution secrets.
 
 | Environment secret | Value |
 |---|---|

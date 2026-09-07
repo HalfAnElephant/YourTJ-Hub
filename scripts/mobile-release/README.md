@@ -7,6 +7,8 @@ owns versioning, GitHub environment secrets, signing backup/rotation and recover
 - `build_ios.py` validates a distribution profile and signs Runner with an ephemeral keychain.
 - `publish_ios.py` resumes exact version/build uploads and submits both Apple distribution channels.
 - `publish_android.py [--verify-only]` validates split APKs and publishes immutable-name assets.
+- `prepare_mobile.py` prepares the production PR and reserves patch/minor/major version tags,
+  or resumes an existing tag without consuming a build number.
 - `prepare_server.py` opens the production PR or tags already reviewed main source; mobile tags
   never influence server version increments.
 

@@ -1,24 +1,30 @@
 name: Release / mobile
 
 on:
-  push:
-    tags: ["mobile-v*"]
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Existing mobile-vX.Y.Z tag on an approved main commit"
+      bump:
+        description: "版本递增类型（patch 修复 / minor 功能 / major 大版本）"
         required: true
+        default: patch
+        type: choice
+        options: [patch, minor, major]
+      tag:
+        description: "仅失败恢复时填写已有 mobile-vX.Y.Z 标签；留空正常发布"
+        required: false
         type: string
 
 permissions:
   contents: read
 
+# Serialize version reservation and distribution across every mobile release.
 concurrency:
-  group: mobile-release-${{ inputs.tag || github.ref_name }}
+  group: mobile-release
   cancel-in-progress: false
 
 jobs:
   prepare:
+    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.version.outputs.sha }}
@@ -28,31 +34,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
-      - name: Require an approved release commit and matching version
+      - name: Prepare reviewed source and reserve or resume the mobile version
         id: version
         env:
-          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
-        run: |
-          python3 - <<'PY'
-          import os, re, subprocess
-          tag = os.environ['RELEASE_TAG']
-          if not re.fullmatch(r'mobile-v[0-9]+\.[0-9]+\.[0-9]+', tag):
-              raise SystemExit('Expected mobile-vX.Y.Z')
-          subprocess.run(['git', 'fetch', 'origin', 'main', 'refs/tags/' + tag], check=True)
-          sha = subprocess.check_output(['git', 'rev-parse', 'refs/tags/' + tag + '^{commit}'], text=True).strip()
-          subprocess.run(['git', 'merge-base', '--is-ancestor', sha, 'origin/main'], check=True)
-          pubspec = subprocess.check_output(['git', 'show', sha + ':apps/mobile/packages/forum_app/pubspec.yaml'], text=True)
-          match = re.search(r'^version: ([0-9]+\.[0-9]+\.[0-9]+)\+([1-9][0-9]*)$', pubspec, re.M)
-          if not match or tag != 'mobile-v' + match[1] or int(match[2]) > 2099996000:
-              raise SystemExit('Tag must match pubspec version and a valid Android build number')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'sha={sha}\nversion={match[1]}\nnumber={match[2]}\ntag={tag}\n')
-          PY
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          BUMP: ${{ inputs.bump }}
+          RESUME_TAG: ${{ inputs.tag }}
+        run: python3 scripts/mobile-release/prepare_mobile.py
 
   android:
     needs: prepare
+    if: needs.prepare.outputs.tag != ''
     runs-on: ubuntu-latest
     environment: mobile-release
     permissions:
@@ -126,6 +119,7 @@ jobs:
 
   ios:
     needs: prepare
+    if: needs.prepare.outputs.tag != ''
     runs-on: macos-26
     environment: mobile-release
     timeout-minutes: 90
