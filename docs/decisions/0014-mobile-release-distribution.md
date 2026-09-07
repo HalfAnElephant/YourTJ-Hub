@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 Class: process
 
 ## Context and Problem Statement
@@ -37,6 +37,11 @@ same-name files. Only GitHub's HTTPS API supplies update metadata; public mirror
 bytes. The client checks the digest before Android verifies package/version/signing identity and
 opens the system installer. iOS uses a checksum-pinned ASC CLI to upload once and submit the same
 build to TestFlight and App Store review. Server `vX.Y.Z` releases retain their independent flow.
+
+Release preparation may run from dev with the repository-level `RELEASE_TOKEN`. This deliberately
+trusts maintainers who can merge workflow or release-script changes into dev with that credential's
+production capabilities. The main promotion check governs the selected release source; it is not
+an isolation boundary for the token. The owner accepts this operational trust model.
 
 This gives up update discovery when GitHub's API is unreachable. Public mirror availability and
 Apple approval are not guaranteed. An owned CDN can replace the mirror list through a reviewed

@@ -68,6 +68,12 @@ annotated tag/ref creation; its account needs repository administration rights t
 mobile tags, plus Actions write and pull-request write permissions. Pull-request CI uses no
 distribution secrets.
 
+The repository-level release token is intentionally available to dev release preparation. Maintainers
+who can merge workflow/script changes into dev are therefore trusted with its production capabilities.
+The dev → main promotion check validates release source, but does not isolate this credential from dev
+code. This is the accepted operating model; the main-only signing environment protects signing inputs,
+not the repository-level token.
+
 | Environment secret | Value |
 |---|---|
 | `ANDROID_KEYSTORE_BASE64` | Base64 of the original JKS release keystore |
