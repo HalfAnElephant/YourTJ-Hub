@@ -754,19 +754,23 @@ func purgeTopicPosts(topicID uint64, ownerID uint64) {
 
 func postDeletionSnapshot(post posts.Entity) moderationservice.PostSnapshot {
 	topic := topics.UnscopedGet(post.TopicId)
-	authorName := ""
+	snapshot := moderationservice.PostSnapshot{
+		PostId:     post.Id,
+		TopicId:    post.TopicId,
+		TopicTitle: topic.Title,
+		PostNo:     post.PostNo,
+		Excerpt:    excerpt(post.Content),
+	}
+	// 匿名楼层（issue #524）：删除审计日志面向版主展示，不定格真实作者；
+	// 身份揭示走 Admin-only reveal 端点（理由必填 + opt_record 审计）。
+	if post.IsAnonymous {
+		return snapshot
+	}
 	if author, err := users.Get(post.UserId); err == nil && author.Id > 0 {
-		authorName = author.Username
+		snapshot.PostAuthorId = post.UserId
+		snapshot.PostAuthor = author.Username
 	}
-	return moderationservice.PostSnapshot{
-		PostId:       post.Id,
-		TopicId:      post.TopicId,
-		TopicTitle:   topic.Title,
-		PostNo:       post.PostNo,
-		PostAuthorId: post.UserId,
-		PostAuthor:   authorName,
-		Excerpt:      excerpt(post.Content),
-	}
+	return snapshot
 }
 
 func excerpt(content string) string {

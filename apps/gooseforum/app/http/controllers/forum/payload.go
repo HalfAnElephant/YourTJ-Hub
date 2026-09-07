@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/i18n"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/setting"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/urlutil"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
-	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/transform"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/vo"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/defaultconfig"
@@ -1336,7 +1336,9 @@ func buildPostPayloads(postEntities []*posts.Entity, userMap map[uint64]*users.E
 		}
 		var lastEditor *TopicAuthorPayload
 		lastEditedAt := ""
-		if item.LastEditorId > 0 {
+		// 匿名楼层（issue #524）：last_editor_id 即真实作者（一次自编辑即暴露），
+		// 公开载荷不回显编辑者身份；编辑事实仍可经 updatedAt/revisionCount 感知。
+		if item.LastEditorId > 0 && !item.IsAnonymous {
 			editor := authorPayload(item.LastEditorId)
 			lastEditor = &editor
 			if item.LastEditedAt != nil {

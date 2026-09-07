@@ -33,9 +33,10 @@ Wiki 页面评论区（`/wiki/*path`）复用论坛楼层回复（`PostStream`�
 
 ### Consequences
 
-- Good: 匿名零泄漏——公开 DTO、参与者/参与话题、通知/Webhook、举报快照都不含真实作者；作者仍可管理；治理可揭示可审计。
+- Good: 匿名零泄漏——公开 DTO、参与者/参与话题、通知/Webhook、举报快照、版本历史编辑者、审核/删除审计日志、个人动态时间线、楼层 lastEditor 都不含真实作者；作者仍可管理；治理可揭示可审计。
 - Trade-off: 匿名作者在公共视角与参与话题中完全不可见（`topic_user_stat` 不计数其参与）；同一楼层流内多条匿名评论无法区分归属（与课评一致）。
 - 匿名仅限 wiki 页面评论区；普通论坛正文不提供匿名，避免匿名能力越界扩散。
+- Security review（2026-09-07，合并前对抗性复核）：修订历史 / 审计日志 / 动态时间线 / 审批重发事件 / lastEditor / 揭示限流六处泄露面在评审后修复并补契约测试（匿名楼层版本编辑者恒为匿名占位、审核与删除日志快照不定格作者、匿名回复不进动态时间线、审批重发携带 IsAnonymous、post.reveal 默认限流接线）。揭示端点权限维持「控制器内 IsAdmin + 200 业务失败信封」（与 course-review-reveal 同构，契约已文档化 permission.denied），不加路由层 403 中间件以免破坏既有契约语义。
 
 ## Pros and Cons of the Options
 

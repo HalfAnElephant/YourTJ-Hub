@@ -333,15 +333,21 @@ func UpdateModerationPostStatus(req component.BetterRequest[ModerationPostStatus
 	}
 	// 审核封禁/解封回复不发布事件，同步清理 LLMS 投影缓存。
 	llmsservice.ClearCache()
-	userMap := users.GetMapByIds([]uint64{post.UserId})
-	author := userPayload(post.UserId, userMap)
+	// 匿名楼层（issue #524）：审核日志面向全体版主展示，不得定格真实作者；
+	// 需要身份时走 Admin-only reveal 端点（理由必填 + opt_record 审计）。
+	postAuthorId, postAuthor := uint64(0), ""
+	if !post.IsAnonymous {
+		postAuthorId = post.UserId
+		userMap := users.GetMapByIds([]uint64{post.UserId})
+		postAuthor = userPayload(post.UserId, userMap).Username
+	}
 	moderationservice.PostStatusChanged(req.UserId, moderationservice.PostSnapshot{
 		PostId:       post.Id,
 		TopicId:      post.TopicId,
 		TopicTitle:   topic.Title,
 		PostNo:       post.PostNo,
-		PostAuthorId: post.UserId,
-		PostAuthor:   author.Username,
+		PostAuthorId: postAuthorId,
+		PostAuthor:   postAuthor,
 		Excerpt:      moderationExcerpt(post.Content),
 	}, nextStatus == 1)
 	return component.SuccessResponse(true)

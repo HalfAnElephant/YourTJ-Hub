@@ -257,6 +257,27 @@ func TestAnonPostRevealHTTPContract(t *testing.T) {
 		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "permission-denied.json"))
 	})
 
+	t.Run("moderator without admin is denied", func(t *testing.T) {
+		conn, router := setupAnonPostContractTest(t)
+		author := createHTTPContractUser(t, conn, contractTestID())
+		base := contractTestID()
+		topicID, firstPostID := base, base+1
+		createContractWikiTopic(t, conn, topicID, firstPostID, author.Id)
+		authorToken := contractSessionToken(t, author)
+		anonPostID := createContractAnonymousReply(t, router, authorToken, topicID, firstPostID)
+
+		// 版主权限（TopicsManager）不自动获得身份揭示权：仅 Admin（安全评审缺口补齐）。
+		moderator := createHTTPContractUser(t, conn, contractTestID())
+		grantContractPermission(t, conn, moderator.Id, permission.TopicsManager)
+		moderatorToken := contractSessionToken(t, moderator)
+
+		recorder := serveJSON(router, "/api/forum/moderation/post-reveal", fmt.Sprintf(`{"postId":%d,"reason":"取证"}`, anonPostID), moderatorToken)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("moderator reveal status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "permission-denied.json"))
+	})
+
 	t.Run("admin reveals the anonymous author", func(t *testing.T) {
 		conn, router := setupAnonPostContractTest(t)
 		author := createHTTPContractUser(t, conn, contractTestID())
@@ -293,4 +314,53 @@ func TestAnonPostRevealHTTPContract(t *testing.T) {
 				reveal, anonPostID, author.Id, author.Username)
 		}
 	})
+}
+
+// TestAnonPostRevisionsMaskEditorHTTPContract 锁定匿名楼层版本历史的编辑者遮蔽
+// （issue #524 安全评审）：posts/revisions 是公开（JWTAuth 可选）接口，匿名楼层
+// v1 版本的 EditorId 恒为真实作者，若不遮蔽，一行未登录请求即可完成去匿名化。
+// 所有版本的 editor 必须恒为匿名占位；正文本身是公开评论内容，照常返回。
+func TestAnonPostRevisionsMaskEditorHTTPContract(t *testing.T) {
+	conn, router := setupAnonPostContractTest(t)
+	author := createHTTPContractUser(t, conn, contractTestID())
+	base := contractTestID()
+	topicID, firstPostID := base, base+1
+	createContractWikiTopic(t, conn, topicID, firstPostID, author.Id)
+	token := contractSessionToken(t, author)
+	anonPostID := createContractAnonymousReply(t, router, token, topicID, firstPostID)
+
+	recorder := serveAuthSecurityJSON(router, http.MethodGet, fmt.Sprintf("/api/forum/posts/revisions?postId=%d", anonPostID), "", "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("anon revisions status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+	}
+	response := decodeContractEnvelope(t, recorder)
+	if response.Code != 0 {
+		t.Fatalf("anon revisions envelope = %#v, want success", response)
+	}
+	var payload struct {
+		Versions []struct {
+			Version uint64 `json:"version"`
+			Editor  struct {
+				ID        uint64 `json:"id"`
+				Username  string `json:"username"`
+				AvatarURL string `json:"avatarUrl"`
+			} `json:"editor"`
+			Content string `json:"content"`
+		} `json:"versions"`
+	}
+	if err := json.Unmarshal(response.Result, &payload); err != nil {
+		t.Fatalf("decode revisions result %s: %v", response.Result, err)
+	}
+	if len(payload.Versions) == 0 {
+		t.Fatalf("anon revisions versions empty: %#v", payload)
+	}
+	for _, version := range payload.Versions {
+		if version.Editor.ID != 0 || version.Editor.Username != "匿名同学" || version.Editor.AvatarURL != "" {
+			t.Fatalf("anonymous revision v%d editor = %#v, want {id:0 username:匿名同学 avatarUrl:}",
+				version.Version, version.Editor)
+		}
+		if version.Content == "" {
+			t.Fatalf("anonymous revision v%d content must stay readable", version.Version)
+		}
+	}
 }
