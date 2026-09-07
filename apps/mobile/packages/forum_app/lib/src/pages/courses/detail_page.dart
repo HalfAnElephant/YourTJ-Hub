@@ -390,17 +390,6 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
           onPressed: _goBack,
         ),
         title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: <Widget>[
-          if (_detail.hasValue)
-            GfIconButton(
-              icon: _bookmarked ? Icons.bookmark : Icons.bookmark_border,
-              iconSize: 22,
-              tooltip: _bookmarked
-                  ? l10n.courseBookmarked
-                  : l10n.courseBookmark,
-              onPressed: _toggleBookmark,
-            ),
-        ],
       ),
       body: _detail.when(
         loading: () => const _CourseDetailSkeleton(),
@@ -455,17 +444,45 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
             ),
           ),
         ),
-        if (canWrite)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 16,
-            child: GfFloatingAction(
-              icon: Icons.rate_review_outlined,
-              label: l10n.courseWriteReview,
-              onPressed: _openWriteSheet,
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: ColoredBox(
+            color: GfTheme.colorsOf(context).base100,
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    IconButton(
+                      tooltip: _bookmarked
+                          ? l10n.courseBookmarked
+                          : l10n.courseBookmark,
+                      icon: GfSymbol(
+                        'bookmark',
+                        color: _bookmarked
+                            ? GfTheme.colorsOf(context).primary
+                            : null,
+                      ),
+                      onPressed: _toggleBookmark,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GfButton(
+                        size: GfButtonSize.extraLarge,
+                        expanded: true,
+                        onPressed: canWrite ? _openWriteSheet : null,
+                        label: l10n.courseWriteReview,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
+        ),
       ],
     );
   }

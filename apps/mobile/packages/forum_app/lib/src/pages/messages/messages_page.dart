@@ -1,8 +1,8 @@
+import '../../widgets/root_surface.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -186,7 +186,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   }
 
   Future<void> _openConversation(ChatItemPayload conv) async {
-    await Navigator.of(context).push(
+    await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
         builder: (_) =>
             _ConversationPage(conv: conv, viewerAvatar: _viewerAvatar),
@@ -251,7 +251,6 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final GfColors colors = GfTheme.colorsOf(context);
     final ChatItemPayload? targetConversation = _targetConversation;
     if (targetConversation != null) {
       return _ConversationPage(
@@ -260,74 +259,42 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         viewerAvatar: _viewerAvatar,
       );
     }
-    return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        tooltip: l10n.navPublish,
-        onPressed: () => context.push('/publish?type=2'),
-        child: const Icon(Icons.add),
-      ),
-      backgroundColor: colors.base100,
-      appBar: GfAppBar(
-        title: Text(
-          l10n.messagesTitle,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+    return RootSurface(
+      title: l10n.messagesTitle,
+      actionLabel: l10n.messagesNew,
+      actionSymbol: 'message-circle',
+      onAction: _startNewChat,
+      toolbarHeight: 64,
+      toolbar: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+        child: GfInput(
+          controller: _conversationSearch,
+          hintText: l10n.messagesSearchConversations,
+          prefixIcon: const Icon(Icons.search, size: 18),
+          decoration: _compactSearchDecoration,
+          onChanged: (_) => setState(() {}),
         ),
-        actions: [
-          GfIconButton(
-            icon: Icons.notifications_outlined,
-            tooltip: l10n.notificationsTitle,
-            size: 44,
-            onPressed: () => context.push('/notifications'),
-          ),
-          GfIconButton(
-            icon: Icons.add_comment_outlined,
-            tooltip: l10n.messagesNew,
-            size: 44,
-            onPressed: _startNewChat,
-          ),
-        ],
       ),
-      body: _conversations.when(
+      body: (top, bottom) => _conversations.when(
         loading: () => const GfLoading(),
         error: (e, _) =>
             GfErrorRetry(message: resolveErrorMessage(l10n, e), onRetry: _load),
-        data: (items) {
-          return GfScrollToTop(
-            semanticLabel: l10n.commonBackToTop,
-            controller: _scrollToTopController,
-            builder: (_, ScrollController controller) => Column(
-              children: <Widget>[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colors.base100,
-                    border: Border(bottom: BorderSide(color: colors.line)),
-                  ),
-                  child: GfInput(
-                    controller: _conversationSearch,
-                    hintText: l10n.messagesSearchConversations,
-                    prefixIcon: const Icon(Icons.search, size: 18),
-                    decoration: _compactSearchDecoration,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-                Expanded(
-                  child: _ConversationList(
-                    controller: controller,
-                    items: items,
-                    query: _conversationSearch.text,
-                    emptyMessage: l10n.messagesEmpty,
-                    emptyDescription: l10n.messagesEmptyDescription,
-                    actionLabel: l10n.messagesNew,
-                    onStart: _startNewChat,
-                    onOpen: _openConversation,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+        data: (items) => GfScrollToTop(
+          semanticLabel: l10n.commonBackToTop,
+          showButton: false,
+          controller: _scrollToTopController,
+          builder: (_, controller) => _ConversationList(
+            controller: controller,
+            padding: EdgeInsets.only(top: top, bottom: bottom),
+            items: items,
+            query: _conversationSearch.text,
+            emptyMessage: l10n.messagesEmpty,
+            emptyDescription: l10n.messagesEmptyDescription,
+            actionLabel: l10n.messagesNew,
+            onStart: _startNewChat,
+            onOpen: _openConversation,
+          ),
+        ),
       ),
     );
   }
@@ -670,6 +637,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage> {
 class _ConversationList extends StatelessWidget {
   const _ConversationList({
     required this.controller,
+    this.padding = EdgeInsets.zero,
     required this.items,
     required this.query,
     required this.emptyMessage,
@@ -680,6 +648,7 @@ class _ConversationList extends StatelessWidget {
   });
 
   final ScrollController controller;
+  final EdgeInsets padding;
   final List<ChatItemPayload> items;
   final String query;
   final String emptyMessage;
@@ -706,6 +675,7 @@ class _ConversationList extends StatelessWidget {
     }
     final AppLocalizations l10n = AppLocalizations.of(context);
     return ListView.separated(
+      padding: padding,
       controller: controller,
       itemCount: filtered.length,
       separatorBuilder: (_, _) => const GfDivider(),

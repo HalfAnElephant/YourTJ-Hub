@@ -204,6 +204,11 @@ void main() {
 
     expect(find.text('第一楼'), findsOneWidget);
     expect(find.text('独立回复'), findsOneWidget);
+    await tester.drag(
+      find.byType(CustomScrollView).first,
+      const Offset(0, -240),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('嵌套回复'), findsOneWidget);
     expect(find.text('回复 @bob'), findsOneWidget);
     expect(find.text('移动端测试话题'), findsWidgets);

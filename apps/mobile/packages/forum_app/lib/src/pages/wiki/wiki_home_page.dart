@@ -60,7 +60,38 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
           if (data.namespaces.isEmpty && data.recent.isEmpty) {
             return GfEmpty(message: l10n.commonEmpty);
           }
-          final List<Widget> children = <Widget>[];
+          final List<Widget> children = <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.wikiExploreTitle,
+                    style: GfTheme.typographyOf(context).display,
+                  ),
+                  const SizedBox(height: 16),
+                  InkWell(
+                    onTap: () => context.push('/wiki/search'),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: GfTheme.colorsOf(context).base200,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const GfSymbol('search', size: 20),
+                          const SizedBox(width: 12),
+                          Text(l10n.wikiSearchHint),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ];
           if (data.namespaces.isNotEmpty) {
             children.add(_SectionLabel(l10n.wikiNamespaces));
             for (int i = 0; i < data.namespaces.length; i++) {

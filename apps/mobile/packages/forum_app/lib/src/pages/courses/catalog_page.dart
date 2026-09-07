@@ -854,15 +854,17 @@ class _CourseRow extends StatelessWidget {
         child: Container(
           height: 22,
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: colors.base200.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(999),
           ),
-          child: Text(
-            label,
-            style: type.meta.copyWith(
-              color: colors.baseContent.withValues(alpha: 0.7),
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label,
+              style: type.meta.copyWith(
+                color: colors.baseContent.withValues(alpha: 0.7),
+              ),
             ),
           ),
         ),

@@ -63,7 +63,7 @@ class GfUserCard extends StatelessWidget {
       children: <Widget>[
         // Cover.
         Container(
-          height: 80,
+          height: 132,
           width: double.infinity,
           decoration: BoxDecoration(
             color: colors.base300,
@@ -83,7 +83,7 @@ class GfUserCard extends StatelessWidget {
               // Avatar overlapping the cover by 36px.
               Transform.translate(
                 offset: const Offset(0, -36),
-                child: GfAvatar(src: avatarUrl, size: 96),
+                child: GfAvatar(src: avatarUrl, size: 80),
               ),
               Transform.translate(
                 offset: const Offset(0, -32),
@@ -98,7 +98,7 @@ class GfUserCard extends StatelessWidget {
                         Text(
                           name,
                           style: TextStyle(
-                            fontSize: 17,
+                            fontSize: 24,
                             fontWeight: FontWeight.w700,
                             color: colors.baseContent,
                           ),
@@ -113,7 +113,7 @@ class GfUserCard extends StatelessWidget {
                     Text(
                       '@$username',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         color: colors.baseContent.withValues(alpha: 0.55),
                       ),
                     ),
@@ -139,7 +139,7 @@ class GfUserCard extends StatelessWidget {
                         child: Text(
                           signature!,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 14,
                             color: colors.baseContent.withValues(alpha: 0.55),
                           ),
                         ),

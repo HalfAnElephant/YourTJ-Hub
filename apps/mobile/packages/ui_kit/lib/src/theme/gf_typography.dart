@@ -24,10 +24,10 @@ class GfTypography extends ThemeExtension<GfTypography> {
     required this.label,
   });
 
-  /// 22 / w700 — page hero titles (web `text-xl/2xl font-bold`).
+  /// 24 / 32 / w700 — page hero titles (web `text-xl/2xl font-bold`).
   final TextStyle display;
 
-  /// 20 / w700 — primary page titles (web `text-2xl font-bold`).
+  /// 24 / 32 / w700 — primary page titles (web `text-2xl font-bold`).
   final TextStyle title1;
 
   /// 18 / w700 — section titles.
@@ -36,17 +36,17 @@ class GfTypography extends ThemeExtension<GfTypography> {
   /// 17 / w700 — profile names / sub-page titles.
   final TextStyle title3;
 
-  /// 16 / w600 — card / list titles (web `text-base font-semibold`).
+  /// 16 / 24 / w700 — card / list titles (web `text-base font-semibold`).
   final TextStyle heading;
 
-  /// 15 / w400, line height 1.625 — body prose (web `text-[15px]
-  /// leading-relaxed`, Tailwind default 1.625).
+  /// 15 / w400, line height 1.6 — body prose (web `text-[15px]
+  /// leading-relaxed`, adapted to 24 logical pixels).
   final TextStyle body;
 
   /// 15 / w600 — emphasized body (web `font-medium/semibold` on 15px rows).
   final TextStyle bodyStrong;
 
-  /// 13 — excerpts / secondary text (web `text-[13px]`).
+  /// 14 / 22 — excerpts / secondary text (web `text-[13px]`).
   final TextStyle small;
 
   /// 12 — metadata (web `text-xs`).
@@ -79,15 +79,15 @@ class GfTypography extends ThemeExtension<GfTypography> {
     }
 
     return GfTypography(
-      display: style(22, FontWeight.w700, height: 1.2),
-      title1: style(20, FontWeight.w700, height: 1.25),
-      title2: style(18, FontWeight.w700, height: 1.3),
+      display: style(24, FontWeight.w700, height: 32 / 24),
+      title1: style(24, FontWeight.w700, height: 32 / 24),
+      title2: style(18, FontWeight.w700, height: 26 / 18),
       title3: style(17, FontWeight.w700, height: 1.3),
-      heading: style(16, FontWeight.w600, height: 1.4),
-      body: style(15, FontWeight.w400, height: 1.625),
+      heading: style(16, FontWeight.w700, height: 1.5),
+      body: style(15, FontWeight.w400, height: 1.6),
       bodyStrong: style(15, FontWeight.w600, height: 1.4),
-      small: style(13, FontWeight.w400, height: 1.4),
-      caption: style(12, FontWeight.w400, height: 1.4),
+      small: style(14, FontWeight.w400, height: 22 / 14),
+      caption: style(12, FontWeight.w400, height: 1.5),
       meta: style(11, FontWeight.w500, height: 1.3),
       label: style(10, FontWeight.w700, height: 1.2, letterSpacing: 0.5),
     );

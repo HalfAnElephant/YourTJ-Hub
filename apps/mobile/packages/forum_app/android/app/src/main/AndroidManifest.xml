@@ -2,7 +2,7 @@
     <!-- 论坛应用需要联网(API/图片/上传)。 -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="forum_app"
+        android:label="YourTJ"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

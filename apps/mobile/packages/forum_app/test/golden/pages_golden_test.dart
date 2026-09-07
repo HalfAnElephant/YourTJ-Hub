@@ -329,6 +329,32 @@ class FakeWikiRepository extends WikiRepository {
 class FakePkRepository extends PkRepository {
   FakePkRepository(super.client);
 
+  @override
+  Future<List<PkCourseByMajorItem>> coursesByMajor({
+    required int grade,
+    required String code,
+    required int calendarId,
+  }) async => [
+    PkCourseByMajorItem.fromJson({
+      'courseCode': '122004',
+      'courseName': '高等数学(A)上',
+      'faculty': '数学科学学院',
+      'credit': 4,
+      'grade': grade,
+      'courseNature': ['必修'],
+      'courses': [],
+    }),
+    PkCourseByMajorItem.fromJson({
+      'courseCode': '122006',
+      'courseName': '大学物理(B)',
+      'faculty': '物理科学与工程学院',
+      'credit': 3,
+      'grade': grade,
+      'courseNature': ['必修'],
+      'courses': [],
+    }),
+  ];
+
   static const List<PkCalendarItem> calendarsFixture = <PkCalendarItem>[
     PkCalendarItem(
       calendarId: 130,

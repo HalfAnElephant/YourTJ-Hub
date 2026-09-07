@@ -56,3 +56,5 @@ export 'src/gen/user_content.dart';
 export 'src/api/repositories/content_repository.dart';
 
 export 'src/gen/post_revision.dart';
+
+export 'src/gen/wiki_search.dart';

@@ -1469,7 +1469,7 @@ void main() {
   });
 
   group('首页话题布局', () {
-    testWidgets('卡片和列表可通过胶囊切换且记住选择', (tester) async {
+    testWidgets('卡片和列表可通过阅读选项切换且记住选择', (tester) async {
       final pageRepo = CountingPageRepository(
         GfApiClient(
           dio: Dio(),
@@ -1484,17 +1484,9 @@ void main() {
       expect(find.byType(GfTopicCard), findsOneWidget);
       expect(find.byType(GfTopicRow), findsNothing);
       expect(find.text('新建话题'), findsNothing);
-      final Finder feedSwitch = find.byType(GfPillSwitch<GfTopicFeedMode>);
-      expect(tester.getSize(feedSwitch).height, 32);
-      expect(
-        tester.getCenter(feedSwitch).dy,
-        closeTo(tester.getCenter(find.byType(GfTabBar)).dy, 1),
-      );
-      final Finder brandLogo = find.byType(Image);
-      expect(brandLogo, findsOneWidget);
-      expect(tester.getTopLeft(brandLogo).dx, inInclusiveRange(0, 24));
-      expect(tester.getSize(brandLogo), const Size(128, 34));
-
+      expect(find.text('YourTJ'), findsOneWidget);
+      await tester.tap(find.byType(PopupMenuButton<GfTopicFeedMode>));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('列表'));
       await tester.pumpAndSettle();
 
@@ -3042,7 +3034,7 @@ void main() {
   });
 
   group('核心页面移动端交互', () {
-    testWidgets('长话题出现回顶按钮，打开回复编辑器后隐藏', (tester) async {
+    testWidgets('长话题保留固定回复入口并通过楼层控制导航', (tester) async {
       tester.view.physicalSize = const Size(390, 700);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -3071,7 +3063,8 @@ void main() {
       await tester.drag(topicList, const Offset(0, 160));
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byTooltip('返回顶部'), findsOneWidget);
+      expect(find.byTooltip('返回顶部'), findsNothing);
+      expect(find.text('参与讨论'), findsOneWidget);
 
       await tester.tap(find.text('参与讨论'));
       await tester.pumpAndSettle();

@@ -1,138 +1,189 @@
+import 'package:core/core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
-
 import '../../../l10n/app_localizations.dart';
+import '../../providers.dart';
+import '../../navigation/tab_scroll_registry.dart';
+import '../../widgets/root_surface.dart';
 
-/// A stable campus destination keeps study tools one tap from the community.
-class CampusPage extends StatelessWidget {
+final campusCoursesProvider =
+    FutureProvider.autoDispose<CourseListResultPayload>(
+      (ref) => ref
+          .watch(courseRepositoryProvider)
+          .list(size: 3, onlyWithReviews: true),
+    );
+
+/// Campus tools and real course previews; no official personal timetable.
+class CampusPage extends ConsumerStatefulWidget {
   const CampusPage({super.key});
+  @override
+  ConsumerState<CampusPage> createState() => _CampusPageState();
+}
+
+class _CampusPageState extends ConsumerState<CampusPage> {
+  final _scroll = GfScrollToTopController();
+  late final GfTabScrollRegistry _registry;
+  @override
+  void initState() {
+    super.initState();
+    _registry = ref.read(tabScrollRegistryProvider)
+      ..register(GfShellDestination.campus, _scroll);
+  }
+
+  @override
+  void dispose() {
+    _registry.unregister(GfShellDestination.campus, _scroll);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final colors = GfTheme.colorsOf(context);
-    return Scaffold(
-      appBar: GfAppBar(
-        title: Text(l10n.navCampus),
-        automaticallyImplyLeading: false,
-        actions: [
-          GfIconButton(
-            icon: Icons.search_outlined,
-            tooltip: l10n.commonSearch,
-            onPressed: () => context.push('/search'),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 96),
-        children: [
-          Text(
-            l10n.campusTitle,
-            style: TextStyle(
-              fontSize: 28,
-              height: 1.25,
-              fontWeight: FontWeight.w700,
-              color: colors.baseContent,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            l10n.campusSubtitle,
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.6,
-              color: colors.iconMuted,
-            ),
-          ),
-          const SizedBox(height: 28),
-          for (final entry in <(IconData, String, String, String, Color)>[
-            (
-              Icons.school_outlined,
-              l10n.coursesTitle,
-              l10n.campusCoursesHint,
-              '/courses',
-              colors.primary,
-            ),
-            (
-              Icons.calendar_month_outlined,
-              l10n.scheduleTitle,
-              l10n.campusScheduleHint,
-              '/schedule',
-              colors.success,
-            ),
-            (
-              Icons.auto_stories_outlined,
-              l10n.wikiTitle,
-              l10n.campusWikiHint,
-              '/wiki',
-              colors.warning,
-            ),
-          ])
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: GfCard(
-                emphasized: true,
-                onTap: () => context.push(entry.$4),
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: entry.$5.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(16),
+    final type = GfTheme.typographyOf(context);
+    return RootSurface(
+      title: l10n.navCampus,
+      actions: [
+        IconButton(
+          tooltip: l10n.commonSearch,
+          icon: const GfSymbol('search'),
+          onPressed: () => context.push('/search'),
+        ),
+      ],
+      body: (top, bottom) => GfScrollToTop(
+        controller: _scroll,
+        showButton: false,
+        semanticLabel: l10n.commonBackToTop,
+        builder: (_, controller) => RefreshIndicator(
+          onRefresh: () => ref.refresh(campusCoursesProvider.future),
+          child: ListView(
+            controller: controller,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(16, top + 16, 16, bottom),
+            children: [
+              InkWell(
+                onTap: () => context.push('/courses'),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: colors.base200,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const GfSymbol('search', size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(l10n.coursesSearchHint, style: type.small),
                       ),
-                      child: Icon(entry.$1, color: entry.$5, size: 28),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            entry.$2,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: colors.baseContent,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            entry.$3,
-                            style: TextStyle(
-                              color: colors.iconMuted,
-                              fontSize: 13,
-                              height: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 20,
-                      color: colors.iconMuted,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          TextButton.icon(
-            onPressed: () => context.push('/about'),
-            icon: const Icon(Icons.info_outline, size: 18),
-            label: Text(l10n.siteInfoTitle),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  for (final entry in [
+                    ('graduation-cap', l10n.coursesTitle, '/courses'),
+                    ('calendar-days', l10n.scheduleTitle, '/schedule'),
+                    ('book-open', l10n.wikiTitle, '/wiki'),
+                  ])
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => context.push(entry.$3),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Column(
+                            children: [
+                              GfSymbol(entry.$1, size: 28),
+                              const SizedBox(height: 12),
+                              Text(
+                                entry.$2,
+                                textAlign: TextAlign.center,
+                                style: type.small,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 24),
+              Text(l10n.campusExploreCourses, style: type.title2),
+              const SizedBox(height: 12),
+              ref
+                  .watch(campusCoursesProvider)
+                  .when(
+                    loading: () => const LinearProgressIndicator(),
+                    error: (_, _) => TextButton(
+                      onPressed: () => ref.invalidate(campusCoursesProvider),
+                      child: Text(l10n.commonRetry),
+                    ),
+                    data: (result) => Column(
+                      children: [
+                        for (final course in result.list)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(course.name, style: type.heading),
+                            subtitle: Text(
+                              [
+                                course.department,
+                                course.teacherName ?? '',
+                              ].where((s) => s.isNotEmpty).join(' · '),
+                              style: type.caption,
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                GfSymbol(
+                                  'star',
+                                  size: 16,
+                                  color: colors.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  course.ratingAvg?.toStringAsFixed(1) ?? '—',
+                                ),
+                              ],
+                            ),
+                            onTap: () => context.push('/courses/${course.id}'),
+                          ),
+                      ],
+                    ),
+                  ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => context.push('/courses'),
+                  child: Text(l10n.coursesTitle),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 24),
+              Text(l10n.campusPlanTitle, style: type.heading),
+              const SizedBox(height: 8),
+              Text(
+                l10n.campusPlanDescription,
+                style: type.body.copyWith(color: colors.iconMuted),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton(
+                  onPressed: () => context.push('/schedule'),
+                  child: Text(l10n.scheduleTitle),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        tooltip: l10n.navPublish,
-        onPressed: () => context.push('/publish?type=2'),
-        child: const Icon(Icons.add),
+        ),
       ),
     );
   }

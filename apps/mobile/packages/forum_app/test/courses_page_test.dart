@@ -439,6 +439,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('课程 A1'), findsOneWidget);
+      expect(
+        tester
+            .getSize(
+              find
+                  .ancestor(
+                    of: find.text('+1').first,
+                    matching: find.byType(InkWell),
+                  )
+                  .first,
+            )
+            .width,
+        lessThan(100),
+      );
       // ListView 懒加载只构建可视行，A20 未必在首帧内；靠滚动断言翻页。
       expect(find.text('4.5'), findsWidgets);
 
@@ -569,15 +582,15 @@ void main() {
       );
       await pumpDetail(tester, course);
 
-      await tester.tap(find.byIcon(Icons.bookmark_border));
+      await tester.tap(find.byTooltip('收藏'));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.bookmark), findsOneWidget);
+      expect(find.byTooltip('已收藏'), findsOneWidget);
 
       course.failBookmark = true;
-      // 再点已收藏态：乐观取消 → 失败 → 回滚恢复已收藏（filled）。
-      await tester.tap(find.byIcon(Icons.bookmark));
+      // 再点已收藏态：乐观取消 → 失败 → 回滚恢复已收藏。
+      await tester.tap(find.byTooltip('已收藏'));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.bookmark), findsOneWidget);
+      expect(find.byTooltip('已收藏'), findsOneWidget);
 
       // 消化错误 toast 计时器。
       await tester.pump(const Duration(seconds: 5));

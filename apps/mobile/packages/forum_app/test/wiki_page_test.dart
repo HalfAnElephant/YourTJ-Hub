@@ -264,10 +264,10 @@ void main() {
       initialLocation: '/wiki/guide/getting-started',
     );
 
-    await tester.tap(find.byTooltip('目录'));
+    await tester.tap(find.text('目录'));
     await tester.pumpAndSettle();
 
-    expect(find.text('目录'), findsOneWidget);
+    expect(find.text('目录'), findsWidgets);
     expect(find.text('介绍'), findsOneWidget);
     expect(find.text('细节说明'), findsOneWidget);
 
@@ -322,8 +322,8 @@ void main() {
       initialLocation: '/wiki/guide/getting-started',
     );
 
-    expect(find.byTooltip('在 GitHub 编辑'), findsNothing);
-    expect(find.byTooltip('目录'), findsOneWidget);
+    expect(find.text('在 GitHub 编辑'), findsNothing);
+    expect(find.text('目录'), findsOneWidget);
   });
 
   testWidgets('canEdit=true 且有 editUrl 时显示 GitHub 编辑入口', (tester) async {
@@ -344,6 +344,6 @@ void main() {
       initialLocation: '/wiki/guide/getting-started',
     );
 
-    expect(find.byTooltip('在 GitHub 编辑'), findsOneWidget);
+    expect(find.text('在 GitHub 编辑'), findsOneWidget);
   });
 }
