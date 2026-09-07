@@ -28,6 +28,7 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   same gallery is used in the publishing preview.
 - `Current`: root headers, filter rails and bottom navigation overlay the reading viewport. They
   hide after 48 logical pixels downward and return after 12 pixels upward, with 200 ms transitions.
+  Hidden headers are clipped at the system safe-area edge; the reading viewport stays stable.
   Reaching the top, changing destination or opening the account drawer restores the controls.
   Reduced motion removes the transition; keyboard/modal interaction keeps controls visible.
   Editors and scheduler grids are pushed pages outside this behavior.
@@ -46,6 +47,44 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 - `Current`: reply edits preserve unsaved text on failed saves and confirm before discarding.
   Server-required reply captchas can be refreshed without losing the draft. Session changes
   invalidate pending edits and destructive confirmations; share failures remain visible in-app.
+
+- `Current`: embedded reply Markdown adds no device safe-area spacing. Dates and reply actions
+  share a compact footer, wrapping on narrow screens or large text. Reply references use Web's
+  subtle background and left rule, an author/avatar/floor header, and a four-line preview with
+  expand/collapse controls only when the rendered text overflows.
+- `Current`: notification headings resolve the same template keys and event types as Web in the
+  selected language, with actor names and topic/content previews. Legacy literal headings take precedence when no template key is present; content previews take
+  precedence over topic titles. Protocol-key filtering applies only to heading fields, preserving
+  user content and badge names that begin with the same prefix.
+
+## Language and presentation
+
+- `Current`: native launcher icons use Web's YourTJ cat mark. iOS includes opaque device and
+  App Store sizes; Android includes legacy densities, adaptive masks and a themed monochrome layer.
+  The launcher artwork is generated independently of the in-app horizontal wordmark.
+
+- `Current`: the native app supports the same four languages as Web: Simplified Chinese, English,
+  Japanese and German. Login and Settings expose an immediate language picker with a follow-system
+  option; unsupported system languages fall back to Chinese. The device preference survives restart
+  and is independent of public profile language. Switching preserves the current page, session and
+  unsaved input.
+- `Current`: API requests send the selected language without recreating the authenticated client.
+  Notification templates and server message translations reuse Web's catalogs in all four languages;
+  authenticated management workspaces inherit the choice through the first-party language cookie.
+  User-written content and server-defined badge names remain in their original language.
+- `Current`: profile and settings use Web's Lucide line icons, with subtle semantic color tiles for
+  activity and account controls. Social links use all six Web provider marks and brand colors.
+
+- `Current`: search uses one filled capsule field across messages, new conversations, the course
+  catalog, global search, Wiki and scheduler. Search fields provide a localized clear action and keyboard
+  submission where applicable. Clearing global search resets results, scope and pagination, and
+  invalidates pending requests; account and publishing forms retain their separate form styling.
+- `Current`: topic read-only view/reply counts sit above independent reply, like, bookmark and watch
+  actions. Active actions use Web's semantic tints, actions wrap on narrow screens, and the reply
+  heading has no decorative discussion icon. Topic subscriptions use topic-specific labels; reply
+  commands have no toggle semantics. The dock switches to an accessible icon-only reply action when
+  its label cannot fit, including long translations and enlarged text. SVG icons inherit their enclosing button foreground
+  unless a semantic or provider color is explicitly set.
 
 ## Publishing
 
@@ -105,12 +144,25 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 - `Current`: profile editing includes nickname, bio, signature, website name/URL, profile language
   and the six Web social providers. Saving preserves unedited fields and unknown social providers;
   website/social destinations accept HTTP(S), and social usernames expand to provider URLs.
-  Public profiles display website/social links and open them in the system browser. Returning
+  Public profiles display website/social links with the corresponding provider marks and open
+  them in the system browser. Worn badges appear on the avatar independently of the badge list;
+  administrator identity has a localized role label. Returning
   from settings refreshes profile identity and media immediately.
 
 - `Current`: the root avatar opens an account drawer with profile, bookmarks, a folded content
   management group (drafts, content and recycle bin), settings and permission-gated workspaces.
   The profile overflow retains these infrequent entries. Account controls are outside the public profile.
+- `Current`: activity entries distinguish signup, post, like, follow and comment with matching
+  icons and localized captions in bordered cards with a content preview and compact timestamp. Stream changes retain the profile header collapse, limiting deep offsets to the start of the
+  new stream so loading, empty states and retry actions stay visible. Empty badge lists use
+  badge-specific feedback.
+- `Current`: profile bios trim boundary whitespace; signatures use a separate feather mark and subtle
+  underline. Avatar overlap participates in layout so it leaves no translated blank space. The role
+  label stays beside the name; earned badges appear as bordered title/description cards with colored
+  hexagons and their server-provided SVGs. The selected badge remains attached to the avatar.
+- `Current`: users with follow permission retain the follow button for already-followed accounts,
+  including administrators. It displays the followed state and toggles to unfollow, prevents duplicate
+  in-flight requests and restores the previous state when a request fails.
 - `Current`: only the active profile tab displays its label; all tabs retain accessible names.
   Activity, topics, likes, own bookmarks, follows/followers and badges fetch their corresponding
   server streams. Cursor pagination uses the server's next URL within the same user's profile.
@@ -148,6 +200,18 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   restricted to the exact same-origin admin export endpoint. Native downloads do not follow
   redirects, require an attachment response, and share the actual JSON/CSV filename. Temporary
   files are removed after sharing. The browser's cookies/storage/cache are cleared on exit.
+
+## Distribution and updates
+
+- `Partial`: Android checks GitHub mobile releases at startup/resume with a six-hour limit and a
+  manual About action. Update prompts support defer, ignore, progress and cancellation. Public APK
+  mirrors are ranked with bounded probes; SHA-256, package and signing-certificate checks precede
+  the system installer. Unit tests and signed native builds cover the implemented paths; the first
+  GitHub-hosted release and an installed-to-updated device journey remain distribution validation.
+- `Partial`: iOS uses TestFlight and App Store distribution through the same versioned release job.
+  Apple processing/review is independent of CI. The app does not offer APK-style updates on iOS.
+  Signing, metadata, failure recovery and environment secrets are documented in the
+  [mobile release runbook](../operations/mobile-releases.md).
 
 ## Verification boundaries
 

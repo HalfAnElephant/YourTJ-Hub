@@ -41,84 +41,87 @@ class RootSurface extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: Stack(
-          children: [
-            Positioned.fill(child: body(56 + toolbarHeight, 80 + bottom)),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: AnimatedSlide(
-                offset: hidden ? const Offset(0, -1) : Offset.zero,
-                duration: duration,
-                curve: Curves.easeOut,
-                child: IgnorePointer(
-                  ignoring: hidden,
-                  child: ExcludeSemantics(
-                    excluding: hidden,
-                    child: ColoredBox(
-                      color: colors.base100,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            height: 56,
-                            child: Row(
-                              children: [
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  tooltip: AppLocalizations.of(
-                                    context,
-                                  ).navProfile,
-                                  onPressed: () =>
-                                      Scaffold.of(context).openDrawer(),
-                                  icon: const AccountAvatar(),
-                                ),
-                                Expanded(
-                                  child: Center(
-                                    child: Text(
-                                      title,
-                                      style: GfTheme.typographyOf(
-                                        context,
-                                      ).title2,
+        child: ClipRect(
+          child: Stack(
+            children: [
+              Positioned.fill(child: body(56 + toolbarHeight, 80 + bottom)),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedSlide(
+                  offset: hidden ? const Offset(0, -1) : Offset.zero,
+                  duration: duration,
+                  curve: Curves.easeOut,
+                  child: IgnorePointer(
+                    ignoring: hidden,
+                    child: ExcludeSemantics(
+                      excluding: hidden,
+                      child: ColoredBox(
+                        color: colors.base100,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              height: 56,
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    tooltip: AppLocalizations.of(
+                                      context,
+                                    ).navProfile,
+                                    onPressed: () =>
+                                        Scaffold.of(context).openDrawer(),
+                                    icon: const AccountAvatar(),
+                                  ),
+                                  Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        title,
+                                        style: GfTheme.typographyOf(
+                                          context,
+                                        ).title2,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                if (actions.isEmpty)
-                                  const SizedBox(width: 48)
-                                else
-                                  ...actions,
-                                const SizedBox(width: 8),
-                              ],
+                                  if (actions.isEmpty)
+                                    const SizedBox(width: 48)
+                                  else
+                                    ...actions,
+                                  const SizedBox(width: 8),
+                                ],
+                              ),
                             ),
-                          ),
-                          if (toolbar != null)
-                            SizedBox(height: toolbarHeight, child: toolbar),
-                          const Divider(height: 1),
-                        ],
+                            if (toolbar != null)
+                              SizedBox(height: toolbarHeight, child: toolbar),
+                            const Divider(height: 1),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-            AnimatedPositioned(
-              duration: duration,
-              curve: Curves.easeOut,
-              right: 16,
-              bottom: (hidden ? 16 : 72) + bottom,
-              child: FloatingActionButton(
-                heroTag: null,
-                tooltip: actionLabel ?? AppLocalizations.of(context).navPublish,
-                onPressed: onAction ?? () => context.push('/publish?type=2'),
-                child: GfSymbol(
-                  actionSymbol,
-                  color: colors.primaryContent,
-                  size: 28,
+              AnimatedPositioned(
+                duration: duration,
+                curve: Curves.easeOut,
+                right: 16,
+                bottom: (hidden ? 16 : 72) + bottom,
+                child: FloatingActionButton(
+                  heroTag: null,
+                  tooltip:
+                      actionLabel ?? AppLocalizations.of(context).navPublish,
+                  onPressed: onAction ?? () => context.push('/publish?type=2'),
+                  child: GfSymbol(
+                    actionSymbol,
+                    color: colors.primaryContent,
+                    size: 28,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

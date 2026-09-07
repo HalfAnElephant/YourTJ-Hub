@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/gf_theme.dart';
 import '../atoms/gf_divider.dart';
+import '../gf_symbol.dart';
 
 import '../surfaces/gf_floating_surface.dart';
 
@@ -14,9 +15,11 @@ class GfTopicAction {
     required this.onTap,
     this.acting = false,
     this.title,
+    this.symbol,
   });
 
   final IconData icon;
+  final String? symbol;
   final bool active;
 
   /// Color of the icon when [active] (web activeClass per action type).
@@ -70,22 +73,26 @@ class GfFloatingControls extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           if (currentNo != null && maxNo != null) ...<Widget>[
-            InkWell(
-              onTap: onFloorTap,
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                alignment: Alignment.center,
-                child: Text(
-                  '$currentNo / $maxNo',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: colors.primary,
-                    fontFeatures: const <FontFeature>[
-                      FontFeature.tabularFigures(),
-                    ],
+            Flexible(
+              child: InkWell(
+                onTap: onFloorTap,
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  alignment: Alignment.center,
+                  child: Text(
+                    '$currentNo / $maxNo',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: colors.primary,
+                      fontFeatures: const <FontFeature>[
+                        FontFeature.tabularFigures(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -96,37 +103,71 @@ class GfFloatingControls extends StatelessWidget {
             _RoundAction(action: action),
           if (onOpenReply != null) ...[
             GfDivider(inset: 4, color: colors.line),
-            InkWell(
-              onTap: onOpenReply,
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(
-                      Icons.chat_bubble_outline,
-                      size: 16,
-                      color: colors.baseContent.withValues(alpha: 0.75),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      joinLabel,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: colors.baseContent.withValues(alpha: 0.75),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            Flexible(
+              flex: 3,
+              child: _ReplyControl(label: joinLabel, onTap: onOpenReply!),
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Keep a full accessible label when only the reply icon fits the dock.
+class _ReplyControl extends StatelessWidget {
+  const _ReplyControl({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = GfTheme.colorsOf(context).baseContent.withValues(alpha: .75);
+    final style = TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: color,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: label, style: style),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          maxLines: 1,
+        )..layout();
+        final showLabel = painter.width + 46 <= constraints.maxWidth;
+        painter.dispose();
+        return Tooltip(
+          message: label,
+          child: Semantics(
+            label: label,
+            button: true,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(999),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: SizedBox(
+                  height: 36,
+                  child: ExcludeSemantics(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GfSymbol('corner-down-left', size: 16, color: color),
+                        if (showLabel) ...[
+                          const SizedBox(width: 6),
+                          Text(label, style: style),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -162,6 +203,14 @@ class _RoundAction extends StatelessWidget {
                           ? action.activeColor
                           : colors.baseContent.withValues(alpha: 0.75),
                     ),
+                  )
+                : action.symbol != null
+                ? GfSymbol(
+                    action.symbol!,
+                    size: 18,
+                    color: action.active
+                        ? action.activeColor
+                        : colors.iconMuted,
                   )
                 : Icon(
                     action.icon,

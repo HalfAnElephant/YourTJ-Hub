@@ -38,6 +38,9 @@ const targetTypeCodeMap: Record<number, string> = {
   4: 'docVersion',
   5: 'docContent',
   6: 'category',
+  7: 'courseReview',
+  8: 'course',
+  9: 'post',
 }
 
 const optInfoMessageKeyMap: Record<string, string> = {

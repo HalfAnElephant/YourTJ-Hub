@@ -10,6 +10,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../asset_url.dart';
 import '../../providers.dart';
 import '../../widgets/status_views.dart';
+import '../../updates/update_host.dart';
 
 enum SiteInfoKind { links, sponsors, terms, privacy }
 
@@ -37,6 +38,12 @@ class SiteInfoIndexPage extends StatelessWidget {
       appBar: GfAppBar(title: Text(l10n.siteInfoTitle)),
       body: ListView(
         children: [
+          if (supportsApkUpdates)
+            ListTile(
+              leading: const GfSymbol('download'),
+              title: Text(l10n.updateCheck),
+              onTap: () => appUpdateHostKey.currentState?.check(force: true),
+            ),
           for (final kind in SiteInfoKind.values)
             ListTile(
               leading: Icon(kind.icon),

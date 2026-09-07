@@ -15,6 +15,8 @@ import '../../format.dart';
 import '../../asset_url.dart';
 import '../../server_messages.dart';
 import '../../theme_mode.dart';
+import '../../app_locale.dart';
+import '../../widgets/language_picker.dart';
 import '../../site_theme.dart';
 import '../../push/push_service.dart';
 import '../../widgets/status_views.dart';
@@ -184,7 +186,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _loadUser(silent: true);
     } catch (e) {
       if (mounted) {
-        showGfToast(context, l10n.settingsBadgeFailed('$e'), error: true);
+        showGfToast(
+          context,
+          l10n.settingsBadgeFailed(resolveErrorMessage(l10n, e)),
+          error: true,
+        );
       }
     }
   }
@@ -245,7 +251,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       }
     } catch (e) {
       if (mounted) {
-        showGfToast(context, l10n.settingsPasswordFailed('$e'), error: true);
+        showGfToast(
+          context,
+          l10n.settingsPasswordFailed(resolveErrorMessage(l10n, e)),
+          error: true,
+        );
       }
     }
   }
@@ -275,7 +285,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _loadUser(silent: true);
     } catch (e) {
       if (mounted) {
-        showGfToast(context, l10n.settingsInfoFailed('$e'), error: true);
+        showGfToast(
+          context,
+          l10n.settingsInfoFailed(resolveErrorMessage(l10n, e)),
+          error: true,
+        );
       }
     }
   }
@@ -445,11 +459,19 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           error: true,
         );
       } else if (mounted) {
-        showGfToast(context, l10n.settingsEmailFailed('$e'), error: true);
+        showGfToast(
+          context,
+          l10n.settingsEmailFailed(resolveErrorMessage(l10n, e)),
+          error: true,
+        );
       }
     } catch (e) {
       if (mounted) {
-        showGfToast(context, l10n.settingsEmailFailed('$e'), error: true);
+        showGfToast(
+          context,
+          l10n.settingsEmailFailed(resolveErrorMessage(l10n, e)),
+          error: true,
+        );
       }
     }
   }
@@ -508,7 +530,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           }
         } catch (e) {
           if (mounted) {
-            showGfToast(context, l10n.settingsTotpFailed('$e'), error: true);
+            showGfToast(
+              context,
+              l10n.settingsTotpFailed(resolveErrorMessage(l10n, e)),
+              error: true,
+            );
           }
         }
         return;
@@ -602,7 +628,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ),
       );
     } catch (e) {
-      if (mounted) _snack(l10n.settingsTotpFailed('$e'));
+      if (mounted) {
+        _snack(l10n.settingsTotpFailed(resolveErrorMessage(l10n, e)));
+      }
     }
   }
 
@@ -636,7 +664,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       }
     } catch (e) {
       if (mounted) {
-        showGfToast(context, l10n.settingsRevokeFailed('$e'), error: true);
+        showGfToast(
+          context,
+          l10n.settingsRevokeFailed(resolveErrorMessage(l10n, e)),
+          error: true,
+        );
       }
     }
   }
@@ -650,7 +682,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       await ref.read(userRepositoryProvider).revokeAllSessions();
     } catch (e) {
       if (mounted) {
-        showGfToast(context, l10n.settingsOpFailed('$e'), error: true);
+        showGfToast(
+          context,
+          l10n.settingsOpFailed(resolveErrorMessage(l10n, e)),
+          error: true,
+        );
       }
       return;
     }
@@ -782,7 +818,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         title: Text(l10n.settingsTitle),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline),
+            icon: const GfSymbol('languages'),
+            tooltip: l10n.settingsAppLanguage,
+            onPressed: () => showAppLanguagePicker(context),
+          ),
+          IconButton(
+            icon: const GfSymbol('info'),
             tooltip: l10n.siteInfoTitle,
             onPressed: () => context.push('/about'),
           ),
@@ -852,13 +893,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: <Widget>[
+        GfSettingRow(
+          symbol: 'languages',
+          title: l10n.settingsAppLanguage,
+          description:
+              appLanguageNames[ref.watch(appLocaleProvider)?.languageCode] ??
+              l10n.settingsLanguageSystem,
+          onTap: () => showAppLanguagePicker(context),
+        ),
+        const SizedBox(height: 12),
         _settingsSection(
           context,
           title: l10n.settingsSectionProfile,
           child: Column(
             children: [
               GfSettingRow(
-                icon: Icons.badge_outlined,
+                symbol: 'id-card',
                 title: l10n.settingsNickname,
                 description: l10n.settingsNicknameEdit,
                 trailing: const Icon(Icons.chevron_right, size: 18),
@@ -873,7 +923,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
               const GfDivider(),
               GfSettingRow(
-                icon: Icons.notes_outlined,
+                symbol: 'feather',
                 title: l10n.settingsBio,
                 description: l10n.settingsBioEdit,
                 trailing: const Icon(Icons.chevron_right, size: 18),
@@ -888,7 +938,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
               const GfDivider(),
               GfSettingRow(
-                icon: Icons.photo_camera_outlined,
+                symbol: 'camera',
                 title: l10n.settingsAvatar,
                 description: _uploadingAvatar
                     ? l10n.settingsAvatarUploading
@@ -898,14 +948,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
               const GfDivider(),
               GfSettingRow(
-                icon: Icons.face_outlined,
+                symbol: 'smile',
                 title: l10n.settingsPresetAvatar,
                 trailing: const Icon(Icons.chevron_right, size: 18),
                 onTap: _uploadingAvatar ? null : _pickPresetAvatar,
               ),
               const GfDivider(),
               GfSettingRow(
-                icon: Icons.panorama_outlined,
+                symbol: 'image',
                 title: l10n.settingsCover,
                 description: l10n.settingsCoverDescription,
                 trailing: const Icon(Icons.chevron_right, size: 18),
@@ -916,7 +966,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               if (_user.value?.profileCoverUrl.isNotEmpty == true) ...[
                 const GfDivider(),
                 GfSettingRow(
-                  icon: Icons.hide_image_outlined,
+                  symbol: 'image-off',
                   title: l10n.settingsCoverRemove,
                   onTap: _uploadingAvatar ? null : _removeCover,
                 ),
@@ -941,7 +991,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           child: Column(
             children: [
               GfSettingRow(
-                icon: Icons.alternate_email,
+                symbol: 'at-sign',
                 title: l10n.authUsername,
                 description: _user.value?.username ?? '',
                 trailing: const Icon(Icons.chevron_right, size: 18),
@@ -949,7 +999,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
               const GfDivider(),
               GfSettingRow(
-                icon: Icons.email_outlined,
+                symbol: 'mail',
                 title: l10n.settingsEmail,
                 description: l10n.settingsEmailEdit,
                 trailing: const Icon(Icons.chevron_right, size: 18),
@@ -957,7 +1007,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
               const GfDivider(),
               GfSettingRow(
-                icon: Icons.lock_outline,
+                symbol: 'key-round',
                 title: l10n.settingsChangePassword,
                 description: l10n.settingsChangePasswordSub,
                 trailing: const Icon(Icons.chevron_right, size: 18),
@@ -965,7 +1015,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
               const GfDivider(),
               GfSettingRow(
-                icon: Icons.workspace_premium_outlined,
+                symbol: 'award',
+                iconColor: const Color(0xFFD97706),
                 title: l10n.settingsBadge,
                 subtitleWidget: _user.when(
                   data: (u) => Text(
@@ -1003,12 +1054,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       padding: const EdgeInsets.all(16),
       children: <Widget>[
         GfSettingRow(
-          icon: Icons.folder_outlined,
+          symbol: 'folder',
           title: l10n.profileContent,
           onTap: () => context.push('/my-content'),
         ),
         GfSettingRow(
-          icon: Icons.delete_outline,
+          symbol: 'trash-2',
+          iconColor: const Color(0xFFE11D48),
           title: l10n.profileTrash,
           onTap: () => context.push('/recycle-bin'),
         ),
@@ -1038,7 +1090,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           child: Column(
             children: [
               GfSettingRow(
-                icon: Icons.account_circle_outlined,
+                symbol: 'circle-user-round',
                 title: l10n.settingsOAuth,
                 description: l10n.settingsOAuthSub,
                 trailing: const Icon(Icons.chevron_right, size: 18),
@@ -1068,6 +1120,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           child: Column(
             children: [
               GfSwitchRow(
+                symbol: isDark ? 'moon' : 'sun',
+                iconColor: const Color(0xFF7C3AED),
                 title: l10n.settingsDarkMode,
                 description: isDark
                     ? l10n.settingsDarkCurrent
@@ -1084,6 +1138,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     children: [
                       const GfDivider(),
                       GfSwitchRow(
+                        symbol: 'palette',
                         title: l10n.settingsFollowSiteTheme,
                         description: l10n.settingsFollowSiteThemeDesc,
                         value: siteTheme.following,
@@ -1120,6 +1175,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               child: Column(
                 children: [
                   GfSwitchRow(
+                    symbol: 'bell',
                     title: l10n.settingsPush,
                     value: switchOn,
                     onChanged: (bool value) async {
@@ -1153,7 +1209,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           context,
           title: l10n.settingsTotpTitle,
           child: GfSettingRow(
-            icon: Icons.shield_outlined,
+            symbol: 'shield-check',
+            iconColor: const Color(0xFF059669),
             title: l10n.settingsTotpEnable,
             description: l10n.settingsTotpSetupSecret,
             trailing: const Icon(Icons.chevron_right, size: 18),
@@ -1181,13 +1238,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 children: [
                   for (final s in sessions)
                     GfSettingRow(
-                      leading: Icon(
-                        s.isCurrent ? Icons.smartphone : Icons.devices_other,
-                        size: 20,
-                        color: s.isCurrent
-                            ? GfTheme.colorsOf(context).primary
-                            : GfTheme.colorsOf(context).iconMuted,
-                      ),
+                      symbol: s.isCurrent ? 'smartphone' : 'monitor',
+                      iconColor: s.isCurrent
+                          ? GfTheme.colorsOf(context).primary
+                          : GfTheme.colorsOf(context).iconMuted,
                       title: s.userAgent,
                       subtitleWidget: Text(
                         '${s.ipMasked} · ${_formatTs(s.createdAt)}',
@@ -1227,7 +1281,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           context,
           title: l10n.settingsAbout,
           child: GfSettingRow(
-            icon: Icons.info_outline,
+            symbol: 'info',
             title: l10n.appTitle,
             description: l10n.settingsAboutVersion,
           ),

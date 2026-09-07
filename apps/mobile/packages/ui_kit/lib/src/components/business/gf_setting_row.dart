@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tdesign_flutter/tdesign_flutter.dart' as td;
 
 import '../../theme/gf_theme.dart';
+import '../gf_icon_tile.dart';
 
 /// Settings list row mirroring web SettingsPage.vue form rows: an optional
 /// leading icon, a title + optional description, and a trailing widget.
@@ -14,6 +15,8 @@ class GfSettingRow extends StatelessWidget {
     this.description,
     this.subtitleWidget,
     this.icon,
+    this.symbol,
+    this.iconColor,
     this.leading,
     this.trailing,
     this.onTap,
@@ -26,6 +29,8 @@ class GfSettingRow extends StatelessWidget {
   final Widget? subtitleWidget;
 
   final IconData? icon;
+  final String? symbol;
+  final Color? iconColor;
 
   /// Arbitrary leading widget (e.g. [GfAvatar]); takes precedence over
   /// [icon].
@@ -43,7 +48,11 @@ class GfSettingRow extends StatelessWidget {
       arrow: onTap != null && trailing == null,
       prefix:
           leading ??
-          (icon == null ? null : Icon(icon, size: 20, color: colors.iconMuted)),
+          (symbol != null
+              ? GfIconTile(symbol!, color: iconColor)
+              : icon == null
+              ? null
+              : Icon(icon, size: 20, color: colors.iconMuted)),
       title: Text(title),
       subtitle:
           subtitleWidget ?? (description == null ? null : Text(description!)),
@@ -63,6 +72,8 @@ class GfSwitchRow extends StatelessWidget {
     this.description,
     this.subtitleWidget,
     this.icon,
+    this.symbol,
+    this.iconColor,
     this.leading,
   });
 
@@ -73,6 +84,8 @@ class GfSwitchRow extends StatelessWidget {
   final Widget? subtitleWidget;
 
   final IconData? icon;
+  final String? symbol;
+  final Color? iconColor;
 
   /// Arbitrary leading widget; takes precedence over [icon].
   final Widget? leading;
@@ -88,7 +101,11 @@ class GfSwitchRow extends StatelessWidget {
       onTap: () => onChanged(!value),
       prefix:
           leading ??
-          (icon == null ? null : Icon(icon, size: 20, color: colors.iconMuted)),
+          (symbol != null
+              ? GfIconTile(symbol!, color: iconColor)
+              : icon == null
+              ? null
+              : Icon(icon, size: 20, color: colors.iconMuted)),
       title: Text(title),
       subtitle:
           subtitleWidget ?? (description == null ? null : Text(description!)),

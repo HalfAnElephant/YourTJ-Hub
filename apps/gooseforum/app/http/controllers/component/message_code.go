@@ -136,6 +136,7 @@ const (
 	MessageCommentPostCooldown              MessageCode = "comment.post.cooldown"             // 新用户评论冷却中，params.minutes/availableAt。
 	MessageCommentParentPostMissing         MessageCode = "comment.parentPostMissing"         // 父 post 不存在。
 	MessageCommentCreateFailed              MessageCode = "comment.createFailed"              // 评论创建失败，params.error 可带原始错误。
+	MessageCommentAnonymousNotAllowed       MessageCode = "comment.anonymousNotAllowed"       // 匿名发布仅限 wiki 页面评论区（issue #524）。
 	MessageTopicContentTypeChangeNotAllowed MessageCode = "topic.contentTypeChangeNotAllowed" // 不能更改已有回复的话题的内容类型。
 	MessagePostNotFound                     MessageCode = "post.notFound"                     // post 不存在。
 	MessagePostUpdateFailed                 MessageCode = "post.updateFailed"                 // post 更新失败，params.error 可带原始错误。

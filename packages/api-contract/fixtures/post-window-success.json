@@ -17,6 +17,7 @@
           "username": "contract-window-author",
           "avatarUrl": "/static/pic/3.webp"
         },
+        "isAnonymous": false,
         "createdAt": "2026-08-01T12:00:00Z",
         "isOwnPost": false,
         "updatedAt": "2026-08-01T12:00:00Z",

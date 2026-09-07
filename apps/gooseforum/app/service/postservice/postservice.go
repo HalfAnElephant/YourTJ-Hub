@@ -79,13 +79,17 @@ func deleteTopicPost(conn *gorm.DB, postID, userID uint64) (postEntity posts.Ent
 
 func SyncTopicPostStats(topicEntity topics.Entity, postEntity posts.Entity, isDelete bool) {
 	userId := postEntity.UserId
-	if isDelete {
-		if err := topicUserStat.DecrementUserPost(topicEntity.Id, userId); err != nil {
-			slog.Error("failed to decrement topic user post stat", "topicId", topicEntity.Id, "userId", userId, "err", err)
-		}
-	} else {
-		if err := topicUserStat.IncrementUserPost(topicEntity.Id, userId); err != nil {
-			slog.Error("failed to increment topic user post stat", "topicId", topicEntity.Id, "userId", userId, "err", err)
+	// 匿名楼层（wiki 评论区，issue #524）不进入 topic_user_stat：
+	// 避免匿名作者出现在「参与过的话题」/ Posters 等身份表面，泄露匿名身份。
+	if !postEntity.IsAnonymous {
+		if isDelete {
+			if err := topicUserStat.DecrementUserPost(topicEntity.Id, userId); err != nil {
+				slog.Error("failed to decrement topic user post stat", "topicId", topicEntity.Id, "userId", userId, "err", err)
+			}
+		} else {
+			if err := topicUserStat.IncrementUserPost(topicEntity.Id, userId); err != nil {
+				slog.Error("failed to increment topic user post stat", "topicId", topicEntity.Id, "userId", userId, "err", err)
+			}
 		}
 	}
 
@@ -131,8 +135,11 @@ func RebuildTopicPostStats(topicEntity topics.Entity, activePosts []*posts.Entit
 		postCount++
 		if post.PostNo > 1 {
 			replyCount++
-			if err := topicUserStat.IncrementUserPost(topicEntity.Id, post.UserId); err != nil {
-				return err
+			// 匿名楼层（issue #524）不进入 topic_user_stat，与增量路径口径一致。
+			if !post.IsAnonymous {
+				if err := topicUserStat.IncrementUserPost(topicEntity.Id, post.UserId); err != nil {
+					return err
+				}
 			}
 		}
 		if lastPost == nil || lastPost.CreatedAt.Before(post.CreatedAt) ||

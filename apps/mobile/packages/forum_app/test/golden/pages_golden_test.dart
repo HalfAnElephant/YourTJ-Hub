@@ -898,7 +898,7 @@ void main() {
         ),
       );
       await tester.enterText(find.byType(TextField), '同济');
-      await tester.tap(find.byIcon(Icons.search));
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
       await expectLater(
         find.byType(Scaffold).first,

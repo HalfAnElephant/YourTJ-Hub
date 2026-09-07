@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 import 'package:core/core.dart';
+import 'notification_text.dart';
 import '../../server_messages.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -230,11 +231,15 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                   GfNotificationTone.primary,
                                 ),
                               };
+                              final (title, subtitle) = notificationText(
+                                n,
+                                l10n,
+                              );
                               return GfNotificationRow(
                                 icon: icon,
                                 tone: tone,
-                                title: n.title,
-                                subtitle: n.content,
+                                title: title,
+                                subtitle: subtitle,
                                 time: timeAgo(n.createdAt, l10n: l10n),
                                 unread: !n.isRead,
                                 onTap: () => _openNotification(n),

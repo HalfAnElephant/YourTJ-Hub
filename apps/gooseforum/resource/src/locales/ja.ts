@@ -1174,6 +1174,8 @@ export default {
     loginRequiredToComment: 'ログインユーザーのみコメントできます',
     loginRequiredToCommentHint: 'ログインするとディスカッションに参加し、他のユーザーと交流できます。',
     loginToComment: 'ログイン',
+    publishAnonymous: '匿名で投稿（公開では身元を隠す）',
+    authorAnonymous: '匿名',
     fullEditor: 'フルエディター',
     overview: 'トピック概要',
     createdAt: '作成',
@@ -2270,6 +2272,9 @@ export default {
       docVersion: 'Document version',
       docContent: 'Document content',
       category: 'Category',
+      courseReview: 'Course review',
+      course: 'Course',
+      post: 'Post',
     },
     messages: {
       userUpdated: 'Updated user {userId}: {changedFields}',

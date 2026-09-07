@@ -1497,4 +1497,391 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wikiExploreTitle => 'Your campus companion';
+
+  @override
+  String notificationComment(String actor) {
+    return '$actor commented on your topic';
+  }
+
+  @override
+  String notificationPostReply(String actor) {
+    return '$actor replied to you';
+  }
+
+  @override
+  String notificationTopicPost(String actor) {
+    return '$actor posted in a topic you watch';
+  }
+
+  @override
+  String notificationFollow(String actor) {
+    return '$actor followed you';
+  }
+
+  @override
+  String notificationLike(String actor) {
+    return '$actor liked your reply';
+  }
+
+  @override
+  String notificationWikiUpdated(String actor) {
+    return '$actor updated a wiki page you watch';
+  }
+
+  @override
+  String notificationBadge(String badge) {
+    return 'You earned the “$badge” badge';
+  }
+
+  @override
+  String get notificationNew => 'New notification';
+
+  @override
+  String get notificationSomeone => 'Someone';
+
+  @override
+  String get profileRoleAdmin => 'Admin';
+
+  @override
+  String get profileActionSignup => 'Joined the community';
+
+  @override
+  String get profileActionPost => 'Published a topic';
+
+  @override
+  String get profileActionLike => 'Liked';
+
+  @override
+  String get profileActionFollow => 'Followed';
+
+  @override
+  String get profileActionComment => 'Replied';
+
+  @override
+  String get replyQuoteExpand => 'Show full quote';
+
+  @override
+  String get replyQuoteCollapse => 'Collapse quote';
+
+  @override
+  String get notificationBadgeUnnamed => 'You earned a new badge';
+
+  @override
+  String get settingsAppLanguage => 'App language';
+
+  @override
+  String get settingsLanguageSystem => 'Follow system';
+
+  @override
+  String scheduleGradeYear(String year) {
+    return 'Class of $year';
+  }
+
+  @override
+  String get schedulePeriods => 'Periods';
+
+  @override
+  String get scheduleWeeksLabel => 'Weeks';
+
+  @override
+  String schedulePeriodRange(String range) {
+    return 'Periods $range';
+  }
+
+  @override
+  String get courseCopyCreditUnit => 'Credits';
+
+  @override
+  String get courseCopyNoTeacher => 'No teacher';
+
+  @override
+  String get courseCopyCatalogEmptyTitle => 'No courses yet';
+
+  @override
+  String get courseCopyCatalogEmptyDescription =>
+      'The course catalog has not been imported yet.';
+
+  @override
+  String get courseCopyNoFilterResults => 'No courses match these filters.';
+
+  @override
+  String get courseCopyNoFilterResultsDescription =>
+      'Try adjusting or clearing filters to see more courses.';
+
+  @override
+  String get courseCopyClearSearch => 'Clear search';
+
+  @override
+  String get courseCopyDone => 'Done';
+
+  @override
+  String get courseCopyNoOptions => 'No options available';
+
+  @override
+  String courseCopySelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get courseCopyInstructorInputHint =>
+      'Enter an instructor name and press enter';
+
+  @override
+  String get courseCopyInstructorAdd => 'Add';
+
+  @override
+  String get courseCopyInstructorEmptyHint =>
+      'Add instructors with the field above';
+
+  @override
+  String get courseCopyAliasesLabel => 'Aliases: ';
+
+  @override
+  String get courseCopyLegacyNamesLabel => 'Former name: ';
+
+  @override
+  String get courseCopyReviewScopeTeam => 'Teaching Team';
+
+  @override
+  String get courseCopyReviewScopeCourse => 'Course-level Reviews';
+
+  @override
+  String get courseCopyTeamInstructorsPrefix => 'Teaching team · ';
+
+  @override
+  String courseCopyTeamInstructorsSuffix(int count) {
+    return ' ($count teachers)';
+  }
+
+  @override
+  String get courseCopyRatingTitle => 'Course rating';
+
+  @override
+  String get courseCopyRatingOutOf => '/ 5.0';
+
+  @override
+  String get courseCopyNoRatingQuiet => 'No rating yet';
+
+  @override
+  String get courseCopyOfferingsEmpty => 'No offerings yet.';
+
+  @override
+  String get courseCopyOfferingFocusLabel =>
+      'Showing reviews for this class only';
+
+  @override
+  String get courseCopyOfferingFocusClear => 'Show all reviews';
+
+  @override
+  String get courseCopySummaryGenerated => 'Generated';
+
+  @override
+  String get courseCopySummaryKeywords => 'Keywords';
+
+  @override
+  String get courseCopySummaryPros => 'Pros';
+
+  @override
+  String get courseCopySummaryCons => 'Cons';
+
+  @override
+  String get courseCopySummaryRepresentativeReviews => 'Representative reviews';
+
+  @override
+  String get courseCopySummarySentimentPositive => 'Positive';
+
+  @override
+  String get courseCopySummarySentimentNeutral => 'Neutral';
+
+  @override
+  String get courseCopySummarySentimentNegative => 'Negative';
+
+  @override
+  String get courseCopySummaryRefresh => 'Refresh';
+
+  @override
+  String get courseCopySummaryExpand => 'Expand';
+
+  @override
+  String get courseCopySummaryCollapse => 'Collapse';
+
+  @override
+  String get courseCopySummaryDisclaimer =>
+      'Generated by AI from student reviews. For reference only; not a course recommendation.';
+
+  @override
+  String get courseCopySummaryInsufficient =>
+      'Not enough reviews to generate an AI summary yet.';
+
+  @override
+  String get courseCopySummaryLoadFailed =>
+      'Failed to generate the AI summary. Please try again later.';
+
+  @override
+  String get courseCopyWriteReviewTitle => 'Write a review';
+
+  @override
+  String get courseCopyEditReviewTitle => 'Edit review';
+
+  @override
+  String get courseCopySelectOffering => 'Select offering';
+
+  @override
+  String get courseCopyRatingLabel => 'Rating';
+
+  @override
+  String get courseCopyContentLabel => 'Review';
+
+  @override
+  String get courseCopyContentPlaceholder =>
+      'Share your experience with the course, teaching quality, or grading…';
+
+  @override
+  String get courseCopyRatingRequired => 'Please choose a 1–5 star rating.';
+
+  @override
+  String get courseCopyContentRequired => 'Review content cannot be empty.';
+
+  @override
+  String get courseCopyAnonymousLabel =>
+      'Post anonymously (identity hidden from the public)';
+
+  @override
+  String get courseCopySubmitSuccess => 'Submitted';
+
+  @override
+  String get courseCopyUpdateSuccess => 'Updated';
+
+  @override
+  String get courseCopyDelete => 'Delete';
+
+  @override
+  String get courseCopyDeleteReviewTitle => 'Delete review';
+
+  @override
+  String get courseCopyConfirmDeleteReview =>
+      'Delete this review? This cannot be undone.';
+
+  @override
+  String get courseCopyReviewDeleted => 'Review deleted';
+
+  @override
+  String get courseCopyOperationFailed =>
+      'Operation failed. Please try again later.';
+
+  @override
+  String get courseCopyReviewsLoadFailed =>
+      'Failed to load reviews. Please try again later.';
+
+  @override
+  String get courseCopyAuthorAnonymousLabel => 'Anonymous';
+
+  @override
+  String get courseCopyAuthorLegacyLabel => 'Legacy anonymous review';
+
+  @override
+  String get courseCopyRelatedTeacherCoursesTitle =>
+      'Other courses by the same teachers';
+
+  @override
+  String get courseCopyRelatedOtherTeachersTitle =>
+      'Other teachers of this course';
+
+  @override
+  String get courseCopyRelatedEmpty => 'No related content';
+
+  @override
+  String get courseCopyRelationEquivalent => 'Equivalent';
+
+  @override
+  String get courseCopyRelationRenamed => 'Renamed';
+
+  @override
+  String get courseCopyRelationSplit => 'Split';
+
+  @override
+  String get courseCopyRelationMerged => 'Merged';
+
+  @override
+  String get courseCopyRelationRelated => 'Related';
+
+  @override
+  String get courseCopySummaryConsensusStrongRecommend =>
+      'Strongly recommended';
+
+  @override
+  String get courseCopySummaryConsensusRecommend => 'Recommended';
+
+  @override
+  String get courseCopySummaryConsensusNeutral => 'Mixed';
+
+  @override
+  String get courseCopySummaryConsensusCautious => 'Caution advised';
+
+  @override
+  String get courseCopySummaryConsensusNotRecommend => 'Not recommended';
+
+  @override
+  String get courseCopySummaryConsensusTextStrongRecommend =>
+      'Most students strongly recommend this course.';
+
+  @override
+  String get courseCopySummaryConsensusTextRecommend =>
+      'Most students recommend this course.';
+
+  @override
+  String get courseCopySummaryConsensusTextNeutral =>
+      'Students have mixed opinions about this course.';
+
+  @override
+  String get courseCopySummaryConsensusTextCautious =>
+      'Most students advise caution before choosing this course.';
+
+  @override
+  String get courseCopySummaryConsensusTextNotRecommend =>
+      'Most students do not recommend this course.';
+
+  @override
+  String get topicJoinDiscussion => 'Join discussion';
+
+  @override
+  String get updateCheck => 'Check for updates';
+
+  @override
+  String get updateAvailable => 'Update available';
+
+  @override
+  String get updateLatest => 'You’re up to date';
+
+  @override
+  String get updateFailed =>
+      'Unable to check or download updates. Please try again later.';
+
+  @override
+  String get updateDownload => 'Download update';
+
+  @override
+  String get updateSkip => 'Skip this version';
+
+  @override
+  String get updateLater => 'Later';
+
+  @override
+  String get updatePreparing => 'Choosing the fastest download source…';
+
+  @override
+  String get updateDownloading => 'Downloading…';
+
+  @override
+  String get updateReady => 'Update verified and ready to install.';
+
+  @override
+  String get updateInstall => 'Install update';
+
+  @override
+  String get updatePermission =>
+      'Allow YourTJ to install apps, then return and tap Install again.';
+
+  @override
+  String get updateRetry => 'Retry';
 }

@@ -16,12 +16,6 @@ import '../../format.dart';
 import '../../server_messages.dart';
 import '../../widgets/status_views.dart';
 
-const InputDecoration _compactSearchDecoration = InputDecoration(
-  constraints: BoxConstraints(minHeight: 44),
-  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-  prefixIconConstraints: BoxConstraints(minWidth: 40, minHeight: 40),
-);
-
 /// 私信(IM)页(web messages.index 的移动端形态):
 /// 会话列表 + 消息游标分页 + 15s 轮询 + 已读回执 + 离线缓存 + 发起新会话。
 class MessagesPage extends ConsumerStatefulWidget {
@@ -283,11 +277,10 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
       toolbarHeight: 64,
       toolbar: Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-        child: GfInput(
+        child: GfSearchField(
           controller: _conversationSearch,
           hintText: l10n.messagesSearchConversations,
-          prefixIcon: const Icon(Icons.search, size: 18),
-          decoration: _compactSearchDecoration,
+          clearLabel: l10n.courseCopyClearSearch,
           onChanged: (_) => setState(() {}),
         ),
       ),
@@ -793,11 +786,10 @@ class _NewChatSheetState extends State<_NewChatSheet> {
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: colors.line)),
             ),
-            child: GfInput(
+            child: GfSearchField(
               controller: _search,
               hintText: widget.searchHint,
-              prefixIcon: const Icon(Icons.search, size: 18),
-              decoration: _compactSearchDecoration,
+              clearLabel: AppLocalizations.of(context).courseCopyClearSearch,
               autofocus: true,
               onChanged: (_) => setState(() {}),
             ),

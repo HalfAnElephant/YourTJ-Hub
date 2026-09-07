@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:tdesign_flutter/tdesign_flutter.dart' as td;
 import 'package:ui_kit/ui_kit.dart';
 
@@ -25,6 +26,33 @@ void main() {
         }
       });
     });
+
+    testWidgets(
+      'follow SVG inherits the primary button foreground in both themes',
+      (tester) async {
+        await forEachBrightness(tester, (tester, brightness) async {
+          await tester.pumpWidget(
+            gfApp(
+              GfButton(
+                label: 'Follow',
+                icon: const GfSymbol('user-round-plus'),
+                onPressed: () {},
+              ),
+              brightness: brightness,
+            ),
+          );
+          await tester.pumpAndSettle();
+          final svg = tester.widget<SvgPicture>(find.byType(SvgPicture));
+          expect(
+            svg.colorFilter,
+            ColorFilter.mode(
+              GfColors.forBrightness(brightness).primaryContent,
+              BlendMode.srcIn,
+            ),
+          );
+        });
+      },
+    );
 
     testWidgets('invokes onPressed when enabled', (tester) async {
       int taps = 0;

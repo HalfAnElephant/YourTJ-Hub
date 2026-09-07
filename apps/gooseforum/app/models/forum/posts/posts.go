@@ -58,7 +58,11 @@ type Entity struct {
 	// wiki 页首楼的物化水印：本行内容对应 wiki 页面第几版（单一事件源架构）。
 	// synced < wiki_pages.published_revision_no 时表示快照过期，读取前需重物化。
 	WikiSyncedRevisionNo int            `gorm:"column:wiki_synced_revision_no;type:int;not null;default:0;" json:"wikiSyncedRevisionNo"`
-	DeletedAt            gorm.DeletedAt `json:"-"`
+	// IsAnonymous 楼层是否匿名发布（wiki 评论区，issue #524）。user_id 恒存真实作者，
+	// 匿名只是展示层掩码：公开 DTO 隐藏用户名/头像/主页链接，作者本人经 IsOwnPost
+	// 管理自己的楼层；治理侧（举报/版主）不泄露作者，仅 Admin 填理由可揭示并留审计。
+	IsAnonymous bool           `gorm:"column:is_anonymous;not null;default:false;" json:"isAnonymous"`
+	DeletedAt   gorm.DeletedAt `json:"-"`
 
 	// 删除生命周期状态（visibility_status × retention_status）
 	VisibilityStatus string `gorm:"column:visibility_status;type:varchar(32);not null;default:'ACTIVE';index:idx_posts_visibility_retention,priority:1;" json:"-"`

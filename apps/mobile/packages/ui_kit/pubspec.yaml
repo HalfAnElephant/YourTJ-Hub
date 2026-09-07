@@ -26,3 +26,5 @@ flutter:
   assets:
     - assets/icons/
     - assets/LICENSE-lucide.txt
+    - assets/LICENSE-simple-icons.txt
+    - assets/LICENSE-lucide.txt

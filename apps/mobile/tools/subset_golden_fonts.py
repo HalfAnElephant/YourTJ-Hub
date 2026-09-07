@@ -10,13 +10,12 @@ glyphs can fall outside the subset and render as tofu (□) in goldens. Re-run
 this script after adding zh strings, then re-render the affected goldens via
 the `mobile-golden-refresh` workflow.
 
-Scope: only `packages/forum_app/test/assets/fonts/` is regenerated. The
-duplicated `packages/ui_kit/test/assets/fonts/` copies are intentionally left
-alone — ui_kit's committed golden baselines were rendered with its own font
-bytes and stay valid as long as those bytes do not change.
+Scope: defaults to forum_app. Use --package ui_kit or --package all when
+component samples also add glyphs. Re-render the affected package goldens
+after changing its font bytes.
 
 Usage:
-    python3 apps/mobile/tools/subset_golden_fonts.py [--source-dir DIR]
+    python3 apps/mobile/tools/subset_golden_fonts.py [--source-dir DIR] [--package forum_app|ui_kit|all]
 
 `--source-dir` defaults to ~/Library/Fonts and must contain the full static
 `NotoSansSC-Regular.ttf` / `NotoSansSC-Bold.ttf` (the non-variable releases).
@@ -32,7 +31,6 @@ from fontTools import subset
 from fontTools.ttLib import TTFont
 
 MOBILE_ROOT = Path(__file__).resolve().parents[1]
-FORUM_APP_FONTS = MOBILE_ROOT / "packages" / "forum_app" / "test" / "assets" / "fonts"
 
 # Always keep ASCII printable + a safety margin of CJK punctuation/quotes that
 # UI copy commonly uses even if a given string is temporarily removed.
@@ -94,6 +92,7 @@ def main() -> int:
         default=Path.home() / "Library" / "Fonts",
         help="directory containing full NotoSansSC-{Regular,Bold}.ttf",
     )
+    parser.add_argument("--package", choices=("forum_app", "ui_kit", "all"), default="forum_app")
     args = parser.parse_args()
 
     unicodes = sorted(collect_charset())
@@ -102,8 +101,10 @@ def main() -> int:
         if not source.exists():
             print(f"missing full font: {source}", file=sys.stderr)
             return 1
-        output = FORUM_APP_FONTS / f"NotoSansCJKsc-{weight}.otf"
-        subset_font(source, output, unicodes)
+        packages = ("forum_app", "ui_kit") if args.package == "all" else (args.package,)
+        for package in packages:
+            output = MOBILE_ROOT / "packages" / package / "test/assets/fonts" / f"NotoSansCJKsc-{weight}.otf"
+            subset_font(source, output, unicodes)
     return 0
 
 

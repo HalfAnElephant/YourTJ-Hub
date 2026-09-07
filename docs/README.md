@@ -76,6 +76,7 @@ status. Do not use PR-relative "shipped this / later" labels as long-term status
 ### Operations
 
 - [Deployment & release](operations/deployment.md)
+- [Mobile releases and signing](operations/mobile-releases.md)
 - [Object storage](operations/object-storage.md)
 
 ### Governance

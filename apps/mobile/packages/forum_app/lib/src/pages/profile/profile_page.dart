@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -58,8 +60,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   int _tabIndex = 0;
   int _request = 0;
   bool _loadingMore = false;
+  bool _streamLoading = false;
+  Object? _streamError;
+  UserProfileProps? _headerProps;
+  double _minimumScrollOffset = 0;
   String _stream = 'timeline';
   bool _following = false;
+  bool _followBusy = false;
   bool _loginRequired = false;
   bool _canAccessAdmin = false;
   bool _canModerate = false;
@@ -79,7 +86,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _load();
   }
 
-  Future<void> _load({bool silent = false, String? nextUrl}) async {
+  Future<void> _load({
+    bool silent = false,
+    String? nextUrl,
+    bool streamChange = false,
+  }) async {
     final request = ++_request;
     final previous = _page.valueOrNull;
     if (!silent && mounted) {
@@ -119,16 +130,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           followers: [...previous.followers, ...props.followers],
         );
       }
+      if (props == null) {
+        throw FormatException(AppLocalizations.of(context).commonParseFailed);
+      }
       final loaded = props;
       setState(() {
         _loginRequired = false;
-        _page = loaded == null
-            ? AsyncValue.error(
-                AppLocalizations.of(context).commonParseFailed,
-                StackTrace.current,
-              )
-            : AsyncValue.data(loaded);
-        _following = loaded?.user.isFollowing ?? false;
+        _page = AsyncValue.data(loaded);
+        if (!streamChange && nextUrl == null) _headerProps = loaded;
+        _streamLoading = false;
+        _streamError = null;
+        _following = loaded.user.isFollowing;
         _canAccessAdmin = payload.layout.viewer.canAccessAdmin;
         _canModerate = payload.layout.viewer.isModerator;
         _canManageCourses = payload.layout.viewer.canManageCourses;
@@ -137,7 +149,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       if (mounted && request == _request) {
         setState(() {
           _loginRequired = false;
-          _page = AsyncValue.error(e, st);
+          if (streamChange && previous != null) {
+            _page = AsyncValue.data(previous);
+            _streamLoading = false;
+            _streamError = e;
+          } else {
+            _page = AsyncValue.error(e, st);
+          }
         });
       }
     }
@@ -211,16 +229,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Future<void> _toggleFollow(UserCardPayload user) async {
-    if (user.isSelf) return;
+    if (user.isSelf || _followBusy) return;
     final bool wasFollowing = _following;
     final bool target = !wasFollowing;
-    setState(() => _following = target);
+    setState(() {
+      _following = target;
+      _followBusy = true;
+    });
     try {
       await ref
           .read(topicRepositoryProvider)
           .followUser(userId: user.userId, isFollowing: wasFollowing);
-    } catch (_) {
-      if (mounted) setState(() => _following = wasFollowing);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _following = wasFollowing);
+        showGfToast(
+          context,
+          resolveErrorMessage(AppLocalizations.of(context), error),
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
     }
   }
 
@@ -320,26 +350,63 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   controller: controller,
                   physics: const AlwaysScrollableScrollPhysics(),
                   slivers: <Widget>[
-                    SliverToBoxAdapter(child: _profileCard(props)),
+                    SliverToBoxAdapter(
+                      child: _profileCard(_headerProps ?? props),
+                    ),
                     const SliverToBoxAdapter(child: GfDivider()),
                     if (tabs.isNotEmpty)
-                      SliverToBoxAdapter(
-                        child: _ProfileTabs(
-                          tabs: tabs,
-                          index: _tabIndex,
-                          onChanged: (int index) {
-                            if (_stream == tabs[index].key) return;
-                            setState(() {
-                              _tabIndex = index;
-                              _stream = tabs[index].key;
-                            });
-                            _load(silent: true);
-                          },
+                      SliverLayoutBuilder(
+                        builder: (context, constraints) => SliverToBoxAdapter(
+                          child: _ProfileTabs(
+                            tabs: tabs,
+                            index: _tabIndex,
+                            onChanged: (int index) {
+                              if (_stream == tabs[index].key) return;
+                              // Retain header collapse, not an arbitrary offset
+                              // into the previous stream that could hide status.
+                              final retainedOffset = math.min(
+                                math.max(0.0, controller.offset),
+                                constraints.precedingScrollExtent,
+                              );
+                              controller.jumpTo(retainedOffset);
+                              setState(() {
+                                _minimumScrollOffset = retainedOffset;
+                                _tabIndex = index;
+                                _stream = tabs[index].key;
+                                _streamLoading = true;
+                                _streamError = null;
+                              });
+                              _load(silent: true, streamChange: true);
+                            },
+                          ),
                         ),
                       ),
                     const SliverToBoxAdapter(child: GfDivider()),
-                    _ProfileBody(props: props, selectedKey: _stream),
-                    if (props.pagination.hasNext)
+                    if (_streamLoading)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(child: GfLoadingIndicator(small: true)),
+                        ),
+                      )
+                    else if (_streamError != null)
+                      SliverToBoxAdapter(
+                        child: GfErrorRetry(
+                          message: resolveErrorMessage(l10n, _streamError!),
+                          onRetry: () {
+                            setState(() {
+                              _streamLoading = true;
+                              _streamError = null;
+                            });
+                            _load(silent: true, streamChange: true);
+                          },
+                        ),
+                      )
+                    else
+                      _ProfileBody(props: props, selectedKey: _stream),
+                    if (!_streamLoading &&
+                        _streamError == null &&
+                        props.pagination.hasNext)
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.all(16),
@@ -351,7 +418,20 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         ),
                       ),
 
-                    const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                    // Short/empty streams must not clamp the shared header back
+                    // into view. Reserve only the retained header-collapse offset.
+                    SliverLayoutBuilder(
+                      builder: (context, constraints) => SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: math.max(
+                            32,
+                            _minimumScrollOffset +
+                                constraints.viewportMainAxisExtent -
+                                constraints.precedingScrollExtent,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -366,18 +446,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final AppLocalizations l10n = AppLocalizations.of(context);
     final UserCardPayload user = props.user;
     final Map<String, GfUserBadge> badges = <String, GfUserBadge>{};
-    for (final UserBadgePayload badge in <UserBadgePayload>[
-      ...user.badges,
-      ...props.badges,
-    ]) {
-      badges.putIfAbsent(
-        badge.code.isEmpty ? badge.name : badge.code,
-        () => GfUserBadge(label: badge.name, color: _userBadgeColor(badge)),
-      );
-    }
     if (user.isAdmin) {
-      badges['admin'] = const GfUserBadge(
-        label: 'Admin',
+      badges['admin'] = GfUserBadge(
+        label: l10n.profileRoleAdmin,
         color: Color(0xFFB45309),
       );
     }
@@ -386,7 +457,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (user.isSelf || props.isOwnProfile) {
       actions.add(
         GfButton(
-          icon: const Icon(Icons.edit_outlined, size: 18),
+          icon: const GfSymbol('square-pen', size: 18),
           label: l10n.settingsEditProfile,
           variant: GfButtonVariant.outline,
           size: GfButtonSize.small,
@@ -394,10 +465,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ),
       );
     } else {
-      if (props.canFollow && !user.isAdmin) {
+      if (props.canFollow) {
         actions.add(
           GfButton(
             label: _following ? l10n.profileFollowing : l10n.profileFollow,
+            icon: GfSymbol(
+              _following ? 'user-round-check' : 'user-round-plus',
+              size: 18,
+            ),
+            loading: _followBusy,
             variant: _following
                 ? GfButtonVariant.outline
                 : GfButtonVariant.primary,
@@ -409,7 +485,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       if (props.canMessage && props.messageUrl.trim().isNotEmpty) {
         actions.add(
           GfButton(
-            icon: const Icon(Icons.mail_outline_rounded, size: 18),
+            icon: const GfSymbol('mail', size: 18),
             label: l10n.messagesNew,
             variant: GfButtonVariant.outline,
             size: GfButtonSize.small,
@@ -423,6 +499,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return GfUserCard(
       coverUrl: resolveApiAssetUrl(user.profileCoverUrl),
       avatarUrl: resolveApiAssetUrl(user.avatarUrl),
+      avatarBadge: user.wornBadge == null
+          ? null
+          : GfBadgeIcon(
+              url: resolveApiAssetUrl(
+                user.wornBadge!.iconUrl.isEmpty
+                    ? '/static/badges/contributor.svg'
+                    : user.wornBadge!.iconUrl,
+              ),
+              label: user.wornBadge!.name,
+            ),
       name: user.nickname.isEmpty ? user.username : user.nickname,
       username: user.username,
       bio: user.bio,
@@ -433,12 +519,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               spacing: 4,
               runSpacing: 4,
               children: [
-                for (final (label, uri) in links)
+                for (final (label, uri, provider) in links)
                   TextButton.icon(
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
-                    icon: const Icon(Icons.link, size: 16),
+                    icon: GfSocialIcon(provider, size: 20),
                     label: Text(
                       label,
                       maxLines: 1,
@@ -564,15 +650,15 @@ class _ProfileTabs extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        GfSymbol(
                           switch (tabs[i].key) {
-                            'topics' => Icons.article_outlined,
-                            'likes' => Icons.favorite_border,
-                            'bookmarks' => Icons.bookmark_border,
-                            'following' => Icons.person_add_alt,
-                            'followers' => Icons.people_outline,
-                            'badges' => Icons.workspace_premium_outlined,
-                            _ => Icons.bolt_outlined,
+                            'topics' => 'file-text',
+                            'likes' => 'heart',
+                            'bookmarks' => 'bookmark',
+                            'following' => 'user-round-plus',
+                            'followers' => 'users-round',
+                            'badges' => 'award',
+                            _ => 'activity',
                           },
                           size: 22,
                           color: i == index ? colors.primary : colors.iconMuted,
@@ -612,15 +698,30 @@ class _ProfileBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
     return switch (selectedKey) {
-      'badges' => SliverList.list(
-        children: [
-          for (final badge in props.badges)
-            GfSettingRow(
-              icon: Icons.workspace_premium_outlined,
-              title: badge.name,
-            ),
-        ],
-      ),
+      'badges' =>
+        props.badges.isEmpty
+            ? _empty(Icons.workspace_premium_outlined, l10n.profileNoBadges)
+            : SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList.separated(
+                  itemCount: props.badges.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  itemBuilder: (_, index) {
+                    final badge = props.badges[index];
+                    return GfAchievementCard(
+                      title: badge.name,
+                      description: badge.description,
+                      color: _userBadgeColor(badge),
+                      icon: GfBadgeIcon(
+                        url: resolveApiAssetUrl(badge.iconUrl),
+                        label: badge.name,
+                        framed: false,
+                        size: 28,
+                      ),
+                    );
+                  },
+                ),
+              ),
       'topics' => _topicRows(context, l10n),
       'likes' => _likeRows(context, l10n),
       'bookmarks' => _bookmarkRows(context, l10n),
@@ -653,10 +754,41 @@ class _ProfileBody extends StatelessWidget {
       itemBuilder: (BuildContext context, int index) {
         final UserActivityPayload activity = props.activities[index];
         final String? route = _activityRoute(activity);
-        return GfSettingRow(
-          icon: Icons.bolt_outlined,
-          title: activity.contentPreview,
-          description: timeAgo(activity.createdAt, l10n: l10n),
+        final action = switch (activity.action) {
+          1 => 'signup',
+          2 => 'post',
+          3 => 'like',
+          4 => 'follow',
+          5 => 'comment',
+          _ => activity.label,
+        };
+        return GfActivityCard(
+          symbol: switch (action) {
+            'signup' => 'user-round',
+            'post' => 'square-pen',
+            'like' => 'heart',
+            'follow' => 'user-round-plus',
+            'comment' => 'message-circle',
+            _ => 'activity',
+          },
+          color: switch (action) {
+            'like' => const Color(0xFFE11D48),
+            'follow' => const Color(0xFF7C3AED),
+            'comment' => const Color(0xFF059669),
+            _ => GfTheme.colorsOf(context).primary,
+          },
+          title: [
+            switch (action) {
+              'signup' => l10n.profileActionSignup,
+              'post' => l10n.profileActionPost,
+              'like' => l10n.profileActionLike,
+              'follow' => l10n.profileActionFollow,
+              'comment' => l10n.profileActionComment,
+              _ => activity.label,
+            },
+            activity.contentPreview,
+          ].where((s) => s.isNotEmpty).join(' · '),
+          time: timeAgo(activity.createdAt, l10n: l10n),
           onTap: route == null ? null : () => context.push(route),
         );
       },

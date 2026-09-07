@@ -70,21 +70,14 @@ class _WikiSearchPageState extends ConsumerState<WikiSearchPage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: TextField(
+            child: GfSearchField(
               controller: _query,
+              hintText: l10n.commonSearch,
+              clearLabel: l10n.courseCopyClearSearch,
               autofocus: true,
               maxLength: 100,
-              textInputAction: TextInputAction.search,
               onChanged: _changed,
               onSubmitted: (_) => _search(),
-              decoration: InputDecoration(
-                counterText: '',
-                hintText: l10n.commonSearch,
-                prefixIcon: const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: GfSymbol('search'),
-                ),
-              ),
             ),
           ),
           Expanded(

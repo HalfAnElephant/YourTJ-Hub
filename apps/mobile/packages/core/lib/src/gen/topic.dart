@@ -149,6 +149,7 @@ abstract class PostPayload with _$PostPayload {
     @Default(false) bool isModeratorRemoved,
     required bool canModerate,
     required UserBriefPayload author,
+    @Default(false) bool isAnonymous,
     required String createdAt,
     int? replyToPostId,
     int? replyToUserId,
@@ -173,6 +174,7 @@ abstract class ReplyTargetPayload with _$ReplyTargetPayload {
     required int id,
     int? postNo,
     required UserBriefPayload author,
+    @Default(false) bool isAnonymous,
     String? renderedContent,
     bool? unavailable,
   }) = _ReplyTargetPayload;

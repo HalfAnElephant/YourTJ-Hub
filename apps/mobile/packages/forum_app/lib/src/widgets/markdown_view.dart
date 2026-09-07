@@ -95,6 +95,8 @@ class _GfMarkdownViewState extends State<GfMarkdownView> {
       data: widget.data,
       selectable: widget.selectable,
       shrinkWrap: true,
+      // Embedded in the page scroll view: never repeat its safe-area insets.
+      padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       config: MarkdownConfig(
         configs: <WidgetConfig>[

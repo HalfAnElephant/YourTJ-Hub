@@ -422,7 +422,12 @@ func PostRevisions(req component.BetterRequest[PostRevisionsReq]) component.Resp
 			masked = true
 		}
 		editor := userPayloadWithWornBadge(v.EditorId, userMap, wornBadges[v.EditorId])
-		if masked {
+		if postEntity.IsAnonymous {
+			// 匿名楼层（issue #524）：所有版本的编辑者均为匿名作者本人
+			// （v1 EditorId 即真实作者 uid），公开历史不得回显，否则
+			// 一次未登录请求即可完成去匿名化。
+			editor = anonymousPostAuthor()
+		} else if masked {
 			editor = userPayloadWithWornBadge(0, nil, nil)
 		}
 		list = append(list, revisionPayload{

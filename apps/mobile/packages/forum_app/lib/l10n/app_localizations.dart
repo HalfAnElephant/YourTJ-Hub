@@ -5,7 +5,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
+import 'app_localizations_ja.dart';
 import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
@@ -94,7 +96,9 @@ abstract class AppLocalizations {
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
+    Locale('de'),
     Locale('en'),
+    Locale('ja'),
     Locale('zh'),
   ];
 
@@ -2851,6 +2855,690 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your campus companion'**
   String get wikiExploreTitle;
+
+  /// No description provided for @notificationComment.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} commented on your topic'**
+  String notificationComment(String actor);
+
+  /// No description provided for @notificationPostReply.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} replied to you'**
+  String notificationPostReply(String actor);
+
+  /// No description provided for @notificationTopicPost.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} posted in a topic you watch'**
+  String notificationTopicPost(String actor);
+
+  /// No description provided for @notificationFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} followed you'**
+  String notificationFollow(String actor);
+
+  /// No description provided for @notificationLike.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} liked your reply'**
+  String notificationLike(String actor);
+
+  /// No description provided for @notificationWikiUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} updated a wiki page you watch'**
+  String notificationWikiUpdated(String actor);
+
+  /// No description provided for @notificationBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'You earned the “{badge}” badge'**
+  String notificationBadge(String badge);
+
+  /// No description provided for @notificationNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New notification'**
+  String get notificationNew;
+
+  /// No description provided for @notificationSomeone.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone'**
+  String get notificationSomeone;
+
+  /// No description provided for @profileRoleAdmin.
+  ///
+  /// In en, this message translates to:
+  /// **'Admin'**
+  String get profileRoleAdmin;
+
+  /// No description provided for @profileActionSignup.
+  ///
+  /// In en, this message translates to:
+  /// **'Joined the community'**
+  String get profileActionSignup;
+
+  /// No description provided for @profileActionPost.
+  ///
+  /// In en, this message translates to:
+  /// **'Published a topic'**
+  String get profileActionPost;
+
+  /// No description provided for @profileActionLike.
+  ///
+  /// In en, this message translates to:
+  /// **'Liked'**
+  String get profileActionLike;
+
+  /// No description provided for @profileActionFollow.
+  ///
+  /// In en, this message translates to:
+  /// **'Followed'**
+  String get profileActionFollow;
+
+  /// No description provided for @profileActionComment.
+  ///
+  /// In en, this message translates to:
+  /// **'Replied'**
+  String get profileActionComment;
+
+  /// No description provided for @replyQuoteExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Show full quote'**
+  String get replyQuoteExpand;
+
+  /// No description provided for @replyQuoteCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse quote'**
+  String get replyQuoteCollapse;
+
+  /// No description provided for @notificationBadgeUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'You earned a new badge'**
+  String get notificationBadgeUnnamed;
+
+  /// No description provided for @settingsAppLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'App language'**
+  String get settingsAppLanguage;
+
+  /// No description provided for @settingsLanguageSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow system'**
+  String get settingsLanguageSystem;
+
+  /// No description provided for @scheduleGradeYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Class of {year}'**
+  String scheduleGradeYear(String year);
+
+  /// No description provided for @schedulePeriods.
+  ///
+  /// In en, this message translates to:
+  /// **'Periods'**
+  String get schedulePeriods;
+
+  /// No description provided for @scheduleWeeksLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Weeks'**
+  String get scheduleWeeksLabel;
+
+  /// No description provided for @schedulePeriodRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Periods {range}'**
+  String schedulePeriodRange(String range);
+
+  /// No description provided for @courseCopyCreditUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Credits'**
+  String get courseCopyCreditUnit;
+
+  /// No description provided for @courseCopyNoTeacher.
+  ///
+  /// In en, this message translates to:
+  /// **'No teacher'**
+  String get courseCopyNoTeacher;
+
+  /// No description provided for @courseCopyCatalogEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No courses yet'**
+  String get courseCopyCatalogEmptyTitle;
+
+  /// No description provided for @courseCopyCatalogEmptyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The course catalog has not been imported yet.'**
+  String get courseCopyCatalogEmptyDescription;
+
+  /// No description provided for @courseCopyNoFilterResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No courses match these filters.'**
+  String get courseCopyNoFilterResults;
+
+  /// No description provided for @courseCopyNoFilterResultsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Try adjusting or clearing filters to see more courses.'**
+  String get courseCopyNoFilterResultsDescription;
+
+  /// No description provided for @courseCopyClearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get courseCopyClearSearch;
+
+  /// No description provided for @courseCopyDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get courseCopyDone;
+
+  /// No description provided for @courseCopyNoOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'No options available'**
+  String get courseCopyNoOptions;
+
+  /// No description provided for @courseCopySelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String courseCopySelectedCount(int count);
+
+  /// No description provided for @courseCopyInstructorInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an instructor name and press enter'**
+  String get courseCopyInstructorInputHint;
+
+  /// No description provided for @courseCopyInstructorAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get courseCopyInstructorAdd;
+
+  /// No description provided for @courseCopyInstructorEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add instructors with the field above'**
+  String get courseCopyInstructorEmptyHint;
+
+  /// No description provided for @courseCopyAliasesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Aliases: '**
+  String get courseCopyAliasesLabel;
+
+  /// No description provided for @courseCopyLegacyNamesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Former name: '**
+  String get courseCopyLegacyNamesLabel;
+
+  /// No description provided for @courseCopyReviewScopeTeam.
+  ///
+  /// In en, this message translates to:
+  /// **'Teaching Team'**
+  String get courseCopyReviewScopeTeam;
+
+  /// No description provided for @courseCopyReviewScopeCourse.
+  ///
+  /// In en, this message translates to:
+  /// **'Course-level Reviews'**
+  String get courseCopyReviewScopeCourse;
+
+  /// No description provided for @courseCopyTeamInstructorsPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Teaching team · '**
+  String get courseCopyTeamInstructorsPrefix;
+
+  /// No description provided for @courseCopyTeamInstructorsSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **' ({count} teachers)'**
+  String courseCopyTeamInstructorsSuffix(int count);
+
+  /// No description provided for @courseCopyRatingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Course rating'**
+  String get courseCopyRatingTitle;
+
+  /// No description provided for @courseCopyRatingOutOf.
+  ///
+  /// In en, this message translates to:
+  /// **'/ 5.0'**
+  String get courseCopyRatingOutOf;
+
+  /// No description provided for @courseCopyNoRatingQuiet.
+  ///
+  /// In en, this message translates to:
+  /// **'No rating yet'**
+  String get courseCopyNoRatingQuiet;
+
+  /// No description provided for @courseCopyOfferingsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No offerings yet.'**
+  String get courseCopyOfferingsEmpty;
+
+  /// No description provided for @courseCopyOfferingFocusLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing reviews for this class only'**
+  String get courseCopyOfferingFocusLabel;
+
+  /// No description provided for @courseCopyOfferingFocusClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all reviews'**
+  String get courseCopyOfferingFocusClear;
+
+  /// No description provided for @courseCopySummaryGenerated.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated'**
+  String get courseCopySummaryGenerated;
+
+  /// No description provided for @courseCopySummaryKeywords.
+  ///
+  /// In en, this message translates to:
+  /// **'Keywords'**
+  String get courseCopySummaryKeywords;
+
+  /// No description provided for @courseCopySummaryPros.
+  ///
+  /// In en, this message translates to:
+  /// **'Pros'**
+  String get courseCopySummaryPros;
+
+  /// No description provided for @courseCopySummaryCons.
+  ///
+  /// In en, this message translates to:
+  /// **'Cons'**
+  String get courseCopySummaryCons;
+
+  /// No description provided for @courseCopySummaryRepresentativeReviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Representative reviews'**
+  String get courseCopySummaryRepresentativeReviews;
+
+  /// No description provided for @courseCopySummarySentimentPositive.
+  ///
+  /// In en, this message translates to:
+  /// **'Positive'**
+  String get courseCopySummarySentimentPositive;
+
+  /// No description provided for @courseCopySummarySentimentNeutral.
+  ///
+  /// In en, this message translates to:
+  /// **'Neutral'**
+  String get courseCopySummarySentimentNeutral;
+
+  /// No description provided for @courseCopySummarySentimentNegative.
+  ///
+  /// In en, this message translates to:
+  /// **'Negative'**
+  String get courseCopySummarySentimentNegative;
+
+  /// No description provided for @courseCopySummaryRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get courseCopySummaryRefresh;
+
+  /// No description provided for @courseCopySummaryExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand'**
+  String get courseCopySummaryExpand;
+
+  /// No description provided for @courseCopySummaryCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse'**
+  String get courseCopySummaryCollapse;
+
+  /// No description provided for @courseCopySummaryDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Generated by AI from student reviews. For reference only; not a course recommendation.'**
+  String get courseCopySummaryDisclaimer;
+
+  /// No description provided for @courseCopySummaryInsufficient.
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough reviews to generate an AI summary yet.'**
+  String get courseCopySummaryInsufficient;
+
+  /// No description provided for @courseCopySummaryLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to generate the AI summary. Please try again later.'**
+  String get courseCopySummaryLoadFailed;
+
+  /// No description provided for @courseCopyWriteReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Write a review'**
+  String get courseCopyWriteReviewTitle;
+
+  /// No description provided for @courseCopyEditReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit review'**
+  String get courseCopyEditReviewTitle;
+
+  /// No description provided for @courseCopySelectOffering.
+  ///
+  /// In en, this message translates to:
+  /// **'Select offering'**
+  String get courseCopySelectOffering;
+
+  /// No description provided for @courseCopyRatingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get courseCopyRatingLabel;
+
+  /// No description provided for @courseCopyContentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get courseCopyContentLabel;
+
+  /// No description provided for @courseCopyContentPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Share your experience with the course, teaching quality, or grading…'**
+  String get courseCopyContentPlaceholder;
+
+  /// No description provided for @courseCopyRatingRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please choose a 1–5 star rating.'**
+  String get courseCopyRatingRequired;
+
+  /// No description provided for @courseCopyContentRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Review content cannot be empty.'**
+  String get courseCopyContentRequired;
+
+  /// No description provided for @courseCopyAnonymousLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Post anonymously (identity hidden from the public)'**
+  String get courseCopyAnonymousLabel;
+
+  /// No description provided for @courseCopySubmitSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted'**
+  String get courseCopySubmitSuccess;
+
+  /// No description provided for @courseCopyUpdateSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated'**
+  String get courseCopyUpdateSuccess;
+
+  /// No description provided for @courseCopyDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get courseCopyDelete;
+
+  /// No description provided for @courseCopyDeleteReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete review'**
+  String get courseCopyDeleteReviewTitle;
+
+  /// No description provided for @courseCopyConfirmDeleteReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this review? This cannot be undone.'**
+  String get courseCopyConfirmDeleteReview;
+
+  /// No description provided for @courseCopyReviewDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Review deleted'**
+  String get courseCopyReviewDeleted;
+
+  /// No description provided for @courseCopyOperationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed. Please try again later.'**
+  String get courseCopyOperationFailed;
+
+  /// No description provided for @courseCopyReviewsLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load reviews. Please try again later.'**
+  String get courseCopyReviewsLoadFailed;
+
+  /// No description provided for @courseCopyAuthorAnonymousLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Anonymous'**
+  String get courseCopyAuthorAnonymousLabel;
+
+  /// No description provided for @courseCopyAuthorLegacyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy anonymous review'**
+  String get courseCopyAuthorLegacyLabel;
+
+  /// No description provided for @courseCopyRelatedTeacherCoursesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Other courses by the same teachers'**
+  String get courseCopyRelatedTeacherCoursesTitle;
+
+  /// No description provided for @courseCopyRelatedOtherTeachersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Other teachers of this course'**
+  String get courseCopyRelatedOtherTeachersTitle;
+
+  /// No description provided for @courseCopyRelatedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No related content'**
+  String get courseCopyRelatedEmpty;
+
+  /// No description provided for @courseCopyRelationEquivalent.
+  ///
+  /// In en, this message translates to:
+  /// **'Equivalent'**
+  String get courseCopyRelationEquivalent;
+
+  /// No description provided for @courseCopyRelationRenamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Renamed'**
+  String get courseCopyRelationRenamed;
+
+  /// No description provided for @courseCopyRelationSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Split'**
+  String get courseCopyRelationSplit;
+
+  /// No description provided for @courseCopyRelationMerged.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged'**
+  String get courseCopyRelationMerged;
+
+  /// No description provided for @courseCopyRelationRelated.
+  ///
+  /// In en, this message translates to:
+  /// **'Related'**
+  String get courseCopyRelationRelated;
+
+  /// No description provided for @courseCopySummaryConsensusStrongRecommend.
+  ///
+  /// In en, this message translates to:
+  /// **'Strongly recommended'**
+  String get courseCopySummaryConsensusStrongRecommend;
+
+  /// No description provided for @courseCopySummaryConsensusRecommend.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get courseCopySummaryConsensusRecommend;
+
+  /// No description provided for @courseCopySummaryConsensusNeutral.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixed'**
+  String get courseCopySummaryConsensusNeutral;
+
+  /// No description provided for @courseCopySummaryConsensusCautious.
+  ///
+  /// In en, this message translates to:
+  /// **'Caution advised'**
+  String get courseCopySummaryConsensusCautious;
+
+  /// No description provided for @courseCopySummaryConsensusNotRecommend.
+  ///
+  /// In en, this message translates to:
+  /// **'Not recommended'**
+  String get courseCopySummaryConsensusNotRecommend;
+
+  /// No description provided for @courseCopySummaryConsensusTextStrongRecommend.
+  ///
+  /// In en, this message translates to:
+  /// **'Most students strongly recommend this course.'**
+  String get courseCopySummaryConsensusTextStrongRecommend;
+
+  /// No description provided for @courseCopySummaryConsensusTextRecommend.
+  ///
+  /// In en, this message translates to:
+  /// **'Most students recommend this course.'**
+  String get courseCopySummaryConsensusTextRecommend;
+
+  /// No description provided for @courseCopySummaryConsensusTextNeutral.
+  ///
+  /// In en, this message translates to:
+  /// **'Students have mixed opinions about this course.'**
+  String get courseCopySummaryConsensusTextNeutral;
+
+  /// No description provided for @courseCopySummaryConsensusTextCautious.
+  ///
+  /// In en, this message translates to:
+  /// **'Most students advise caution before choosing this course.'**
+  String get courseCopySummaryConsensusTextCautious;
+
+  /// No description provided for @courseCopySummaryConsensusTextNotRecommend.
+  ///
+  /// In en, this message translates to:
+  /// **'Most students do not recommend this course.'**
+  String get courseCopySummaryConsensusTextNotRecommend;
+
+  /// No description provided for @topicJoinDiscussion.
+  ///
+  /// In en, this message translates to:
+  /// **'Join discussion'**
+  String get topicJoinDiscussion;
+
+  /// No description provided for @updateCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get updateCheck;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get updateAvailable;
+
+  /// No description provided for @updateLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'You’re up to date'**
+  String get updateLatest;
+
+  /// No description provided for @updateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to check or download updates. Please try again later.'**
+  String get updateFailed;
+
+  /// No description provided for @updateDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download update'**
+  String get updateDownload;
+
+  /// No description provided for @updateSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip this version'**
+  String get updateSkip;
+
+  /// No description provided for @updateLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get updateLater;
+
+  /// No description provided for @updatePreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Choosing the fastest download source…'**
+  String get updatePreparing;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading…'**
+  String get updateDownloading;
+
+  /// No description provided for @updateReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Update verified and ready to install.'**
+  String get updateReady;
+
+  /// No description provided for @updateInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Install update'**
+  String get updateInstall;
+
+  /// No description provided for @updatePermission.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow YourTJ to install apps, then return and tap Install again.'**
+  String get updatePermission;
+
+  /// No description provided for @updateRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get updateRetry;
 }
 
 class _AppLocalizationsDelegate
@@ -2864,7 +3552,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'zh'].contains(locale.languageCode);
+      <String>['de', 'en', 'ja', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -2873,8 +3561,12 @@ class _AppLocalizationsDelegate
 AppLocalizations lookupAppLocalizations(Locale locale) {
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'de':
+      return AppLocalizationsDe();
     case 'en':
       return AppLocalizationsEn();
+    case 'ja':
+      return AppLocalizationsJa();
     case 'zh':
       return AppLocalizationsZh();
   }
