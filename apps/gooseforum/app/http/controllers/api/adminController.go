@@ -1432,7 +1432,7 @@ func SaveAnnouncement(req component.BetterRequest[SaveAnnouncementReq]) componen
 // GetSecuritySettings 获取安全与注册设置
 func GetSecuritySettings(req component.BetterRequest[component.Null]) component.Response {
 	defaultSettings := defaultconfig.GetDefaultSecuritySettingsConfig()
-	res := pageConfig.GetConfigByPageType(pageConfig.SecuritySettings, defaultSettings)
+	res := pageConfig.GetSecuritySettingsConfig(defaultSettings)
 	return component.SuccessResponse(res)
 }
 
@@ -1442,11 +1442,14 @@ type SaveSecuritySettingsReq struct {
 
 // SaveSecuritySettings 保存安全与注册设置
 func SaveSecuritySettings(req component.BetterRequest[SaveSecuritySettingsReq]) component.Response {
+	if req.Params.Settings.MaxDailySignups < -1 {
+		req.Params.Settings.MaxDailySignups = -1
+	}
 	// 新增/更新的禁用用户名：自动冻结匹配的存量账号（幂等，重复保存不会重复处理）。
 	// 归一化匹配（大小写/NFKC 全半角/零宽/leet）与策略层同规则，见
 	// moderationservice.FreezeUsersByBannedUsernames；批量收集后一次扫描，避免
 	// 逐个词全表扫描。
-	current := pageConfig.GetConfigByPageType(pageConfig.SecuritySettings, defaultconfig.GetDefaultSecuritySettingsConfig())
+	current := pageConfig.GetSecuritySettingsConfig(defaultconfig.GetDefaultSecuritySettingsConfig())
 	var addedBanned []string
 	for _, username := range req.Params.Settings.BannedUsernames {
 		normalized := strings.ToLower(strings.TrimSpace(username))

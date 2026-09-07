@@ -62,7 +62,7 @@ func ListTimeslotCoursesBySlot(calendarId, day int, sections []int, optionalLabe
 	var rows []CourseAggRow
 	b := courseDetailBuilder().
 		Select(
-			`pk_course_detail.course_code, pk_course_detail.course_name,
+			effectiveCourseCodeSQL+` AS course_code, pk_course_detail.course_name,
 			 pk_course_detail.credit, f.faculty_i18n, n.course_label_name, ca.campus_i18n`).
 		Joins("JOIN pk_teacher_timeslot ts ON ts.teaching_class_id = pk_course_detail.id").
 		Joins("LEFT JOIN pk_faculty f ON f.faculty = pk_course_detail.faculty").
@@ -75,7 +75,7 @@ func ListTimeslotCoursesBySlot(calendarId, day int, sections []int, optionalLabe
 	if len(optionalLabels) > 0 {
 		b = b.Where("(n.course_label_name IS NULL OR n.course_label_name IN ?)", optionalLabels)
 	}
-	err := b.Order("pk_course_detail.course_code ASC").
+	err := b.Order(effectiveCourseCodeSQL + " ASC").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func ListTimeslotCoursesByLike(calendarId int, likePatterns []string, optionalLa
 	var rows []CourseAggRow
 	b := courseDetailBuilder().
 		Select(
-			`pk_course_detail.course_code, pk_course_detail.course_name,
+			effectiveCourseCodeSQL+` AS course_code, pk_course_detail.course_name,
 			 pk_course_detail.credit, f.faculty_i18n, n.course_label_name, ca.campus_i18n`).
 		Joins("JOIN pk_teacher ON pk_teacher.teaching_class_id = pk_course_detail.id").
 		Joins("LEFT JOIN pk_faculty f ON f.faculty = pk_course_detail.faculty").
@@ -115,7 +115,7 @@ func ListTimeslotCoursesByLike(calendarId int, likePatterns []string, optionalLa
 	if len(optionalLabels) > 0 {
 		b = b.Where("(n.course_label_name IS NULL OR n.course_label_name IN ?)", optionalLabels)
 	}
-	err := b.Order("pk_course_detail.course_code ASC").
+	err := b.Order(effectiveCourseCodeSQL + " ASC").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, err

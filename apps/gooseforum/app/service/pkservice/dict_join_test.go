@@ -75,3 +75,54 @@ func TestSearchCourseDictJoinIgnoresCalendarId(t *testing.T) {
 		t.Fatalf("courseNature = %v, want [专业必修]", c.CourseNature)
 	}
 }
+
+// TestReplacementCourseCodeIsProjected 回归 issue #475：一系统以 newCourseCode/newCode
+// 表示教学班改码时，排课查询必须展示并接受新码，不能继续暴露已失效的旧码。
+func TestReplacementCourseCodeIsProjected(t *testing.T) {
+	conn := setupPkServiceTest(t)
+	if err := conn.Create(&pk.CourseDetailEntity{
+		Id:            920001,
+		Code:          "CMS12270101",
+		CourseCode:    "CMS122701",
+		CourseName:    "传播学专题",
+		CalendarId:    99999,
+		NewCourseCode: "CMS122702",
+		NewCode:       "CMS12270201",
+	}).Error; err != nil {
+		t.Fatalf("create replacement course: %v", err)
+	}
+
+	search, err := SearchCourses(SearchCourseParams{CalendarId: 99999})
+	if err != nil {
+		t.Fatalf("SearchCourses: %v", err)
+	}
+	if len(search.Courses) != 1 || search.Courses[0].CourseCode != "CMS122702" {
+		t.Fatalf("courses = %+v, want replacement code CMS122702", search.Courses)
+	}
+
+	details, err := FindCourseDetailsByCodes(99999, []string{"CMS122702"})
+	if err != nil {
+		t.Fatalf("FindCourseDetailsByCodes: %v", err)
+	}
+	items := details["CMS122702"]
+	if len(items) != 1 || items[0].Code != "CMS12270201" {
+		t.Fatalf("details = %+v, want replacement class code CMS12270201", items)
+	}
+
+	legacyDetails, err := FindCourseDetailsByCodes(99999, []string{"CMS122701"})
+	if err != nil {
+		t.Fatalf("FindCourseDetailsByCodes legacy alias: %v", err)
+	}
+	legacyItems := legacyDetails["CMS122701"]
+	if len(legacyItems) != 1 || legacyItems[0].Code != "CMS12270201" {
+		t.Fatalf("legacy details = %+v, want replacement class code CMS12270201", legacyItems)
+	}
+
+	bothDetails, err := FindCourseDetailsByCodes(99999, []string{"CMS122702", "CMS122701"})
+	if err != nil {
+		t.Fatalf("FindCourseDetailsByCodes replacement and legacy codes: %v", err)
+	}
+	if len(bothDetails["CMS122702"]) != 1 || len(bothDetails["CMS122701"]) != 0 {
+		t.Fatalf("details for both codes = %+v, want row only under replacement code CMS122702", bothDetails)
+	}
+}

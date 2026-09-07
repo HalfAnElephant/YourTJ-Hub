@@ -45,6 +45,7 @@ import {
   getSiteSettings,
   getStorageMigrateTasks,
   getStorageSettings,
+  getPrivacyPolicy,
   getTermsOfService,
   listAiSummaryModels,
   saveAnnouncement,
@@ -59,6 +60,7 @@ import {
   saveScheduleSettings,
   saveSiteSettings,
   saveStorageSettings,
+  savePrivacyPolicy,
   saveTermsOfService,
   syncPkCalendar,
   testMailConnection,
@@ -87,12 +89,13 @@ import type {
   ScheduleSettings,
   SiteSettings,
   StorageSettings,
+  PrivacyPolicyConfig,
   TermsOfServiceConfig,
 } from '@/admin/types'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/admin/components/ui/select'
 import { safeUrl } from '@/runtime/safe-url'
 
-type Kind = 'site-info' | 'mail' | 'security' | 'posting' | 'rate-limit' | 'mcp' | 'ai-summary' | 'http-notify' | 'announcement' | 'storage' | 'terms' | 'onesystem' | 'schedule'
+type Kind = 'site-info' | 'mail' | 'security' | 'posting' | 'rate-limit' | 'mcp' | 'ai-summary' | 'http-notify' | 'announcement' | 'storage' | 'terms' | 'privacy' | 'onesystem' | 'schedule'
 
 const props = defineProps<{
   payload: AdminPayload<ManageHomeProps>
@@ -224,6 +227,7 @@ const mailForm = reactive<MailSettings>({
 const securityForm = reactive<SecuritySettings>({
   enableSignup: true,
   enableEmailVerification: false,
+  maxDailySignups: -1,
   allowedDomains: [],
   reservedUsernames: [],
   bannedUsernames: [],
@@ -299,6 +303,11 @@ const termsForm = reactive<TermsOfServiceConfig>({
   content: '',
 })
 
+const privacyForm = reactive<PrivacyPolicyConfig>({
+  enabled: false,
+  content: '',
+})
+
 const httpNotifyEvents = computed(() => {
   locale.value
   return [
@@ -341,6 +350,7 @@ const pageMeta = computed(() => {
     announcement: { title: adminText('k0009'), description: adminText('k000a') },
     storage: { title: adminText('k00fn'), description: adminText('k00fo') },
     terms: { title: adminText('k00gp'), description: adminText('k00gq') },
+    privacy: { title: adminText('k00gu'), description: adminText('k00gv') },
     onesystem: { title: adminText('k00t4'), description: adminText('k00t5') },
     schedule: { title: adminText('k00u1'), description: adminText('k00u2') },
   }
@@ -394,9 +404,15 @@ function mailPayload() {
 }
 
 function normalizeSecurity(settings: Partial<SecuritySettings> = {}) {
+  const maxDailySignupsValue = Number(settings.maxDailySignups)
+  const maxDailySignups = String(settings.maxDailySignups ?? '').trim() === '' || !Number.isFinite(maxDailySignupsValue)
+    ? -1
+    : Math.max(-1, Math.trunc(maxDailySignupsValue))
+
   return {
     enableSignup: toBool(settings.enableSignup, true),
     enableEmailVerification: toBool(settings.enableEmailVerification, false),
+    maxDailySignups,
     allowedDomains: Array.isArray(settings.allowedDomains)
       ? settings.allowedDomains.map(item => String(item).trim().toLowerCase()).filter(Boolean)
       : [],
@@ -698,6 +714,13 @@ function normalizeTerms(settings: Partial<TermsOfServiceConfig> = {}) {
   } satisfies TermsOfServiceConfig
 }
 
+function normalizePrivacy(settings: Partial<PrivacyPolicyConfig> = {}) {
+  return {
+    enabled: toBool(settings.enabled, false),
+    content: settings.content ?? '',
+  } satisfies PrivacyPolicyConfig
+}
+
 // normalizeHHMM 校验并规范化 "HH:MM"（补零），非法返回 null。
 function normalizeHHMM(value: unknown): string | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(String(value ?? '').trim())
@@ -784,6 +807,7 @@ async function load() {
       await loadMigrateTasks()
     }
     else if (props.kind === 'terms') Object.assign(termsForm, normalizeTerms(await getTermsOfService()))
+    else if (props.kind === 'privacy') Object.assign(privacyForm, normalizePrivacy(await getPrivacyPolicy()))
     else if (props.kind === 'onesystem') {
       await Promise.all([loadOnesystem(), refreshSyncStatus()])
     }
@@ -825,6 +849,7 @@ async function save() {
     else if (props.kind === 'http-notify') await saveHttpNotifySettings(httpNotifySettings!)
     else if (props.kind === 'storage') await saveStorageSettings(storagePayload())
     else if (props.kind === 'terms') await saveTermsOfService(normalizeTerms(termsForm))
+    else if (props.kind === 'privacy') await savePrivacyPolicy(normalizePrivacy(privacyForm))
     else if (props.kind === 'schedule') await saveScheduleSettings(normalizeSchedule(scheduleForm))
     else await saveAnnouncement(serializeAnnouncement(announcementForm))
     adminToast.success(adminText('k000e'))
@@ -1257,6 +1282,11 @@ onUnmounted(stopSyncPolling)
         <div class="flex items-center justify-between">
           <div><div class="text-base font-medium">{{ adminText('k008y') }}</div><p class="text-sm text-muted-foreground">{{ adminText('k008z') }}</p></div>
           <Switch v-model="securityForm.enableSignup" />
+        </div>
+        <div class="space-y-2">
+          <div class="text-base font-medium">{{ adminText('k00lk') }}</div>
+          <p class="text-sm text-muted-foreground">{{ adminText('k00ll') }}</p>
+          <Input v-model.number="securityForm.maxDailySignups" type="number" min="-1" step="1" class="max-w-sm" />
         </div>
         <div class="flex items-center justify-between">
           <div><div class="flex items-center gap-2 text-base font-medium"><MailCheck class="size-4" />{{ adminText('k0090') }}</div><p class="text-sm text-muted-foreground">{{ adminText('k0091') }}</p></div>
@@ -1705,6 +1735,17 @@ onUnmounted(stopSyncPolling)
         <label class="grid gap-2 text-sm font-medium">
           {{ adminText('k00gs') }}
           <Textarea v-model="termsForm.content" class="min-h-64 resize-y font-mono text-sm" :placeholder="adminText('k004n')" />
+        </label>
+      </form>
+
+      <form v-else-if="kind === 'privacy'" class="max-w-3xl space-y-6" @submit.prevent="save">
+        <div class="flex items-center justify-between">
+          <div><div class="flex items-center gap-2 text-base font-medium"><Shield class="size-4" />{{ adminText('k00gw') }}</div><p class="text-sm text-muted-foreground">{{ adminText('k00gv') }}</p></div>
+          <Switch v-model="privacyForm.enabled" />
+        </div>
+        <label class="grid gap-2 text-sm font-medium">
+          {{ adminText('k00gx') }}
+          <Textarea v-model="privacyForm.content" class="min-h-64 resize-y font-mono text-sm" :placeholder="adminText('k004n')" />
         </label>
       </form>
 

@@ -46,11 +46,13 @@ describe('admin 权限白名单与菜单/路由一致性(回归: AI 课程总结
     }
   })
 
-  test('授权后全部设置类菜单项均可通过守卫(14 项, 系统回归)', () => {
-    // SiteManager 覆盖 13/14, announcement 需 PageManager;Admin 兜底一切。
+  test('授权后全部设置类菜单项均可通过守卫', () => {
+    // SiteManager 覆盖除 announcement 外的设置项；Admin 兜底一切。
     configureAdminAccess([AdminPermission.Admin])
     const settings = sidebarMenuUrls().filter((u) => u.startsWith('/admin/settings'))
-    expect(settings.length).toBe(14)
+    for (const url of settings) {
+      expect(canVisitAdminPath(url), `设置菜单 ${url} 授权后应通过守卫`).toBe(true)
+    }
   })
 
   test('未授权时全部设置类菜单项被拒绝(守卫生效)', () => {

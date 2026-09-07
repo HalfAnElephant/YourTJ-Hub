@@ -13,9 +13,10 @@ import (
 	"time"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/i18n"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/setting"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/urlutil"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
-	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/markdown2html"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/transform"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/vo"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/defaultconfig"
@@ -117,11 +118,14 @@ type ErrorPageProps struct {
 }
 
 type LoginPageProps struct {
-	InitialMode string `json:"initialMode"`
-	RedirectURL string `json:"redirectUrl"`
-	GitHubURL   string `json:"githubUrl"`
-	GoogleURL   string `json:"googleUrl"`
-	GoogleReady bool   `json:"googleReady"`
+	InitialMode           string   `json:"initialMode"`
+	RedirectURL           string   `json:"redirectUrl"`
+	GitHubURL             string   `json:"githubUrl"`
+	GoogleURL             string   `json:"googleUrl"`
+	GoogleReady           bool     `json:"googleReady"`
+	TermsOfServiceEnabled bool     `json:"termsOfServiceEnabled"`
+	PrivacyPolicyEnabled  bool     `json:"privacyPolicyEnabled"`
+	AllowedDomains        []string `json:"allowedDomains"`
 }
 
 type ResetPasswordPageProps struct {
@@ -129,13 +133,14 @@ type ResetPasswordPageProps struct {
 }
 
 type LayoutPayload struct {
-	Site    SitePayload         `json:"site"`
-	Viewer  ViewerPayload       `json:"viewer"`
-	Header  []NavItemPayload    `json:"header,omitempty"`
-	Sidebar SidebarPayload      `json:"sidebar"`
-	Footer  FooterPayload       `json:"footer"`
-	Unread  UnreadStatusPayload `json:"unread"`
-	Theme   ThemePayload        `json:"theme"`
+	Site                SitePayload         `json:"site"`
+	Viewer              ViewerPayload       `json:"viewer"`
+	Header              []NavItemPayload    `json:"header,omitempty"`
+	Sidebar             SidebarPayload      `json:"sidebar"`
+	Footer              FooterPayload       `json:"footer"`
+	Unread              UnreadStatusPayload `json:"unread"`
+	Theme               ThemePayload        `json:"theme"`
+	InsightFlareEnabled bool                `json:"insightFlareEnabled"`
 }
 
 type ThemePayload struct {
@@ -700,6 +705,7 @@ func buildLayout(c *gin.Context, activeKey string) LayoutPayload {
 	brandImage := urlutil.Clean(urlutil.Image, chrome.BrandImage)
 
 	return LayoutPayload{
+		InsightFlareEnabled: setting.IsProduction() && hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
 		Site: SitePayload{
 			Name:          siteConfig.SiteName,
 			Description:   siteConfig.SiteDescription,
@@ -949,11 +955,14 @@ func buildLoginPageProps(c *gin.Context) LoginPageProps {
 		googleURL += "?redirect=" + url.QueryEscape(redirectURL)
 	}
 	return LoginPageProps{
-		InitialMode: mode,
-		RedirectURL: redirectURL,
-		GitHubURL:   githubURL,
-		GoogleURL:   googleURL,
-		GoogleReady: oauthservice.IsGoogleOAuthReady(),
+		InitialMode:           mode,
+		RedirectURL:           redirectURL,
+		GitHubURL:             githubURL,
+		GoogleURL:             googleURL,
+		GoogleReady:           oauthservice.IsGoogleOAuthReady(),
+		TermsOfServiceEnabled: hotdataserve.GetTermsOfServiceConfigCache().Enabled,
+		PrivacyPolicyEnabled:  hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
+		AllowedDomains:        hotdataserve.GetSecuritySettingsConfigCache().AllowedDomains,
 	}
 }
 

@@ -2,9 +2,9 @@
   "code": 0,
   "msg": "查询成功",
   "data": {
-    "TJCS101": [
+    "CS101": [
       {
-        "code": "TJCS10101",
+        "code": "CS10101",
         "teachingClassId": 900001,
         "teachers": [
           {
@@ -75,7 +75,7 @@
         "isExclusive": true
       },
       {
-        "code": "TJCS10102",
+        "code": "CS10102",
         "teachingClassId": 900002,
         "teachers": [
           {
@@ -118,9 +118,9 @@
         "isExclusive": true
       }
     ],
-    "TJCS201": [
+    "CS201": [
       {
-        "code": "TJCS20101",
+        "code": "CS20101",
         "teachingClassId": 900003,
         "teachers": [
           {
