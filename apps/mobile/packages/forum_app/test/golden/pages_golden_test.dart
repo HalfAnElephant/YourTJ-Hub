@@ -683,8 +683,36 @@ void main() {
       tokenStorage: storage,
       baseUrl: 'http://fake.local',
     );
+    final authDio = Dio()
+      ..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (request, handler) {
+            expect(request.path, '/login');
+            handler.resolve(
+              Response(
+                requestOptions: request,
+                data: {
+                  'component': 'auth.login',
+                  'props': {
+                    'initialMode': 'login',
+                    'redirectUrl': '/',
+                    'githubUrl': '/api/auth/github',
+                    'googleReady': true,
+                  },
+                  'layout': goldenLayoutJson(),
+                  'meta': {'title': 'Login'},
+                  'url': '/login',
+                  'version': '1',
+                },
+              ),
+            );
+          },
+        ),
+      );
+    addTearDown(authDio.close);
     final container = ProviderContainer(
       overrides: [
+        authDioProvider.overrideWithValue(authDio),
         tokenStorageProvider.overrideWithValue(MemoryTokenStorage()),
         pageRepositoryProvider.overrideWithValue(FakePageRepository(client)),
         topicRepositoryProvider.overrideWithValue(FakeTopicRepository(client)),
