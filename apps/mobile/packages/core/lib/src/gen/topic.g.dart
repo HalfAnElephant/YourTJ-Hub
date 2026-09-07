@@ -243,6 +243,7 @@ _$PostPayloadImpl _$$PostPayloadImplFromJson(Map<String, dynamic> json) =>
       isModeratorRemoved: json['isModeratorRemoved'] as bool? ?? false,
       canModerate: json['canModerate'] as bool,
       author: UserBriefPayload.fromJson(json['author'] as Map<String, dynamic>),
+      isAnonymous: json['isAnonymous'] as bool? ?? false,
       createdAt: json['createdAt'] as String,
       replyToPostId: (json['replyToPostId'] as num?)?.toInt(),
       replyToUserId: (json['replyToUserId'] as num?)?.toInt(),
@@ -274,6 +275,7 @@ Map<String, dynamic> _$$PostPayloadImplToJson(_$PostPayloadImpl instance) =>
       'isModeratorRemoved': instance.isModeratorRemoved,
       'canModerate': instance.canModerate,
       'author': instance.author,
+      'isAnonymous': instance.isAnonymous,
       'createdAt': instance.createdAt,
       'replyToPostId': instance.replyToPostId,
       'replyToUserId': instance.replyToUserId,
@@ -294,6 +296,7 @@ _$ReplyTargetPayloadImpl _$$ReplyTargetPayloadImplFromJson(
   id: (json['id'] as num).toInt(),
   postNo: (json['postNo'] as num?)?.toInt(),
   author: UserBriefPayload.fromJson(json['author'] as Map<String, dynamic>),
+  isAnonymous: json['isAnonymous'] as bool? ?? false,
   renderedContent: json['renderedContent'] as String?,
   unavailable: json['unavailable'] as bool?,
 );
@@ -304,6 +307,7 @@ Map<String, dynamic> _$$ReplyTargetPayloadImplToJson(
   'id': instance.id,
   'postNo': instance.postNo,
   'author': instance.author,
+  'isAnonymous': instance.isAnonymous,
   'renderedContent': instance.renderedContent,
   'unavailable': instance.unavailable,
 };

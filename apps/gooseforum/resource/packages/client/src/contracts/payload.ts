@@ -379,6 +379,8 @@ export interface PostPayload {
   replyToUserId?: number
   replyToUsername?: string
   isOwnPost: boolean
+  /** 匿名楼层（wiki 评论区，issue #524）：author 为匿名占位，前端不得渲染个人主页链接/用户卡片。 */
+  isAnonymous?: boolean
   updatedAt?: string
   lastEditor?: {
     id: number
@@ -408,6 +410,8 @@ export interface ReplyTargetPayload {
   renderedContent?: string
   isAuthorDeleted?: boolean
   isModeratorRemoved?: boolean
+  /** 被回复楼层为匿名（wiki 评论区，issue #524）：author 为匿名占位，前端不得渲染个人主页链接/用户卡片。 */
+  isAnonymous?: boolean
   unavailable?: boolean
 }
 

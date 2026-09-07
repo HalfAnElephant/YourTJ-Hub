@@ -52,6 +52,9 @@ const (
 	RateLimitReviewDislike = "course.review.dislike"
 	RateLimitReviewReport  = "course.review.report"
 	RateLimitReviewReveal  = "course.review.reveal"
+	// RateLimitPostReveal 匿名楼层作者揭示（issue #524）：与课评 reveal 同构
+	// 的低频敏感操作，独立配额防脚本批量揭示。
+	RateLimitPostReveal = "post.reveal"
 	// RateLimitReviewModerate 课评审核操作（隐藏/恢复、举报队列）：60s 窗口
 	// per-IP 60 / per-User 30（issue #176 B4）。比写接口宽松（审核是低频
 	// 操作但需批量处理举报），同时防止单账号刷审核接口。

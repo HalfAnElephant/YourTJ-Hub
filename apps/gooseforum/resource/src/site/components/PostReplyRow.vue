@@ -6,6 +6,7 @@ import { formatDateTime, formatNumber } from '@/runtime/format'
 import { showUserCard } from '@/runtime/user-card-events'
 import { useI18n } from 'vue-i18n'
 import UserAvatar from '@/site/components/UserAvatar.vue'
+import { buildBeamAvatarDataUri } from '@/site/utils/course-review-share'
 
 /** 楼层互动状态（由父组件 postActionState 提供，保持同一对象引用以继承响应式更新）。 */
 export interface PostReplyActionState {
@@ -71,6 +72,11 @@ function authorDisplayName(author: { username: string; nickname?: string }) {
   return author.nickname || author.username
 }
 
+// 匿名楼层占位头像：复用课程评价的 boring-avatars beam 占位（seed 用楼层 id，跨语言稳定）
+function anonymousAvatarSrc(post: PostPayload, size = 24): string {
+  return buildBeamAvatarDataUri(`anonymous-${post.id}`, size)
+}
+
 function lastEditedLabel(post: PostPayload) {
   if (!post.lastEditedAt || !post.lastEditor) return ''
   return t('topic.lastEditedBy', {
@@ -87,10 +93,14 @@ function lastEditedLabel(post: PostPayload) {
       :class="{ 'bg-info/10': highlighted }"
     >
       <div class="mb-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <a :href="`/u/${post.author.id}`" class="shrink-0" @click="showUserCard(post.author, $event)">
+        <a v-if="!post.isAnonymous" :href="`/u/${post.author.id}`" class="shrink-0" @click="showUserCard(post.author, $event)">
           <UserAvatar :src="post.author.avatarUrl" :alt="post.author.username" :badge="post.author.wornBadge" class="h-6 w-6 rounded-full ring-1 ring-line" img-class="rounded-full" />
         </a>
-        <a :href="`/u/${post.author.id}`" class="min-w-0 truncate text-sm font-semibold text-base-content hover:text-primary" @click="showUserCard(post.author, $event)">{{ authorDisplayName(post.author) }}</a>
+        <span v-else class="shrink-0">
+          <UserAvatar :src="anonymousAvatarSrc(post)" :alt="t('topic.authorAnonymous')" class="h-6 w-6 rounded-full ring-1 ring-line" img-class="rounded-full" />
+        </span>
+        <a v-if="!post.isAnonymous" :href="`/u/${post.author.id}`" class="min-w-0 truncate text-sm font-semibold text-base-content hover:text-primary" @click="showUserCard(post.author, $event)">{{ authorDisplayName(post.author) }}</a>
+        <span v-else class="min-w-0 truncate text-sm font-semibold text-base-content/55">{{ t('topic.authorAnonymous') }}</span>
         <span class="shrink-0 text-xs font-semibold tabular-nums text-base-content/55">#{{ formatNumber(post.postNo) }}</span>
         <time class="hidden shrink-0 text-xs text-base-content/55 sm:inline">{{ formatDateTime(post.createdAt) }}</time>
           <button v-if="collapsible" type="button" class="inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full bg-base-100 px-1.5 text-[11px] font-medium text-base-content/55 transition hover:text-base-content" :title="collapsed ? t('topic.expandReply') : t('topic.collapseReply')" @click="emit('toggleCollapse')">

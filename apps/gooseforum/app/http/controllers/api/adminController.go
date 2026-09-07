@@ -2299,6 +2299,7 @@ func ReviewAction(req component.BetterRequest[ReviewActionReq]) component.Respon
 				TopicAuthorId:       topicEntity.UserId,
 				ReplyToPostId:       post.ReplyToPostId,
 				ReplyToPostAuthorId: replyToAuthorID,
+				IsAnonymous:         post.IsAnonymous,
 			})
 		}
 		optlogger.UserOptCode(req.UserId, optlogger.EditTopic, post.TopicId, "admin.opt.review.post",

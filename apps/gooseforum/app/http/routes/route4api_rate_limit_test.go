@@ -66,3 +66,21 @@ func TestCourseRateLimitActionsWired(t *testing.T) {
 		}
 	}
 }
+
+// TestPostRevealRateLimitWired 验证匿名楼层作者揭示限流（issue #524）与课程域
+// 同一约束：middleware.RateLimitPostReveal 常量必须在默认 ratelimit.json 注册
+// 正配额，否则 findRateLimitRule 返回 nil 时 middleware.RateLimit 静默放行，
+// 揭示端点实际上完全不限流。
+func TestPostRevealRateLimitWired(t *testing.T) {
+	defaults := defaultconfig.GetDefaultRateLimitConfig()
+	for _, rule := range defaults.Actions {
+		if rule.Action != middleware.RateLimitPostReveal {
+			continue
+		}
+		if rule.LimitPerIp <= 0 && rule.LimitPerUser <= 0 {
+			t.Fatalf("post.reveal default rule has no positive quota: %+v", rule)
+		}
+		return
+	}
+	t.Fatalf("RateLimitPostReveal (%q) missing from default rate-limit config", middleware.RateLimitPostReveal)
+}

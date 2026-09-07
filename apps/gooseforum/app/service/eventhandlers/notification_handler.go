@@ -25,10 +25,18 @@ type CommentCreatedEvent struct {
 	TopicAuthorId       uint64 // 主题作者 ID
 	ReplyToPostId       uint64 // 被回复的 post ID
 	ReplyToPostAuthorId uint64 // 被回复的 post 作者 ID
+	IsAnonymous         bool   // 匿名楼层（wiki 评论区，issue #524）
 }
 
 // handleCommentCreated 发送评论/回复通知
 func handleCommentCreated(ctx context.Context, event *CommentCreatedEvent) error {
+	// 匿名楼层不产生任何通知（issue #524）：三个通道的 ActorId 都是匿名作者，
+	// ActorName 在读取时按 ActorId 回填真实用户名，会向他人泄露匿名身份。
+	// 匿名作者收到「他人回复其楼层」的通知不在此事件内——那是另一条以真实
+	// 回复者为 Actor 的 CommentCreatedEvent，走下方非匿名分支正常发送。
+	if event.IsAnonymous {
+		return nil
+	}
 	contentPreview := TakeUpTo64Chars(event.Content)
 	// 如果不是主题作者自己发表评论，通知主题作者
 	if shouldNotifyTopicAuthor(event) {

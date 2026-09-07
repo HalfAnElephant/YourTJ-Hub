@@ -1174,6 +1174,8 @@ export default {
     loginRequiredToComment: 'Only logged-in users can comment',
     loginRequiredToCommentHint: 'Log in to join the discussion and interact with other members.',
     loginToComment: 'Log in',
+    publishAnonymous: 'Publish anonymously (hide identity from the public)',
+    authorAnonymous: 'Anonymous',
     fullEditor: 'Full editor',
     overview: 'Topic overview',
     createdAt: 'Created',
@@ -2270,6 +2272,9 @@ export default {
       docVersion: 'Document version',
       docContent: 'Document content',
       category: 'Category',
+      courseReview: 'Course review',
+      course: 'Course',
+      post: 'Post',
     },
     messages: {
       userUpdated: 'Updated user {userId}: {changedFields}',

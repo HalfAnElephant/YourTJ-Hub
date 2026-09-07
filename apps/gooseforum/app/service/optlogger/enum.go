@@ -14,6 +14,8 @@ func (receiver OptEnum) TargetTypeEnum() TargetTypeEnum {
 		return Category
 	case RevealCourseReviewAuthor:
 		return CourseReview
+	case RevealPostAuthor:
+		return Post
 	case CreateCourse, UpdateCourse, DeleteCourse:
 		return Course
 	case UpdateReview, DeleteReview:
@@ -42,6 +44,8 @@ const (
 	// ExportData 数据导出（issue #324 S4）：创建导出任务/下载导出文件均审计。
 	// 追加在末尾，避免改动既有枚举序列。
 	ExportData
+	// RevealPostAuthor 匿名楼层作者揭示（issue #524）：追加在末尾避免改动枚举序列。
+	RevealPostAuthor
 )
 
 type TargetTypeEnum int
@@ -61,4 +65,5 @@ const (
 	Category                    = 6
 	CourseReview                = 7
 	Course                      = 8
+	Post                        = 9
 )

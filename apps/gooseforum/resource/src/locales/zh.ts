@@ -1176,6 +1176,8 @@ export default {
     loginRequiredToComment: '仅登录用户可评论',
     loginRequiredToCommentHint: '登录后即可参与讨论，与其他用户交流。',
     loginToComment: '去登录',
+    publishAnonymous: '匿名发布（对公众隐藏身份）',
+    authorAnonymous: '匿名同学',
     fullEditor: '完整编辑',
     overview: '内容概览',
     createdAt: '创建于',
@@ -2272,6 +2274,9 @@ export default {
       docVersion: '文档版本',
       docContent: '文档内容',
       category: '分类',
+      courseReview: '课评',
+      course: '课程',
+      post: '楼层',
     },
     messages: {
       userUpdated: '更新用户 {userId}：{changedFields}',

@@ -2390,6 +2390,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/forum/moderation/post-reveal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reveal an anonymous post author identity (Admin only)
+         * @description Admin-only identity reveal for anonymous post authors (wiki page comments,
+         *     issue #524). A reason is required and the reveal is written to the restricted
+         *     operation log. Permission failures and unknown posts are legacy HTTP 200
+         *     business failures (`permission.denied`, `post.notFound`).
+         */
+        post: operations["moderationPostReveal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/wiki/tree": {
         parameters: {
             query?: never;
@@ -6217,6 +6240,8 @@ export interface components {
              * @description Optional parent post inside the same topic; an id outside the topic fails with `comment.parentPostMissing` (HTTP 200).
              */
             replyToPostId?: number;
+            /** @description Publish the reply anonymously (issue */
+            isAnonymous?: boolean;
             /** @description Compatibility honeypot field. Normal clients must not render or submit it; a populated value silently succeeds with result true and creates nothing. */
             website?: string;
             /** @description Required only when server-side posting risk controls request a captcha. */
@@ -9118,6 +9143,8 @@ export interface components {
             isModeratorRemoved: boolean;
             canModerate: boolean;
             author: components["schemas"]["TopicAuthorPayload"];
+            /** @description Whether the post is an anonymous wiki comment (issue */
+            isAnonymous?: boolean;
             /** @description Post creation time in the server's `2006-01-02 15:04:05` format. */
             createdAt: string;
             /**
@@ -9157,6 +9184,8 @@ export interface components {
             postNo?: number;
             /** @description The zero author payload when unavailable is true. */
             author: components["schemas"]["TopicAuthorPayload"];
+            /** @description Whether the replied-to post is an anonymous wiki comment (issue */
+            isAnonymous?: boolean;
             /** @description Present only when the target post is available and not author or moderator removed. */
             renderedContent?: string;
             isAuthorDeleted?: boolean;
@@ -10321,6 +10350,29 @@ export interface components {
              */
             action: 1 | 2;
         };
+        ModerationPostRevealRequest: {
+            /** Format: uint64 */
+            postId: number;
+            /** @description Mandatory justification; recorded in the restricted operation log. */
+            reason: string;
+        };
+        PostAuthorRevealPayload: {
+            /** Format: uint64 */
+            postId: number;
+            /**
+             * Format: uint64
+             * @description Present only for posts with a linked author.
+             */
+            authorUserId?: number;
+            /** @description Present only for posts with a linked author. */
+            username?: string;
+            /** @description Present only for posts with a linked author. */
+            nickname?: string;
+            isAnonymous: boolean;
+        };
+        ModerationPostRevealResponse: (components["schemas"]["ApiSuccess"] & {
+            result: components["schemas"]["PostAuthorRevealPayload"];
+        }) | components["schemas"]["ApiFailure"];
         AdminHttpNotifyEndpointView: {
             id: string;
             name: string;
@@ -14933,6 +14985,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModerationCourseReviewRevealResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Cross-site cookie-authenticated request rejected by the CSRF gate (missing or mismatched Origin/Referer, issue #406). The session cookie is not cleared. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Identity-reveal rate limit exceeded (1h window). */
+            429: {
+                headers: {
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedFailure"];
+                };
+            };
+        };
+    };
+    moderationPostReveal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModerationPostRevealRequest"];
+            };
+        };
+        responses: {
+            /** @description The revealed author identity, or a moderation business failure envelope. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModerationPostRevealResponse"];
                 };
             };
             /** @description Missing, invalid, expired, or revoked access token. */

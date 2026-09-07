@@ -20,6 +20,8 @@ const props = defineProps<{
   captchaImg?: string
   captchaLoading?: boolean
   sensitiveWords?: string[]
+  /** 是否允许匿名发布（wiki 评论区，issue #524）；true 时显示匿名勾选项。 */
+  allowAnonymous?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -34,6 +36,7 @@ const emit = defineEmits<{
 
 const captchaCode = defineModel<string>('captchaCode', { default: '' })
 const content = defineModel<string>({ default: '' })
+const anonymous = defineModel<boolean>('anonymous', { default: false })
 const { t } = useI18n()
 // 软键盘弹出时抬高浮动面板，确保输入内容不被输入法遮挡
 const { bottomOffset: keyboardOffset } = useKeyboardVisualViewportOffset()
@@ -312,6 +315,10 @@ function submit() {
                 maxlength="8"
               />
             </div>
+            <label v-if="allowAnonymous && !editing" class="mt-2 flex shrink-0 cursor-pointer items-center gap-2 text-[13px] text-base-content/75">
+              <input v-model="anonymous" type="checkbox" class="checkbox checkbox-sm" />
+              {{ t('topic.publishAnonymous') }}
+            </label>
             <div class="mt-3 flex flex-wrap items-center gap-2 shrink-0">
               <button v-if="target && !editing" type="button" class="gf-button gf-button-md gf-button-muted shrink-0" @click="emit('clearTarget')">
                 {{ t('common.cancel') }}
