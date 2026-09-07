@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +52,11 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    tester.view.padding = FakeViewPadding(top: 62);
+    addTearDown(tester.view.resetPadding);
+    final boundary = GlobalKey();
     final scroll = ScrollController();
     addTearDown(scroll.dispose);
     await tester.pumpWidget(
@@ -60,17 +67,20 @@ void main() {
           locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            drawer: const Drawer(child: Text('drawer')),
-            body: RootSurface(
-              title: 'YourTJ',
-              onAction: () {},
-              body: (top, bottom) => ListView(
-                controller: scroll,
-                padding: EdgeInsets.only(top: top, bottom: bottom),
-                children: List.generate(
-                  30,
-                  (i) => SizedBox(height: 60, child: Text('row $i')),
+          home: RepaintBoundary(
+            key: boundary,
+            child: Scaffold(
+              drawer: const Drawer(child: Text('drawer')),
+              body: RootSurface(
+                title: 'YourTJ',
+                onAction: () {},
+                body: (top, bottom) => ListView(
+                  controller: scroll,
+                  padding: EdgeInsets.only(top: top, bottom: bottom),
+                  children: List.generate(
+                    30,
+                    (i) => SizedBox(height: 60, child: Text('row $i')),
+                  ),
                 ),
               ),
             ),
@@ -88,6 +98,33 @@ void main() {
     expect(tester.getTopLeft(find.text('row 4')), position);
     expect(scroll.offset, 120);
     expect(scroll.position.viewportDimension, viewport);
+    await tester.runAsync(() async {
+      final image =
+          await (boundary.currentContext!.findRenderObject()
+                  as RenderRepaintBoundary)
+              .toImage();
+      final pixels = (await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!;
+      var ink = 0;
+      for (var y = 0; y < 62; y++) {
+        for (var x = 0; x < image.width; x++) {
+          final index = (y * image.width + x) * 4;
+          if (pixels.getUint8(index) < 200 &&
+              pixels.getUint8(index + 1) < 200 &&
+              pixels.getUint8(index + 2) < 200) {
+            ink++;
+          }
+        }
+      }
+      image.dispose();
+      expect(
+        ink,
+        0,
+        reason: 'hidden toolbar must not paint in the system safe area',
+      );
+    });
+
     container.read(readingChromeProvider).show();
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('我的'));

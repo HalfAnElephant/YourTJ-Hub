@@ -6,6 +6,49 @@ import '../helpers.dart';
 
 void main() {
   group('GfFloatingControls', () {
+    testWidgets('localized dock fits narrow screens and large text', (
+      tester,
+    ) async {
+      for (final width in [280.0, 360.0]) {
+        for (final scale in [1.0, 2.0]) {
+          var replies = 0;
+          await tester.pumpWidget(
+            gfApp(
+              MediaQuery(
+                data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+                child: SizedBox(
+                  width: width,
+                  child: GfFloatingControls(
+                    currentNo: 1234,
+                    maxNo: 9999,
+                    onFloorTap: () {},
+                    joinLabel: 'An Diskussion teilnehmen',
+                    onOpenReply: () => replies++,
+                    actions: List.generate(
+                      3,
+                      (_) => GfTopicAction(
+                        icon: Icons.favorite_border,
+                        active: false,
+                        activeColor: GfColors.light.error,
+                        onTap: () {},
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          final reply = find.byWidgetPredicate(
+            (w) => w is GfSymbol && w.name == 'corner-down-left',
+          );
+          await tester.tap(reply);
+          expect(replies, 1);
+        }
+      }
+    });
+
     testWidgets('renders floor button, actions and join button', (
       tester,
     ) async {
@@ -220,6 +263,24 @@ void main() {
       expect(find.text('12'), findsOneWidget);
       expect(find.text('90'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('profile trims bio and signature boundary whitespace', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        gfApp(
+          const GfUserCard(
+            avatarUrl: '',
+            name: 'Alice',
+            username: 'alice',
+            bio: '  Hello\n\n',
+            signature: '  Stay curious\n',
+          ),
+        ),
+      );
+      expect(find.text('Hello'), findsOneWidget);
+      expect(find.text('Stay curious'), findsOneWidget);
     });
 
     testWidgets('renders setting rows', (tester) async {

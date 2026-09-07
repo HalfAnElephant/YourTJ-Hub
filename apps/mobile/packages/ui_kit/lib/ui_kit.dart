@@ -61,3 +61,12 @@ export 'src/theme/gf_runtime_theme.dart';
 export 'src/components/gf_media_carousel.dart';
 
 export 'src/components/gf_symbol.dart';
+
+export 'src/components/atoms/gf_badge_icon.dart';
+
+export 'src/components/gf_icon_tile.dart';
+export 'src/components/gf_social_icon.dart';
+export 'src/components/business/gf_activity_card.dart';
+export 'src/components/business/gf_achievement_card.dart';
+
+export 'src/components/gf_search_field.dart';

@@ -14,6 +14,7 @@ import '../../providers.dart';
 import '../../server_messages.dart';
 import '../../current_user.dart';
 import '../../theme_mode.dart';
+import '../../widgets/language_picker.dart';
 
 /// 登录页模式。
 enum _AuthMode { login, register, forgotPassword }
@@ -392,6 +393,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       tooltip: l10n.commonBack,
                       size: 44,
                       onPressed: _leaveAuth,
+                    ),
+                  ),
+                  Positioned(
+                    top: 4,
+                    right: 56,
+                    child: IconButton(
+                      icon: const GfSymbol('languages'),
+                      tooltip: l10n.settingsAppLanguage,
+                      onPressed: () => showAppLanguagePicker(context),
                     ),
                   ),
                   Positioned(

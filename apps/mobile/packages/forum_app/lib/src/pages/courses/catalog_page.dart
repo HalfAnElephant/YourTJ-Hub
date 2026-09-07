@@ -89,6 +89,11 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
     });
   }
 
+  void _clearDebounceAndSearch() {
+    _debounce?.cancel();
+    _load();
+  }
+
   void _clearSearch() {
     _debounce?.cancel();
     _searchController.clear();
@@ -392,8 +397,6 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final GfColors colors = GfTheme.colorsOf(context);
-
     return Scaffold(
       appBar: GfAppBar(
         title: Text(
@@ -423,18 +426,13 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: GfInput(
+            child: GfSearchField(
               controller: _searchController,
               hintText: l10n.coursesSearchHint,
-              prefixIcon: Icon(Icons.search, color: colors.iconMuted),
+              clearLabel: l10n.courseCopyClearSearch,
               onChanged: _scheduleSearch,
-              suffixIcon: _searchController.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.close),
-                      tooltip: CourseCopy(l10n).clearSearch,
-                      onPressed: _clearSearch,
-                    ),
+              onSubmitted: (_) => _clearDebounceAndSearch(),
+              onClear: _clearSearch,
             ),
           ),
           _buildFilterRow(l10n),
@@ -872,13 +870,31 @@ class _CourseRow extends StatelessWidget {
     }
 
     if (terms.length == 1) {
-      return <Widget>[chip(shortTerm(terms.first))];
+      return <Widget>[
+        chip(
+          shortTerm(
+            terms.first,
+            locale: AppLocalizations.of(context).localeName,
+          ),
+        ),
+      ];
     }
     final List<Widget> visible = termsExpanded
-        ? terms.map(shortTerm).map(chip).toList()
+        ? terms
+              .map(
+                (term) => shortTerm(
+                  term,
+                  locale: AppLocalizations.of(context).localeName,
+                ),
+              )
+              .map(chip)
+              .toList()
         : <Widget>[];
     return <Widget>[
-      chip(shortTerm(terms.first), onTap: onToggleTerms),
+      chip(
+        shortTerm(terms.first, locale: AppLocalizations.of(context).localeName),
+        onTap: onToggleTerms,
+      ),
       if (!termsExpanded) chip('+${terms.length - 1}', onTap: onToggleTerms),
       ...visible,
     ];

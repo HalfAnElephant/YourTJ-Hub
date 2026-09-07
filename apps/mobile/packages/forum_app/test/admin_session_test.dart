@@ -12,6 +12,8 @@ import 'package:webview_flutter_platform_interface/webview_flutter_platform_inte
 import 'package:forum_app/l10n/app_localizations.dart';
 import 'package:forum_app/src/pages/admin/admin_page.dart';
 import 'package:forum_app/src/providers.dart';
+import 'package:forum_app/src/app_locale.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ui_kit/ui_kit.dart';
 import 'pages_smoke_test.dart' show MemoryTokenStorage;
 
@@ -20,6 +22,7 @@ class _Controller extends PlatformWebViewController {
   Completer<bool>? historyResult;
   int backCalls = 0;
   int loads = 0;
+  LoadRequestParams? lastRequest;
   @override
   Future<bool> canGoBack() => historyResult?.future ?? Future.value(false);
   @override
@@ -34,7 +37,11 @@ class _Controller extends PlatformWebViewController {
   @override
   Future<void> loadHtmlString(String html, {String? baseUrl}) async {}
   @override
-  Future<void> loadRequest(LoadRequestParams params) async { loads++; }
+  Future<void> loadRequest(LoadRequestParams params) async {
+    loads++;
+    lastRequest = params;
+  }
+
   @override
   Future<void> setJavaScriptMode(JavaScriptMode mode) async {}
   @override
@@ -70,9 +77,14 @@ class _Delegate extends PlatformNavigationDelegate {
 }
 
 class _Cookies extends PlatformWebViewCookieManager {
-  _Cookies(super.params) : super.implementation();
+  _Cookies(super.params, this.writes) : super.implementation();
+  final List<WebViewCookie> writes;
   @override
   Future<bool> clearCookies() async => true;
+  @override
+  Future<void> setCookie(WebViewCookie cookie) async {
+    writes.add(cookie);
+  }
 }
 
 class _Widget extends PlatformWebViewWidget {
@@ -82,6 +94,7 @@ class _Widget extends PlatformWebViewWidget {
 }
 
 class _Platform extends WebViewPlatform {
+  final cookieWrites = <WebViewCookie>[];
   late _Delegate delegate;
   late _Controller controller;
   @override
@@ -95,7 +108,7 @@ class _Platform extends WebViewPlatform {
   @override
   PlatformWebViewCookieManager createPlatformCookieManager(
     PlatformWebViewCookieManagerCreationParams params,
-  ) => _Cookies(params);
+  ) => _Cookies(params, cookieWrites);
   @override
   PlatformWebViewWidget createPlatformWebViewWidget(
     PlatformWebViewWidgetCreationParams params,
@@ -173,6 +186,8 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
+      SharedPreferences.setMockInitialValues({});
+      container.read(appLocaleProvider.notifier).setLocale(const Locale("de"));
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -187,6 +202,10 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 200));
       expect(platform.delegate.request, isNotNull);
+      expect(platform.cookieWrites.last.name, "lang");
+      expect(platform.cookieWrites.last.value, "de");
+      expect(platform.cookieWrites.last.domain, "local.example");
+      expect(platform.controller.lastRequest?.headers["Accept-Language"], "de");
       platform.controller.historyResult = Completer<bool>();
       await tester.tap(find.byTooltip('Back'));
       await tester.runAsync(() async {
@@ -227,8 +246,16 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 100));
       });
       await tester.pump(const Duration(milliseconds: 200));
-      expect(platform.controller, isNot(same(previousController)), reason: 'Retry creates a fresh browser');
-      expect(platform.controller.loads, 1, reason: 'The new session finishes the handoff');
+      expect(
+        platform.controller,
+        isNot(same(previousController)),
+        reason: 'Retry creates a fresh browser',
+      );
+      expect(
+        platform.controller.loads,
+        1,
+        reason: 'The new session finishes the handoff',
+      );
       var resumed = false;
       await tester.runAsync(() async {
         await platform.delegate.request!(

@@ -107,6 +107,8 @@ class _DraftsPageState extends ConsumerState<DraftsPage> {
                           l10n.draftsMetaReplies(draft.replyCount),
                         ].join(' · ');
                         return GfDraftRow(
+                          editLabel: l10n.commonEdit,
+                          blockedLabel: l10n.draftsBlocked,
                           title: draft.title.isEmpty
                               ? l10n.topicNoTitle
                               : draft.title,

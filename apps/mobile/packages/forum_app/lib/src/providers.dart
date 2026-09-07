@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'offline/drift_cache.dart';
 import 'app_config.dart';
+import 'app_locale.dart';
 
 /// 会话令牌存储:生产用 auth 包 SecureTokenStorage(flutter_secure_storage)。
 /// 测试可通过 override 注入内存实现。
@@ -48,11 +49,26 @@ final offlineCacheEpochProvider = NotifierProvider<OfflineCacheEpoch, int>(
 );
 
 /// Dio 实例(测试可 override 注入 mock adapter)。
-final dioProvider = Provider<Dio>((ref) => Dio());
+final dioProvider = Provider<Dio>((ref) => _localizedDio(ref));
 
 /// 登录流程专用 Dio:不复用 [dioProvider],避免主客户端安装的旧会话
 /// Bearer interceptor 污染 password/TOTP/OIDC 认证请求。
-final authDioProvider = Provider<Dio>((ref) => Dio());
+final authDioProvider = Provider<Dio>((ref) => _localizedDio(ref));
+
+Dio _localizedDio(Ref ref) {
+  final dio = Dio();
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (options, handler) {
+        options.headers['Accept-Language'] = resolveAppLocale(
+          ref.read(appLocaleProvider),
+        ).languageCode;
+        handler.next(options);
+      },
+    ),
+  );
+  return dio;
+}
 
 /// drift 数据库单例(话题 + IM 会话缓存共用)。
 final offlineDatabaseProvider = Provider<AppDatabase>((ref) {

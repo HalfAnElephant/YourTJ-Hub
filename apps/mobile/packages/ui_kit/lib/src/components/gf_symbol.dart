@@ -21,7 +21,9 @@ class GfSymbol extends StatelessWidget {
     colorFilter: name == 'google'
         ? null
         : ColorFilter.mode(
-            color ?? GfTheme.colorsOf(context).baseContent,
+            color ??
+                IconTheme.of(context).color ??
+                GfTheme.colorsOf(context).baseContent,
             BlendMode.srcIn,
           ),
   );

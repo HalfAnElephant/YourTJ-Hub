@@ -20,6 +20,194 @@ void main() {
   // goldens on Linux and skip elsewhere.
   final bool skipGoldens = !Platform.isLinux;
 
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'Profile presentation ${brightness.name}',
+      skip: skipGoldens,
+      tags: 'golden',
+      (tester) async {
+        await pumpGfGolden(
+          tester,
+          SingleChildScrollView(
+            child: GfUserCard(
+              avatarUrl: '',
+              name: 'Grey Goose',
+              username: 'greygoose',
+              bio: '  在同济，记录日常，也分享一点新发现。\n\n',
+              signature: '保持好奇，慢慢前行。',
+              coloredBadges: const [
+                GfUserBadge(label: '管理员', color: Color(0xFFF59E0B)),
+              ],
+              details: const Row(
+                spacing: 18,
+                children: [
+                  GfSocialIcon('github'),
+                  GfSocialIcon('twitter'),
+                  GfSocialIcon('linkedIn'),
+                  GfSocialIcon('weibo'),
+                  GfSocialIcon('bilibili'),
+                  GfSocialIcon('zhihu'),
+                ],
+              ),
+              actions: Row(
+                spacing: 8,
+                children: [
+                  GfButton(
+                    label: '已关注',
+                    variant: GfButtonVariant.secondary,
+                    icon: const GfSymbol('user-round-check', size: 18),
+                    onPressed: () {},
+                  ),
+                  GfButton(
+                    label: '新消息',
+                    variant: GfButtonVariant.secondary,
+                    icon: const GfSymbol('mail', size: 18),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+              stats: const [
+                ('主题', '24'),
+                ('回复', '108'),
+                ('点赞', '256'),
+                ('关注', '108'),
+                ('粉丝', '13'),
+              ],
+            ),
+          ),
+          brightness: brightness,
+        );
+        await expectLater(
+          find.byType(Scaffold),
+          matchesGoldenFile('golden/gf_profile_${brightness.name}.png'),
+        );
+      },
+    );
+    testWidgets(
+      'Activity badges and settings ${brightness.name}',
+      skip: skipGoldens,
+      tags: 'golden',
+      (tester) async {
+        await pumpGfGolden(
+          tester,
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                const GfActivityCard(
+                  symbol: 'heart',
+                  title: '点赞内容：孩子们，挂科了别忘记重考申请。',
+                  time: '2026-09-07 14:07',
+                  color: Color(0xFFE11D48),
+                ),
+                const GfActivityCard(
+                  symbol: 'message-circle',
+                  title: '参与回复：一起分享新学期的选课经验。',
+                  time: '2026-09-07 12:37',
+                  color: Color(0xFF059669),
+                ),
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: GfAchievementCard(
+                    title: '社区维护者',
+                    description: '协助维护社区秩序',
+                    color: Color(0xFF059669),
+                    icon: GfSymbol(
+                      'shield-check',
+                      color: Color(0xFF059669),
+                      size: 28,
+                    ),
+                  ),
+                ),
+                const GfSettingRow(
+                  title: '个人资料',
+                  description: '昵称、简介和社交链接',
+                  symbol: 'id-card',
+                ),
+                const GfSettingRow(
+                  title: '账号与安全',
+                  symbol: 'shield-check',
+                  iconColor: Color(0xFF059669),
+                ),
+                const GfSettingRow(
+                  title: 'Sprache der App',
+                  description: 'Systemsprache verwenden',
+                  symbol: 'languages',
+                ),
+                const GfSettingRow(
+                  title: 'アプリの言語',
+                  description: 'システム設定に従う',
+                  symbol: 'languages',
+                ),
+              ],
+            ),
+          ),
+          brightness: brightness,
+        );
+        await expectLater(
+          find.byType(Scaffold),
+          matchesGoldenFile('golden/gf_profile_cards_${brightness.name}.png'),
+        );
+      },
+    );
+  }
+
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'Search and follow controls ${brightness.name}',
+      skip: skipGoldens,
+      tags: 'golden',
+      (tester) async {
+        final controller = TextEditingController(text: '高等数学');
+        addTearDown(controller.dispose);
+        await pumpGfGolden(
+          tester,
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const GfSearchField(hintText: '搜索会话', clearLabel: '清空搜索'),
+                const SizedBox(height: 16),
+                GfSearchField(
+                  controller: controller,
+                  hintText: '搜索课程、教师',
+                  clearLabel: '清空搜索',
+                ),
+                const SizedBox(height: 16),
+                const GfSearchField(
+                  hintText: 'Konversationen durchsuchen',
+                  clearLabel: 'Leeren',
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  spacing: 12,
+                  children: [
+                    GfButton(
+                      label: '关注',
+                      icon: const GfSymbol('user-round-plus', size: 18),
+                      onPressed: () {},
+                    ),
+                    GfButton(
+                      label: '已关注',
+                      variant: GfButtonVariant.outline,
+                      icon: const GfSymbol('user-round-check', size: 18),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          brightness: brightness,
+        );
+        await expectLater(
+          find.byType(Scaffold),
+          matchesGoldenFile('golden/gf_search_follow_${brightness.name}.png'),
+        );
+      },
+    );
+  }
+
   testWidgets('GfButton all variants', skip: skipGoldens, tags: 'golden', (
     tester,
   ) async {

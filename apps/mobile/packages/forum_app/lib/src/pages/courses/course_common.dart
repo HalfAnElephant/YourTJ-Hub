@@ -2,124 +2,83 @@ import '../../../l10n/app_localizations.dart';
 
 /// 课程域页面文案与纯格式化工具。
 ///
-/// 课程域 l10n 键(在 `lib/l10n/*.arb`)只覆盖目录/详情的主要标题;AI 总结、
-/// 筛选、写评表单、相关课程与沿革等细粒度文案对齐 web
-/// (`resource/src/locales/zh.ts|en.ts` 的 courseSummary/courseDetailPage/
-/// coursesPage),此处以 zh/en 双份内联镜像,待 arb 放开后可收敛。
+/// All course UI copy uses the same generated four-language catalog as the app.
 class CourseCopy {
   CourseCopy(this.l10n);
 
   final AppLocalizations l10n;
 
-  bool get _zh => l10n.localeName == 'zh';
-
-  String _t(String zh, String en) => _zh ? zh : en;
-
   // ---- 目录 ----
-  String get creditUnit => _t('学分', 'Credits');
-  String get noTeacher => _t('无教师', 'No teacher');
-  String get catalogEmptyTitle => _t('暂无课程', 'No courses yet');
-  String get catalogEmptyDescription =>
-      _t('课程目录尚未导入。', 'The course catalog has not been imported yet.');
-  String get noFilterResults =>
-      _t('没有找到符合筛选条件的课程。', 'No courses match these filters.');
-  String get noFilterResultsDescription => _t(
-    '试试调整或清除筛选，查看更广的课程。',
-    'Try adjusting or clearing filters to see more courses.',
-  );
-  String get clearSearch => _t('清空搜索', 'Clear search');
-  String get done => _t('完成', 'Done');
-  String get noOptions => _t('暂无可选项', 'No options available');
-  String selectedCount(int count) => _t('已选 $count 项', '$count selected');
-  String get instructorInputHint =>
-      _t('输入教师姓名，回车添加', 'Enter an instructor name and press enter');
-  String get instructorAdd => _t('添加', 'Add');
-  String get instructorEmptyHint =>
-      _t('通过上方输入框添加教师', 'Add instructors with the field above');
+  String get creditUnit => l10n.courseCopyCreditUnit;
+  String get noTeacher => l10n.courseCopyNoTeacher;
+  String get catalogEmptyTitle => l10n.courseCopyCatalogEmptyTitle;
+  String get catalogEmptyDescription => l10n.courseCopyCatalogEmptyDescription;
+  String get noFilterResults => l10n.courseCopyNoFilterResults;
+  String get noFilterResultsDescription =>
+      l10n.courseCopyNoFilterResultsDescription;
+  String get clearSearch => l10n.courseCopyClearSearch;
+  String get done => l10n.courseCopyDone;
+  String get noOptions => l10n.courseCopyNoOptions;
+  String selectedCount(int count) => l10n.courseCopySelectedCount(count);
+  String get instructorInputHint => l10n.courseCopyInstructorInputHint;
+  String get instructorAdd => l10n.courseCopyInstructorAdd;
+  String get instructorEmptyHint => l10n.courseCopyInstructorEmptyHint;
 
   // ---- 详情头部 ----
-  String get aliasesLabel => _t('别名：', 'Aliases: ');
-  String get legacyNamesLabel => _t('原名：', 'Former name: ');
-  String get reviewScopeTeam => _t('教学团队', 'Teaching Team');
-  String get reviewScopeCourse => _t('课程级评价', 'Course-level Reviews');
-  String get teamInstructorsPrefix => _t('教学团队 · ', 'Teaching team · ');
+  String get aliasesLabel => l10n.courseCopyAliasesLabel;
+  String get legacyNamesLabel => l10n.courseCopyLegacyNamesLabel;
+  String get reviewScopeTeam => l10n.courseCopyReviewScopeTeam;
+  String get reviewScopeCourse => l10n.courseCopyReviewScopeCourse;
+  String get teamInstructorsPrefix => l10n.courseCopyTeamInstructorsPrefix;
   String teamInstructorsSuffix(int count) =>
-      _t('等 $count 位教师', ' ($count teachers)');
+      l10n.courseCopyTeamInstructorsSuffix(count);
 
   // ---- 评分卡 ----
-  String get ratingTitle => _t('课程评分', 'Course rating');
-  String get ratingOutOf => _t('/ 5.0', '/ 5.0');
-  String get noRatingQuiet => _t('暂无评分', 'No rating yet');
+  String get ratingTitle => l10n.courseCopyRatingTitle;
+  String get ratingOutOf => l10n.courseCopyRatingOutOf;
+  String get noRatingQuiet => l10n.courseCopyNoRatingQuiet;
 
   // ---- 开课班级 / 聚焦 ----
-  String get offeringsEmpty => _t('暂无开课记录。', 'No offerings yet.');
-  String get offeringFocusLabel =>
-      _t('只看该教学班的评价', 'Showing reviews for this class only');
-  String get offeringFocusClear => _t('查看全部评价', 'Show all reviews');
+  String get offeringsEmpty => l10n.courseCopyOfferingsEmpty;
+  String get offeringFocusLabel => l10n.courseCopyOfferingFocusLabel;
+  String get offeringFocusClear => l10n.courseCopyOfferingFocusClear;
 
   // ---- AI 总结 ----
-  String get summaryGenerated => _t('已生成', 'Generated');
-  String get summaryKeywords => _t('关键词', 'Keywords');
-  String get summaryPros => _t('优点', 'Pros');
-  String get summaryCons => _t('缺点', 'Cons');
+  String get summaryGenerated => l10n.courseCopySummaryGenerated;
+  String get summaryKeywords => l10n.courseCopySummaryKeywords;
+  String get summaryPros => l10n.courseCopySummaryPros;
+  String get summaryCons => l10n.courseCopySummaryCons;
   String get summaryRepresentativeReviews =>
-      _t('代表性评价', 'Representative reviews');
-  String get summarySentimentPositive => _t('好评', 'Positive');
-  String get summarySentimentNeutral => _t('中立', 'Neutral');
-  String get summarySentimentNegative => _t('差评', 'Negative');
-  String get summaryRefresh => _t('刷新', 'Refresh');
-  String get summaryExpand => _t('展开', 'Expand');
-  String get summaryCollapse => _t('收起', 'Collapse');
-  String get summaryDisclaimer => _t(
-    '以上内容由 AI 基于学生评价自动生成，仅供参考，不构成选课建议。',
-    'Generated by AI from student reviews. For reference only; not a course recommendation.',
-  );
-  String get summaryInsufficient => _t(
-    '评价数量不足，暂无法生成 AI 总结。',
-    'Not enough reviews to generate an AI summary yet.',
-  );
-  String get summaryLoadFailed => _t(
-    'AI 总结生成失败，请稍后重试。',
-    'Failed to generate the AI summary. Please try again later.',
-  );
+      l10n.courseCopySummaryRepresentativeReviews;
+  String get summarySentimentPositive =>
+      l10n.courseCopySummarySentimentPositive;
+  String get summarySentimentNeutral => l10n.courseCopySummarySentimentNeutral;
+  String get summarySentimentNegative =>
+      l10n.courseCopySummarySentimentNegative;
+  String get summaryRefresh => l10n.courseCopySummaryRefresh;
+  String get summaryExpand => l10n.courseCopySummaryExpand;
+  String get summaryCollapse => l10n.courseCopySummaryCollapse;
+  String get summaryDisclaimer => l10n.courseCopySummaryDisclaimer;
+  String get summaryInsufficient => l10n.courseCopySummaryInsufficient;
+  String get summaryLoadFailed => l10n.courseCopySummaryLoadFailed;
 
-  String summaryConsensus(String level) {
-    const Map<String, String> zh = {
-      'strong_recommend': '强烈推荐',
-      'recommend': '推荐',
-      'neutral': '褒贬不一',
-      'cautious': '谨慎选择',
-      'not_recommend': '不推荐',
-    };
-    const Map<String, String> en = {
-      'strong_recommend': 'Strongly recommended',
-      'recommend': 'Recommended',
-      'neutral': 'Mixed',
-      'cautious': 'Caution advised',
-      'not_recommend': 'Not recommended',
-    };
-    final Map<String, String> table = _zh ? zh : en;
-    return table[level] ?? level;
-  }
+  String summaryConsensus(String level) => switch (level) {
+    'strong_recommend' => l10n.courseCopySummaryConsensusStrongRecommend,
+    'recommend' => l10n.courseCopySummaryConsensusRecommend,
+    'neutral' => l10n.courseCopySummaryConsensusNeutral,
+    'cautious' => l10n.courseCopySummaryConsensusCautious,
+    'not_recommend' => l10n.courseCopySummaryConsensusNotRecommend,
+    _ => level,
+  };
 
-  String summaryConsensusText(String level) {
-    const Map<String, String> zh = {
-      'strong_recommend': '多数同学强烈推荐这门课程。',
-      'recommend': '多数同学推荐这门课程。',
-      'neutral': '同学们对这门课程的评价褒贬不一。',
-      'cautious': '多数同学建议谨慎选择这门课程。',
-      'not_recommend': '多数同学不推荐这门课程。',
-    };
-    const Map<String, String> en = {
-      'strong_recommend': 'Most students strongly recommend this course.',
-      'recommend': 'Most students recommend this course.',
-      'neutral': 'Students have mixed opinions about this course.',
-      'cautious': 'Most students advise caution before choosing this course.',
-      'not_recommend': 'Most students do not recommend this course.',
-    };
-    final Map<String, String> table = _zh ? zh : en;
-    return table[level] ?? level;
-  }
+  String summaryConsensusText(String level) => switch (level) {
+    'strong_recommend' => l10n.courseCopySummaryConsensusTextStrongRecommend,
+    'recommend' => l10n.courseCopySummaryConsensusTextRecommend,
+    'neutral' => l10n.courseCopySummaryConsensusTextNeutral,
+    'cautious' => l10n.courseCopySummaryConsensusTextCautious,
+    'not_recommend' => l10n.courseCopySummaryConsensusTextNotRecommend,
+    _ => level,
+  };
 
   String summarySentiment(String sentiment) => switch (sentiment) {
     'positive' => summarySentimentPositive,
@@ -128,46 +87,37 @@ class CourseCopy {
   };
 
   // ---- 写评 / 课评操作 ----
-  String get writeReviewTitle => _t('写一条评价', 'Write a review');
-  String get editReviewTitle => _t('编辑评价', 'Edit review');
-  String get selectOffering => _t('选择开课实例', 'Select offering');
-  String get ratingLabel => _t('评分', 'Rating');
-  String get contentLabel => _t('评价内容', 'Review');
-  String get contentPlaceholder => _t(
-    '写下你的学习体验、课程质量或给分情况…',
-    'Share your experience with the course, teaching quality, or grading…',
-  );
-  String get ratingRequired =>
-      _t('请选择 1–5 星评分。', 'Please choose a 1–5 star rating.');
-  String get contentRequired =>
-      _t('评价内容不能为空。', 'Review content cannot be empty.');
-  String get anonymousLabel =>
-      _t('匿名发布（对公众隐藏身份）', 'Post anonymously (identity hidden from the public)');
-  String get submitSuccess => _t('已提交', 'Submitted');
-  String get updateSuccess => _t('已更新', 'Updated');
-  String get delete => _t('删除', 'Delete');
-  String get deleteReviewTitle => _t('删除评价', 'Delete review');
-  String get confirmDeleteReview =>
-      _t('确定删除这条评价吗？删除后不可恢复。', 'Delete this review? This cannot be undone.');
-  String get reviewDeleted => _t('评价已删除', 'Review deleted');
-  String get operationFailed =>
-      _t('操作失败，请稍后重试。', 'Operation failed. Please try again later.');
-  String get reviewsLoadFailed =>
-      _t('评价加载失败，请稍后重试。', 'Failed to load reviews. Please try again later.');
-  String get authorAnonymousLabel => _t('匿名同学', 'Anonymous');
-  String get authorLegacyLabel => _t('历史匿名评价', 'Legacy anonymous review');
+  String get writeReviewTitle => l10n.courseCopyWriteReviewTitle;
+  String get editReviewTitle => l10n.courseCopyEditReviewTitle;
+  String get selectOffering => l10n.courseCopySelectOffering;
+  String get ratingLabel => l10n.courseCopyRatingLabel;
+  String get contentLabel => l10n.courseCopyContentLabel;
+  String get contentPlaceholder => l10n.courseCopyContentPlaceholder;
+  String get ratingRequired => l10n.courseCopyRatingRequired;
+  String get contentRequired => l10n.courseCopyContentRequired;
+  String get anonymousLabel => l10n.courseCopyAnonymousLabel;
+  String get submitSuccess => l10n.courseCopySubmitSuccess;
+  String get updateSuccess => l10n.courseCopyUpdateSuccess;
+  String get delete => l10n.courseCopyDelete;
+  String get deleteReviewTitle => l10n.courseCopyDeleteReviewTitle;
+  String get confirmDeleteReview => l10n.courseCopyConfirmDeleteReview;
+  String get reviewDeleted => l10n.courseCopyReviewDeleted;
+  String get operationFailed => l10n.courseCopyOperationFailed;
+  String get reviewsLoadFailed => l10n.courseCopyReviewsLoadFailed;
+  String get authorAnonymousLabel => l10n.courseCopyAuthorAnonymousLabel;
+  String get authorLegacyLabel => l10n.courseCopyAuthorLegacyLabel;
 
   // ---- 相关课程 / 沿革 ----
   String get relatedTeacherCoursesTitle =>
-      _t('同教师其他课程', 'Other courses by the same teachers');
+      l10n.courseCopyRelatedTeacherCoursesTitle;
   String get relatedOtherTeachersTitle =>
-      _t('同课程其他教师', 'Other teachers of this course');
-  String get relatedEmpty => _t('暂无相关内容', 'No related content');
-  String get relationEquivalent => _t('等价', 'Equivalent');
-  String get relationRenamed => _t('改名', 'Renamed');
-  String get relationSplit => _t('拆分', 'Split');
-  String get relationMerged => _t('合并', 'Merged');
-  String get relationRelated => _t('相关', 'Related');
+      l10n.courseCopyRelatedOtherTeachersTitle;
+  String get relatedEmpty => l10n.courseCopyRelatedEmpty;
+  String get relationEquivalent => l10n.courseCopyRelationEquivalent;
+  String get relationRenamed => l10n.courseCopyRelationRenamed;
+  String get relationSplit => l10n.courseCopyRelationSplit;
+  String get relationMerged => l10n.courseCopyRelationMerged;
+  String get relationRelated => l10n.courseCopyRelationRelated;
   String relationLabel(String type) => switch (type) {
     'EQUIVALENT' => relationEquivalent,
     'RENAMED_FROM' => relationRenamed,
@@ -180,12 +130,18 @@ class CourseCopy {
 
 /// 学期代码缩写（对齐 web `shortTerm`）：`2025-2026-2` → `25春`；
 /// 1=秋、2=春；非标准码原样返回。
-String shortTerm(String term) {
+String shortTerm(String term, {String locale = 'zh'}) {
   final RegExpMatch? m = RegExp(
     r'^(\d{4})-(\d{4})-([12])$',
   ).firstMatch(term.trim());
   if (m == null) return term;
-  return '${m.group(1)!.substring(2)}${m.group(3) == '1' ? '秋' : '春'}';
+  final autumn = m.group(3) == '1';
+  final season = switch (locale.split('_').first) {
+    'en' => autumn ? ' Fall' : ' Spring',
+    'de' => autumn ? ' WiSe' : ' SoSe',
+    _ => autumn ? '秋' : '春',
+  };
+  return '${m.group(1)!.substring(2)}$season';
 }
 
 /// 学期排序键：标准码按 startYear*10+semester；非标准码 -1。

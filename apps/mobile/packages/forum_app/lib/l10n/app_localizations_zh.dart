@@ -1470,4 +1470,329 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get wikiExploreTitle => '你的校园生活指南';
+
+  @override
+  String notificationComment(String actor) {
+    return '$actor 评论了你的主题';
+  }
+
+  @override
+  String notificationPostReply(String actor) {
+    return '$actor 回复了你';
+  }
+
+  @override
+  String notificationTopicPost(String actor) {
+    return '$actor 在你关注的主题中发表了回复';
+  }
+
+  @override
+  String notificationFollow(String actor) {
+    return '$actor 关注了你';
+  }
+
+  @override
+  String notificationLike(String actor) {
+    return '$actor 赞了你的回复';
+  }
+
+  @override
+  String notificationWikiUpdated(String actor) {
+    return '$actor 更新了你关注的 Wiki 页面';
+  }
+
+  @override
+  String notificationBadge(String badge) {
+    return '你获得了“$badge”徽章';
+  }
+
+  @override
+  String get notificationNew => '新通知';
+
+  @override
+  String get notificationSomeone => '有人';
+
+  @override
+  String get profileRoleAdmin => '管理员';
+
+  @override
+  String get profileActionSignup => '加入社区';
+
+  @override
+  String get profileActionPost => '发布主题';
+
+  @override
+  String get profileActionLike => '点赞';
+
+  @override
+  String get profileActionFollow => '关注用户';
+
+  @override
+  String get profileActionComment => '发表回复';
+
+  @override
+  String get replyQuoteExpand => '展开引用';
+
+  @override
+  String get replyQuoteCollapse => '收起引用';
+
+  @override
+  String get notificationBadgeUnnamed => '你获得了一枚新徽章';
+
+  @override
+  String get settingsAppLanguage => '应用语言';
+
+  @override
+  String get settingsLanguageSystem => '跟随系统';
+
+  @override
+  String scheduleGradeYear(String year) {
+    return '$year 级';
+  }
+
+  @override
+  String get schedulePeriods => '节次';
+
+  @override
+  String get scheduleWeeksLabel => '周次';
+
+  @override
+  String schedulePeriodRange(String range) {
+    return '第 $range 节';
+  }
+
+  @override
+  String get courseCopyCreditUnit => '学分';
+
+  @override
+  String get courseCopyNoTeacher => '无教师';
+
+  @override
+  String get courseCopyCatalogEmptyTitle => '暂无课程';
+
+  @override
+  String get courseCopyCatalogEmptyDescription => '课程目录尚未导入。';
+
+  @override
+  String get courseCopyNoFilterResults => '没有找到符合筛选条件的课程。';
+
+  @override
+  String get courseCopyNoFilterResultsDescription => '试试调整或清除筛选，查看更广的课程。';
+
+  @override
+  String get courseCopyClearSearch => '清空搜索';
+
+  @override
+  String get courseCopyDone => '完成';
+
+  @override
+  String get courseCopyNoOptions => '暂无可选项';
+
+  @override
+  String courseCopySelectedCount(int count) {
+    return '已选 $count 项';
+  }
+
+  @override
+  String get courseCopyInstructorInputHint => '输入教师姓名，回车添加';
+
+  @override
+  String get courseCopyInstructorAdd => '添加';
+
+  @override
+  String get courseCopyInstructorEmptyHint => '通过上方输入框添加教师';
+
+  @override
+  String get courseCopyAliasesLabel => '别名：';
+
+  @override
+  String get courseCopyLegacyNamesLabel => '原名：';
+
+  @override
+  String get courseCopyReviewScopeTeam => '教学团队';
+
+  @override
+  String get courseCopyReviewScopeCourse => '课程级评价';
+
+  @override
+  String get courseCopyTeamInstructorsPrefix => '教学团队 · ';
+
+  @override
+  String courseCopyTeamInstructorsSuffix(int count) {
+    return '等 $count 位教师';
+  }
+
+  @override
+  String get courseCopyRatingTitle => '课程评分';
+
+  @override
+  String get courseCopyRatingOutOf => '/ 5.0';
+
+  @override
+  String get courseCopyNoRatingQuiet => '暂无评分';
+
+  @override
+  String get courseCopyOfferingsEmpty => '暂无开课记录。';
+
+  @override
+  String get courseCopyOfferingFocusLabel => '只看该教学班的评价';
+
+  @override
+  String get courseCopyOfferingFocusClear => '查看全部评价';
+
+  @override
+  String get courseCopySummaryGenerated => '已生成';
+
+  @override
+  String get courseCopySummaryKeywords => '关键词';
+
+  @override
+  String get courseCopySummaryPros => '优点';
+
+  @override
+  String get courseCopySummaryCons => '缺点';
+
+  @override
+  String get courseCopySummaryRepresentativeReviews => '代表性评价';
+
+  @override
+  String get courseCopySummarySentimentPositive => '好评';
+
+  @override
+  String get courseCopySummarySentimentNeutral => '中立';
+
+  @override
+  String get courseCopySummarySentimentNegative => '差评';
+
+  @override
+  String get courseCopySummaryRefresh => '刷新';
+
+  @override
+  String get courseCopySummaryExpand => '展开';
+
+  @override
+  String get courseCopySummaryCollapse => '收起';
+
+  @override
+  String get courseCopySummaryDisclaimer => '以上内容由 AI 基于学生评价自动生成，仅供参考，不构成选课建议。';
+
+  @override
+  String get courseCopySummaryInsufficient => '评价数量不足，暂无法生成 AI 总结。';
+
+  @override
+  String get courseCopySummaryLoadFailed => 'AI 总结生成失败，请稍后重试。';
+
+  @override
+  String get courseCopyWriteReviewTitle => '写一条评价';
+
+  @override
+  String get courseCopyEditReviewTitle => '编辑评价';
+
+  @override
+  String get courseCopySelectOffering => '选择开课实例';
+
+  @override
+  String get courseCopyRatingLabel => '评分';
+
+  @override
+  String get courseCopyContentLabel => '评价内容';
+
+  @override
+  String get courseCopyContentPlaceholder => '写下你的学习体验、课程质量或给分情况…';
+
+  @override
+  String get courseCopyRatingRequired => '请选择 1–5 星评分。';
+
+  @override
+  String get courseCopyContentRequired => '评价内容不能为空。';
+
+  @override
+  String get courseCopyAnonymousLabel => '匿名发布（对公众隐藏身份）';
+
+  @override
+  String get courseCopySubmitSuccess => '已提交';
+
+  @override
+  String get courseCopyUpdateSuccess => '已更新';
+
+  @override
+  String get courseCopyDelete => '删除';
+
+  @override
+  String get courseCopyDeleteReviewTitle => '删除评价';
+
+  @override
+  String get courseCopyConfirmDeleteReview => '确定删除这条评价吗？删除后不可恢复。';
+
+  @override
+  String get courseCopyReviewDeleted => '评价已删除';
+
+  @override
+  String get courseCopyOperationFailed => '操作失败，请稍后重试。';
+
+  @override
+  String get courseCopyReviewsLoadFailed => '评价加载失败，请稍后重试。';
+
+  @override
+  String get courseCopyAuthorAnonymousLabel => '匿名同学';
+
+  @override
+  String get courseCopyAuthorLegacyLabel => '历史匿名评价';
+
+  @override
+  String get courseCopyRelatedTeacherCoursesTitle => '同教师其他课程';
+
+  @override
+  String get courseCopyRelatedOtherTeachersTitle => '同课程其他教师';
+
+  @override
+  String get courseCopyRelatedEmpty => '暂无相关内容';
+
+  @override
+  String get courseCopyRelationEquivalent => '等价';
+
+  @override
+  String get courseCopyRelationRenamed => '改名';
+
+  @override
+  String get courseCopyRelationSplit => '拆分';
+
+  @override
+  String get courseCopyRelationMerged => '合并';
+
+  @override
+  String get courseCopyRelationRelated => '相关';
+
+  @override
+  String get courseCopySummaryConsensusStrongRecommend => '强烈推荐';
+
+  @override
+  String get courseCopySummaryConsensusRecommend => '推荐';
+
+  @override
+  String get courseCopySummaryConsensusNeutral => '褒贬不一';
+
+  @override
+  String get courseCopySummaryConsensusCautious => '谨慎选择';
+
+  @override
+  String get courseCopySummaryConsensusNotRecommend => '不推荐';
+
+  @override
+  String get courseCopySummaryConsensusTextStrongRecommend => '多数同学强烈推荐这门课程。';
+
+  @override
+  String get courseCopySummaryConsensusTextRecommend => '多数同学推荐这门课程。';
+
+  @override
+  String get courseCopySummaryConsensusTextNeutral => '同学们对这门课程的评价褒贬不一。';
+
+  @override
+  String get courseCopySummaryConsensusTextCautious => '多数同学建议谨慎选择这门课程。';
+
+  @override
+  String get courseCopySummaryConsensusTextNotRecommend => '多数同学不推荐这门课程。';
+
+  @override
+  String get topicJoinDiscussion => '参与讨论';
 }

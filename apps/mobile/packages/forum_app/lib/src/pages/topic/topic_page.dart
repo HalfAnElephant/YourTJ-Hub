@@ -747,6 +747,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                               onBookmark: _toggleBookmark,
                               onWatch: _toggleWatch,
                               onReportTopic: () => _reportTopic(props.topic),
+                              onReply: _canReply ? () => _openComposer() : null,
                             ),
                           ),
                           const SliverToBoxAdapter(child: GfDivider()),
@@ -923,26 +924,32 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                             ),
                           )
                         : GfFloatingControls(
+                            joinLabel: l10n.topicJoinDiscussion,
                             actions: <GfTopicAction>[
                               if (_topicAvailable) ...[
                                 GfTopicAction(
                                   icon: Icons.favorite_border,
+                                  symbol: _liked ? 'heart-filled' : 'heart',
                                   active: _liked,
                                   activeColor: colors.error,
                                   onTap: _toggleLike,
                                 ),
                                 GfTopicAction(
                                   icon: Icons.bookmark_border,
+                                  symbol: _bookmarked
+                                      ? 'bookmark-filled'
+                                      : 'bookmark',
                                   active: _bookmarked,
-                                  activeColor: colors.primary,
+                                  activeColor: colors.warning,
                                   onTap: _toggleBookmark,
                                 ),
                                 GfTopicAction(
                                   icon: _watched
                                       ? Icons.notifications
                                       : Icons.notifications_none,
+                                  symbol: 'bell',
                                   active: _watched,
-                                  activeColor: colors.success,
+                                  activeColor: colors.primary,
                                   onTap: _toggleWatch,
                                 ),
                               ],
@@ -1015,6 +1022,7 @@ class _TopicHeader extends StatelessWidget {
     required this.onBookmark,
     required this.onWatch,
     required this.onReportTopic,
+    this.onReply,
   });
 
   final TopicDetailPayload topic;
@@ -1028,6 +1036,7 @@ class _TopicHeader extends StatelessWidget {
   final VoidCallback onBookmark;
   final VoidCallback onWatch;
   final VoidCallback onReportTopic;
+  final VoidCallback? onReply;
 
   @override
   Widget build(BuildContext context) {
@@ -1078,16 +1087,6 @@ class _TopicHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              if (available)
-                GfIconButton(
-                  icon: watched
-                      ? Icons.notifications
-                      : Icons.notifications_none,
-                  size: 44,
-                  iconSize: 20,
-                  tooltip: watched ? l10n.topicUnwatch : l10n.topicWatch,
-                  onPressed: onWatch,
-                ),
               if (canReportTopic) ...<Widget>[
                 const SizedBox(width: 4),
                 GfIconButton(
@@ -1136,46 +1135,70 @@ class _TopicHeader extends StatelessWidget {
             Text(topic.description, style: GfTheme.typographyOf(context).body),
           ],
           const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            decoration: BoxDecoration(
-              color: colors.base200,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: colors.line),
-            ),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: _MetaItem(
-                    icon: Icons.visibility_outlined,
-                    value: formatNumber(topic.viewCount),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              _TopicStat(
+                symbol: 'eye',
+                value: formatNumber(topic.viewCount),
+                label: l10n.draftsMetaViews(topic.viewCount),
+              ),
+              _TopicStat(
+                symbol: 'message-circle',
+                value: formatNumber(topic.replyCount),
+                label: l10n.topicReplies(topic.replyCount),
+              ),
+            ],
+          ),
+          if (available) ...[
+            const SizedBox(height: 12),
+            const GfDivider(),
+            const SizedBox(height: 8),
+            Wrap(
+              key: const ValueKey('topic-inline-actions'),
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                if (onReply != null)
+                  _TopicAction(
+                    symbol: 'corner-down-left',
+                    label: l10n.topicReply,
+                    tooltip: l10n.topicReply,
+                    onTap: onReply,
+                    prominent: true,
                   ),
+                _TopicAction(
+                  symbol: liked ? 'heart-filled' : 'heart',
+                  label: likeCount > 0
+                      ? formatNumber(likeCount)
+                      : l10n.topicLike,
+                  tooltip: l10n.topicLike,
+                  selected: liked,
+                  color: colors.error,
+                  onTap: onLike,
                 ),
-                Expanded(
-                  child: _MetaItem(
-                    icon: Icons.chat_bubble_outline,
-                    value: formatNumber(topic.replyCount),
-                  ),
+                _TopicAction(
+                  symbol: bookmarked ? 'bookmark-filled' : 'bookmark',
+                  label: l10n.topicBookmark,
+                  tooltip: bookmarked
+                      ? l10n.topicBookmarked
+                      : l10n.topicBookmark,
+                  selected: bookmarked,
+                  color: colors.warning,
+                  onTap: onBookmark,
                 ),
-                Expanded(
-                  child: _MetaItem(
-                    icon: liked ? Icons.favorite : Icons.favorite_border,
-                    value: formatNumber(likeCount),
-                    color: liked ? colors.error : null,
-                    onTap: available ? onLike : null,
-                  ),
-                ),
-                Expanded(
-                  child: _MetaItem(
-                    icon: bookmarked ? Icons.bookmark : Icons.bookmark_border,
-                    value: '',
-                    color: bookmarked ? colors.primary : null,
-                    onTap: available ? onBookmark : null,
-                  ),
+                _TopicAction(
+                  symbol: 'bell',
+                  label: watched ? l10n.topicUnwatch : l10n.topicWatch,
+                  tooltip: watched ? l10n.topicUnwatch : l10n.topicWatch,
+                  selected: watched,
+                  color: colors.primary,
+                  onTap: onWatch,
                 ),
               ],
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1197,63 +1220,91 @@ class _ReplySectionHeader extends StatelessWidget {
             AppLocalizations.of(context).topicReplies(count),
             style: GfTheme.typographyOf(context).title3,
           ),
-          const Spacer(),
-          Icon(
-            Icons.forum_outlined,
-            size: 18,
-            color: GfTheme.colorsOf(context).iconMuted,
-          ),
         ],
       ),
     );
   }
 }
 
-class _MetaItem extends StatelessWidget {
-  const _MetaItem({
-    required this.icon,
+/// Passive counts stay visually separate from touch targets, like Web's metadata.
+class _TopicStat extends StatelessWidget {
+  const _TopicStat({
+    required this.symbol,
     required this.value,
+    required this.label,
+  });
+  final String symbol;
+  final String value;
+  final String label;
+  @override
+  Widget build(BuildContext context) {
+    final color = GfTheme.colorsOf(context).iconMuted;
+    return Semantics(
+      label: label,
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GfSymbol(symbol, size: 16, color: color),
+            const SizedBox(width: 5),
+            Text(
+              value,
+              style: GfTheme.typographyOf(
+                context,
+              ).caption.copyWith(color: color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TopicAction extends StatelessWidget {
+  const _TopicAction({
+    required this.symbol,
+    required this.label,
+    required this.tooltip,
+    this.selected,
+    this.prominent = false,
     this.color,
     this.onTap,
   });
-
-  final IconData icon;
-  final String value;
+  final String symbol;
+  final String label;
+  final String tooltip;
+  final bool? selected;
+  final bool prominent;
   final Color? color;
   final VoidCallback? onTap;
-
   @override
   Widget build(BuildContext context) {
-    final Color foreground = color ?? GfTheme.colorsOf(context).iconMuted;
-    final Widget content = Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Icon(icon, size: 17, color: foreground),
-        if (value.isNotEmpty) ...<Widget>[
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: GfTheme.typographyOf(
-              context,
-            ).caption.copyWith(color: foreground),
+    final colors = GfTheme.colorsOf(context);
+    final foreground = prominent
+        ? colors.primaryContent
+        : selected == true
+        ? color ?? colors.primary
+        : colors.iconMuted;
+    return Semantics(
+      toggled: selected,
+      child: Tooltip(
+        message: tooltip,
+        child: TextButton.icon(
+          onPressed: onTap,
+          icon: GfSymbol(symbol, size: 18),
+          label: Text(label),
+          style: TextButton.styleFrom(
+            foregroundColor: foreground,
+            backgroundColor: prominent
+                ? colors.primary
+                : selected == true
+                ? (color ?? colors.primary).withValues(alpha: .1)
+                : Colors.transparent,
+            minimumSize: const Size(44, 44),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            shape: const StadiumBorder(),
           ),
-        ],
-      ],
-    );
-
-    if (onTap == null) {
-      return ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 44),
-        child: Center(child: content),
-      );
-    }
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 44),
-        child: Center(child: content),
+        ),
       ),
     );
   }
@@ -1327,6 +1378,7 @@ class _PostCard extends StatelessWidget {
             if (showReplyQuote)
               _ReplyQuote(
                 username: post.replyToUsername!,
+                avatarUrl: quoteTarget?.author.avatarUrl ?? '',
                 postNo: quoteTarget?.postNo,
                 contentPreview: _plainTextFromHtml(
                   quoteTarget?.renderedContent,
@@ -1348,20 +1400,38 @@ class _PostCard extends StatelessWidget {
           else
             GfMarkdownView(data: post.content),
           const SizedBox(height: 10),
-          Text(
-            timeAgo(post.createdAt, l10n: l10n),
-            style: GfTheme.typographyOf(
-              context,
-            ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: PostActions(
-              post: post,
-              onChanged: onChanged,
-              onReply: onReply,
-              onReport: onReport,
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final timestamp = Text(
+                timeAgo(post.createdAt, l10n: l10n),
+                style: GfTheme.typographyOf(
+                  context,
+                ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
+              );
+              final actions = PostActions(
+                post: post,
+                onChanged: onChanged,
+                onReply: onReply,
+                onReport: onReport,
+              );
+              // Keep controls tappable at large text sizes and narrow widths.
+              if (constraints.maxWidth < 340 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 20) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    timestamp,
+                    Align(alignment: Alignment.centerRight, child: actions),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: timestamp),
+                  actions,
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1393,11 +1463,13 @@ class _ReplyQuote extends StatefulWidget {
     required this.unavailable,
     this.postNo,
     this.contentPreview,
+    this.avatarUrl = '',
   });
 
   final String username;
   final int? postNo;
   final String? contentPreview;
+  final String avatarUrl;
   final bool unavailable;
 
   @override
@@ -1406,69 +1478,109 @@ class _ReplyQuote extends StatefulWidget {
 
 class _ReplyQuoteState extends State<_ReplyQuote> {
   bool _expanded = false;
+  @override
+  void didUpdateWidget(covariant _ReplyQuote oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.contentPreview != widget.contentPreview ||
+        oldWidget.postNo != widget.postNo) {
+      _expanded = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final String header = widget.postNo == null
-        ? '${l10n.topicReply} @${widget.username}'
-        : '${l10n.topicReply} @${widget.username} #${widget.postNo}';
     final String preview = widget.contentPreview ?? '';
     final bool hasPreview = !widget.unavailable && preview.isNotEmpty;
-
+    final style = GfTheme.typographyOf(context).small.copyWith(
+      color: colors.baseContent.withValues(alpha: 0.75),
+      height: 1.45,
+    );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: colors.base200,
-        border: Border(left: BorderSide(color: colors.primary, width: 2)),
-        borderRadius: BorderRadius.circular(4),
+        color: colors.base200.withValues(alpha: 0.4),
+        border: Border(
+          left: BorderSide(
+            color: colors.primary.withValues(alpha: 0.45),
+            width: 2,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            header,
-            style: TextStyle(
-              color: colors.baseContent.withValues(alpha: 0.55),
-              fontSize: 12,
-            ),
-          ),
-          if (widget.unavailable) ...<Widget>[
-            const SizedBox(height: 4),
-            Text(
-              l10n.topicReplyTargetUnavailable,
-              style: TextStyle(
-                color: colors.baseContent.withValues(alpha: 0.45),
-                fontSize: 12,
-              ),
-            ),
-          ] else if (hasPreview) ...<Widget>[
-            const SizedBox(height: 4),
-            Text(
-              preview,
-              maxLines: _expanded ? null : 3,
-              overflow: _expanded ? TextOverflow.clip : TextOverflow.ellipsis,
-              style: TextStyle(
-                color: colors.baseContent.withValues(alpha: 0.75),
-                fontSize: 13,
-                height: 1.35,
-              ),
-            ),
-            if (preview.length > 120)
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _expanded = !_expanded),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 18,
-                    color: colors.baseContent.withValues(alpha: 0.45),
-                  ),
+        children: [
+          Row(
+            children: [
+              if (!widget.unavailable) ...[
+                GfAvatar(src: resolveApiAssetUrl(widget.avatarUrl), size: 20),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  '@${widget.username}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
+              if (widget.postNo != null)
+                Text(
+                  '#${widget.postNo}',
+                  style: style.copyWith(color: colors.iconMuted),
+                ),
+            ],
+          ),
+          if (widget.unavailable) ...[
+            const SizedBox(height: 6),
+            Text(l10n.topicReplyTargetUnavailable, style: style),
+          ] else if (hasPreview) ...[
+            const SizedBox(height: 6),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final painter = TextPainter(
+                  text: TextSpan(text: preview, style: style),
+                  maxLines: 4,
+                  textDirection: Directionality.of(context),
+                  textScaler: MediaQuery.textScalerOf(context),
+                )..layout(maxWidth: constraints.maxWidth);
+                final overflowing = painter.didExceedMaxLines;
+                painter.dispose();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      preview,
+                      maxLines: _expanded ? null : 4,
+                      overflow: _expanded
+                          ? TextOverflow.clip
+                          : TextOverflow.ellipsis,
+                      style: style,
+                    ),
+                    if (overflowing)
+                      TextButton.icon(
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(44, 44),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () => setState(() => _expanded = !_expanded),
+                        icon: Icon(
+                          _expanded ? Icons.expand_less : Icons.expand_more,
+                          size: 16,
+                        ),
+                        label: Text(
+                          _expanded
+                              ? l10n.replyQuoteCollapse
+                              : l10n.replyQuoteExpand,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ],
         ],
       ),

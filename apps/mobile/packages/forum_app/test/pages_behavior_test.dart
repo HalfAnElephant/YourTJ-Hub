@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'dart:ui' show Tristate;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -490,16 +491,21 @@ class FailAfterFirstMessagesRepository extends CountingPageRepository {
 
 /// Returns richer, long-form fixtures for the redesigned content pages.
 class RedesignPageRepository extends PageRepository {
-  RedesignPageRepository(super.client, {this.profilePayload});
+  RedesignPageRepository(
+    super.client, {
+    this.profilePayload,
+    this.topicPayload,
+  });
 
   final Map<String, dynamic>? profilePayload;
+  final Map<String, dynamic>? topicPayload;
   final paths = <String>[];
 
   @override
   Future<PagePayload> fetch(String path) async {
     paths.add(path);
     if (path.startsWith('/p/post/')) {
-      return parsePayload(redesignedTopicPayloadJson());
+      return parsePayload(topicPayload ?? redesignedTopicPayloadJson());
     }
     if (path.startsWith('/u/')) {
       return parsePayload(profilePayload ?? redesignedProfilePayloadJson());
@@ -511,8 +517,34 @@ class RedesignPageRepository extends PageRepository {
   }
 }
 
+class _ShortProfileStreams extends RedesignPageRepository {
+  _ShortProfileStreams(super.client);
+  bool fail = false;
+  Future<void>? pending;
+  @override
+  Future<PagePayload> fetch(String path) async {
+    await pending;
+    if (fail) throw StateError('stream unavailable');
+    final payload = redesignedProfilePayloadJson();
+    final props = payload['props'] as Map<String, dynamic>;
+    if (path.endsWith('/likes')) {
+      props['likes'] = [];
+      props['topics'] = [];
+      props['activities'] = [];
+    } else {
+      final activities = props['activities'] as List;
+      props['activities'] = List.generate(
+        30,
+        (i) => {...(activities.first as Map<String, dynamic>), 'id': i + 1},
+      );
+    }
+    return parsePayload(payload);
+  }
+}
+
 class RecordingFollowTopicRepository extends TopicRepository {
   RecordingFollowTopicRepository(super.client);
+  Completer<bool>? pending;
 
   final List<int> userIds = <int>[];
   final List<bool> currentStates = <bool>[];
@@ -524,7 +556,7 @@ class RecordingFollowTopicRepository extends TopicRepository {
   }) async {
     userIds.add(userId);
     currentStates.add(isFollowing);
-    return true;
+    return pending == null ? true : await pending!.future;
   }
 }
 
@@ -785,6 +817,20 @@ class ErroringProfilePageRepository extends CountingPageRepository {
 }
 
 /// 记录 search 调用 page 的 TopicRepository。
+class ControlledSearchRepository extends PagingTopicRepository {
+  ControlledSearchRepository(super.client);
+  Future<void>? pending;
+  @override
+  Future<SearchPageProps> search({
+    required String query,
+    String scope = '',
+    int page = 1,
+  }) async {
+    await pending;
+    return super.search(query: query, scope: scope, page: page);
+  }
+}
+
 class PagingTopicRepository extends TopicRepository {
   PagingTopicRepository(super.client);
 
@@ -1024,6 +1070,7 @@ class DraftsPageRepository extends PageRepository {
 
 /// 记录 filter 的 NotificationRepository。
 class FilteringNotificationRepository extends NotificationRepository {
+  NotificationPayload? overrideItem;
   FilteringNotificationRepository(super.client);
 
   final List<String> filters = [];
@@ -1046,7 +1093,7 @@ class FilteringNotificationRepository extends NotificationRepository {
       payload: const NotificationInnerPayload(actorId: 1),
     );
     return NotificationListResponse(
-      items: [n],
+      items: [overrideItem ?? n],
       nextCursor: 0,
       hasNext: false,
       unreadCount: 1,
@@ -1402,6 +1449,421 @@ void main() {
     );
   }
 
+  testWidgets('short multiline quotes expand by actual line overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final payload = redesignedTopicPayloadJson();
+    final stream =
+        (payload['props'] as Map<String, dynamic>)['postStream']
+            as Map<String, dynamic>;
+    final posts = stream['posts'] as List;
+    final reply = posts[2] as Map<String, dynamic>;
+    reply['replyToPostId'] = 9002;
+    reply['replyToUsername'] = 'quoted';
+    stream['posts'] = [posts.first, reply];
+    stream['replyTargets'] = [
+      {
+        'id': 9002,
+        'postNo': 2,
+        'unavailable': false,
+        'author': {'id': 2, 'username': 'quoted', 'avatarUrl': ''},
+        'renderedContent': 'one<br>two<br>three<br>four<br>five<br>six',
+      },
+    ];
+    final container = await makeContainer(
+      pageRepo: RedesignPageRepository(client, topicPayload: payload),
+    );
+    await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+    await tester.pumpAndSettle();
+    const preview = 'one\ntwo\nthree\nfour\nfive\nsix';
+    await tester.ensureVisible(find.text(preview));
+    expect(tester.widget<Text>(find.text(preview)).maxLines, 4);
+    await tester.tap(find.text('展开引用'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.text(preview)).maxLines, isNull);
+    await tester.tap(find.text('收起引用'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<Text>(find.text(preview)).maxLines, 4);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 600));
+  });
+
+  testWidgets(
+    'topic uses inline actions without a decorative discussion icon',
+    (tester) async {
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final container = await makeContainer(
+        pageRepo: RedesignPageRepository(
+          client,
+          topicPayload: redesignedTopicPayloadJson(),
+        ),
+      );
+      await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.forum_outlined), findsNothing);
+      final reply = find.descendant(
+        of: find.byKey(const ValueKey('topic-inline-actions')),
+        matching: find.text('回复'),
+      );
+      final semantics = tester.ensureSemantics();
+
+      final replyButton = find
+          .ancestor(of: reply, matching: find.byType(TextButton))
+          .first;
+      expect(
+        tester
+            .getSemantics(replyButton)
+            .getSemanticsData()
+            .flagsCollection
+            .isToggled,
+        Tristate.none,
+      );
+      final watchLabel = AppLocalizations.of(tester.element(reply)).topicWatch;
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('topic-inline-actions')),
+          matching: find.text(watchLabel),
+        ),
+        findsOneWidget,
+      );
+      semantics.dispose();
+      await tester.ensureVisible(reply);
+      await tester.tap(reply);
+      await tester.pumpAndSettle();
+      expect(find.byType(GfPostComposer), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    },
+  );
+
+  testWidgets('profile activity types have distinct semantic icons', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    for (final entry in <int, String>{
+      1: 'user-round',
+      2: 'square-pen',
+      3: 'heart',
+      4: 'user-round-plus',
+      5: 'message-circle',
+      999: 'activity',
+    }.entries) {
+      final payload = redesignedProfilePayloadJson();
+      final props = payload['props'] as Map<String, dynamic>;
+      final activity =
+          (props['activities'] as List).first as Map<String, dynamic>;
+      activity['action'] = entry.key;
+      activity['label'] = 'unknown';
+      activity['contentPreview'] = '活动内容';
+      final container = await makeContainer(
+        pageRepo: RedesignPageRepository(client, profilePayload: payload),
+      );
+      await tester.pumpWidget(
+        app(container, ProfilePage(key: UniqueKey(), userId: 1)),
+      );
+      await tester.pumpAndSettle();
+      final rows = tester.widgetList<GfActivityCard>(
+        find.byType(GfActivityCard),
+      );
+      expect(
+        rows.singleWhere((r) => r.title.contains('活动内容')).symbol,
+        entry.value,
+      );
+    }
+  });
+
+  testWidgets(
+    'notifications resolve template keys instead of showing raw titles',
+    (tester) async {
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final notifications = FilteringNotificationRepository(client)
+        ..overrideItem = const NotificationPayload(
+          id: 9,
+          eventType: 'comment',
+          isRead: false,
+          createdAt: '2026-09-07',
+          title: 'notifications.templates.comment',
+          content: '',
+          actor: NotificationActorPayload(id: 2, username: 'Bob'),
+          topic: NotificationTopicPayload(id: 1, title: '选课经验', url: '/p/1'),
+          payload: NotificationInnerPayload(
+            actorId: 2,
+            templateKey: 'notifications.templates.comment',
+          ),
+        );
+      final container = await makeContainer(
+        pageRepo: CountingPageRepository(client),
+        notifRepo: notifications,
+      );
+      await tester.pumpWidget(app(container, const NotificationsPage()));
+      await tester.pumpAndSettle();
+      expect(find.text('notifications.templates.comment'), findsNothing);
+      expect(find.textContaining('Bob'), findsWidgets);
+      expect(find.text('选课经验'), findsOneWidget);
+    },
+  );
+
+  testWidgets('followed administrators retain the unfollow action', (
+    tester,
+  ) async {
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final payload = peerProfilePayloadJson();
+    final props = payload['props'] as Map<String, dynamic>;
+    final user = props['user'] as Map<String, dynamic>;
+    user['isAdmin'] = true;
+    user['isFollowing'] = true;
+    final repo = RecordingFollowTopicRepository(client);
+    final container = await makeContainer(
+      pageRepo: RedesignPageRepository(client, profilePayload: payload),
+      topicRepo: repo,
+    );
+    await tester.pumpWidget(app(container, const ProfilePage(userId: 2)));
+    await tester.pumpAndSettle();
+    final followed = find.widgetWithText(GfButton, '已关注');
+    expect(followed, findsOneWidget);
+    await tester.tap(followed);
+    await tester.pumpAndSettle();
+    expect(repo.currentStates, [true]);
+    expect(find.widgetWithText(GfButton, '关注'), findsOneWidget);
+    repo.pending = Completer<bool>();
+    final retry = tester
+        .widget<GfButton>(find.widgetWithText(GfButton, '关注'))
+        .onPressed!;
+    retry();
+    retry();
+    await tester.pump();
+    expect(repo.currentStates, [true, false]);
+    expect(
+      tester.widget<GfButton>(find.widgetWithText(GfButton, '已关注')).loading,
+      isTrue,
+    );
+    repo.pending!.completeError(StateError('follow failed'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(GfButton, '关注'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'profile renders provider marks and worn badge even without badge list',
+    (tester) async {
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final payload = redesignedProfilePayloadJson();
+      final props = payload['props'] as Map<String, dynamic>;
+      final user = props['user'] as Map<String, dynamic>;
+      user['badges'] = [];
+      props['badges'] = [];
+      user['wornBadge'] = {
+        'code': 'moderator',
+        'type': 'system',
+        'grantMode': 'manual',
+        'name': '社区维护者',
+        'description': '维护社区',
+        'iconType': 'asset',
+        'iconKey': '',
+        'iconUrl': '/test-badge.png',
+        'color': 'emerald',
+        'level': 'special',
+        'isEnabled': true,
+        'isWearable': true,
+        'sortOrder': 120,
+        'source': 'manual',
+        'reason': '',
+        'grantedAt': '',
+      };
+      user['externalInformation'] = {
+        'github': {'link': 'https://github.com/alice'},
+        'twitter': {'link': 'https://x.com/alice'},
+      };
+      final container = await makeContainer(
+        pageRepo: RedesignPageRepository(client, profilePayload: payload),
+      );
+      await tester.pumpWidget(app(container, const ProfilePage(userId: 1)));
+      await tester.pumpAndSettle();
+      final avatar = tester
+          .widgetList<GfAvatar>(find.byType(GfAvatar))
+          .firstWhere((a) => a.size == 80);
+      expect(avatar.badge, isNotNull);
+      expect(
+        find.byWidgetPredicate((w) => w is GfSymbol && w.name == 'github'),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate((w) => w is GfSymbol && w.name == 'twitter'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('deep profile switches keep loading empty and retry visible', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final repo = _ShortProfileStreams(client);
+    final container = await makeContainer(pageRepo: repo);
+    await tester.pumpWidget(app(container, const ProfilePage(userId: 1)));
+    await tester.pumpAndSettle();
+    final scroll = tester
+        .widget<CustomScrollView>(find.byType(CustomScrollView))
+        .controller!;
+    final selectLikes = tester
+        .widget<InkWell>(
+          find
+              .descendant(
+                of: find.byTooltip('获赞'),
+                matching: find.byType(InkWell),
+              )
+              .first,
+        )
+        .onTap!;
+    scroll.jumpTo(1200);
+    await tester.pump();
+    bool visible(Finder finder) =>
+        tester.getRect(finder).overlaps(const Rect.fromLTWH(0, 56, 390, 788));
+    final pending = Completer<void>();
+    repo.pending = pending.future;
+    selectLikes();
+    await tester.pump();
+    expect(visible(find.byType(GfLoadingIndicator)), isTrue);
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(visible(find.text('暂无点赞')), isTrue);
+    expect(scroll.offset, greaterThan(0));
+    repo.fail = true;
+    await tester.ensureVisible(find.byTooltip('主题'));
+    await tester.tap(find.byTooltip('主题'));
+    await tester.pumpAndSettle();
+    expect(find.byType(GfErrorRetry), findsOneWidget);
+    expect(visible(find.byType(GfErrorRetry)), isTrue);
+  });
+
+  testWidgets('clearing search resets results and ignores pending responses', (
+    tester,
+  ) async {
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final repo = ControlledSearchRepository(client);
+    final container = await makeContainer(
+      pageRepo: CountingPageRepository(client),
+      topicRepo: repo,
+    );
+    await tester.pumpWidget(app(container, const SearchPage()));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '同济');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(find.text('结果-第一页'), findsOneWidget);
+    final pending = Completer<void>();
+    repo.pending = pending.future;
+    await tester.tap(find.text('加载更多'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('清空搜索'));
+    await tester.pump();
+    expect(find.text('结果-第一页'), findsNothing);
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('结果-第二页'), findsNothing);
+    await tester.enterText(find.byType(TextField), '新查询');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(repo.searchPages.last, 1);
+  });
+
+  testWidgets('badges tab has badge-specific empty state', (tester) async {
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final payload = redesignedProfilePayloadJson();
+    (payload['props'] as Map<String, dynamic>)['badges'] = [];
+    final container = await makeContainer(
+      pageRepo: RedesignPageRepository(client, profilePayload: payload),
+    );
+    await tester.pumpWidget(app(container, const ProfilePage(userId: 1)));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byTooltip('徽章'));
+    await tester.tap(find.byTooltip('徽章'));
+    await tester.pumpAndSettle();
+    expect(find.text('暂无徽章'), findsOneWidget);
+  });
+
+  testWidgets(
+    'profile tab changes retain vertical position with short and failed streams',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final repo = _ShortProfileStreams(client);
+      final container = await makeContainer(pageRepo: repo);
+      await tester.pumpWidget(app(container, const ProfilePage(userId: 1)));
+      await tester.pumpAndSettle();
+      final scroll = tester
+          .widget<CustomScrollView>(find.byType(CustomScrollView))
+          .controller!;
+      scroll.jumpTo(180);
+      await tester.pump();
+      final offset = scroll.offset;
+      await tester.tap(find.byTooltip('获赞'));
+      await tester.pumpAndSettle();
+      expect(scroll.offset, offset);
+      repo.fail = true;
+      await tester.tap(find.byTooltip('主题'));
+      await tester.pumpAndSettle();
+      expect(find.byType(GfUserCard), findsOneWidget);
+      expect(scroll.offset, offset);
+    },
+  );
+
   group('首页下拉刷新', () {
     testWidgets(
       'returning from settings refreshes the public profile identity',
@@ -1720,7 +2182,8 @@ void main() {
         );
         await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('回复').first);
+        await tester.ensureVisible(find.byTooltip('回复').at(1));
+        await tester.tap(find.byTooltip('回复').at(1));
         await tester.pump();
         final field = find
             .descendant(
@@ -1765,7 +2228,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(GfPostComposer), findsNothing);
-      await tester.tap(find.byTooltip('回复').first);
+      await tester.ensureVisible(find.byTooltip('回复').at(1));
+      await tester.tap(find.byTooltip('回复').at(1));
       await tester.pump();
 
       final Finder composer = find.byType(GfPostComposer);
@@ -1810,7 +2274,7 @@ void main() {
 
       // 输入关键词并搜索。
       await tester.enterText(find.byType(TextField), 'flutter');
-      await tester.tap(find.byIcon(Icons.search));
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
 
       expect(find.text('结果-第一页'), findsOneWidget);
@@ -1848,7 +2312,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), '同济');
-      await tester.tap(find.byIcon(Icons.search));
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
 
       expect(topicRepo.scopes, <String>['']);
@@ -1860,6 +2324,13 @@ void main() {
       await tester.tap(find.text('用户').first);
       await tester.pumpAndSettle();
       expect(topicRepo.scopes.last, 'users');
+      await tester.tap(find.byTooltip('清空搜索'));
+      await tester.pumpAndSettle();
+      expect(find.text('聚合帖子结果'), findsNothing);
+      await tester.enterText(find.byType(TextField), '新查询');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+      expect(topicRepo.scopes.last, '');
     });
   });
 
@@ -3131,7 +3602,8 @@ void main() {
       await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('回复').first);
+      await tester.ensureVisible(find.byTooltip('回复').at(1));
+      await tester.tap(find.byTooltip('回复').at(1));
       await tester.pumpAndSettle();
       expect(find.text('回复 用户 2'), findsOneWidget);
       expect(find.text('@user2 '), findsOneWidget);
