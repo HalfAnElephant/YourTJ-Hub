@@ -5,6 +5,7 @@ on:
     branches: [dev, main]
     paths:
       - "apps/mobile/**"
+      - "apps/gooseforum/resource/src/site/assets/logo.svg"
       - ".github/workflows/ci-mobile.yml"
       - ".github/workflows/release-mobile.yml"
       - ".github/workflows/release-to-main.yml"
@@ -12,6 +13,7 @@ on:
   pull_request:
     paths:
       - "apps/mobile/**"
+      - "apps/gooseforum/resource/src/site/assets/logo.svg"
       - ".github/workflows/ci-mobile.yml"
       - ".github/workflows/release-mobile.yml"
       - ".github/workflows/release-to-main.yml"

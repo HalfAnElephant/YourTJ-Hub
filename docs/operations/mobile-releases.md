@@ -96,6 +96,14 @@ Review credentials belong only in the environment secret and Apple's review fiel
 release notes, metadata or screenshots. Changing the demo account requires testing its login and
 updating the secret; a visual captcha may still be required by the production login policy.
 
+## Launcher artwork
+
+Native icon assets are generated from the Web vector mark using the checked-in
+[launcher configuration and wrapper](../../apps/mobile/packages/forum_app/assets/launcher/README.md).
+The focused Flutter checks cover all declared iOS sizes/opacity, Android densities, adaptive safe
+area and monochrome alpha masks. A source digest detects changes to Web artwork that require
+regeneration. A store icon update requires a new IPA/build; already submitted binaries are immutable.
+
 ## Android APK and in-app update
 
 Flutter 3.44.9 produces three signed APKs. Their **actual** Android version codes are base build `N`

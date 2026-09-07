@@ -59,6 +59,10 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 
 ## Language and presentation
 
+- `Current`: native launcher icons use Web's YourTJ cat mark. iOS includes opaque device and
+  App Store sizes; Android includes legacy densities, adaptive masks and a themed monochrome layer.
+  The launcher artwork is generated independently of the in-app horizontal wordmark.
+
 - `Current`: the native app supports the same four languages as Web: Simplified Chinese, English,
   Japanese and German. Login and Settings expose an immediate language picker with a follow-system
   option; unsupported system languages fall back to Chinese. The device preference survives restart
