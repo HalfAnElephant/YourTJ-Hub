@@ -49,7 +49,7 @@ class GfFloatingControls extends StatelessWidget {
   });
 
   final List<GfTopicAction> actions;
-  final VoidCallback onOpenReply;
+  final VoidCallback? onOpenReply;
 
   /// Current / max floor numbers; when null the floor button is hidden.
   final int? currentNo;
@@ -94,35 +94,37 @@ class GfFloatingControls extends StatelessWidget {
           ],
           for (final GfTopicAction action in actions)
             _RoundAction(action: action),
-          GfDivider(inset: 4, color: colors.line),
-          InkWell(
-            onTap: onOpenReply,
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              height: 36,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              alignment: Alignment.center,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(
-                    Icons.chat_bubble_outline,
-                    size: 16,
-                    color: colors.baseContent.withValues(alpha: 0.75),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    joinLabel,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+          if (onOpenReply != null) ...[
+            GfDivider(inset: 4, color: colors.line),
+            InkWell(
+              onTap: onOpenReply,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      size: 16,
                       color: colors.baseContent.withValues(alpha: 0.75),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      joinLabel,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colors.baseContent.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         ],
       ),
     );

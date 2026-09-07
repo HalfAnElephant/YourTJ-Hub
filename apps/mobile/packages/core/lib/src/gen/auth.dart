@@ -146,3 +146,6 @@ abstract class SuccessMessagePayload with _$SuccessMessagePayload {
   factory SuccessMessagePayload.fromJson(Map<String, dynamic> json) =>
       _$SuccessMessagePayloadFromJson(json);
 }
+
+/// Query mirror for GET /api/auth/mobile-web-session (fixed server targets).
+enum MobileWebTarget { admin, moderation, courseManagement, courseReviews }

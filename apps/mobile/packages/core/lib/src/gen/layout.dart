@@ -204,3 +204,11 @@ abstract class SiteThemePrepublish with _$SiteThemePrepublish {
   factory SiteThemePrepublish.fromJson(Map<String, dynamic> json) =>
       _$SiteThemePrepublishFromJson(json);
 }
+
+/// The server permission enum assigns CourseManager = 6 and Admin = 0.
+/// This only controls discovery; the workspace and each API still authorize.
+extension ViewerCourseManagement on ViewerPayload {
+  bool get canManageCourses =>
+      isAuthenticated &&
+      (adminPermissions?.any((id) => id == 0 || id == 6) ?? false);
+}

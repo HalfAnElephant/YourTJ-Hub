@@ -178,3 +178,72 @@ revokeAllSessions:
             examples:
               csrfRejected:
                 externalValue: ../fixtures/csrf-rejected.json
+
+mobileWebSession:
+  get:
+    tags: [Authentication]
+    summary: Establish an embedded admin browser session from a native bearer
+    operationId: mobileWebSession
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: query
+        name: target
+        schema:
+          type: string
+          enum: [admin, moderation, courseManagement, courseReviews]
+          default: admin
+        description: Fixed workspace destination; each target checks its existing permissions.
+    description: |
+      First-party mobile WebView handoff. Requires an explicit valid human Bearer session and
+      at least one admin permission (admin), moderation-workbench access (moderation), or the
+      independent CourseManager/Admin permission (courseManagement and courseReviews).
+      Cookie-only authentication is rejected. Installs the same
+      session as an HttpOnly, SameSite=Lax cookie (Secure on HTTPS deployments), then redirects
+      exclusively to /admin, /moderation, /moderation/courses or /moderation/course-reviews.
+      Arbitrary redirect targets are never accepted; no token appears in the URL,
+      response body, or New-Token header. Responses are no-store. Normal admin role, revocation,
+      writable-account, and CSRF checks continue to apply to all subsequent operations.
+    responses:
+      '303':
+        description: Browser session installed; follow the fixed same-origin admin redirect.
+        headers:
+          Location:
+            schema:
+              type: string
+              enum: [/admin, /moderation, /moderation/courses, /moderation/course-reviews]
+          Set-Cookie:
+            schema:
+              type: string
+            description: HttpOnly access_token session cookie.
+          Cache-Control:
+            schema:
+              type: string
+              const: no-store
+      '400':
+        description: Unsupported workspace target.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+      '401':
+        description: Missing, invalid, expired, revoked, or cookie-only credential.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+            examples:
+              unauthenticated:
+                externalValue: ../fixtures/auth-required.json
+      '403':
+        description: The authenticated user has no permission for the selected workspace.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+      '429':
+        description: Login rate limit exceeded.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure

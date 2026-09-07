@@ -193,6 +193,7 @@ abstract class SettingsStatsPayload with _$SettingsStatsPayload {
 abstract class SettingsPageProps with _$SettingsPageProps {
   const factory SettingsPageProps({
     required SettingsUserPayload user,
+    @Default(false) bool googleOAuthReady,
     required SettingsStatsPayload stats,
     required List<TabItemPayload> tabs,
   }) = _SettingsPageProps;

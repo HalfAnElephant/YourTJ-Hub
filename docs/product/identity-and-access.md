@@ -58,6 +58,13 @@
 4. the returned forum JWT is stored in Keychain/Keystore (`flutter_secure_storage`); OIDC tokens are
    verified server-side and are never persisted by the app.
 
+The App's embedded management browser uses `GET /api/auth/mobile-web-session` with an explicit
+Bearer session. `target=admin|moderation|courseManagement|courseReviews` selects a fixed workspace and checks its
+existing permission; course workspaces require CourseManager or Admin, independently of forum
+moderator access; cookie-only authentication and arbitrary targets are rejected. The endpoint installs
+the same session as an HttpOnly SameSite=Lax cookie and sends a no-store redirect. No token is
+included in the URL, page body or JavaScript. See [mobile experience](mobile-experience.md).
+
 ## Two-factor authentication
 
 - **Password login** is protected by forum-side TOTP (RFC 6238, optional, opt-in). Secrets are stored

@@ -5,6 +5,8 @@ on:
     branches: [dev, main]
     paths:
       - "apps/gooseforum/resource/**"
+      - "apps/mobile/tools/generate_server_messages.mjs"
+      - "apps/mobile/packages/forum_app/lib/src/server_message_catalog.dart"
       - "apps/gooseforum/testdata/markdown-compat/**"
       - ".github/workflows/ci-frontend.yml"
   # PR 无条件触发, 保证 required status check 稳定存在
@@ -34,6 +36,8 @@ jobs:
           filters: |
             frontend:
               - 'apps/gooseforum/resource/**'
+              - 'apps/mobile/tools/generate_server_messages.mjs'
+              - 'apps/mobile/packages/forum_app/lib/src/server_message_catalog.dart'
               - 'apps/gooseforum/testdata/markdown-compat/**'
               - '.github/workflows/ci-frontend.yml'
 

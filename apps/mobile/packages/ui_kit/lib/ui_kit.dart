@@ -57,3 +57,5 @@ export 'src/theme/gf_theme_data.dart';
 export 'src/theme/gf_shadows.dart';
 export 'src/theme/gf_theme_extensions.dart';
 export 'src/theme/gf_runtime_theme.dart';
+
+export 'src/components/gf_media_carousel.dart';

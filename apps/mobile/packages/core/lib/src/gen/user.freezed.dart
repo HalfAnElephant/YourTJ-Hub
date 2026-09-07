@@ -3677,6 +3677,7 @@ SettingsPageProps _$SettingsPagePropsFromJson(Map<String, dynamic> json) {
 /// @nodoc
 mixin _$SettingsPageProps {
   SettingsUserPayload get user => throw _privateConstructorUsedError;
+  bool get googleOAuthReady => throw _privateConstructorUsedError;
   SettingsStatsPayload get stats => throw _privateConstructorUsedError;
   List<TabItemPayload> get tabs => throw _privateConstructorUsedError;
 
@@ -3699,6 +3700,7 @@ abstract class $SettingsPagePropsCopyWith<$Res> {
   @useResult
   $Res call({
     SettingsUserPayload user,
+    bool googleOAuthReady,
     SettingsStatsPayload stats,
     List<TabItemPayload> tabs,
   });
@@ -3721,13 +3723,22 @@ class _$SettingsPagePropsCopyWithImpl<$Res, $Val extends SettingsPageProps>
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
-  $Res call({Object? user = null, Object? stats = null, Object? tabs = null}) {
+  $Res call({
+    Object? user = null,
+    Object? googleOAuthReady = null,
+    Object? stats = null,
+    Object? tabs = null,
+  }) {
     return _then(
       _value.copyWith(
             user: null == user
                 ? _value.user
                 : user // ignore: cast_nullable_to_non_nullable
                       as SettingsUserPayload,
+            googleOAuthReady: null == googleOAuthReady
+                ? _value.googleOAuthReady
+                : googleOAuthReady // ignore: cast_nullable_to_non_nullable
+                      as bool,
             stats: null == stats
                 ? _value.stats
                 : stats // ignore: cast_nullable_to_non_nullable
@@ -3773,6 +3784,7 @@ abstract class _$$SettingsPagePropsImplCopyWith<$Res>
   @useResult
   $Res call({
     SettingsUserPayload user,
+    bool googleOAuthReady,
     SettingsStatsPayload stats,
     List<TabItemPayload> tabs,
   });
@@ -3796,13 +3808,22 @@ class __$$SettingsPagePropsImplCopyWithImpl<$Res>
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
-  $Res call({Object? user = null, Object? stats = null, Object? tabs = null}) {
+  $Res call({
+    Object? user = null,
+    Object? googleOAuthReady = null,
+    Object? stats = null,
+    Object? tabs = null,
+  }) {
     return _then(
       _$SettingsPagePropsImpl(
         user: null == user
             ? _value.user
             : user // ignore: cast_nullable_to_non_nullable
                   as SettingsUserPayload,
+        googleOAuthReady: null == googleOAuthReady
+            ? _value.googleOAuthReady
+            : googleOAuthReady // ignore: cast_nullable_to_non_nullable
+                  as bool,
         stats: null == stats
             ? _value.stats
             : stats // ignore: cast_nullable_to_non_nullable
@@ -3821,6 +3842,7 @@ class __$$SettingsPagePropsImplCopyWithImpl<$Res>
 class _$SettingsPagePropsImpl implements _SettingsPageProps {
   const _$SettingsPagePropsImpl({
     required this.user,
+    this.googleOAuthReady = false,
     required this.stats,
     required final List<TabItemPayload> tabs,
   }) : _tabs = tabs;
@@ -3830,6 +3852,9 @@ class _$SettingsPagePropsImpl implements _SettingsPageProps {
 
   @override
   final SettingsUserPayload user;
+  @override
+  @JsonKey()
+  final bool googleOAuthReady;
   @override
   final SettingsStatsPayload stats;
   final List<TabItemPayload> _tabs;
@@ -3842,7 +3867,7 @@ class _$SettingsPagePropsImpl implements _SettingsPageProps {
 
   @override
   String toString() {
-    return 'SettingsPageProps(user: $user, stats: $stats, tabs: $tabs)';
+    return 'SettingsPageProps(user: $user, googleOAuthReady: $googleOAuthReady, stats: $stats, tabs: $tabs)';
   }
 
   @override
@@ -3851,6 +3876,8 @@ class _$SettingsPagePropsImpl implements _SettingsPageProps {
         (other.runtimeType == runtimeType &&
             other is _$SettingsPagePropsImpl &&
             (identical(other.user, user) || other.user == user) &&
+            (identical(other.googleOAuthReady, googleOAuthReady) ||
+                other.googleOAuthReady == googleOAuthReady) &&
             (identical(other.stats, stats) || other.stats == stats) &&
             const DeepCollectionEquality().equals(other._tabs, _tabs));
   }
@@ -3860,6 +3887,7 @@ class _$SettingsPagePropsImpl implements _SettingsPageProps {
   int get hashCode => Object.hash(
     runtimeType,
     user,
+    googleOAuthReady,
     stats,
     const DeepCollectionEquality().hash(_tabs),
   );
@@ -3884,6 +3912,7 @@ class _$SettingsPagePropsImpl implements _SettingsPageProps {
 abstract class _SettingsPageProps implements SettingsPageProps {
   const factory _SettingsPageProps({
     required final SettingsUserPayload user,
+    final bool googleOAuthReady,
     required final SettingsStatsPayload stats,
     required final List<TabItemPayload> tabs,
   }) = _$SettingsPagePropsImpl;
@@ -3893,6 +3922,8 @@ abstract class _SettingsPageProps implements SettingsPageProps {
 
   @override
   SettingsUserPayload get user;
+  @override
+  bool get googleOAuthReady;
   @override
   SettingsStatsPayload get stats;
   @override

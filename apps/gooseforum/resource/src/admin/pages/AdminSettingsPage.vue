@@ -1367,8 +1367,8 @@ onUnmounted(stopSyncPolling)
         <section class="space-y-3">
           <div class="flex items-center gap-2 border-b pb-2 text-lg font-medium"><FileText class="size-5 text-muted-foreground" />{{ adminText('k00ip') }}</div>
           <div class="grid gap-3">
-            <div v-for="(rule, index) in rateLimitForm.actions" :key="rule.action" class="grid grid-cols-[minmax(120px,1fr)_110px_110px_110px] items-center gap-3 rounded-lg border p-3">
-              <span class="truncate font-mono text-sm">{{ rule.action }}</span>
+            <div v-for="(rule, index) in rateLimitForm.actions" :key="rule.action" class="grid grid-cols-3 items-center sm:grid-cols-[minmax(120px,1fr)_110px_110px_110px] gap-3 rounded-lg border p-3">
+              <span class="col-span-3 truncate font-mono text-sm sm:col-span-1">{{ rule.action }}</span>
               <label class="grid gap-1 text-xs text-muted-foreground">{{ adminText('k00iq') }}<Input v-model.number="rateLimitForm.actions[index].windowSeconds" :disabled="!rateLimitForm.enabled" type="number" min="1" /></label>
               <label class="grid gap-1 text-xs text-muted-foreground">{{ adminText('k00ir') }}<Input v-model.number="rateLimitForm.actions[index].limitPerIp" :disabled="!rateLimitForm.enabled" type="number" min="0" /></label>
               <label class="grid gap-1 text-xs text-muted-foreground">{{ adminText('k00is') }}<Input v-model.number="rateLimitForm.actions[index].limitPerUser" :disabled="!rateLimitForm.enabled" type="number" min="0" /></label>

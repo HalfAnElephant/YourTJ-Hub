@@ -44,7 +44,8 @@ class TopicRepository {
         'afterPostNo': ?afterPostNo,
         'limit': ?limit,
       },
-      parser: (json) => PostWindowPayload.fromJson(json as Map<String, dynamic>),
+      parser: (json) =>
+          PostWindowPayload.fromJson(json as Map<String, dynamic>),
     );
   }
 
@@ -55,6 +56,8 @@ class TopicRepository {
     required String content,
     required List<int> categoryIds,
     required int topicStatus,
+    int contentType = 3,
+    List<String>? images,
     String? captchaId,
     String? captchaCode,
   }) {
@@ -66,20 +69,40 @@ class TopicRepository {
         'content': content,
         'categoryId': categoryIds,
         'topicStatus': topicStatus,
+        'contentType': contentType == 0 ? 3 : contentType,
+        'images': ?images,
         if (captchaId != null && captchaId.isNotEmpty) 'captchaId': captchaId,
-        if (captchaCode != null && captchaCode.isNotEmpty) 'captchaCode': captchaCode,
+        if (captchaCode != null && captchaCode.isNotEmpty)
+          'captchaCode': captchaCode,
       },
       parser: (json) => json is int ? json : (json as num?)?.toInt() ?? topicId,
     );
   }
 
   /// 更新话题状态(0 普通 / 1 置顶)。
-  Future<bool> updateTopicStatus({required int topicId, required int topicStatus}) async {
+  Future<bool> updateTopicStatus({
+    required int topicId,
+    required int topicStatus,
+  }) async {
     await _client.post<Object?>(
       '/api/forum/topics/status',
       body: {'topicId': topicId, 'topicStatus': topicStatus},
     );
     return true;
+  }
+
+  Future<void> deleteTopic({required int topicId}) async {
+    await _client.post<Object?>(
+      '/api/forum/topics/delete',
+      body: {'topicId': topicId},
+    );
+  }
+
+  Future<void> moderate({required int topicId, required bool ban}) async {
+    await _client.post<Object?>(
+      '/api/forum/moderation/topic-status',
+      body: {'topicId': topicId, 'action': ban ? 'ban' : 'unban'},
+    );
   }
 
   /// action: 1 点赞, 2 取消点赞。
@@ -92,7 +115,10 @@ class TopicRepository {
   }
 
   /// action: 1 收藏, 2 取消收藏。
-  Future<bool> bookmarkTopic({required int topicId, required int action}) async {
+  Future<bool> bookmarkTopic({
+    required int topicId,
+    required int action,
+  }) async {
     await _client.post<Object?>(
       '/api/forum/topics/bookmark',
       body: {'topicId': topicId, 'action': action},
@@ -110,7 +136,10 @@ class TopicRepository {
   }
 
   /// 关注/取消关注用户。isFollowing 为 true 表示当前已关注(取消),否则关注。
-  Future<bool> followUser({required int userId, required bool isFollowing}) async {
+  Future<bool> followUser({
+    required int userId,
+    required bool isFollowing,
+  }) async {
     await _client.post<Object?>(
       '/api/forum/follow-user',
       body: {'id': userId, 'action': isFollowing ? 2 : 1},

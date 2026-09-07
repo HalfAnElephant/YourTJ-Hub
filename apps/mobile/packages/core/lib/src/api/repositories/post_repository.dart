@@ -1,4 +1,5 @@
 import '../gf_api_client.dart';
+import '../../gen/post_revision.dart';
 
 /// 创建/编辑帖子的成功结果。
 class CreatePostResult {
@@ -97,6 +98,26 @@ class PostRepository {
       body: {'postId': postId},
     );
     return true;
+  }
+
+  Future<PostRevisionPage> revisions({
+    required int postId,
+    int beforeVersion = 0,
+  }) => _client.get(
+    '/api/forum/posts/revisions',
+    queryParameters: {
+      'postId': postId,
+      'beforeVersion': beforeVersion,
+      'limit': 20,
+    },
+    parser: (json) => PostRevisionPage.fromJson(json as Map<String, dynamic>),
+  );
+
+  Future<void> moderate({required int postId, required bool ban}) async {
+    await _client.post<Object?>(
+      '/api/forum/moderation/post-status',
+      body: {'postId': postId, 'action': ban ? 'ban' : 'unban'},
+    );
   }
 
   /// action: 1 点赞, 2 取消点赞。

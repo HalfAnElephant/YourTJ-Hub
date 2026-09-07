@@ -47,6 +47,24 @@ void main() {
   });
 
   group('GfPostPositionRail', () {
+    testWidgets('one-floor topics have a finite, disabled position slider', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        gfApp(
+          GfPostPositionRail(
+            current: 1,
+            max: 1,
+            onSelect: (_) {},
+            onEarliest: () {},
+            onLatest: () {},
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(tester.widget<Slider>(find.byType(Slider)).onChanged, isNull);
+    });
+
     testWidgets('reports floor selection on tap', (tester) async {
       int? selected;
       await tester.pumpWidget(
@@ -66,9 +84,9 @@ void main() {
       expect(find.text('1 / 10'), findsOneWidget);
       expect(find.text('最早'), findsOneWidget);
       expect(find.text('最新'), findsOneWidget);
-      // 点击轨道下半部 → 选择较后的楼层。
-      final Rect rect = tester.getRect(find.byType(GfPostPositionRail));
-      await tester.tapAt(Offset(rect.center.dx, rect.bottom - 40));
+      // The visible horizontal slider commits the selected floor.
+      final Rect rect = tester.getRect(find.byType(Slider));
+      await tester.tapAt(Offset(rect.left + rect.width * 0.8, rect.center.dy));
       await tester.pump();
       expect(selected, isNotNull);
       expect(selected, inInclusiveRange(5, 10));

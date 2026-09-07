@@ -204,3 +204,7 @@ final themeRepositoryProvider = Provider<ThemeRepository>((ref) {
 final pushRepositoryProvider = Provider<PushRepository>((ref) {
   return PushRepository(ref.watch(apiClientProvider));
 });
+
+final contentRepositoryProvider = Provider<ContentRepository>(
+  (ref) => ContentRepository(ref.watch(apiClientProvider)),
+);

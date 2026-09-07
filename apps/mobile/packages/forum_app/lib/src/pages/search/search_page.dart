@@ -10,7 +10,6 @@ import '../../server_messages.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../format.dart';
 import '../../providers.dart';
-import '../../navigation/tab_scroll_registry.dart';
 import '../../widgets/status_views.dart';
 
 /// 聚合搜索页。结构与 Web SearchPage.vue 保持一致：页面头搜索框、
@@ -30,21 +29,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   bool _loadingMore = false;
   final GfScrollToTopController _scrollToTopController =
       GfScrollToTopController();
-  late final GfTabScrollRegistry _tabScrollRegistry;
 
   @override
   void initState() {
     super.initState();
-    _tabScrollRegistry = ref.read(tabScrollRegistryProvider)
-      ..register(GfShellDestination.search, _scrollToTopController);
   }
 
   @override
   void dispose() {
-    _tabScrollRegistry.unregister(
-      GfShellDestination.search,
-      _scrollToTopController,
-    );
     _query.dispose();
     super.dispose();
   }

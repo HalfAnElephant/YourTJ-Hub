@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:core/core.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,11 +10,15 @@ import 'package:ui_kit/ui_kit.dart';
 import '../l10n/app_localizations.dart';
 import 'navigation/tab_scroll_registry.dart';
 import 'pages/auth/login_page.dart';
+import 'pages/admin/admin_page.dart';
+import 'pages/campus/campus_page.dart';
+import 'pages/content/content_page.dart';
 import 'pages/category/category_page.dart';
 import 'pages/courses/catalog_page.dart';
 import 'pages/courses/detail_page.dart';
 import 'pages/drafts/drafts_page.dart';
 import 'pages/home/home_page.dart';
+import 'pages/info/site_info_page.dart';
 import 'pages/messages/messages_page.dart';
 import 'pages/notifications/notifications_page.dart';
 import 'pages/profile/profile_page.dart';
@@ -29,21 +35,21 @@ import 'current_user.dart';
 extension on GfShellDestination {
   IconData get icon => switch (this) {
     GfShellDestination.home => Icons.home_outlined,
-    GfShellDestination.search => Icons.search_outlined,
+    GfShellDestination.campus => Icons.school_outlined,
     GfShellDestination.messages => Icons.forum_outlined,
     GfShellDestination.profile => Icons.person_outline,
   };
 
   IconData get activeIcon => switch (this) {
     GfShellDestination.home => Icons.home,
-    GfShellDestination.search => Icons.search,
+    GfShellDestination.campus => Icons.school,
     GfShellDestination.messages => Icons.forum,
     GfShellDestination.profile => Icons.person,
   };
 
   String label(AppLocalizations l10n) => switch (this) {
     GfShellDestination.home => l10n.navHome,
-    GfShellDestination.search => l10n.navSearch,
+    GfShellDestination.campus => l10n.navCampus,
     GfShellDestination.messages => l10n.navMessages,
     GfShellDestination.profile => l10n.navProfile,
   };
@@ -150,11 +156,18 @@ class _GfShellState extends ConsumerState<GfShell> {
 
     return Scaffold(
       body: widget.navigationShell,
+      floatingActionButton: widget.navigationShell.currentIndex == 3
+          ? FloatingActionButton(
+              heroTag: null,
+              tooltip: l10n.navPublish,
+              onPressed: () => context.push('/publish?type=2'),
+              child: const Icon(Icons.add),
+            )
+          : null,
       bottomNavigationBar: GfBottomNavigation(
         currentIndex: widget.navigationShell.currentIndex,
         onSelected: _selectDestination,
-        onAction: () => context.push('/publish'),
-        actionLabel: l10n.navPublish,
+        showLabels: false,
         items: <GfBottomNavigationItem>[
           for (final GfShellDestination destination
               in GfShellDestination.values)
@@ -163,9 +176,7 @@ class _GfShellState extends ConsumerState<GfShell> {
               selectedIcon: destination.activeIcon,
               label: destination.label(l10n),
               badge: destination == GfShellDestination.messages
-                  ? _unreadMessages
-                  : destination == GfShellDestination.profile
-                  ? _unreadNotifications
+                  ? (_unreadMessages || _unreadNotifications)
                   : false,
             ),
         ],
@@ -200,7 +211,7 @@ final GoRouter appRouter = GoRouter(
         ),
         StatefulShellBranch(
           routes: <RouteBase>[
-            GoRoute(path: '/search', builder: (_, _) => const SearchPage()),
+            GoRoute(path: '/campus', builder: (_, _) => const CampusPage()),
           ],
         ),
         StatefulShellBranch(
@@ -225,10 +236,18 @@ final GoRouter appRouter = GoRouter(
         ),
       ],
     ),
+    GoRoute(path: '/search', builder: (_, _) => const SearchPage()),
     GoRoute(
       path: '/publish',
-      builder: (BuildContext context, GoRouterState state) =>
-          PublishPage(topicId: publishTopicIdFromUri(state.uri)),
+      builder: (BuildContext context, GoRouterState state) => PublishPage(
+        topicId: publishTopicIdFromUri(state.uri),
+        initialContentType: switch (state.uri.queryParameters['type'] ??
+            state.uri.queryParameters['contentType']) {
+          '1' || 'question' => 1,
+          '3' || 'article' => 3,
+          _ => 2,
+        },
+      ),
     ),
     GoRoute(
       path: '/c/:slug/:id',
@@ -239,8 +258,10 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/p/:postId',
-      builder: (BuildContext context, GoRouterState state) =>
-          TopicPage(topicId: int.parse(state.pathParameters['postId']!)),
+      builder: (BuildContext context, GoRouterState state) => TopicPage(
+        topicId: int.parse(state.pathParameters['postId']!),
+        initialPostNo: int.tryParse(state.uri.queryParameters['postNo'] ?? ''),
+      ),
     ),
     GoRoute(
       path: '/u/:userId',
@@ -249,9 +270,39 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(path: '/settings', builder: (_, _) => const SettingsPage()),
     GoRoute(
+      path: '/settings/:section',
+      builder: (_, state) =>
+          SettingsPage(initialSection: state.pathParameters['section']),
+    ),
+    GoRoute(path: '/my-content', builder: (_, _) => const ContentPage()),
+    GoRoute(
+      path: '/recycle-bin',
+      builder: (_, _) => const ContentPage(deleted: true),
+    ),
+    GoRoute(
       path: '/notifications',
       builder: (_, _) => const NotificationsPage(),
     ),
+    GoRoute(
+      path: '/moderation',
+      builder: (_, _) => const AdminPage(target: MobileWebTarget.moderation),
+    ),
+    GoRoute(path: '/about', builder: (_, _) => const SiteInfoIndexPage()),
+    for (final kind in SiteInfoKind.values)
+      GoRoute(
+        path: '/${kind.name}',
+        builder: (_, _) => SiteInfoPage(kind: kind),
+      ),
+    GoRoute(
+      path: '/moderation/courses',
+      builder: (_, _) =>
+          const AdminPage(target: MobileWebTarget.courseManagement),
+    ),
+    GoRoute(
+      path: '/moderation/course-reviews',
+      builder: (_, _) => const AdminPage(target: MobileWebTarget.courseReviews),
+    ),
+    GoRoute(path: '/admin', builder: (_, _) => const AdminPage()),
     GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
     GoRoute(path: '/drafts', builder: (_, _) => const DraftsPage()),
     GoRoute(path: '/schedule', builder: (_, _) => const SchedulePage()),

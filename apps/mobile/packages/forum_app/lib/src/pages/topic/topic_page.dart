@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,14 +14,18 @@ import '../../images/image_upload.dart';
 import '../../server_messages.dart';
 import '../../widgets/markdown_view.dart';
 import '../../widgets/status_views.dart';
+import '../../widgets/contextual_fab.dart';
 import '../../widgets/skeletons.dart';
+import 'post_actions.dart';
+import 'topic_actions.dart';
 
 /// 话题详情页(web TopicPage.vue 的移动端形态):
 /// 话题信息 + 帖子流(分页)+ markdown 渲染 + 图片查看器 + 互动(点赞/收藏/关注/评论)。
 class TopicPage extends ConsumerStatefulWidget {
-  const TopicPage({super.key, required this.topicId});
+  const TopicPage({super.key, required this.topicId, this.initialPostNo});
 
   final int topicId;
+  final int? initialPostNo;
 
   @override
   ConsumerState<TopicPage> createState() => _TopicPageState();
@@ -28,7 +33,15 @@ class TopicPage extends ConsumerStatefulWidget {
 
 class _TopicPageState extends ConsumerState<TopicPage> {
   AsyncValue<TopicDetailProps> _page = const AsyncValue.loading();
+  bool _viewerAuthenticated = false;
   bool _loadingMore = false;
+  bool _jumping = false;
+  int _windowGeneration = 0;
+  int _currentFloor = 1;
+  int? _beforePostNo;
+  bool _hasEarlierPosts = false;
+  final _scrollToTop = GfScrollToTopController();
+  final GlobalKey _discussionKey = GlobalKey();
   final List<PostPayload> _posts = [];
   int? _afterPostNo;
   bool _hasMorePosts = false;
@@ -43,6 +56,9 @@ class _TopicPageState extends ConsumerState<TopicPage> {
   final TextEditingController _replyController = TextEditingController();
   final FocusNode _replyFocus = FocusNode();
   bool _replying = false;
+  CaptchaPayload? _replyCaptcha;
+  final _replyCaptchaCode = TextEditingController();
+  bool _replyCaptchaLoading = false;
   bool _uploadingReplyImage = false;
   int _replyToPostId = 0;
   String? _replyImageUrl;
@@ -60,25 +76,51 @@ class _TopicPageState extends ConsumerState<TopicPage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _load(postNo: widget.initialPostNo);
+  }
+
+  @override
+  void didUpdateWidget(TopicPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.topicId != oldWidget.topicId ||
+        widget.initialPostNo != oldWidget.initialPostNo) {
+      _railOpen = false;
+      _composerOpen = false;
+      _replyController.clear();
+      _replyImageUrl = null;
+      _replyToPostId = 0;
+      _replyTargetName = null;
+      _replyMentionPrefix = null;
+      _load(postNo: widget.initialPostNo);
+    }
   }
 
   @override
   void dispose() {
     _replyController.dispose();
+    _replyCaptchaCode.dispose();
     _replyFocus.dispose();
     super.dispose();
   }
 
-  Future<void> _load({bool silent = false}) async {
+  Future<void> _load({bool silent = false, int? postNo}) async {
+    final generation = ++_windowGeneration;
+    _loadingMore = false;
     // 记录发起时的缓存世代;401/登出/换账号后世代自增,返回时丢弃旧会话数据。
     final int epoch = ref.read(offlineCacheEpochProvider);
     if (!silent) setState(() => _page = const AsyncValue.loading());
     try {
       final PagePayload payload = await ref
           .read(pageRepositoryProvider)
-          .topicDetail(widget.topicId);
-      if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
+          .topicDetail(
+            widget.topicId,
+            postNo: postNo != null && postNo > 1 ? postNo : null,
+          );
+      if (!mounted ||
+          generation != _windowGeneration ||
+          epoch != ref.read(offlineCacheEpochProvider)) {
+        return;
+      }
       final props = parsePageProps<TopicDetailProps>(payload);
       if (props == null) {
         setState(
@@ -95,9 +137,14 @@ class _TopicPageState extends ConsumerState<TopicPage> {
         await _cachePut(widget.topicId, payload.toJson());
       }
       // 写入期间会话可能已切换,再次校验世代再更新 UI。
-      if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
+      if (!mounted ||
+          generation != _windowGeneration ||
+          epoch != ref.read(offlineCacheEpochProvider)) {
+        return;
+      }
       setState(() {
         _page = AsyncValue.data(props);
+        _viewerAuthenticated = payload.layout.viewer.isAuthenticated;
         _posts.clear();
         _posts.addAll(props.postStream.posts);
         _replyTargets
@@ -107,6 +154,11 @@ class _TopicPageState extends ConsumerState<TopicPage> {
               (ReplyTargetPayload t) => MapEntry(t.id, t),
             ),
           );
+        _currentFloor = postNo != null && postNo > 1
+            ? postNo
+            : props.postStream.posts.firstOrNull?.postNo ?? 1;
+        _beforePostNo = props.postStream.beforePostNo;
+        _hasEarlierPosts = props.postStream.hasBefore;
         _afterPostNo = props.postStream.afterPostNo;
         _hasMorePosts = props.postStream.hasAfter;
         _liked = props.topic.isLiked;
@@ -116,7 +168,19 @@ class _TopicPageState extends ConsumerState<TopicPage> {
       });
     } catch (e, st) {
       // 网络失败:回退 drift 离线缓存(已浏览话题离线可读)。
-      if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
+      if (!mounted ||
+          generation != _windowGeneration ||
+          epoch != ref.read(offlineCacheEpochProvider)) {
+        return;
+      }
+      if (postNo != null && silent) {
+        showGfToast(
+          context,
+          resolveErrorMessage(AppLocalizations.of(context), e),
+          error: true,
+        );
+        return;
+      }
       // 无会话令牌(如 401 后进程被杀重启)时不得回退上一账号残留缓存。
       if (!await hasSessionToken(ref.read(tokenStorageProvider))) {
         // 静默刷新失败时保留当前内容,不打断阅读。
@@ -125,15 +189,30 @@ class _TopicPageState extends ConsumerState<TopicPage> {
       }
       final PagePayload? cached = await _cacheGet(widget.topicId);
       // 读缓存期间会话可能已切换,再次校验世代再更新 UI。
-      if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
+      if (!mounted ||
+          generation != _windowGeneration ||
+          epoch != ref.read(offlineCacheEpochProvider)) {
+        return;
+      }
       final props = cached == null
           ? null
           : parsePageProps<TopicDetailProps>(cached);
       if (props != null) {
         setState(() {
           _page = AsyncValue.data(props);
+          _viewerAuthenticated = cached!.layout.viewer.isAuthenticated;
           _posts.clear();
           _posts.addAll(props.postStream.posts);
+          _replyTargets
+            ..clear()
+            ..addEntries(
+              props.postStream.replyTargets.map(
+                (target) => MapEntry(target.id, target),
+              ),
+            );
+          _currentFloor = props.postStream.posts.firstOrNull?.postNo ?? 1;
+          _beforePostNo = props.postStream.beforePostNo;
+          _hasEarlierPosts = props.postStream.hasBefore;
           _afterPostNo = props.postStream.afterPostNo;
           _hasMorePosts = props.postStream.hasAfter;
           _liked = props.topic.isLiked;
@@ -165,38 +244,78 @@ class _TopicPageState extends ConsumerState<TopicPage> {
     }
   }
 
-  Future<void> _loadMore() async {
-    if (!_hasMorePosts || _loadingMore) return;
+  Future<void> _loadMore({bool earlier = false}) async {
+    if (_loadingMore || (earlier ? !_hasEarlierPosts : !_hasMorePosts)) return;
+    final generation = _windowGeneration;
+    final epoch = ref.read(offlineCacheEpochProvider);
     setState(() => _loadingMore = true);
     try {
-      final int? previousAfterPostNo = _afterPostNo;
-      final PostWindowPayload window = await ref
+      final previous = earlier ? _beforePostNo : _afterPostNo;
+      final window = await ref
           .read(topicRepositoryProvider)
-          .getPostWindow(topicId: widget.topicId, afterPostNo: _afterPostNo);
-      if (!mounted) return;
-      final Set<int> existingIds = _posts
-          .map((PostPayload post) => post.id)
-          .toSet();
+          .getPostWindow(
+            topicId: widget.topicId,
+            beforePostNo: earlier ? _beforePostNo : null,
+            afterPostNo: earlier ? null : _afterPostNo,
+          );
+      if (!mounted ||
+          generation != _windowGeneration ||
+          epoch != ref.read(offlineCacheEpochProvider)) {
+        return;
+      }
+      final ids = _posts.map((post) => post.id).toSet();
       setState(() {
-        _posts.addAll(
-          window.posts.where((PostPayload post) => existingIds.add(post.id)),
-        );
-        for (final ReplyTargetPayload target in window.replyTargets) {
+        _posts.addAll(window.posts.where((post) => ids.add(post.id)));
+        for (final target in window.replyTargets) {
           _replyTargets[target.id] = target;
         }
-        final int? nextAfterPostNo = window.afterPostNo ?? previousAfterPostNo;
-        _afterPostNo = nextAfterPostNo;
-        _hasMorePosts =
-            window.posts.isNotEmpty &&
-            window.hasAfter &&
-            nextAfterPostNo != null &&
-            (previousAfterPostNo == null ||
-                nextAfterPostNo > previousAfterPostNo);
+        final next =
+            (earlier ? window.beforePostNo : window.afterPostNo) ?? previous;
+        final advanced =
+            next != null &&
+            (previous == null || (earlier ? next < previous : next > previous));
+        if (earlier) {
+          _beforePostNo = next;
+          _hasEarlierPosts =
+              window.posts.isNotEmpty && window.hasBefore && advanced;
+        } else {
+          _afterPostNo = next;
+          _hasMorePosts =
+              window.posts.isNotEmpty && window.hasAfter && advanced;
+        }
       });
-    } catch (_) {
-      // 加载更多失败静默。
+    } catch (error) {
+      if (mounted &&
+          generation == _windowGeneration &&
+          epoch == ref.read(offlineCacheEpochProvider)) {
+        showGfToast(
+          context,
+          resolveErrorMessage(AppLocalizations.of(context), error),
+          error: true,
+        );
+      }
     } finally {
-      if (mounted) setState(() => _loadingMore = false);
+      if (mounted && generation == _windowGeneration) {
+        setState(() => _loadingMore = false);
+      }
+    }
+  }
+
+  Future<void> _jumpToFloor(int requested) async {
+    if (_jumping) return;
+    final max = _page.valueOrNull?.postStream.maxPostNo ?? 1;
+    final floor = requested.clamp(1, max < 1 ? 1 : max);
+    setState(() {
+      _jumping = true;
+      _railOpen = false;
+    });
+    try {
+      await _load(silent: true, postNo: floor);
+      if (mounted && _currentFloor == floor) {
+        await _scrollToTop.scrollToTop();
+      }
+    } finally {
+      if (mounted) setState(() => _jumping = false);
     }
   }
 
@@ -251,7 +370,21 @@ class _TopicPageState extends ConsumerState<TopicPage> {
     }
   }
 
+  bool get _topicAvailable {
+    final topic = _page.valueOrNull?.topic;
+    return topic != null && !topic.authorDeleted && !topic.moderatorRemoved;
+  }
+
+  bool get _canReply =>
+      _topicAvailable &&
+      (_page.valueOrNull?.permissions.canPost == true || !_viewerAuthenticated);
+
   void _openComposer({PostPayload? replyTo}) {
+    if (!_canReply) return;
+    if (_page.valueOrNull?.permissions.canPost != true) {
+      context.push('/login');
+      return;
+    }
     if (replyTo != null) {
       final String mention = '@${replyTo.author.username} ';
       _replyToPostId = replyTo.id;
@@ -368,42 +501,82 @@ class _TopicPageState extends ConsumerState<TopicPage> {
     }
   }
 
+  Future<void> _loadReplyCaptcha() async {
+    if (_replyCaptchaLoading) return;
+    final epoch = ref.read(offlineCacheEpochProvider);
+    setState(() => _replyCaptchaLoading = true);
+    try {
+      final captcha = await ref.read(authRepositoryProvider).getCaptcha();
+      if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
+      setState(() {
+        _replyCaptcha = captcha;
+        _replyCaptchaCode.clear();
+      });
+    } catch (error) {
+      if (mounted && epoch == ref.read(offlineCacheEpochProvider)) {
+        showGfToast(
+          context,
+          resolveErrorMessage(AppLocalizations.of(context), error),
+          error: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _replyCaptchaLoading = false);
+    }
+  }
+
   Future<void> _submitReply() async {
-    final String content = _replyController.text.trim();
+    if (_replying || _uploadingReplyImage || !_canReply) return;
+    final content = _replyController.text.trim();
     if (content.isEmpty) return;
+    final topicId = widget.topicId;
+    final target = _replyToPostId;
+    final epoch = ref.read(offlineCacheEpochProvider);
     setState(() => _replying = true);
     try {
       await ref
           .read(postRepositoryProvider)
           .createPost(
-            topicId: widget.topicId,
+            topicId: topicId,
             content: content,
-            replyToPostId: _replyToPostId,
+            replyToPostId: target,
+            captchaId: _replyCaptcha?.captchaId,
+            captchaCode: _replyCaptchaCode.text.trim(),
           );
-      if (!mounted) return;
-      _clearReplyTarget();
-      _replyController.clear();
+      if (!mounted ||
+          topicId != widget.topicId ||
+          epoch != ref.read(offlineCacheEpochProvider)) {
+        return;
+      }
+      if (_replyController.text.trim() == content && _replyToPostId == target) {
+        _clearReplyTarget();
+        _replyController.clear();
+        setState(() {
+          _replyImageUrl = null;
+          _composerOpen = false;
+        });
+      }
       setState(() {
-        _replyImageUrl = null;
-        _composerOpen = false;
+        _replyCaptcha = null;
+        _replyCaptchaCode.clear();
       });
-      if (mounted) {
-        showGfToast(context, AppLocalizations.of(context).topicReplySuccess);
+      showGfToast(context, AppLocalizations.of(context).topicReplySuccess);
+      await _load(silent: true);
+    } catch (error) {
+      if (!mounted ||
+          topicId != widget.topicId ||
+          epoch != ref.read(offlineCacheEpochProvider)) {
+        return;
       }
-      // 局部刷新:回复成功后静默重载(不置 loading、不清空列表,
-      // 保留滚动位置,对齐 web 乐观追加语义)。
-      if (mounted) {
-        await _load(silent: true);
+      if (error is ApiException &&
+          (error.messageCode == 'common.captchaRequired' ||
+              error.messageCode == 'auth.captcha.invalid')) {
+        await _loadReplyCaptcha();
       }
-    } on ApiException catch (e) {
-      if (mounted) {
-        showGfToast(context, e.messageKey, error: true);
-      }
-    } catch (e) {
       if (mounted) {
         showGfToast(
           context,
-          AppLocalizations.of(context).topicReplyFailed('$e'),
+          resolveErrorMessage(AppLocalizations.of(context), error),
           error: true,
         );
       }
@@ -525,6 +698,14 @@ class _TopicPageState extends ConsumerState<TopicPage> {
           onPressed: _goBack,
         ),
         title: Text(appBarTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          if (_page.valueOrNull case final props?)
+            TopicActions(
+              props: props,
+              firstPostId: _mainPost(_posts)?.id,
+              onChanged: () => _load(silent: true, postNo: _currentFloor),
+            ),
+        ],
       ),
       body: _page.when(
         loading: () => const GfTopicDetailSkeleton(),
@@ -541,83 +722,115 @@ class _TopicPageState extends ConsumerState<TopicPage> {
               Positioned.fill(
                 child: GfScrollToTop(
                   semanticLabel: l10n.commonBackToTop,
-                  showButton: !_composerOpen,
+                  showButton: false,
+                  controller: _scrollToTop,
                   threshold: 360,
                   bottomInset: 84,
                   builder: (context, scrollController) {
-                    return RefreshIndicator(
+                    return ContextualFab(
+                      controller: scrollController,
+                      reply: true,
+                      onReturnToTop: () => _jumpToFloor(1),
+                      discussionKey: _discussionKey,
+                      visible: !_composerOpen && _canReply,
+                      onPrimary: () => _openComposer(),
                       onRefresh: () => _load(silent: true),
-                      child: CustomScrollView(
-                        controller: scrollController,
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        slivers: <Widget>[
-                          SliverToBoxAdapter(
-                            child: _TopicHeader(
-                              topic: props.topic,
-                              mainPost: mainPost,
-                              liked: _liked,
-                              bookmarked: _bookmarked,
-                              watched: _watched,
-                              likeCount: _likeCount,
-                              canReportTopic: !props.permissions.isOwnTopic,
-                              onLike: _toggleLike,
-                              onBookmark: _toggleBookmark,
-                              onWatch: _toggleWatch,
-                              onReportTopic: () => _reportTopic(props.topic),
-                            ),
-                          ),
-                          const SliverToBoxAdapter(child: GfDivider()),
-                          SliverToBoxAdapter(
-                            child: _ReplySectionHeader(
-                              count: props.topic.replyCount,
-                            ),
-                          ),
-                          if (replyPosts.isEmpty)
+                      bottom: 84,
+                      child: RefreshIndicator(
+                        onRefresh: () => _load(silent: true),
+                        child: CustomScrollView(
+                          controller: scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: <Widget>[
                             SliverToBoxAdapter(
-                              child: GfEmpty(
-                                icon: Icons.forum_outlined,
-                                message: l10n.topicReplies(0),
-                                description: l10n.topicReplyHint,
+                              child: _TopicHeader(
+                                topic: props.topic,
+                                mainPost: mainPost,
+                                liked: _liked,
+                                bookmarked: _bookmarked,
+                                watched: _watched,
+                                likeCount: _likeCount,
+                                canReportTopic:
+                                    _topicAvailable &&
+                                    !props.permissions.isOwnTopic,
+                                onLike: _toggleLike,
+                                onBookmark: _toggleBookmark,
+                                onWatch: _toggleWatch,
+                                onReportTopic: () => _reportTopic(props.topic),
                               ),
-                            )
-                          else
-                            SliverList.builder(
-                              itemCount: replyPosts.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                final PostPayload post = replyPosts[index];
-                                return RepaintBoundary(
-                                  child: Column(
-                                    children: <Widget>[
-                                      _PostCard(
-                                        post: post,
-                                        showReplyQuote: _showReplyQuote(
-                                          post,
-                                          mainPost,
+                            ),
+                            const SliverToBoxAdapter(child: GfDivider()),
+                            SliverToBoxAdapter(
+                              child: SizedBox(
+                                key: _discussionKey,
+                                child: _ReplySectionHeader(
+                                  count: props.topic.replyCount,
+                                ),
+                              ),
+                            ),
+                            if (_hasEarlierPosts)
+                              SliverToBoxAdapter(
+                                child: TextButton(
+                                  onPressed: _loadingMore
+                                      ? null
+                                      : () => _loadMore(earlier: true),
+                                  child: Text(l10n.topicEarlierReplies),
+                                ),
+                              ),
+                            if (replyPosts.isEmpty)
+                              SliverToBoxAdapter(
+                                child: GfEmpty(
+                                  icon: Icons.forum_outlined,
+                                  message: l10n.topicReplies(0),
+                                  description: l10n.topicReplyHint,
+                                ),
+                              )
+                            else
+                              SliverList.builder(
+                                itemCount: replyPosts.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final PostPayload post = replyPosts[index];
+                                  return RepaintBoundary(
+                                    key: ValueKey(post.id),
+                                    child: Column(
+                                      children: <Widget>[
+                                        _PostCard(
+                                          post: post,
+                                          showReplyQuote: _showReplyQuote(
+                                            post,
+                                            mainPost,
+                                          ),
+                                          quoteTarget:
+                                              _replyTargets[post.replyToPostId],
+                                          onReply: _canReply
+                                              ? () =>
+                                                    _openComposer(replyTo: post)
+                                              : null,
+                                          onReport: () => _reportPost(post),
+                                          onChanged: () => _load(
+                                            silent: true,
+                                            postNo: _currentFloor,
+                                          ),
                                         ),
-                                        quoteTarget:
-                                            _replyTargets[post.replyToPostId],
-                                        onReply: () =>
-                                            _openComposer(replyTo: post),
-                                        onReport: () => _reportPost(post),
-                                      ),
-                                      if (index < replyPosts.length - 1)
-                                        const GfDivider(),
-                                    ],
-                                  ),
-                                );
-                              },
+                                        if (index < replyPosts.length - 1)
+                                          const GfDivider(),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            SliverToBoxAdapter(
+                              child: GfListFooter(
+                                loading: _loadingMore,
+                                hasMore: _hasMorePosts,
+                                onLoadMore: _loadMore,
+                              ),
                             ),
-                          SliverToBoxAdapter(
-                            child: GfListFooter(
-                              loading: _loadingMore,
-                              hasMore: _hasMorePosts,
-                              onLoadMore: _loadMore,
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 104),
                             ),
-                          ),
-                          const SliverToBoxAdapter(
-                            child: SizedBox(height: 104),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -662,14 +875,60 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                   publishLabel: l10n.commonSend,
                                   hintText: l10n.topicReplyHint,
                                   onPublish: _submitReply,
-                                  toolbar: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: GfIconButton(
-                                      icon: Icons.keyboard_arrow_down_rounded,
-                                      tooltip: l10n.commonCancel,
-                                      size: 44,
-                                      onPressed: _closeComposer,
-                                    ),
+                                  toolbar: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (_replyCaptcha != null)
+                                        Row(
+                                          children: [
+                                            InkWell(
+                                              onTap: _replyCaptchaLoading
+                                                  ? null
+                                                  : _loadReplyCaptcha,
+                                              child: Image.memory(
+                                                base64Decode(
+                                                  _replyCaptcha!.captchaImg
+                                                      .split(',')
+                                                      .last,
+                                                ),
+                                                width: 80,
+                                                height: 42,
+                                                fit: BoxFit.contain,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: TextField(
+                                                key: const Key('reply-captcha'),
+                                                controller: _replyCaptchaCode,
+                                                decoration: InputDecoration(
+                                                  labelText: l10n.authCaptcha,
+                                                ),
+                                                textCapitalization:
+                                                    TextCapitalization
+                                                        .characters,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              tooltip: l10n.commonRefresh,
+                                              onPressed: _replyCaptchaLoading
+                                                  ? null
+                                                  : _loadReplyCaptcha,
+                                              icon: const Icon(Icons.refresh),
+                                            ),
+                                          ],
+                                        ),
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: GfIconButton(
+                                          icon:
+                                              Icons.keyboard_arrow_down_rounded,
+                                          tooltip: l10n.commonCancel,
+                                          size: 44,
+                                          onPressed: _closeComposer,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 );
                               },
@@ -677,29 +936,33 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                           )
                         : GfFloatingControls(
                             actions: <GfTopicAction>[
-                              GfTopicAction(
-                                icon: Icons.favorite_border,
-                                active: _liked,
-                                activeColor: colors.error,
-                                onTap: _toggleLike,
-                              ),
-                              GfTopicAction(
-                                icon: Icons.bookmark_border,
-                                active: _bookmarked,
-                                activeColor: colors.primary,
-                                onTap: _toggleBookmark,
-                              ),
-                              GfTopicAction(
-                                icon: _watched
-                                    ? Icons.notifications
-                                    : Icons.notifications_none,
-                                active: _watched,
-                                activeColor: colors.success,
-                                onTap: _toggleWatch,
-                              ),
+                              if (_topicAvailable) ...[
+                                GfTopicAction(
+                                  icon: Icons.favorite_border,
+                                  active: _liked,
+                                  activeColor: colors.error,
+                                  onTap: _toggleLike,
+                                ),
+                                GfTopicAction(
+                                  icon: Icons.bookmark_border,
+                                  active: _bookmarked,
+                                  activeColor: colors.primary,
+                                  onTap: _toggleBookmark,
+                                ),
+                                GfTopicAction(
+                                  icon: _watched
+                                      ? Icons.notifications
+                                      : Icons.notifications_none,
+                                  active: _watched,
+                                  activeColor: colors.success,
+                                  onTap: _toggleWatch,
+                                ),
+                              ],
                             ],
-                            onOpenReply: () => _openComposer(),
-                            currentNo: mainPost?.postNo ?? 1,
+                            onOpenReply: _canReply
+                                ? () => _openComposer()
+                                : null,
+                            currentNo: _currentFloor,
                             maxNo: props.postStream.maxPostNo,
                             onFloorTap: () =>
                                 setState(() => _railOpen = !_railOpen),
@@ -707,6 +970,13 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                   ),
                 ),
               ),
+              if (_jumping)
+                const Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearProgressIndicator(),
+                ),
               if (_railOpen && !_composerOpen)
                 Positioned(
                   left: 16,
@@ -717,14 +987,14 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                     child: GfFloatingSurface(
                       padding: const EdgeInsets.all(8),
                       child: GfPostPositionRail(
-                        current: mainPost?.postNo ?? 1,
+                        current: _currentFloor,
                         max: props.postStream.maxPostNo,
-                        onSelect: (floor) {
-                          setState(() => _railOpen = false);
-                          showGfToast(context, l10n.topicFloorSelected(floor));
-                        },
-                        onEarliest: () => _load(silent: true),
-                        onLatest: _loadMore,
+                        startLabel: l10n.topicEarliest,
+                        endLabel: l10n.topicLatest,
+                        onSelect: _jumpToFloor,
+                        onEarliest: () => _jumpToFloor(1),
+                        onLatest: () =>
+                            _jumpToFloor(props.postStream.maxPostNo),
                       ),
                     ),
                   ),
@@ -776,6 +1046,7 @@ class _TopicHeader extends StatelessWidget {
     final GfColors colors = GfTheme.colorsOf(context);
     final AppLocalizations l10n = AppLocalizations.of(context);
     final String authorName = topic.author.nickname ?? topic.author.username;
+    final available = !topic.authorDeleted && !topic.moderatorRemoved;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
@@ -785,18 +1056,29 @@ class _TopicHeader extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              GfAvatar(
-                src: resolveApiAssetUrl(topic.author.avatarUrl),
-                size: 40,
+              InkWell(
+                onTap: topic.author.id > 0
+                    ? () => context.push('/u/${topic.author.id}')
+                    : null,
+                borderRadius: BorderRadius.circular(40),
+                child: GfAvatar(
+                  src: resolveApiAssetUrl(topic.author.avatarUrl),
+                  size: 40,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(
-                      authorName,
-                      style: GfTheme.typographyOf(context).bodyStrong,
+                    InkWell(
+                      onTap: topic.author.id > 0
+                          ? () => context.push('/u/${topic.author.id}')
+                          : null,
+                      child: Text(
+                        authorName,
+                        style: GfTheme.typographyOf(context).bodyStrong,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -808,13 +1090,16 @@ class _TopicHeader extends StatelessWidget {
                   ],
                 ),
               ),
-              GfIconButton(
-                icon: watched ? Icons.notifications : Icons.notifications_none,
-                size: 44,
-                iconSize: 20,
-                tooltip: watched ? l10n.topicUnwatch : l10n.topicWatch,
-                onPressed: onWatch,
-              ),
+              if (available)
+                GfIconButton(
+                  icon: watched
+                      ? Icons.notifications
+                      : Icons.notifications_none,
+                  size: 44,
+                  iconSize: 20,
+                  tooltip: watched ? l10n.topicUnwatch : l10n.topicWatch,
+                  onPressed: onWatch,
+                ),
               if (canReportTopic) ...<Widget>[
                 const SizedBox(width: 4),
                 GfIconButton(
@@ -843,7 +1128,19 @@ class _TopicHeader extends StatelessWidget {
           ],
           const SizedBox(height: 14),
           Text(topic.title, style: GfTheme.typographyOf(context).title1),
-          if (mainPost != null) ...<Widget>[
+          if (available &&
+              topic.contentType != 3 &&
+              topic.contentType != 0 &&
+              topic.images?.isNotEmpty == true) ...[
+            const SizedBox(height: 16),
+            GfMediaCarousel(
+              images: topic.images!.map(resolveApiAssetUrl).toList(),
+            ),
+          ],
+          if (!available) ...<Widget>[
+            const SizedBox(height: 16),
+            Text(l10n.topicRemoved),
+          ] else if (mainPost != null) ...<Widget>[
             const SizedBox(height: 16),
             GfMarkdownView(data: mainPost!.content),
           ] else if (topic.description.isNotEmpty) ...<Widget>[
@@ -877,7 +1174,7 @@ class _TopicHeader extends StatelessWidget {
                     icon: liked ? Icons.favorite : Icons.favorite_border,
                     value: formatNumber(likeCount),
                     color: liked ? colors.error : null,
-                    onTap: onLike,
+                    onTap: available ? onLike : null,
                   ),
                 ),
                 Expanded(
@@ -885,7 +1182,7 @@ class _TopicHeader extends StatelessWidget {
                     icon: bookmarked ? Icons.bookmark : Icons.bookmark_border,
                     value: '',
                     color: bookmarked ? colors.primary : null,
-                    onTap: onBookmark,
+                    onTap: available ? onBookmark : null,
                   ),
                 ),
               ],
@@ -981,6 +1278,7 @@ class _PostCard extends StatelessWidget {
     required this.quoteTarget,
     required this.onReply,
     required this.onReport,
+    required this.onChanged,
   });
 
   final PostPayload post;
@@ -990,12 +1288,12 @@ class _PostCard extends StatelessWidget {
 
   /// 被引用楼层的 replyTarget（可空：目标信息缺失时按 unavailable 降级）。
   final ReplyTargetPayload? quoteTarget;
-  final VoidCallback onReply;
+  final VoidCallback? onReply;
   final VoidCallback onReport;
+  final Future<void> Function() onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final GfColors colors = GfTheme.colorsOf(context);
     final AppLocalizations l10n = AppLocalizations.of(context);
 
     return Padding(
@@ -1005,15 +1303,26 @@ class _PostCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              GfAvatar(
-                src: resolveApiAssetUrl(post.author.avatarUrl),
-                size: 24,
+              InkWell(
+                onTap: post.author.id > 0
+                    ? () => context.push('/u/${post.author.id}')
+                    : null,
+                borderRadius: BorderRadius.circular(24),
+                child: GfAvatar(
+                  src: resolveApiAssetUrl(post.author.avatarUrl),
+                  size: 24,
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  post.author.nickname ?? post.author.username,
-                  style: GfTheme.typographyOf(context).bodyStrong,
+                child: InkWell(
+                  onTap: post.author.id > 0
+                      ? () => context.push('/u/${post.author.id}')
+                      : null,
+                  child: Text(
+                    post.author.nickname ?? post.author.username,
+                    style: GfTheme.typographyOf(context).bodyStrong,
+                  ),
                 ),
               ),
               if (post.postNo > 0)
@@ -1046,47 +1355,25 @@ class _PostCard extends StatelessWidget {
               ),
           ],
           const SizedBox(height: 10),
-          GfMarkdownView(data: post.content),
+          if (post.isAuthorDeleted || post.isModeratorRemoved)
+            Text(l10n.topicRemoved)
+          else
+            GfMarkdownView(data: post.content),
           const SizedBox(height: 10),
-          Row(
-            children: <Widget>[
-              Text(
-                timeAgo(post.createdAt, l10n: l10n),
-                style: GfTheme.typographyOf(
-                  context,
-                ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
-              ),
-              const Spacer(),
-              Icon(
-                post.isLiked ? Icons.favorite : Icons.favorite_border,
-                size: 16,
-                color: post.isLiked
-                    ? colors.error
-                    : GfTheme.colorsOf(context).iconMuted,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${post.likeCount}',
-                style: GfTheme.typographyOf(
-                  context,
-                ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
-              ),
-              GfIconButton(
-                icon: Icons.reply_outlined,
-                size: 44,
-                iconSize: 18,
-                tooltip: l10n.topicReply,
-                onPressed: onReply,
-              ),
-              const SizedBox(width: 4),
-              GfIconButton(
-                icon: Icons.flag_outlined,
-                size: 44,
-                iconSize: 18,
-                tooltip: l10n.topicReport,
-                onPressed: onReport,
-              ),
-            ],
+          Text(
+            timeAgo(post.createdAt, l10n: l10n),
+            style: GfTheme.typographyOf(
+              context,
+            ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: PostActions(
+              post: post,
+              onChanged: onChanged,
+              onReply: onReply,
+              onReport: onReport,
+            ),
           ),
         ],
       ),

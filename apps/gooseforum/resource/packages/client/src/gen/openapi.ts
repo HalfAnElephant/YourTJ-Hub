@@ -348,6 +348,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/mobile-web-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Establish an embedded admin browser session from a native bearer
+         * @description First-party mobile WebView handoff. Requires an explicit valid human Bearer session and
+         *     at least one admin permission (admin), moderation-workbench access (moderation), or the
+         *     independent CourseManager/Admin permission (courseManagement and courseReviews).
+         *     Cookie-only authentication is rejected. Installs the same
+         *     session as an HttpOnly, SameSite=Lax cookie (Secure on HTTPS deployments), then redirects
+         *     exclusively to /admin, /moderation, /moderation/courses or /moderation/course-reviews.
+         *     Arbitrary redirect targets are never accepted; no token appears in the URL,
+         *     response body, or New-Token header. Responses are no-store. Normal admin role, revocation,
+         *     writable-account, and CSRF checks continue to apply to all subsequent operations.
+         */
+        get: operations["mobileWebSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/user/sessions": {
         parameters: {
             query?: never;
@@ -10960,6 +10988,67 @@ export interface operations {
             };
             /** @description The local account, session, or forum JWT could not be created. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    mobileWebSession: {
+        parameters: {
+            query?: {
+                /** @description Fixed workspace destination; each target checks its existing permissions. */
+                target?: "admin" | "moderation" | "courseManagement" | "courseReviews";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Browser session installed; follow the fixed same-origin admin redirect. */
+            303: {
+                headers: {
+                    Location?: "/admin" | "/moderation" | "/moderation/courses" | "/moderation/course-reviews";
+                    /** @description HttpOnly access_token session cookie. */
+                    "Set-Cookie"?: string;
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unsupported workspace target. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Missing, invalid, expired, revoked, or cookie-only credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description The authenticated user has no permission for the selected workspace. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Login rate limit exceeded. */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
