@@ -151,6 +151,63 @@ void main() {
     );
   }
 
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'Search and follow controls ${brightness.name}',
+      skip: skipGoldens,
+      tags: 'golden',
+      (tester) async {
+        final controller = TextEditingController(text: '高等数学');
+        addTearDown(controller.dispose);
+        await pumpGfGolden(
+          tester,
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const GfSearchField(hintText: '搜索会话', clearLabel: '清空搜索'),
+                const SizedBox(height: 16),
+                GfSearchField(
+                  controller: controller,
+                  hintText: '搜索课程、教师',
+                  clearLabel: '清空搜索',
+                ),
+                const SizedBox(height: 16),
+                const GfSearchField(
+                  hintText: 'Konversationen durchsuchen',
+                  clearLabel: 'Leeren',
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  spacing: 12,
+                  children: [
+                    GfButton(
+                      label: '关注',
+                      icon: const GfSymbol('user-round-plus', size: 18),
+                      onPressed: () {},
+                    ),
+                    GfButton(
+                      label: '已关注',
+                      variant: GfButtonVariant.outline,
+                      icon: const GfSymbol('user-round-check', size: 18),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          brightness: brightness,
+        );
+        await expectLater(
+          find.byType(Scaffold),
+          matchesGoldenFile('golden/gf_search_follow_${brightness.name}.png'),
+        );
+      },
+    );
+  }
+
   testWidgets('GfButton all variants', skip: skipGoldens, tags: 'golden', (
     tester,
   ) async {

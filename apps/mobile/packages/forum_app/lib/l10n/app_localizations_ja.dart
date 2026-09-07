@@ -1799,4 +1799,7 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get courseCopySummaryConsensusTextNotRecommend =>
       '多くの学生がこのコースをおすすめしていません。';
+
+  @override
+  String get topicJoinDiscussion => 'ディスカッションに参加';
 }

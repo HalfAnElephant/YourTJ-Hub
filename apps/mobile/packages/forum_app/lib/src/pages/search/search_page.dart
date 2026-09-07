@@ -127,21 +127,27 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       appBar: GfAppBar(title: Text(l10n.searchTitle)),
       body: Column(
         children: <Widget>[
-          GfPageHeader(
-            title: l10n.searchTitle,
-            description: description,
-            badge: _HeaderBadge(label: l10n.searchTitle),
-            actions: GfInput(
-              controller: _query,
-              hintText: l10n.searchHint,
-              textInputAction: TextInputAction.search,
-              prefixIcon: const Icon(Icons.manage_search_outlined, size: 18),
-              suffixIcon: GfIconButton(
-                icon: Icons.search,
-                tooltip: l10n.searchTitle,
-                onPressed: _search,
-              ),
-              onSubmitted: (_) => _search(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                GfSearchField(
+                  controller: _query,
+                  hintText: l10n.searchHint,
+                  clearLabel: l10n.courseCopyClearSearch,
+                  onSubmitted: (_) => _search(),
+                ),
+                if (props != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    description,
+                    style: GfTheme.typographyOf(context).caption.copyWith(
+                      color: GfTheme.colorsOf(context).iconMuted,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           if (props != null && props.searchUnavailable != true)
@@ -193,35 +199,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           ),
         );
       },
-    );
-  }
-}
-
-class _HeaderBadge extends StatelessWidget {
-  const _HeaderBadge({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final GfColors colors = GfTheme.colorsOf(context);
-    return Container(
-      height: 20,
-      padding: const EdgeInsets.symmetric(horizontal: 7),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: colors.base300,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: colors.baseContent.withValues(alpha: 0.55),
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-        ),
-      ),
     );
   }
 }

@@ -586,5 +586,6 @@
   "courseCopySummaryConsensusTextRecommend": "多くの学生がこのコースをおすすめしています。",
   "courseCopySummaryConsensusTextNeutral": "学生の評価は賛否両論です。",
   "courseCopySummaryConsensusTextCautious": "多くの学生が履修前に慎重な検討をすすめています。",
-  "courseCopySummaryConsensusTextNotRecommend": "多くの学生がこのコースをおすすめしていません。"
+  "courseCopySummaryConsensusTextNotRecommend": "多くの学生がこのコースをおすすめしていません。",
+  "topicJoinDiscussion": "ディスカッションに参加"
 }

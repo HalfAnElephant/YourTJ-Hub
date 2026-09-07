@@ -2311,13 +2311,12 @@ class _SearchPane extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    final GfColors colors = GfTheme.colorsOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        GfInput(
+        GfSearchField(
           hintText: l10n.scheduleSearchHint,
-          prefixIcon: Icon(Icons.search, size: 18, color: colors.iconMuted),
+          clearLabel: l10n.courseCopyClearSearch,
           onChanged: onQueryChanged,
         ),
         const SizedBox(height: 6),

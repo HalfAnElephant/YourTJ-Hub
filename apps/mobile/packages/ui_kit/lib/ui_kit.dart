@@ -68,3 +68,5 @@ export 'src/components/gf_icon_tile.dart';
 export 'src/components/gf_social_icon.dart';
 export 'src/components/business/gf_activity_card.dart';
 export 'src/components/business/gf_achievement_card.dart';
+
+export 'src/components/gf_search_field.dart';

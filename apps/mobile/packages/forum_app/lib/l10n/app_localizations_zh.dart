@@ -1792,4 +1792,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get courseCopySummaryConsensusTextNotRecommend => '多数同学不推荐这门课程。';
+
+  @override
+  String get topicJoinDiscussion => '参与讨论';
 }

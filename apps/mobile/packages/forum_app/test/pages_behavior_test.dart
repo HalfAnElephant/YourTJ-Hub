@@ -1480,6 +1480,37 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
   });
 
+  testWidgets(
+    'topic uses inline actions without a decorative discussion icon',
+    (tester) async {
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final container = await makeContainer(
+        pageRepo: RedesignPageRepository(
+          client,
+          topicPayload: redesignedTopicPayloadJson(),
+        ),
+      );
+      await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.forum_outlined), findsNothing);
+      final reply = find.descendant(
+        of: find.byKey(const ValueKey('topic-inline-actions')),
+        matching: find.text('回复'),
+      );
+      await tester.ensureVisible(reply);
+      await tester.tap(reply);
+      await tester.pumpAndSettle();
+      expect(find.byType(GfPostComposer), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    },
+  );
+
   testWidgets('profile activity types have distinct semantic icons', (
     tester,
   ) async {
@@ -2009,7 +2040,8 @@ void main() {
         );
         await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('回复').first);
+        await tester.ensureVisible(find.byTooltip('回复').at(1));
+        await tester.tap(find.byTooltip('回复').at(1));
         await tester.pump();
         final field = find
             .descendant(
@@ -2054,7 +2086,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(GfPostComposer), findsNothing);
-      await tester.tap(find.byTooltip('回复').first);
+      await tester.ensureVisible(find.byTooltip('回复').at(1));
+      await tester.tap(find.byTooltip('回复').at(1));
       await tester.pump();
 
       final Finder composer = find.byType(GfPostComposer);
@@ -2099,7 +2132,7 @@ void main() {
 
       // 输入关键词并搜索。
       await tester.enterText(find.byType(TextField), 'flutter');
-      await tester.tap(find.byIcon(Icons.search));
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
 
       expect(find.text('结果-第一页'), findsOneWidget);
@@ -2137,7 +2170,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), '同济');
-      await tester.tap(find.byIcon(Icons.search));
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
 
       expect(topicRepo.scopes, <String>['']);
@@ -3420,7 +3453,8 @@ void main() {
       await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byTooltip('回复').first);
+      await tester.ensureVisible(find.byTooltip('回复').at(1));
+      await tester.tap(find.byTooltip('回复').at(1));
       await tester.pumpAndSettle();
       expect(find.text('回复 用户 2'), findsOneWidget);
       expect(find.text('@user2 '), findsOneWidget);

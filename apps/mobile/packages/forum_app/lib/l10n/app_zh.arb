@@ -916,5 +916,6 @@
   "courseCopySummaryConsensusTextRecommend": "多数同学推荐这门课程。",
   "courseCopySummaryConsensusTextNeutral": "同学们对这门课程的评价褒贬不一。",
   "courseCopySummaryConsensusTextCautious": "多数同学建议谨慎选择这门课程。",
-  "courseCopySummaryConsensusTextNotRecommend": "多数同学不推荐这门课程。"
+  "courseCopySummaryConsensusTextNotRecommend": "多数同学不推荐这门课程。",
+  "topicJoinDiscussion": "参与讨论"
 }

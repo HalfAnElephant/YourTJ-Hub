@@ -70,6 +70,14 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 - `Current`: profile and settings use Web's Lucide line icons, with subtle semantic color tiles for
   activity and account controls. Social links use all six Web provider marks and brand colors.
 
+- `Current`: search uses one filled capsule field across messages, new conversations, the course
+  catalog, global search, Wiki and scheduler. Search fields provide a localized clear action and keyboard
+  submission where applicable; account and publishing forms retain their separate form styling.
+- `Current`: topic read-only view/reply counts sit above independent reply, like, bookmark and watch
+  actions. Active actions use Web's semantic tints, actions wrap on narrow screens, and the reply
+  heading has no decorative discussion icon. SVG icons inherit their enclosing button foreground
+  unless a semantic or provider color is explicitly set.
+
 ## Publishing
 
 - `Current`: the type selector keeps Web's moment/question/article values. Moments and questions

@@ -916,5 +916,6 @@
   "courseCopySummaryConsensusTextRecommend": "Most students recommend this course.",
   "courseCopySummaryConsensusTextNeutral": "Students have mixed opinions about this course.",
   "courseCopySummaryConsensusTextCautious": "Most students advise caution before choosing this course.",
-  "courseCopySummaryConsensusTextNotRecommend": "Most students do not recommend this course."
+  "courseCopySummaryConsensusTextNotRecommend": "Most students do not recommend this course.",
+  "topicJoinDiscussion": "Join discussion"
 }

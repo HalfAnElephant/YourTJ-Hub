@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/gf_theme.dart';
 import '../atoms/gf_divider.dart';
+import '../gf_symbol.dart';
 
 import '../surfaces/gf_floating_surface.dart';
 
@@ -14,9 +15,11 @@ class GfTopicAction {
     required this.onTap,
     this.acting = false,
     this.title,
+    this.symbol,
   });
 
   final IconData icon;
+  final String? symbol;
   final bool active;
 
   /// Color of the icon when [active] (web activeClass per action type).
@@ -106,8 +109,8 @@ class GfFloatingControls extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Icon(
-                      Icons.chat_bubble_outline,
+                    GfSymbol(
+                      'corner-down-left',
                       size: 16,
                       color: colors.baseContent.withValues(alpha: 0.75),
                     ),
@@ -162,6 +165,14 @@ class _RoundAction extends StatelessWidget {
                           ? action.activeColor
                           : colors.baseContent.withValues(alpha: 0.75),
                     ),
+                  )
+                : action.symbol != null
+                ? GfSymbol(
+                    action.symbol!,
+                    size: 18,
+                    color: action.active
+                        ? action.activeColor
+                        : colors.iconMuted,
                   )
                 : Icon(
                     action.icon,

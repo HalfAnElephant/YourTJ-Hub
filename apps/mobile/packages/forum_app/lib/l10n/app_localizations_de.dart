@@ -1860,4 +1860,7 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get courseCopySummaryConsensusTextNotRecommend =>
       'Die meisten Studierenden empfehlen diesen Kurs nicht.';
+
+  @override
+  String get topicJoinDiscussion => 'An Diskussion teilnehmen';
 }

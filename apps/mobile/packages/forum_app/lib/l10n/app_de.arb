@@ -586,5 +586,6 @@
   "courseCopySummaryConsensusTextRecommend": "Die meisten Studierenden empfehlen diesen Kurs.",
   "courseCopySummaryConsensusTextNeutral": "Die Meinungen der Studierenden zu diesem Kurs sind gemischt.",
   "courseCopySummaryConsensusTextCautious": "Die meisten Studierenden empfehlen, diesen Kurs vor der Wahl mit Vorsicht abzuwägen.",
-  "courseCopySummaryConsensusTextNotRecommend": "Die meisten Studierenden empfehlen diesen Kurs nicht."
+  "courseCopySummaryConsensusTextNotRecommend": "Die meisten Studierenden empfehlen diesen Kurs nicht.",
+  "topicJoinDiscussion": "An Diskussion teilnehmen"
 }

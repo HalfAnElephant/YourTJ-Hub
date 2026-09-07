@@ -3455,6 +3455,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Most students do not recommend this course.'**
   String get courseCopySummaryConsensusTextNotRecommend;
+
+  /// No description provided for @topicJoinDiscussion.
+  ///
+  /// In en, this message translates to:
+  /// **'Join discussion'**
+  String get topicJoinDiscussion;
 }
 
 class _AppLocalizationsDelegate
