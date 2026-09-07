@@ -369,6 +369,9 @@ func Page(q PageQuery) struct {
 		// 删除（MODERATOR_REMOVED）的话题一律不进首页/分类/Agent 列表，
 		// 避免删除后仍公开泄露标题与正文摘录。
 		b.Where(queryopt.Eq("visibility_status", VisibilityActive))
+		// 且首楼仍可见（与 GetPublished/GetPublishedBeforeID 口径一致）：首楼被
+		// 删除/擦除后主题无正文，继续展示会产生「有标题无正文」的孤儿条目（issue #492）。
+		b.Where("EXISTS (SELECT 1 FROM posts WHERE posts.id = topics.first_post_id AND posts.topic_id = topics.id AND posts.process_status = ? AND posts.deleted_at IS NULL)", ProcessStatusNormal)
 	}
 	if q.CategoryId != 0 {
 		b.Where(

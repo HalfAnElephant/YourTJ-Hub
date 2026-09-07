@@ -207,7 +207,11 @@ func TestListTopicsTool(t *testing.T) {
 	conn := db.Connect()
 	conn.Create(&category.Entity{Id: 9001, Name: "general", Slug: "general"})
 	now := time.Now().Add(-time.Hour)
-	topic := topics.Entity{Id: 9001, Title: "MCP visible", UserId: agentID, Status: 1, ProcessStatus: 0, CategoryIds: []uint64{9001}, CreatedAt: now, UpdatedAt: now}
+	firstPost := posts.Entity{Id: 900101, TopicId: 9001, PostNo: 1, UserId: agentID, Content: "first", ProcessStatus: posts.ProcessStatusNormal, CreatedAt: now, UpdatedAt: now}
+	if err := conn.Create(&firstPost).Error; err != nil {
+		t.Fatalf("create first post: %v", err)
+	}
+	topic := topics.Entity{Id: 9001, Title: "MCP visible", UserId: agentID, Status: 1, ProcessStatus: 0, FirstPostId: firstPost.Id, CategoryIds: []uint64{9001}, CreatedAt: now, UpdatedAt: now}
 	if err := conn.Create(&topic).Error; err != nil {
 		t.Fatalf("create topic: %v", err)
 	}

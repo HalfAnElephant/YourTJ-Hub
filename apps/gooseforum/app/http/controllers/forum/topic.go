@@ -62,6 +62,12 @@ func TopicDetail(c *gin.Context) {
 	if firstPost.Id == 0 {
 		firstPost, _ = posts.GetByTopicPostNoAtOrAfter(topic.Id, 1)
 	}
+	if firstPost.Id == 0 {
+		// 主题已无任何可见楼层（首楼被删除/擦除且无可见回复）：按不存在处理，
+		// 避免渲染「有标题无正文」的空页（issue #492）。
+		renderNotFound(c)
+		return
+	}
 	postservice.EnsureRenderedHTML(&firstPost)
 	if loginUser.UserId > 0 {
 		if err := topicunseenservice.MarkVisited(loginUser.UserId, topic.Id, topic.LastPostId, time.Now()); err != nil {

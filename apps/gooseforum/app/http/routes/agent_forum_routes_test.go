@@ -212,7 +212,13 @@ func TestAgentTopicListShowsPublishedOnly(t *testing.T) {
 	createAgentForumCategory(t, conn, 5001, "general")
 
 	now := time.Now().Add(-time.Hour)
-	published := topics.Entity{Id: 6001, Title: "Published", UserId: agentID, Status: 1, ProcessStatus: 0, CategoryIds: []uint64{5001}, CreatedAt: now, UpdatedAt: now}
+	// 首楼 id 复用 wiki 契约测试的清理段（11001-11003）：wiki 测试复用 topic 6001-6003
+	// 且 setup 时按 id 清理首楼，此处必须落在该清理段内，避免 (topic_id, post_no) 唯一键残留。
+	firstPost := posts.Entity{Id: 11001, TopicId: 6001, PostNo: 1, UserId: agentID, Content: "first", ProcessStatus: posts.ProcessStatusNormal, CreatedAt: now, UpdatedAt: now}
+	if err := conn.Create(&firstPost).Error; err != nil {
+		t.Fatalf("create published first post: %v", err)
+	}
+	published := topics.Entity{Id: 6001, Title: "Published", UserId: agentID, Status: 1, ProcessStatus: 0, FirstPostId: firstPost.Id, CategoryIds: []uint64{5001}, CreatedAt: now, UpdatedAt: now}
 	if err := conn.Create(&published).Error; err != nil {
 		t.Fatalf("create published topic: %v", err)
 	}
