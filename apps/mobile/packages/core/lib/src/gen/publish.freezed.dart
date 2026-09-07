@@ -222,6 +222,7 @@ mixin _$PublishTopicPayload {
   String get content => throw _privateConstructorUsedError;
   List<int> get categoryIds => throw _privateConstructorUsedError;
   int get topicStatus => throw _privateConstructorUsedError;
+  int get contentType => throw _privateConstructorUsedError;
 
   /// Serializes this PublishTopicPayload to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -245,6 +246,7 @@ abstract class $PublishTopicPayloadCopyWith<$Res> {
     String content,
     List<int> categoryIds,
     int topicStatus,
+    int contentType,
   });
 }
 
@@ -267,6 +269,7 @@ class _$PublishTopicPayloadCopyWithImpl<$Res, $Val extends PublishTopicPayload>
     Object? content = null,
     Object? categoryIds = null,
     Object? topicStatus = null,
+    Object? contentType = null,
   }) {
     return _then(
       _value.copyWith(
@@ -285,6 +288,10 @@ class _$PublishTopicPayloadCopyWithImpl<$Res, $Val extends PublishTopicPayload>
             topicStatus: null == topicStatus
                 ? _value.topicStatus
                 : topicStatus // ignore: cast_nullable_to_non_nullable
+                      as int,
+            contentType: null == contentType
+                ? _value.contentType
+                : contentType // ignore: cast_nullable_to_non_nullable
                       as int,
           )
           as $Val,
@@ -306,6 +313,7 @@ abstract class _$$PublishTopicPayloadImplCopyWith<$Res>
     String content,
     List<int> categoryIds,
     int topicStatus,
+    int contentType,
   });
 }
 
@@ -327,6 +335,7 @@ class __$$PublishTopicPayloadImplCopyWithImpl<$Res>
     Object? content = null,
     Object? categoryIds = null,
     Object? topicStatus = null,
+    Object? contentType = null,
   }) {
     return _then(
       _$PublishTopicPayloadImpl(
@@ -346,6 +355,10 @@ class __$$PublishTopicPayloadImplCopyWithImpl<$Res>
             ? _value.topicStatus
             : topicStatus // ignore: cast_nullable_to_non_nullable
                   as int,
+        contentType: null == contentType
+            ? _value.contentType
+            : contentType // ignore: cast_nullable_to_non_nullable
+                  as int,
       ),
     );
   }
@@ -359,6 +372,7 @@ class _$PublishTopicPayloadImpl implements _PublishTopicPayload {
     required this.content,
     final List<int> categoryIds = const <int>[],
     required this.topicStatus,
+    this.contentType = 3,
   }) : _categoryIds = categoryIds;
 
   factory _$PublishTopicPayloadImpl.fromJson(Map<String, dynamic> json) =>
@@ -379,10 +393,13 @@ class _$PublishTopicPayloadImpl implements _PublishTopicPayload {
 
   @override
   final int topicStatus;
+  @override
+  @JsonKey()
+  final int contentType;
 
   @override
   String toString() {
-    return 'PublishTopicPayload(title: $title, content: $content, categoryIds: $categoryIds, topicStatus: $topicStatus)';
+    return 'PublishTopicPayload(title: $title, content: $content, categoryIds: $categoryIds, topicStatus: $topicStatus, contentType: $contentType)';
   }
 
   @override
@@ -397,7 +414,9 @@ class _$PublishTopicPayloadImpl implements _PublishTopicPayload {
               _categoryIds,
             ) &&
             (identical(other.topicStatus, topicStatus) ||
-                other.topicStatus == topicStatus));
+                other.topicStatus == topicStatus) &&
+            (identical(other.contentType, contentType) ||
+                other.contentType == contentType));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -408,6 +427,7 @@ class _$PublishTopicPayloadImpl implements _PublishTopicPayload {
     content,
     const DeepCollectionEquality().hash(_categoryIds),
     topicStatus,
+    contentType,
   );
 
   /// Create a copy of PublishTopicPayload
@@ -433,6 +453,7 @@ abstract class _PublishTopicPayload implements PublishTopicPayload {
     required final String content,
     final List<int> categoryIds,
     required final int topicStatus,
+    final int contentType,
   }) = _$PublishTopicPayloadImpl;
 
   factory _PublishTopicPayload.fromJson(Map<String, dynamic> json) =
@@ -446,6 +467,8 @@ abstract class _PublishTopicPayload implements PublishTopicPayload {
   List<int> get categoryIds;
   @override
   int get topicStatus;
+  @override
+  int get contentType;
 
   /// Create a copy of PublishTopicPayload
   /// with the given fields replaced by the non-null parameter values.

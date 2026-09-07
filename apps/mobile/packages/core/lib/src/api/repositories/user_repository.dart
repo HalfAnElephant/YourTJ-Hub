@@ -16,14 +16,15 @@ class UserRepository {
     );
   }
 
-  /// 保存用户资料。注意:后端支持 website 蜜罐字段,移动端永不发送。
+  /// 资料接口全字段覆盖；website 在这里是个人网站，必须与社交链接一起保留。
   Future<bool> saveUserInfo({
     required String nickname,
     required String bio,
     required String signature,
     required String websiteName,
+    required String website,
     String? locale,
-    Map<String, ExternalLinkPayload>? externalInformation,
+    required Map<String, ExternalLinkPayload> externalInformation,
   }) async {
     await _client.post<Object?>(
       '/api/set-user-info',
@@ -32,11 +33,11 @@ class UserRepository {
         'bio': bio,
         'signature': signature,
         'websiteName': websiteName,
+        'website': website,
         if (locale != null && locale.isNotEmpty) 'locale': locale,
-        if (externalInformation != null)
-          'externalInformation': externalInformation.map(
-            (key, value) => MapEntry(key, {'link': value.link}),
-          ),
+        'externalInformation': externalInformation.map(
+          (key, value) => MapEntry(key, {'link': value.link}),
+        ),
       },
     );
     return true;
@@ -49,6 +50,13 @@ class UserRepository {
       body: {'email': email, 'password': password},
     );
     return true;
+  }
+
+  Future<void> saveUserName(String username) async {
+    await _client.post<Object?>(
+      '/api/set-user-name',
+      body: {'username': username},
+    );
   }
 
   Future<bool> saveUserProfileCover(String profileCoverUrl) async {

@@ -209,6 +209,7 @@ func apiRoute(ginApp *gin.Engine) {
 
 	baseApi.POST("auth/totp/verify", middleware.TOTPChallengeAuth, api.TotpVerify)
 	baseApi.POST("auth/oidc/exchange", middleware.RateLimit(middleware.RateLimitLogin), api.OidcExchange)
+	baseApi.GET("auth/mobile-web-session", middleware.RateLimit(middleware.RateLimitLogin), api.MobileWebSession)
 
 	// CSRF 防护（issue #406）：挂在认证之前的写组中间件（fileServer 组与
 	// logout 路由同样 CSRF 前置），先于 JWTAuthCheck 拦截跨站 Cookie 写请求，

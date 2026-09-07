@@ -94,6 +94,15 @@ ThemeData gfThemeData(Brightness brightness, {GfColors? overrides}) {
     ),
     // Retain Material fallbacks for third-party or legacy leaf widgets. The
     // application shell itself is rendered by TDesign-backed Gf wrappers.
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: colors.primary,
+      foregroundColor: colors.primaryContent,
+      shape: const CircleBorder(),
+      elevation: 2,
+      focusElevation: 3,
+      hoverElevation: 3,
+      highlightElevation: 4,
+    ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: colors.base100,
       surfaceTintColor: Colors.transparent,

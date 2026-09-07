@@ -10,6 +10,9 @@ abstract class LoginPageProps with _$LoginPageProps {
     required String redirectUrl,
     required String githubUrl,
     required bool googleReady,
+    @Default(false) bool termsOfServiceEnabled,
+    @Default(false) bool privacyPolicyEnabled,
+    @Default(<String>[]) List<String> allowedDomains,
   }) = _LoginPageProps;
 
   factory LoginPageProps.fromJson(Map<String, dynamic> json) =>
@@ -146,3 +149,6 @@ abstract class SuccessMessagePayload with _$SuccessMessagePayload {
   factory SuccessMessagePayload.fromJson(Map<String, dynamic> json) =>
       _$SuccessMessagePayloadFromJson(json);
 }
+
+/// Query mirror for GET /api/auth/mobile-web-session (fixed server targets).
+enum MobileWebTarget { admin, moderation, courseManagement, courseReviews }

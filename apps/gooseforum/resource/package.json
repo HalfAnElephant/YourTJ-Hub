@@ -12,7 +12,7 @@
     "typecheck": "pnpm client:build && vue-tsc --noEmit",
     "test": "vitest run --dir test",
     "audit:site-colors": "node scripts/audit-site-colors.mjs",
-    "check:i18n": "node scripts/check-i18n-keys.mjs"
+    "check:i18n": "node scripts/check-i18n-keys.mjs && node ../../mobile/tools/generate_server_messages.mjs --check"
   },
   "dependencies": {
     "@gooseforum/client": "workspace:*",

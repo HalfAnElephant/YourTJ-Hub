@@ -342,6 +342,7 @@ _$SettingsPagePropsImpl _$$SettingsPagePropsImplFromJson(
   Map<String, dynamic> json,
 ) => _$SettingsPagePropsImpl(
   user: SettingsUserPayload.fromJson(json['user'] as Map<String, dynamic>),
+  googleOAuthReady: json['googleOAuthReady'] as bool? ?? false,
   stats: SettingsStatsPayload.fromJson(json['stats'] as Map<String, dynamic>),
   tabs: (json['tabs'] as List<dynamic>)
       .map((e) => TabItemPayload.fromJson(e as Map<String, dynamic>))
@@ -352,6 +353,7 @@ Map<String, dynamic> _$$SettingsPagePropsImplToJson(
   _$SettingsPagePropsImpl instance,
 ) => <String, dynamic>{
   'user': instance.user,
+  'googleOAuthReady': instance.googleOAuthReady,
   'stats': instance.stats,
   'tabs': instance.tabs,
 };

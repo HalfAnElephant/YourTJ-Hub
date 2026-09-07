@@ -10,13 +10,32 @@ void main() {
   final AppLocalizationsEn en = AppLocalizationsEn();
 
   group('resolveErrorMessage', () {
+    test('publishing limit is actionable in both locales', () {
+      const error = ApiException(
+        fallbackMessage: 'Request failed',
+        messageCode: 'topic.dailyLimit',
+      );
+      expect(resolveErrorMessage(zh, error), contains('明天'));
+      expect(resolveErrorMessage(en, error), contains('tomorrow'));
+    });
+    test('upload limits interpolate the server parameters', () {
+      const error = ApiException(
+        fallbackMessage: 'Request failed',
+        messageCode: 'upload.dailyLimit.avatar',
+        params: {'count': 9, 'fileCount': 2},
+      );
+      expect(resolveErrorMessage(en, error), contains('9 files'));
+      expect(resolveErrorMessage(en, error), contains('2 slots'));
+      expect(resolveErrorMessage(en, error), isNot(contains('{')));
+    });
+
     group('已知 messageCode 命中本地化目录', () {
       test('zh: topic.notFound 返回中文目录文案', () {
         const error = ApiException(
           fallbackMessage: 'Request failed',
           messageCode: 'topic.notFound',
         );
-        expect(resolveErrorMessage(zh, error), '话题不存在，或已经被删除。');
+        expect(resolveErrorMessage(zh, error), '内容不存在');
       });
 
       test('en: topic.notFound 返回英文目录文案', () {
@@ -24,10 +43,7 @@ void main() {
           fallbackMessage: 'Request failed',
           messageCode: 'topic.notFound',
         );
-        expect(
-          resolveErrorMessage(en, error),
-          'The topic does not exist or has been deleted.',
-        );
+        expect(resolveErrorMessage(en, error), 'Topic not found');
       });
     });
 

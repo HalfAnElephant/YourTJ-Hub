@@ -31,6 +31,7 @@ class GfBottomNavigation extends StatelessWidget {
     this.onAction,
     this.actionLabel = '发布',
     this.actionIcon = Icons.add,
+    this.showLabels = true,
   });
 
   final int currentIndex;
@@ -39,6 +40,7 @@ class GfBottomNavigation extends StatelessWidget {
   final VoidCallback? onAction;
   final String actionLabel;
   final IconData actionIcon;
+  final bool showLabels;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +57,7 @@ class GfBottomNavigation extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Container(
-          height: 72,
+          height: showLabels ? 72 : 56,
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: colors.line)),
           ),
@@ -63,26 +65,31 @@ class GfBottomNavigation extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               _Destination(
+                showLabel: showLabels,
                 item: items[0],
                 selected: currentIndex == 0,
                 onTap: () => onSelected(0),
               ),
               _Destination(
+                showLabel: showLabels,
                 item: items[1],
                 selected: currentIndex == 1,
                 onTap: () => onSelected(1),
               ),
-              _ComposeAction(
-                icon: actionIcon,
-                label: actionLabel,
-                onTap: onAction,
-              ),
+              if (onAction != null)
+                _ComposeAction(
+                  icon: actionIcon,
+                  label: actionLabel,
+                  onTap: onAction,
+                ),
               _Destination(
+                showLabel: showLabels,
                 item: items[2],
                 selected: currentIndex == 2,
                 onTap: () => onSelected(2),
               ),
               _Destination(
+                showLabel: showLabels,
                 item: items[3],
                 selected: currentIndex == 3,
                 onTap: () => onSelected(3),
@@ -100,8 +107,10 @@ class _Destination extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    required this.showLabel,
   });
 
+  final bool showLabel;
   final GfBottomNavigationItem item;
   final bool selected;
   final VoidCallback onTap;
@@ -156,16 +165,17 @@ class _Destination extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.fade,
-                  style: GfTheme.typographyOf(context).meta.copyWith(
-                    color: foreground,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                if (showLabel) const SizedBox(height: 2),
+                if (showLabel)
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    style: GfTheme.typographyOf(context).meta.copyWith(
+                      color: foreground,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    ),
                   ),
-                ),
               ],
             ),
           ),

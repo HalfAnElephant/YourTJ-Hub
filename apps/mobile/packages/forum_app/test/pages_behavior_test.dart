@@ -1,3 +1,4 @@
+import 'package:image/image.dart' as img;
 import 'dart:async';
 import 'dart:convert';
 
@@ -420,16 +421,29 @@ class CountingPageRepository extends PageRepository {
     if (path == '/messages') {
       return parsePayload(messagesPayloadJson());
     }
-    if (path == '/u/1') {
+    if (path == '/u/1' || path.startsWith('/u/1/')) {
       return parsePayload(userProfilePayloadJson());
     }
-    if (path == '/u/2') {
+    if (path == '/u/2' || path.startsWith('/u/2/')) {
       return parsePayload(peerProfilePayloadJson());
     }
     if (path.startsWith('/p/post/')) {
       return parsePayload(topicDetailPayloadJson());
     }
     throw UnimplementedError('unexpected page path: $path');
+  }
+}
+
+class EditableProfileRepository extends CountingPageRepository {
+  EditableProfileRepository(super.client);
+  String nickname = 'Alice';
+  @override
+  Future<PagePayload> fetch(String path) async {
+    final page = await super.fetch(path);
+    if (!path.startsWith('/u/1')) return page;
+    final json = jsonDecode(jsonEncode(page)) as Map<String, dynamic>;
+    (json['props'] as Map<String, dynamic>)['user']['nickname'] = nickname;
+    return PagePayload.fromJson(json);
   }
 }
 
@@ -470,9 +484,11 @@ class RedesignPageRepository extends PageRepository {
   RedesignPageRepository(super.client, {this.profilePayload});
 
   final Map<String, dynamic>? profilePayload;
+  final paths = <String>[];
 
   @override
   Future<PagePayload> fetch(String path) async {
+    paths.add(path);
     if (path.startsWith('/p/post/')) {
       return parsePayload(redesignedTopicPayloadJson());
     }
@@ -512,6 +528,17 @@ class PagedTopicPageRepository extends PageRepository {
       return parsePayload(pagedTopicPayloadJson());
     }
     throw UnimplementedError('unexpected page path: $path');
+  }
+}
+
+class JumpingTopicPageRepository extends CountingPageRepository {
+  JumpingTopicPageRepository(super.client);
+  final paths = <String>[];
+  @override
+  Future<PagePayload> fetch(String path) async {
+    paths.add(path);
+    if (path.endsWith('/2')) return parsePayload(anchoredTopicPayloadJson());
+    return super.fetch(path);
   }
 }
 
@@ -699,6 +726,7 @@ Map<String, dynamic> anchoredTopicPayloadJson() {
   stream
     ..['posts'] = <Object>[makePostJson(9002, 2, '锚定窗口中的二楼回复')]
     ..['hasBefore'] = true
+    ..['beforePostNo'] = 2
     ..['hasAfter'] = false
     ..['total'] = 3
     ..['maxPostNo'] = 3;
@@ -858,6 +886,7 @@ class WindowTopicRepository extends TopicRepository {
   WindowTopicRepository(super.client);
 
   final List<int?> cursors = <int?>[];
+  final List<int?> beforeCursors = <int?>[];
 
   @override
   Future<PostWindowPayload> getPostWindow({
@@ -868,6 +897,21 @@ class WindowTopicRepository extends TopicRepository {
     int? afterPostNo,
     int? limit,
   }) async {
+    if (beforePostNo != null) {
+      beforeCursors.add(beforePostNo);
+      return PostWindowPayload(
+        posts: [
+          makePostPayload(9001, 1, '载入的首帖全文'),
+          makePostPayload(9002, 2, '重复的二楼'),
+        ],
+        replyTargets: const [],
+        beforePostNo: 1,
+        hasBefore: false,
+        hasAfter: true,
+        total: 3,
+        maxPostNo: 3,
+      );
+    }
     cursors.add(afterPostNo);
     if (afterPostNo == 2) {
       return PostWindowPayload(
@@ -1033,6 +1077,41 @@ class RecordingPostRepository extends PostRepository {
     lastContent = content;
     lastReplyToPostId = replyToPostId;
     return const CreatePostResult(id: 9999, postNo: 15, renderedContent: '');
+  }
+}
+
+class ReplyCaptchaAuthRepository extends LogoutAuthRepository {
+  ReplyCaptchaAuthRepository(super.client);
+  @override
+  Future<CaptchaPayload> getCaptcha() async => CaptchaPayload(
+    captchaId: 'reply-challenge',
+    captchaImg: base64Encode(img.encodePng(img.Image(width: 2, height: 2))),
+  );
+}
+
+class ReplyCaptchaPostRepository extends RecordingPostRepository {
+  ReplyCaptchaPostRepository(super.client);
+  int attempts = 0;
+  @override
+  Future<CreatePostResult> createPost({
+    required int topicId,
+    required String content,
+    int replyToPostId = 0,
+    String? captchaId,
+    String? captchaCode,
+  }) async {
+    attempts++;
+    if (captchaId != 'reply-challenge' || captchaCode != 'ABCD') {
+      throw const ApiException(
+        fallbackMessage: 'Captcha required',
+        messageCode: 'common.captchaRequired',
+      );
+    }
+    return super.createPost(
+      topicId: topicId,
+      content: content,
+      replyToPostId: replyToPostId,
+    );
   }
 }
 
@@ -1315,6 +1394,52 @@ void main() {
   }
 
   group('首页下拉刷新', () {
+    testWidgets(
+      'returning from settings refreshes the public profile identity',
+      (tester) async {
+        final repo = EditableProfileRepository(
+          GfApiClient(
+            dio: Dio(),
+            tokenStorage: MemTokenStorage(),
+            baseUrl: 'http://fake.local',
+          ),
+        );
+        final container = await makeContainer(pageRepo: repo, currentUserId: 1);
+        final router = profileRouter(initialLocation: '/profile');
+        addTearDown(router.dispose);
+        await tester.pumpWidget(routerApp(container, router));
+        await tester.pumpAndSettle();
+        expect(find.text('Alice'), findsOneWidget);
+        await tester.tap(find.byTooltip('更多功能'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('设置').last);
+        await tester.pumpAndSettle();
+        expect(find.text('settings-page'), findsOneWidget);
+        repo.nickname = 'Updated profile';
+        router.pop();
+        await tester.pumpAndSettle();
+        expect(find.text('Updated profile'), findsOneWidget);
+        expect(find.text('Alice'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'profile tabs fetch their server stream instead of using summary arrays',
+      (tester) async {
+        final client = GfApiClient(
+          dio: Dio(),
+          tokenStorage: MemTokenStorage(),
+          baseUrl: 'http://fake.local',
+        );
+        final repo = RedesignPageRepository(client);
+        final container = await makeContainer(pageRepo: repo);
+        await tester.pumpWidget(app(container, const ProfilePage(userId: 1)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('主题'));
+        await tester.pumpAndSettle();
+        expect(repo.paths, contains('/u/1/activity/topics'));
+      },
+    );
     testWidgets('下拉触发重载第一页(fetch 再次调用)', (tester) async {
       final pageRepo = CountingPageRepository(
         GfApiClient(
@@ -1500,7 +1625,132 @@ void main() {
     });
   });
 
+  testWidgets('topic authors and reply authors open their own profiles', (
+    tester,
+  ) async {
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final container = await makeContainer(
+      pageRepo: CountingPageRepository(client),
+    );
+    final router = GoRouter(
+      initialLocation: '/p/100',
+      routes: [
+        GoRoute(
+          path: '/p/:id',
+          builder: (_, _) => const TopicPage(topicId: 100),
+        ),
+        GoRoute(
+          path: '/u/:id',
+          builder: (_, state) =>
+              Scaffold(body: Text('profile ${state.pathParameters['id']}')),
+        ),
+      ],
+    );
+    await tester.pumpWidget(routerApp(container, router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('alice').first);
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, '/u/1');
+    router.pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('bob').first);
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, '/u/2');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 600));
+    router.dispose();
+  });
+
+  for (final removed in [false, true]) {
+    testWidgets(
+      'topic reply controls respect ${removed ? 'removed content' : 'account posting permission'}',
+      (tester) async {
+        final client = GfApiClient(
+          dio: Dio(),
+          tokenStorage: MemTokenStorage(),
+          baseUrl: 'http://fake.local',
+        );
+        final repository = DelayedPageRepository(client);
+        final container = await makeContainer(
+          pageRepo: repository,
+          currentUserId: 1,
+        );
+        final payload = topicDetailPayloadJson();
+        payload['layout']['viewer']['isAuthenticated'] = true;
+        final props = payload['props'] as Map<String, dynamic>;
+        if (removed) {
+          props['topic']['authorDeleted'] = true;
+        } else {
+          props['permissions']['canPost'] = false;
+        }
+        await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+        repository.complete(payload);
+        await tester.pumpAndSettle();
+        expect(find.text('参与讨论'), findsNothing);
+        expect(find.byTooltip('回复'), findsNothing);
+        if (removed) {
+          expect(find.text('这条内容已被删除或移除'), findsOneWidget);
+          expect(find.text('第一楼'), findsNothing);
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 600));
+      },
+    );
+  }
+
   group('话题回复', () {
+    testWidgets(
+      'reply captcha challenge preserves the draft and can be completed',
+      (tester) async {
+        final client = GfApiClient(
+          dio: Dio(),
+          tokenStorage: MemTokenStorage(),
+          baseUrl: 'http://fake.local',
+        );
+        final posts = ReplyCaptchaPostRepository(client);
+        final container = await makeContainer(
+          pageRepo: CountingPageRepository(client),
+          postRepo: posts,
+          authRepo: ReplyCaptchaAuthRepository(client),
+        );
+        await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('回复').first);
+        await tester.pump();
+        final field = find
+            .descendant(
+              of: find.byType(GfPostComposer),
+              matching: find.byType(TextField),
+            )
+            .first;
+        await tester.enterText(field, 'Keep my reply');
+        await tester.tap(find.text('发送'));
+        await tester.pumpAndSettle();
+        expect(posts.attempts, 1);
+        expect(find.byKey(const Key('reply-captcha')), findsOneWidget);
+        expect(
+          tester
+              .widget<GfPostComposer>(find.byType(GfPostComposer))
+              .controller
+              .text,
+          'Keep my reply',
+        );
+        await tester.enterText(find.byKey(const Key('reply-captcha')), 'ABCD');
+        await tester.tap(find.text('发送'));
+        await tester.pumpAndSettle();
+        expect(posts.lastContent, 'Keep my reply');
+        expect(posts.attempts, 2);
+        expect(find.byType(GfPostComposer), findsNothing);
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 600));
+      },
+    );
+
     testWidgets('点击帖子回复后展开编辑器并自动聚焦', (tester) async {
       final pageRepo = CountingPageRepository(
         GfApiClient(
@@ -1784,6 +2034,85 @@ void main() {
   });
 
   group('话题分页', () {
+    testWidgets('floor selection loads the corresponding server window', (
+      tester,
+    ) async {
+      final repo = JumpingTopicPageRepository(
+        GfApiClient(
+          dio: Dio(),
+          tokenStorage: MemTokenStorage(),
+          baseUrl: 'http://fake.local',
+        ),
+      );
+      final container = await makeContainer(pageRepo: repo);
+      await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+      await tester.pumpAndSettle();
+      tester
+          .widget<GfFloatingControls>(find.byType(GfFloatingControls))
+          .onFloorTap!();
+      await tester.pumpAndSettle();
+      tester
+          .widget<GfPostPositionRail>(find.byType(GfPostPositionRail))
+          .onSelect(2);
+      await tester.pumpAndSettle();
+      expect(repo.paths.last, '/p/post/100/2');
+      expect(find.text('锚定窗口中的二楼回复'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    });
+
+    testWidgets('same topic route reacts to a new reply anchor', (
+      tester,
+    ) async {
+      final repo = JumpingTopicPageRepository(
+        GfApiClient(
+          dio: Dio(),
+          tokenStorage: MemTokenStorage(),
+          baseUrl: 'http://fake.local',
+        ),
+      );
+      final container = await makeContainer(pageRepo: repo);
+      await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        app(container, const TopicPage(topicId: 100, initialPostNo: 2)),
+      );
+      await tester.pumpAndSettle();
+      expect(repo.paths.last, '/p/post/100/2');
+      expect(find.text('锚定窗口中的二楼回复'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    });
+
+    testWidgets(
+      'anchored window loads earlier posts without duplicating replies',
+      (tester) async {
+        final client = GfApiClient(
+          dio: Dio(),
+          tokenStorage: MemTokenStorage(),
+          baseUrl: 'http://fake.local',
+        );
+        final repo = WindowTopicRepository(client);
+        final container = await makeContainer(
+          pageRepo: AnchoredTopicPageRepository(client),
+          topicRepo: repo,
+        );
+        await tester.pumpWidget(
+          app(container, const TopicPage(topicId: 100, initialPostNo: 2)),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('加载更早回复'));
+        await tester.pumpAndSettle();
+        expect(repo.beforeCursors, [2]);
+        expect(find.text('载入的首帖全文'), findsOneWidget);
+        expect(find.text('锚定窗口中的二楼回复'), findsOneWidget);
+        expect(find.text('重复的二楼'), findsNothing);
+        expect(find.text('加载更早回复'), findsNothing);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 600));
+      },
+    );
+
     testWidgets('锚定窗口不把第一条回复误作主帖', (tester) async {
       final GfApiClient client = GfApiClient(
         dio: Dio(),
@@ -2145,6 +2474,187 @@ void main() {
   });
 
   group('设置页加载与导航', () {
+    testWidgets(
+      'username edits use the account endpoint and retain a rejected value for retry',
+      (tester) async {
+        final writes = <Map<String, dynamic>>[];
+        final dio = Dio()
+          ..interceptors.add(
+            InterceptorsWrapper(
+              onRequest: (options, handler) {
+                if (options.path == '/api/set-user-name') {
+                  writes.add(Map<String, dynamic>.from(options.data as Map));
+                  if (writes.length == 1) {
+                    handler.reject(
+                      DioException(
+                        requestOptions: options,
+                        message: 'Name unavailable',
+                      ),
+                    );
+                    return;
+                  }
+                }
+                handler.resolve(
+                  Response(
+                    requestOptions: options,
+                    statusCode: 200,
+                    data: {
+                      'code': 0,
+                      'result': options.path.contains('session') ? [] : null,
+                    },
+                  ),
+                );
+              },
+            ),
+          );
+        final client = GfApiClient(
+          dio: dio,
+          tokenStorage: MemTokenStorage(),
+          baseUrl: 'http://fake.local',
+        );
+        final pages = DelayedPageRepository(client);
+        final container = await makeContainer(
+          pageRepo: pages,
+          userRepo: UserRepository(client),
+        );
+        await tester.pumpWidget(
+          app(container, const SettingsPage(initialSection: 'account')),
+        );
+        pages.complete(settingsPayloadJson());
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('用户名'));
+        await tester.pumpAndSettle();
+        final input = find.byKey(const Key('settings-username-input'));
+        await tester.enterText(input, 'alice_updated');
+        await tester.tap(find.text('保存'));
+        await tester.pumpAndSettle();
+        expect(writes, [
+          {'username': 'alice_updated'},
+        ]);
+        expect(
+          tester.widget<TextField>(input).controller!.text,
+          'alice_updated',
+        );
+        await tester.enterText(input, 'alice_available');
+        await tester.tap(find.text('保存'));
+        await tester.pumpAndSettle();
+        expect(writes.last, {'username': 'alice_available'});
+        expect(input, findsNothing);
+        await tester.pump(const Duration(seconds: 4));
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('preset avatar selection submits the selected built-in URL', (
+      tester,
+    ) async {
+      Map<String, dynamic>? saved;
+      final dio = Dio()
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              if (options.path == '/api/set-preset-avatar') {
+                saved = Map<String, dynamic>.from(options.data as Map);
+              }
+              handler.resolve(
+                Response(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: {
+                    'code': 0,
+                    'result': options.path.contains('session') ? [] : null,
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      final client = GfApiClient(
+        dio: dio,
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final pages = DelayedPageRepository(client);
+      final container = await makeContainer(
+        pageRepo: pages,
+        userRepo: UserRepository(client),
+      );
+      await tester.pumpWidget(app(container, const SettingsPage()));
+      pages.complete(settingsPayloadJson());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('选择预设头像'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byWidgetPredicate(
+          (w) => w is Semantics && w.properties.label == '选择预设头像 4',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+      expect(saved, {'avatarUrl': '/static/pic/4.webp'});
+      await tester.pump(const Duration(seconds: 4));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('editing profile preserves website and social links', (
+      tester,
+    ) async {
+      Map<String, dynamic>? saved;
+      final dio = Dio()
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              if (options.path == '/api/set-user-info') {
+                saved = Map<String, dynamic>.from(options.data as Map);
+              }
+              handler.resolve(
+                Response(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: {
+                    'code': 0,
+                    'result': options.path.contains('session') ? [] : null,
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      final client = GfApiClient(
+        dio: dio,
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final pages = DelayedPageRepository(client);
+      final container = await makeContainer(
+        pageRepo: pages,
+        userRepo: UserRepository(client),
+      );
+      await tester.pumpWidget(app(container, const SettingsPage()));
+      final payload = settingsPayloadJson();
+      final user = (payload['props'] as Map)['user'] as Map;
+      user['websiteName'] = 'Alice’s notebook';
+      user['website'] = 'https://alice.example.com';
+      user['externalInformation'] = {
+        'github': {'link': 'https://github.com/alice'},
+      };
+      pages.complete(payload);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('昵称'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+      expect(saved?['websiteName'], 'Alice’s notebook');
+      expect(saved?['website'], 'https://alice.example.com');
+      expect(
+        saved?['externalInformation'],
+        containsPair('github', {'link': 'https://github.com/alice'}),
+      );
+      await tester.pump(const Duration(seconds: 4));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('首次加载显示设置骨架', (tester) async {
       final GfApiClient client = GfApiClient(
         dio: Dio(),
@@ -2558,6 +3068,9 @@ void main() {
       );
       await tester.drag(topicList, const Offset(0, -900));
       await tester.pumpAndSettle();
+      await tester.drag(topicList, const Offset(0, 160));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(find.byTooltip('返回顶部'), findsOneWidget);
 
       await tester.tap(find.text('参与讨论'));
@@ -2685,9 +3198,7 @@ void main() {
 
       await tester.tap(find.text('打开个人主页'));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.descendant(of: find.byType(GfTabBar), matching: find.text('主题')),
-      );
+      await tester.tap(find.byTooltip('主题'));
       await tester.pumpAndSettle();
       expect(find.text('Alice 的移动端设计主题'), findsOneWidget);
       await tester.tap(find.text('Alice 的移动端设计主题'));
@@ -2696,9 +3207,7 @@ void main() {
 
       router.pop();
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.descendant(of: find.byType(GfTabBar), matching: find.text('关注')),
-      );
+      await tester.tap(find.byTooltip('关注'));
       await tester.pumpAndSettle();
       expect(find.text('Bob'), findsOneWidget);
       await tester.tap(find.text('Bob'));

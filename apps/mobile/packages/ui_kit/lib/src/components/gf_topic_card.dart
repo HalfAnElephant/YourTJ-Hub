@@ -5,9 +5,10 @@ import 'atoms/gf_avatar.dart';
 import 'gf_card.dart';
 import 'gf_chip.dart';
 import 'gf_topic_row.dart';
+import 'gf_image_viewer.dart';
 
 /// Mobile topic-feed card aligned with the web `TopicFeedPreview` surface.
-class GfTopicCard extends StatelessWidget {
+class GfTopicCard extends StatefulWidget {
   const GfTopicCard({
     super.key,
     required this.title,
@@ -20,6 +21,7 @@ class GfTopicCard extends StatelessWidget {
     required this.replyCount,
     required this.viewCount,
     this.onTap,
+    this.imageAspectRatio,
     this.pinned = false,
     this.unseen = false,
     this.hot = false,
@@ -35,29 +37,100 @@ class GfTopicCard extends StatelessWidget {
   final int replyCount;
   final int viewCount;
   final VoidCallback? onTap;
+
+  /// Optional known first-image ratio; otherwise decoded from the image stream.
+  final double? imageAspectRatio;
   final bool pinned;
   final bool unseen;
   final bool hot;
 
   @override
+  State<GfTopicCard> createState() => _GfTopicCardState();
+}
+
+class _GfTopicCardState extends State<GfTopicCard> {
+  ImageStream? _stream;
+  ImageStreamListener? _listener;
+  double _ratio = 1.5;
+  String? _observedUrl;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _observeImage();
+  }
+
+  @override
+  void didUpdateWidget(GfTopicCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _observeImage();
+  }
+
+  void _observeImage() {
+    final url = widget.imageUrls.where((url) => url.isNotEmpty).firstOrNull;
+    if (url == _observedUrl) return;
+    if (_listener != null) _stream?.removeListener(_listener!);
+    _observedUrl = url;
+    _ratio = 1.5;
+    if (url == null) return;
+    _stream = NetworkImage(url).resolve(createLocalImageConfiguration(context));
+    _listener = ImageStreamListener((info, synchronousCall) {
+      try {
+        if (!mounted || info.image.height == 0) return;
+        final ratio = info.image.width / info.image.height;
+        if (synchronousCall) {
+          _ratio = ratio;
+        } else {
+          setState(() => _ratio = ratio);
+        }
+      } finally {
+        info.dispose();
+      }
+    }, onError: (Object error, StackTrace? stack) {});
+    _stream!.addListener(_listener!);
+  }
+
+  @override
+  void dispose() {
+    if (_listener != null) _stream?.removeListener(_listener!);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
-    final List<String> images = imageUrls
-        .where((String url) => url.isNotEmpty)
-        .take(imageUrls.length <= 2 ? 1 : 3)
-        .toList();
-    final bool singleImage = images.length == 1;
+    final allImages = widget.imageUrls.where((url) => url.isNotEmpty).toList();
+    final images = allImages.take(3).toList();
+    final ratio = widget.imageAspectRatio ?? _ratio;
+    final portrait = ratio < 1;
+    final singleImage = images.length == 1 && portrait;
+
+    Widget photo(int index, {double? width, double height = 104}) =>
+        GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) =>
+                  GfImageViewer(images: allImages, initialIndex: index),
+            ),
+          ),
+          child: _TopicImage(
+            url: images[index],
+            width: width,
+            height: height,
+            fit: portrait ? BoxFit.cover : BoxFit.contain,
+          ),
+        );
 
     final Widget textContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         _AuthorMeta(
-          name: authorName,
-          avatarUrl: authorAvatarUrl,
-          activityText: activityText,
-          categories: categories,
-          hot: hot,
-          pinned: pinned,
+          name: widget.authorName,
+          avatarUrl: widget.authorAvatarUrl,
+          activityText: widget.activityText,
+          categories: widget.categories,
+          hot: widget.hot,
+          pinned: widget.pinned,
         ),
         const SizedBox(height: 12),
         Row(
@@ -72,7 +145,7 @@ class GfTopicCard extends StatelessWidget {
                     children: <Widget>[
                       Expanded(
                         child: Text(
-                          title,
+                          widget.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -83,7 +156,7 @@ class GfTopicCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (unseen) ...<Widget>[
+                      if (widget.unseen) ...<Widget>[
                         const SizedBox(width: 6),
                         Container(
                           width: 8,
@@ -97,10 +170,10 @@ class GfTopicCard extends StatelessWidget {
                       ],
                     ],
                   ),
-                  if (description.isNotEmpty) ...<Widget>[
+                  if (widget.description.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 6),
                     Text(
-                      description,
+                      widget.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -115,19 +188,71 @@ class GfTopicCard extends StatelessWidget {
             ),
             if (singleImage) ...<Widget>[
               const SizedBox(width: 12),
-              _TopicImage(url: images.first, width: 112, height: 96),
+              photo(0, width: 108, height: 132),
             ],
           ],
         ),
-        if (images.length > 1) ...<Widget>[
+        if (images.isNotEmpty && !singleImage) ...<Widget>[
           const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              for (int index = 0; index < images.length; index++) ...<Widget>[
-                if (index > 0) const SizedBox(width: 6),
-                Expanded(child: _TopicImage(url: images[index], height: 104)),
-              ],
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (images.length == 1) {
+                return photo(
+                  0,
+                  width: constraints.maxWidth,
+                  height: (constraints.maxWidth / ratio).clamp(96.0, 240.0),
+                );
+              }
+              if (!portrait && images.length > 2) {
+                return SizedBox(
+                  height: 190,
+                  child: Stack(
+                    children: [
+                      for (int i = images.length - 1; i >= 0; i--)
+                        Positioned(
+                          left: i * 18,
+                          right: (2 - i) * 18,
+                          top: i * 12,
+                          bottom: (2 - i) * 12,
+                          child: photo(i, height: 166),
+                        ),
+                      Positioned(
+                        right: 10,
+                        bottom: 8,
+                        child: _ImageCount(count: allImages.length),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return Row(
+                children: [
+                  for (int i = 0; i < images.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 6),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          photo(
+                            i,
+                            width: double.infinity,
+                            height: portrait
+                                ? 132
+                                : ((constraints.maxWidth - 6) / 2 / ratio)
+                                      .clamp(72.0, 160.0),
+                          ),
+                          if (i == images.length - 1 && allImages.length > 3)
+                            Positioned(
+                              right: 6,
+                              bottom: 6,
+                              child: _ImageCount(count: allImages.length),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ],
         const SizedBox(height: 12),
@@ -139,12 +264,18 @@ class GfTopicCard extends StatelessWidget {
         const SizedBox(height: 8),
         Row(
           children: <Widget>[
-            _Metric(icon: Icons.chat_bubble_outline, value: '$replyCount'),
+            _Metric(
+              icon: Icons.chat_bubble_outline,
+              value: '${widget.replyCount}',
+            ),
             const SizedBox(width: 6),
-            _Metric(icon: Icons.visibility_outlined, value: '$viewCount'),
+            _Metric(
+              icon: Icons.visibility_outlined,
+              value: '${widget.viewCount}',
+            ),
             const Spacer(),
             Text(
-              activityText,
+              widget.activityText,
               style: TextStyle(
                 color: colors.baseContent.withValues(alpha: 0.55),
                 fontSize: 12,
@@ -158,7 +289,7 @@ class GfTopicCard extends StatelessWidget {
     return GfCard(
       emphasized: true,
       padding: const EdgeInsets.all(14),
-      onTap: onTap,
+      onTap: widget.onTap,
       child: textContent,
     );
   }
@@ -267,11 +398,17 @@ class _AuthorMeta extends StatelessWidget {
 }
 
 class _TopicImage extends StatelessWidget {
-  const _TopicImage({required this.url, this.width, required this.height});
+  const _TopicImage({
+    required this.url,
+    this.width,
+    required this.height,
+    this.fit = BoxFit.cover,
+  });
 
   final String url;
   final double? width;
   final double height;
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
@@ -283,7 +420,7 @@ class _TopicImage extends StatelessWidget {
         height: height,
         child: Image.network(
           url,
-          fit: BoxFit.cover,
+          fit: fit,
           errorBuilder:
               (BuildContext context, Object error, StackTrace? stack) {
                 return ColoredBox(
@@ -324,4 +461,34 @@ class _Metric extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ImageCount extends StatelessWidget {
+  const _ImageCount({required this.count});
+  final int count;
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.65),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.photo_library_outlined,
+            size: 12,
+            color: Colors.white,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$count',
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+        ],
+      ),
+    ),
+  );
 }

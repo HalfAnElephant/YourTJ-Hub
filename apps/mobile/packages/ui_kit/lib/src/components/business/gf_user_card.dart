@@ -29,6 +29,7 @@ class GfUserCard extends StatelessWidget {
     this.coloredBadges = const <GfUserBadge>[],
     this.stats = const <(String, String)>[],
     this.actions,
+    this.details,
   });
 
   final String avatarUrl;
@@ -49,6 +50,9 @@ class GfUserCard extends StatelessWidget {
 
   /// Optional action buttons row (e.g. follow / message / edit).
   final Widget? actions;
+
+  /// Public metadata such as website and social links, below the bio.
+  final Widget? details;
 
   @override
   Widget build(BuildContext context) {
@@ -140,6 +144,10 @@ class GfUserCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                    ],
+                    if (details != null) ...<Widget>[
+                      const SizedBox(height: 8),
+                      details!,
                     ],
                     if (actions != null) ...<Widget>[
                       const SizedBox(height: 12),

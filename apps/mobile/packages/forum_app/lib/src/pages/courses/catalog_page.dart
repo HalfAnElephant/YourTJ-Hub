@@ -36,6 +36,7 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
   Timer? _debounce;
 
   AsyncValue<CourseListResultPayload> _page = const AsyncValue.loading();
+  bool _canManageCourses = false;
   List<CourseSummaryPayload> _courses = const <CourseSummaryPayload>[];
   bool _hasNext = false;
   bool _loadingMore = false;
@@ -127,6 +128,7 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
               .toList();
       if (!mounted) return;
       setState(() {
+        _canManageCourses = payload.layout.viewer.canManageCourses;
         _departmentOptions = departments;
         _termOptions = terms;
         _campusOptions = campuses;
@@ -399,6 +401,23 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        actions: [
+          if (_canManageCourses)
+            PopupMenuButton<String>(
+              tooltip: l10n.coursesManagement,
+              onSelected: (path) => context.push(path),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: '/moderation/courses',
+                  child: Text(l10n.coursesManagement),
+                ),
+                PopupMenuItem(
+                  value: '/moderation/course-reviews',
+                  child: Text(l10n.coursesReviewModeration),
+                ),
+              ],
+            ),
+        ],
       ),
       body: Column(
         children: <Widget>[

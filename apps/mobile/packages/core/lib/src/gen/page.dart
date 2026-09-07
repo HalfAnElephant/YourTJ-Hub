@@ -42,6 +42,7 @@ abstract final class PageComponent {
   static const notifications = 'notifications.index';
   static const drafts = 'drafts.index';
   static const terms = 'terms.index';
+  static const privacy = 'privacy.index';
   static const messages = 'messages.index';
   static const moderation = 'moderation.index';
   static const settings = 'settings.index';
@@ -71,7 +72,8 @@ T? parsePageProps<T>(PagePayload page) {
       PageComponent.notifications =>
         NotificationsPageProps.fromJson(props) as T,
       PageComponent.drafts => DraftsPageProps.fromJson(props) as T,
-      PageComponent.terms => TermsPageProps.fromJson(props) as T,
+      PageComponent.terms ||
+      PageComponent.privacy => TermsPageProps.fromJson(props) as T,
       PageComponent.messages => MessagesPageProps.fromJson(props) as T,
       PageComponent.moderation => ModerationPageProps.fromJson(props) as T,
       PageComponent.settings => SettingsPageProps.fromJson(props) as T,

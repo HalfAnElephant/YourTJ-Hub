@@ -258,7 +258,7 @@ onUnmounted(stopPolling)
                 <option value="csv">CSV</option>
               </select>
             </div>
-            <Button type="button" :disabled="creating" @click="createConfirm = true">
+            <Button data-testid="admin-export-create" type="button" :disabled="creating" @click="createConfirm = true">
               <Loader2 v-if="creating" class="size-4 animate-spin" />
               <Download v-else class="size-4" />
               {{ adminText('k00h7') }}
@@ -280,7 +280,7 @@ onUnmounted(stopPolling)
                   </div>
                   <div class="flex items-center gap-2">
                     <span class="text-xs text-muted-foreground">{{ formatTime(task.createdAt) }}</span>
-                    <Button v-if="task.status === 2" type="button" size="sm" variant="outline" class="h-7 text-xs" @click="downloadExportTask(task.id)">
+                    <Button v-if="task.status === 2" data-testid="admin-export-download" type="button" size="sm" variant="outline" class="h-7 text-xs" @click="downloadExportTask(task.id)">
                       <Download class="size-3.5" />
                       {{ adminText('k00ha') }}
                     </Button>

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -260,6 +261,12 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
       );
     }
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        heroTag: null,
+        tooltip: l10n.navPublish,
+        onPressed: () => context.push('/publish?type=2'),
+        child: const Icon(Icons.add),
+      ),
       backgroundColor: colors.base100,
       appBar: GfAppBar(
         title: Text(
@@ -267,6 +274,12 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
         ),
         actions: [
+          GfIconButton(
+            icon: Icons.notifications_outlined,
+            tooltip: l10n.notificationsTitle,
+            size: 44,
+            onPressed: () => context.push('/notifications'),
+          ),
           GfIconButton(
             icon: Icons.add_comment_outlined,
             tooltip: l10n.messagesNew,

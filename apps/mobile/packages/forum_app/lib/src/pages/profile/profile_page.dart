@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:core/core.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -11,6 +12,7 @@ import '../../current_user.dart';
 import '../../format.dart';
 import '../../navigation/tab_scroll_registry.dart';
 import '../../providers.dart';
+import '../../profile_links.dart';
 import '../../server_messages.dart';
 import '../../widgets/status_views.dart';
 import '../../widgets/skeletons.dart';
@@ -54,8 +56,14 @@ class ProfilePage extends ConsumerStatefulWidget {
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   AsyncValue<UserProfileProps> _page = const AsyncValue.loading();
   int _tabIndex = 0;
+  int _request = 0;
+  bool _loadingMore = false;
+  String _stream = 'timeline';
   bool _following = false;
   bool _loginRequired = false;
+  bool _canAccessAdmin = false;
+  bool _canModerate = false;
+  bool _canManageCourses = false;
 
   final GfScrollToTopController _scrollToTopController =
       GfScrollToTopController();
@@ -83,7 +91,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     super.dispose();
   }
 
-  Future<void> _load({bool silent = false}) async {
+  Future<void> _load({bool silent = false, String? nextUrl}) async {
+    final request = ++_request;
+    final previous = _page.valueOrNull;
     if (!silent && mounted) {
       setState(() {
         _page = const AsyncValue.loading();
@@ -105,32 +115,111 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         return;
       }
 
+      final path = nextUrl ?? _streamPath(uid, _stream);
       final PagePayload payload = await ref
           .read(pageRepositoryProvider)
-          .userProfile(uid);
-      final UserProfileProps? props = parsePageProps<UserProfileProps>(payload);
-      if (!mounted) return;
+          .fetch(path);
+      var props = parsePageProps<UserProfileProps>(payload);
+      if (!mounted || request != _request) return;
+      if (nextUrl != null && previous != null && props != null) {
+        props = props.copyWith(
+          topics: [...previous.topics, ...props.topics],
+          activities: [...previous.activities, ...props.activities],
+          likes: [...previous.likes, ...props.likes],
+          bookmarks: [...previous.bookmarks, ...props.bookmarks],
+          following: [...previous.following, ...props.following],
+          followers: [...previous.followers, ...props.followers],
+        );
+      }
+      final loaded = props;
       setState(() {
         _loginRequired = false;
-        _page = props == null
+        _page = loaded == null
             ? AsyncValue.error(
                 AppLocalizations.of(context).commonParseFailed,
                 StackTrace.current,
               )
-            : AsyncValue.data(props);
-        _following = props?.user.isFollowing ?? false;
-        if (props != null && props.activityTabs.isNotEmpty) {
-          _tabIndex = _tabIndex.clamp(0, props.activityTabs.length - 1);
-        }
+            : AsyncValue.data(loaded);
+        _following = loaded?.user.isFollowing ?? false;
+        _canAccessAdmin = payload.layout.viewer.canAccessAdmin;
+        _canModerate = payload.layout.viewer.isModerator;
+        _canManageCourses = payload.layout.viewer.canManageCourses;
       });
     } catch (e, st) {
-      if (mounted) {
+      if (mounted && request == _request) {
         setState(() {
           _loginRequired = false;
           _page = AsyncValue.error(e, st);
         });
       }
     }
+  }
+
+  String _streamPath(int uid, String key) => switch (key) {
+    'bookmarks' || 'badges' => '/u/$uid/$key',
+    'timeline' => '/u/$uid/activity',
+    _ => '/u/$uid/activity/$key',
+  };
+
+  List<TabItemPayload> _tabs(UserProfileProps props, AppLocalizations l10n) => [
+    TabItemPayload(
+      key: 'timeline',
+      label: l10n.profileActivity,
+      url: '',
+      active: false,
+    ),
+    TabItemPayload(
+      key: 'topics',
+      label: l10n.profileTopics,
+      url: '',
+      active: false,
+    ),
+    TabItemPayload(
+      key: 'likes',
+      label: l10n.profileLikes,
+      url: '',
+      active: false,
+    ),
+    if (props.isOwnProfile)
+      TabItemPayload(
+        key: 'bookmarks',
+        label: l10n.profileBookmarks,
+        url: '',
+        active: false,
+      ),
+    TabItemPayload(
+      key: 'following',
+      label: l10n.profileFollowingCount,
+      url: '',
+      active: false,
+    ),
+    TabItemPayload(
+      key: 'followers',
+      label: l10n.profileFollowers,
+      url: '',
+      active: false,
+    ),
+    TabItemPayload(
+      key: 'badges',
+      label: l10n.profileBadges,
+      url: '',
+      active: false,
+    ),
+  ];
+
+  Future<void> _loadMore(UserProfileProps props) async {
+    if (_loadingMore || !props.pagination.hasNext) return;
+    final uri = Uri.tryParse(props.pagination.nextUrl);
+    // SSR pagination stays in the current user's profile; reject foreign URLs.
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.hasAuthority ||
+        !uri.path.startsWith('/u/${props.user.userId}/')) {
+      return;
+    }
+    setState(() => _loadingMore = true);
+    await _load(silent: true, nextUrl: uri.toString());
+    if (mounted) setState(() => _loadingMore = false);
   }
 
   Future<void> _toggleFollow(UserCardPayload user) async {
@@ -147,6 +236,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
   }
 
+  Future<void> _openProfileTool(String route) async {
+    await context.push(route);
+    if (mounted) await _load(silent: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
@@ -154,8 +248,55 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       appBar: GfAppBar(
         title: Text(l10n.profileTitle),
         automaticallyImplyLeading: !_isShellProfile,
-        actions: _isShellProfile
+        actions: _isShellProfile || _page.valueOrNull?.isOwnProfile == true
             ? <Widget>[
+                PopupMenuButton<String>(
+                  tooltip: l10n.profileMore,
+                  onSelected: _openProfileTool,
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: '/drafts',
+                      child: Text(l10n.draftsTitle),
+                    ),
+                    PopupMenuItem(
+                      value: '/my-content',
+                      child: Text(l10n.profileContent),
+                    ),
+                    PopupMenuItem(
+                      value: '/recycle-bin',
+                      child: Text(l10n.profileTrash),
+                    ),
+                    if (_canModerate)
+                      PopupMenuItem(
+                        value: '/moderation',
+                        child: Text(l10n.profileModeration),
+                      ),
+                    if (_canAccessAdmin)
+                      PopupMenuItem(
+                        value: '/admin',
+                        child: Text(l10n.profileAdmin),
+                      ),
+                    if (_canManageCourses) ...[
+                      PopupMenuItem(
+                        value: '/moderation/courses',
+                        child: Text(l10n.coursesManagement),
+                      ),
+                      PopupMenuItem(
+                        value: '/moderation/course-reviews',
+                        child: Text(l10n.coursesReviewModeration),
+                      ),
+                    ],
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: '/settings/account',
+                      child: Text(l10n.profileSecurity),
+                    ),
+                    PopupMenuItem(
+                      value: '/settings',
+                      child: Text(l10n.settingsTitle),
+                    ),
+                  ],
+                ),
                 GfIconButton(
                   icon: Icons.notifications_outlined,
                   tooltip: l10n.notificationsTitle,
@@ -179,6 +320,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 onRetry: _load,
               ),
         data: (UserProfileProps props) {
+          final tabs = _tabs(props, l10n);
           return GfScrollToTop(
             semanticLabel: l10n.commonBackToTop,
             controller: _isShellProfile ? _scrollToTopController : null,
@@ -192,22 +334,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   slivers: <Widget>[
                     SliverToBoxAdapter(child: _profileCard(props)),
                     const SliverToBoxAdapter(child: GfDivider()),
-                    if (props.activityTabs.isNotEmpty)
+                    if (tabs.isNotEmpty)
                       SliverToBoxAdapter(
                         child: _ProfileTabs(
-                          tabs: props.activityTabs,
+                          tabs: tabs,
                           index: _tabIndex,
                           onChanged: (int index) {
-                            setState(() => _tabIndex = index);
+                            if (_stream == tabs[index].key) return;
+                            setState(() {
+                              _tabIndex = index;
+                              _stream = tabs[index].key;
+                            });
+                            _load(silent: true);
                           },
                         ),
                       ),
                     const SliverToBoxAdapter(child: GfDivider()),
-                    _ProfileBody(props: props, index: _tabIndex),
-                    if (props.isOwnProfile || props.user.isSelf) ...<Widget>[
-                      const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                      SliverToBoxAdapter(child: _AccountShortcuts(l10n: l10n)),
-                    ],
+                    _ProfileBody(props: props, selectedKey: _stream),
+                    if (props.pagination.hasNext)
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: GfButton(
+                            label: l10n.commonLoadMore,
+                            loading: _loadingMore,
+                            onPressed: () => _loadMore(props),
+                          ),
+                        ),
+                      ),
+
                     const SliverToBoxAdapter(child: SizedBox(height: 32)),
                   ],
                 ),
@@ -247,7 +402,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           label: l10n.settingsEditProfile,
           variant: GfButtonVariant.outline,
           size: GfButtonSize.small,
-          onPressed: () => context.push('/settings'),
+          onPressed: () => _openProfileTool('/settings/profile'),
         ),
       );
     } else {
@@ -276,6 +431,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       }
     }
 
+    final links = publicProfileLinks(user);
     return GfUserCard(
       coverUrl: resolveApiAssetUrl(user.profileCoverUrl),
       avatarUrl: resolveApiAssetUrl(user.avatarUrl),
@@ -283,6 +439,44 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       username: user.username,
       bio: user.bio,
       signature: user.signature,
+      details: links.isEmpty
+          ? null
+          : Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                for (final (label, uri) in links)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    icon: const Icon(Icons.link, size: 16),
+                    label: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onPressed: () async {
+                      try {
+                        if (!await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        )) {
+                          throw StateError('Could not open profile link');
+                        }
+                      } catch (error) {
+                        if (mounted) {
+                          showGfToast(
+                            context,
+                            resolveErrorMessage(l10n, error),
+                            error: true,
+                          );
+                        }
+                      }
+                    },
+                  ),
+              ],
+            ),
       coloredBadges: badges.values.toList(growable: false),
       stats: <(String, String)>[
         (l10n.profileTopics, formatNumber(user.topicCount)),
@@ -347,42 +541,98 @@ class _ProfileTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: GfTabBar(
-          tabs: <GfTab>[
-            for (int i = 0; i < tabs.length; i++)
-              GfTab(label: tabs[i].label ?? tabs[i].key, value: i),
-          ],
-          selected: index.clamp(0, tabs.length - 1),
-          onSelected: (Object value) => onChanged(value as int),
-        ),
+    final colors = GfTheme.colorsOf(context);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: [
+          for (int i = 0; i < tabs.length; i++)
+            Tooltip(
+              message: tabs[i].label ?? tabs[i].key,
+              child: Semantics(
+                selected: i == index,
+                button: true,
+                label: tabs[i].label ?? tabs[i].key,
+                child: InkWell(
+                  onTap: () => onChanged(i),
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: i == index
+                              ? colors.primary
+                              : Colors.transparent,
+                          width: 3,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          switch (tabs[i].key) {
+                            'topics' => Icons.article_outlined,
+                            'likes' => Icons.favorite_border,
+                            'bookmarks' => Icons.bookmark_border,
+                            'following' => Icons.person_add_alt,
+                            'followers' => Icons.people_outline,
+                            'badges' => Icons.workspace_premium_outlined,
+                            _ => Icons.bolt_outlined,
+                          },
+                          size: 22,
+                          color: i == index ? colors.primary : colors.iconMuted,
+                        ),
+                        if (i == index) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            tabs[i].label ?? tabs[i].key,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: colors.primary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
 class _ProfileBody extends StatelessWidget {
-  const _ProfileBody({required this.props, required this.index});
+  const _ProfileBody({required this.props, required this.selectedKey});
 
   static final RegExp _topicRoutePattern = RegExp(r'/p/(?:post/)?(\d+)');
   static final RegExp _userRoutePattern = RegExp(r'/u/(\d+)');
 
   final UserProfileProps props;
-  final int index;
-
-  String get _selectedKey {
-    if (props.activityTabs.isEmpty) return 'activity';
-    final int safeIndex = index.clamp(0, props.activityTabs.length - 1);
-    return props.activityTabs[safeIndex].key;
-  }
+  final String selectedKey;
 
   @override
   Widget build(BuildContext context) {
     final AppLocalizations l10n = AppLocalizations.of(context);
-    return switch (_selectedKey) {
+    return switch (selectedKey) {
+      'badges' => SliverList.list(
+        children: [
+          for (final badge in props.badges)
+            GfSettingRow(
+              icon: Icons.workspace_premium_outlined,
+              title: badge.name,
+            ),
+        ],
+      ),
       'topics' => _topicRows(context, l10n),
       'likes' => _likeRows(context, l10n),
       'bookmarks' => _bookmarkRows(context, l10n),

@@ -25,6 +25,7 @@ abstract class PublishTopicPayload with _$PublishTopicPayload {
     required String content,
     @Default(<int>[]) List<int> categoryIds,
     required int topicStatus,
+    @Default(3) int contentType,
   }) = _PublishTopicPayload;
 
   factory PublishTopicPayload.fromJson(Map<String, dynamic> json) =>

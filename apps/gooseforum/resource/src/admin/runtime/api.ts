@@ -500,7 +500,7 @@ export function getExportTasks() {
 }
 
 export function downloadExportTask(taskId: number) {
-  window.open(`/api/admin/data/export/download/${taskId}`, '_blank')
+  window.location.assign(`/api/admin/data/export/download/${taskId}`)
 }
 
 export function importData(file: File) {
