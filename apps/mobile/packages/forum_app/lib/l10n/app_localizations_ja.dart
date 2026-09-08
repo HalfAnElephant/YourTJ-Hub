@@ -9,6 +9,9 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get commonHideKeyboard => 'キーボードを閉じる';
+
+  @override
   String get appTitle => 'YourTJ';
 
   @override

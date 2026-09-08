@@ -729,6 +729,8 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                     return RefreshIndicator(
                       onRefresh: () => _load(silent: true),
                       child: CustomScrollView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
                         controller: scrollController,
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: <Widget>[
@@ -839,6 +841,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                               valueListenable: _replyController,
                               builder: (context, value, _) {
                                 return GfPostComposer(
+                                  hideKeyboardLabel: l10n.commonHideKeyboard,
                                   controller: _replyController,
                                   focusNode: _replyFocus,
                                   targetName: _replyTargetName,
@@ -1336,7 +1339,7 @@ class _PostCard extends StatelessWidget {
     final AppLocalizations l10n = AppLocalizations.of(context);
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -1349,7 +1352,7 @@ class _PostCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(24),
                 child: GfAvatar(
                   src: resolveApiAssetUrl(post.author.avatarUrl),
-                  size: 24,
+                  size: 32,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1394,12 +1397,12 @@ class _PostCard extends StatelessWidget {
                 ).caption.copyWith(color: GfTheme.colorsOf(context).iconMuted),
               ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
           if (post.isAuthorDeleted || post.isModeratorRemoved)
             Text(l10n.topicRemoved)
           else
             GfMarkdownView(data: post.content),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
           LayoutBuilder(
             builder: (context, constraints) {
               final timestamp = Text(

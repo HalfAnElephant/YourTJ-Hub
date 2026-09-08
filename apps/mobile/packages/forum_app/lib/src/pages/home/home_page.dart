@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +14,7 @@ import '../../widgets/skeletons.dart';
 import '../../widgets/status_views.dart';
 import '../../widgets/topic_list.dart';
 import '../../widgets/root_surface.dart';
+import '../../widgets/announcement_banner.dart';
 
 /// 首页:公告 + 话题流(web HomePage.vue 的移动端形态)。
 class HomePage extends ConsumerStatefulWidget {
@@ -182,7 +181,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: GfTopicList(
               controller: controller,
               padding: EdgeInsets.only(top: top, bottom: bottom),
-              header: _AnnouncementBanner(props: props),
+              header: AnnouncementBanner(announcement: props.announcement),
               loading: _loadingMore,
               topics: _topics,
               feedMode: _feedMode,
@@ -190,124 +189,6 @@ class _HomePageState extends ConsumerState<HomePage> {
               onLoadMore: _loadMore,
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 公告横幅:多条公告自动轮播(PageView + Timer),单条静态展示。
-class _AnnouncementBanner extends ConsumerStatefulWidget {
-  const _AnnouncementBanner({required this.props});
-
-  final HomeProps props;
-
-  @override
-  ConsumerState<_AnnouncementBanner> createState() =>
-      _AnnouncementBannerState();
-}
-
-class _AnnouncementBannerState extends ConsumerState<_AnnouncementBanner> {
-  static const Duration _interval = Duration(seconds: 5);
-
-  final PageController _controller = PageController();
-  Timer? _timer;
-  int _current = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    final items = widget.props.announcement.items ?? const [];
-    if (items.length > 1) {
-      // 自动轮播:每 5s 切到下一条,循环。
-      _timer = Timer.periodic(_interval, (_) {
-        if (!mounted || !_controller.hasClients) return;
-        final int next = (_current + 1) % items.length;
-        _controller.animateToPage(
-          next,
-          duration: GfMotion.content,
-          curve: GfMotion.standardEase,
-        );
-        _current = next;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!widget.props.announcement.enabled) return const SizedBox.shrink();
-    final items = widget.props.announcement.items ?? const [];
-    if (items.isEmpty) return const SizedBox.shrink();
-    final GfColors colors = GfTheme.colorsOf(context);
-
-    // 对齐 web 公告面板(gf-panel + primary/15 边框 + primary/5 渐变底)。
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: colors.primary.withValues(alpha: 0.05),
-        border: Border(
-          bottom: BorderSide(color: colors.primary.withValues(alpha: 0.15)),
-        ),
-      ),
-      child: items.length == 1
-          ? _bannerText(colors, items.first.title)
-          : SizedBox(
-              height: 38,
-              child: Stack(
-                children: [
-                  PageView.builder(
-                    controller: _controller,
-                    itemCount: items.length,
-                    onPageChanged: (i) => setState(() => _current = i),
-                    itemBuilder: (context, i) =>
-                        _bannerText(colors, items[i].title),
-                  ),
-                  // 轮播指示点(web active bg-primary)。
-                  Positioned(
-                    right: 10,
-                    bottom: 5,
-                    child: Row(
-                      children: [
-                        for (int i = 0; i < items.length; i++)
-                          Container(
-                            width: i == _current ? 14 : 6,
-                            height: 4,
-                            margin: const EdgeInsets.only(left: 3),
-                            decoration: BoxDecoration(
-                              color: i == _current
-                                  ? colors.primary
-                                  : colors.baseContent.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-
-  Widget _bannerText(GfColors colors, String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: GfTheme.typographyOf(
-            context,
-          ).small.copyWith(color: colors.primary),
         ),
       ),
     );

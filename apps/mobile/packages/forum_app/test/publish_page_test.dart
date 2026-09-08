@@ -224,6 +224,7 @@ void main() {
           path: '/publish',
           builder: (BuildContext context, GoRouterState state) => PublishPage(
             topicId: publishTopicIdFromUri(state.uri),
+            initialContentType: contentType == 0 ? 3 : contentType,
             markdownConverter: markdownConverter,
           ),
         ),
@@ -262,6 +263,42 @@ void main() {
       pageRepository: pageRepository,
       topicRepository: topicRepository,
     );
+  }
+
+  for (final type in [2, 3]) {
+    testWidgets('dismiss keyboard preserves type $type draft', (tester) async {
+      await pumpPublishPage(tester, editing: false, contentType: type);
+      final editor = type == 3
+          ? find.byType(QuillEditor)
+          : find.byKey(const Key('publish-editor'));
+      await tester.ensureVisible(editor);
+      await tester.tap(editor);
+      await tester.pump();
+      final inputFocus = type == 3
+          ? tester.widget<QuillEditor>(editor).focusNode
+          : tester.widget<TextField>(editor).focusNode;
+      final rich = type == 3
+          ? tester.widget<QuillEditor>(editor).controller
+          : null;
+      final simple = type == 2
+          ? tester.widget<TextField>(editor).controller
+          : null;
+      if (rich != null) rich.replaceText(0, 0, 'Unsent article', null);
+      if (simple != null) simple.text = 'Unsent moment';
+      final draft = rich?.document.toPlainText() ?? simple!.text;
+      final editingFocus = inputFocus ?? FocusManager.instance.primaryFocus!;
+      expect(editingFocus.hasFocus, isTrue);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pump();
+      expect(find.byTooltip('收起键盘'), findsOneWidget);
+      await tester.tap(find.byTooltip('收起键盘'));
+      await tester.pump();
+      expect(editingFocus.hasFocus, isFalse);
+      expect(rich?.document.toPlainText() ?? simple!.text, draft);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    });
   }
 
   testWidgets(

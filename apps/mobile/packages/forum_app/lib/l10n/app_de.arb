@@ -1,4 +1,5 @@
 {
+  "commonHideKeyboard": "Tastatur ausblenden",
   "@@locale": "de",
   "appTitle": "YourTJ",
   "navHome": "Startseite",

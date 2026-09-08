@@ -1,4 +1,5 @@
 {
+  "commonHideKeyboard": "キーボードを閉じる",
   "@@locale": "ja",
   "appTitle": "YourTJ",
   "navHome": "ホームへ",

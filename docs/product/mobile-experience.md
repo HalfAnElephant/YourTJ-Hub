@@ -6,7 +6,7 @@
 >
 > Owner: Platform maintainers
 >
-> Last verified: 2026-09-07
+> Last verified: 2026-09-08
 
 The Flutter app combines the forum, course catalog, scheduler and Wiki. Ordinary browsing and
 writing use native pages. Management uses the same first-party workspaces and permission checks as
@@ -14,6 +14,14 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 [0012](../decisions/0012-unified-mobile-reading-navigation.md).
 
 ## Navigation and reading
+
+- `Current`: Home announcements render optional titles and HTML bodies, including the legacy
+  single-HTML payload. They grow with their contents and text size; empty announcements take no
+  space. Multiple announcements rotate with numbered manual controls; assistive navigation and
+  reduced motion disable automatic rotation. Refresh replaces the active announcement safely.
+- `Current`: mobile body text uses 17 logical pixels with system text scaling. Feed cards use
+  compact vertical padding and one timestamp; embedded Markdown uses smaller paragraph margins
+  so short replies do not acquire a large empty footer.
 
 - `Current`: four persistent destinations — Home, Campus, Notifications and Messages — use icon-only
   navigation with accessible labels. Search is a pushed page, reachable from Home. Campus links to
@@ -87,6 +95,10 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   unless a semantic or provider color is explicitly set.
 
 ## Publishing
+
+- `Current`: publishing and reply composers have a localized hide-keyboard button that preserves
+  unsent text. Dragging the publishing page or topic stream also dismisses the keyboard; opening
+  the publishing preview removes editor focus. Rich-text formatting remains available while editing.
 
 - `Current`: the type selector keeps Web's moment/question/article values. Moments and questions
   use a simple gallery plus text; articles use an inline rich editor backed by Markdown. Article

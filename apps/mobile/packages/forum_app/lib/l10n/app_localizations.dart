@@ -102,6 +102,12 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @commonHideKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide keyboard'**
+  String get commonHideKeyboard;
+
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:

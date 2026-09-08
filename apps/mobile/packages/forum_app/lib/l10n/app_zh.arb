@@ -1,4 +1,5 @@
 {
+  "commonHideKeyboard": "收起键盘",
   "@@locale": "zh",
   "appTitle": "YourTJ",
   "navHome": "首页",

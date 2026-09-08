@@ -550,6 +550,18 @@ void main() {
       final list = find.byType(ListView).first;
       await tester.drag(list, const Offset(0, -6000));
       await tester.pumpAndSettle();
+      // Lazy rows revise the scroll extent after layout, especially at larger
+      // font sizes. Settle at the real end before checking dock clearance.
+      final position = tester.widget<ListView>(list).controller!.position;
+      for (
+        var attempt = 0;
+        attempt < 4 && position.extentAfter > 0;
+        attempt++
+      ) {
+        position.jumpTo(position.maxScrollExtent);
+        await tester.pumpAndSettle();
+      }
+      expect(position.extentAfter, 0);
       final lastRow = find.text('等价');
       final dock = find
           .ancestor(of: find.text('写课评'), matching: find.byType(ColoredBox))

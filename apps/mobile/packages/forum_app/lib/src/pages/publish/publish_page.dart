@@ -155,6 +155,7 @@ class _PublishPageState extends ConsumerState<PublishPage> {
 
   void _selectMode(_ComposeMode mode) {
     if (mode == _mode) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     _previewDebounce?.cancel();
     _previewDebounce = null;
     final String preview = mode == _ComposeMode.preview
@@ -563,6 +564,13 @@ class _PublishPageState extends ConsumerState<PublishPage> {
             ),
           ),
           actions: <Widget>[
+            if (MediaQuery.viewInsetsOf(context).bottom > 0)
+              GfIconButton(
+                icon: Icons.keyboard_hide_rounded,
+                tooltip: l10n.commonHideKeyboard,
+                size: 44,
+                onPressed: () => FocusManager.instance.primaryFocus?.unfocus(),
+              ),
             GfButton(
               key: const Key('publish-appbar-submit'),
               label: _mode == _ComposeMode.edit
@@ -599,6 +607,7 @@ class _PublishPageState extends ConsumerState<PublishPage> {
         );
 
         return SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: pagePadding.copyWith(
             bottom: pagePadding.bottom + MediaQuery.paddingOf(context).bottom,
           ),
@@ -798,7 +807,7 @@ class _PublishPageState extends ConsumerState<PublishPage> {
         textInputAction: TextInputAction.newline,
         style: GfTheme.typographyOf(
           context,
-        ).body.copyWith(fontSize: 16, height: 1.7),
+        ).body.copyWith(fontSize: 17, height: 1.45),
         decoration: InputDecoration(
           hintText: l10n.publishBodyPlaceholder,
           border: InputBorder.none,
@@ -1059,7 +1068,7 @@ class _PublishPageState extends ConsumerState<PublishPage> {
                 else
                   SelectableText(
                     _simple.text,
-                    style: type.body.copyWith(fontSize: 16, height: 1.7),
+                    style: type.body.copyWith(fontSize: 17, height: 1.45),
                   ),
               ],
             ),

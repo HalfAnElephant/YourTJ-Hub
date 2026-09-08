@@ -1,4 +1,5 @@
 {
+  "commonHideKeyboard": "Hide keyboard",
   "@@locale": "en",
   "appTitle": "YourTJ",
   "navHome": "Home",

@@ -9,6 +9,9 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get commonHideKeyboard => '收起键盘';
+
+  @override
   String get appTitle => 'YourTJ';
 
   @override

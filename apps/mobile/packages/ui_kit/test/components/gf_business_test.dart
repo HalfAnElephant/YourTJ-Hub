@@ -304,6 +304,33 @@ void main() {
   });
 
   group('GfPostComposer', () {
+    testWidgets('keyboard dismissal retains reply text', (tester) async {
+      final controller = TextEditingController(text: 'Unsent reply');
+      final focus = FocusNode();
+      await tester.pumpWidget(
+        gfApp(
+          GfPostComposer(
+            controller: controller,
+            focusNode: focus,
+            onPublish: () {},
+            publishLabel: 'Send',
+            hintText: 'Reply',
+          ),
+        ),
+      );
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      expect(focus.hasFocus, isTrue);
+      expect(find.byIcon(Icons.keyboard_hide_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.keyboard_hide_rounded));
+      await tester.pump();
+      expect(focus.hasFocus, isFalse);
+      expect(controller.text, 'Unsent reply');
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+      focus.dispose();
+    });
+
     testWidgets(
       'places image action above input and disables it while uploading',
       (tester) async {

@@ -16,6 +16,7 @@ class GfPostComposer extends StatelessWidget {
     required this.publishLabel,
     required this.hintText,
     this.focusNode,
+    this.hideKeyboardLabel,
     this.targetName,
     this.targetLabel,
     this.onCloseTarget,
@@ -33,6 +34,7 @@ class GfPostComposer extends StatelessWidget {
 
   final TextEditingController controller;
   final FocusNode? focusNode;
+  final String? hideKeyboardLabel;
   final VoidCallback onPublish;
 
   /// When replying to a user, the target name and localized label shown in the
@@ -199,14 +201,23 @@ class GfPostComposer extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: GfButton(
-              label: publishLabel,
-              size: GfButtonSize.medium,
-              loading: publishing,
-              onPressed: publishing || !canPublish ? null : onPublish,
-            ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.keyboard_hide_rounded),
+                tooltip:
+                    hideKeyboardLabel ??
+                    MaterialLocalizations.of(context).closeButtonTooltip,
+                onPressed: () => FocusManager.instance.primaryFocus?.unfocus(),
+              ),
+              const Spacer(),
+              GfButton(
+                label: publishLabel,
+                size: GfButtonSize.medium,
+                loading: publishing,
+                onPressed: publishing || !canPublish ? null : onPublish,
+              ),
+            ],
           ),
         ],
       ),
