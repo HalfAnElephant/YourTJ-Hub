@@ -8,6 +8,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/contentDeleteEvent"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pk"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/posts"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pushDevice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pushSubscription"
@@ -273,6 +274,12 @@ func AccountClose(req component.BetterRequest[AccountCloseReq]) component.Respon
 	// IsAccountClosed 检查兜底，绝不外发。
 	if err := pushDevice.DeleteByUser(req.UserId); err != nil {
 		slog.Error("delete push devices on account close failed", "userId", req.UserId, "err", err)
+	}
+	// 清空排课方案云端快照（issue #537）：方案含用户自选课程与自定义占位等
+	// 个人数据（anonymize 与 delete 两 mode 共用；与 pushDevice 同语义）。
+	// best-effort：清理失败仅记日志不阻断响应。
+	if err := pk.DeleteScheduleSnapshotByUser(req.UserId); err != nil {
+		slog.Error("delete pk schedule snapshot on account close failed", "userId", req.UserId, "err", err)
 	}
 	slog.Info("account closed", "userId", req.UserId, "mode", req.Params.Mode)
 	return component.SuccessResponse(true)

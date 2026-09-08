@@ -5496,6 +5496,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pk/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch the caller's cloud schedule plan snapshot
+         * @description Login-required read of the caller's PK scheduler plan snapshot (issue #537).
+         *     Returns the four persisted fields (plans/activePlanId/majorSelected/weekView)
+         *     plus the server-side authoritative updatedAt clock (RFC3339Nano UTC) that
+         *     clients store as pk.syncedAt for load-time conflict detection. When the user
+         *     has never uploaded a snapshot data is null. Frozen accounts may still read
+         *     (no writable-account check, aligned with the myContentList precedent).
+         *     Rate limited under the dedicated pk.plans quota (independent from the
+         *     course.catalog read quota).
+         */
+        get: operations["pkGetPlans"];
+        /**
+         * Replace the caller's cloud schedule plan snapshot wholesale
+         * @description Login-required whole-snapshot upsert (issue #537): plans/activePlanId/
+         *     majorSelected/weekView are replaced atomically; created_at stays fixed and
+         *     the server-side updated_at clock is refreshed. Server-side shallow
+         *     validation only (1..10 plans, non-blank id/name per plan, activePlanId must
+         *     reference one of the plans, whole payload <= 1MB) — deep sanitize remains the
+         *     client's load-path responsibility. Writes require a writable account
+         *     (frozen/pending activation rejected). The response carries the new
+         *     updatedAt for the client's pk.syncedAt.
+         */
+        put: operations["pkPutPlans"];
+        post?: never;
+        /**
+         * Delete the caller's cloud schedule plan snapshot
+         * @description Login-required idempotent delete of the caller's cloud snapshot (issue #537);
+         *     local data is untouched. Same account-close semantics as the push device
+         *     cleanup (anonymize and delete modes both erase the row). Writes require a
+         *     writable account.
+         */
+        delete: operations["pkDeletePlans"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/forum/moderation/course-list": {
         parameters: {
             query?: never;
@@ -9667,6 +9712,118 @@ export interface components {
         };
         PkSectionTimesResponse: components["schemas"]["PkSuccess"] & {
             data: components["schemas"]["PkSectionTimesResult"];
+        };
+        /** @description 排课方案快照中的教师（镜像前端 PkTeacher）。 */
+        PkTeacherPayload: {
+            teacherName: string;
+            teacherCode: string;
+        };
+        /** @description 排课方案快照中的一次上课安排（镜像前端 PkArrangement）。 */
+        PkArrangementPayload: {
+            arrangementText: string;
+            occupyDay: number;
+            occupyTime: number[];
+            occupyWeek: number[];
+            occupyRoom: string;
+            teacherAndCode: string;
+        };
+        /** @description 排课方案快照中的一个教学班（镜像前端 PkCourseDetail；status 为前端持久化字段）。 */
+        PkCourseDetailPayload: {
+            arrangementInfo: components["schemas"]["PkArrangementPayload"][];
+            campus: string;
+            code: string;
+            /**
+             * Format: uint64
+             * @description 可选；P13 by-offering 直查键。
+             */
+            teachingClassId?: number;
+            isExclusive?: boolean;
+            /** @description 0 未选 / 1 备选 / 2 已选（前端持久化状态）。 */
+            status?: number;
+            teachers: components["schemas"]["PkTeacherPayload"][];
+            teachingLanguage: string;
+        };
+        /** @description 排课方案快照中的备选/已选课程（镜像前端 PkStagedCourse）。 */
+        PkStagedCoursePayload: {
+            courseCode: string;
+            courseName: string;
+            courseNameReserved: string;
+            credit: number;
+            courseType: string;
+            courseNature: string[];
+            teacher: components["schemas"]["PkTeacherPayload"][];
+            status: number;
+            courseDetail: components["schemas"]["PkCourseDetailPayload"][];
+        };
+        /** @description 排课方案快照中的自定义占位事件（镜像前端 PkCustomEvent；label 为用户自由文本）。 */
+        PkCustomEventPayload: {
+            id: string;
+            label: string;
+            day: number;
+            sections: number[];
+            weeks: number[];
+        };
+        /** @description 一套排课方案（镜像前端 PkPlan；与 web localStorage pk.plans 元素逐字段一致）。 */
+        PkPlanPayload: {
+            id: string;
+            name: string;
+            /** @description 客户端生成时间（epoch 毫秒）。 */
+            createdAt: number;
+            stagedCourses: components["schemas"]["PkStagedCoursePayload"][];
+            selectedCourses: string[];
+            customEvents: components["schemas"]["PkCustomEventPayload"][];
+        };
+        /** @description 学期/年级/专业选择三元组（镜像前端 PkMajorSelection；缺省字段为 null/省略）。 */
+        PkMajorSelectionPayload: {
+            calendarId?: number | null;
+            grade?: number | null;
+            major?: string | null;
+            majorName?: string | null;
+        };
+        /** @description 周次视图状态（镜像前端 PkWeekView；week 为 null 表示全部周次堆叠视图）。 */
+        PkWeekViewPayload: {
+            week?: number | null;
+            useCurrent: boolean;
+        };
+        /** @description 排课方案云端快照（issue */
+        PkPlansSnapshotData: {
+            plans: components["schemas"]["PkPlanPayload"][];
+            activePlanId: string;
+            majorSelected: components["schemas"]["PkMajorSelectionPayload"];
+            weekView: components["schemas"]["PkWeekViewPayload"];
+            /**
+             * Format: date-time
+             * @description 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，永不回传。
+             */
+            updatedAt: string;
+        };
+        /** @description PUT /api/pk/plans 请求体：快照四字段整体替换（服务端浅校验 1..10 套、id/name 非空、activePlanId 引用、≤1MB）。 */
+        PkPlansPutRequest: {
+            plans: components["schemas"]["PkPlanPayload"][];
+            activePlanId: string;
+            majorSelected: components["schemas"]["PkMajorSelectionPayload"];
+            weekView: components["schemas"]["PkWeekViewPayload"];
+        };
+        PkPlansPutResult: {
+            /**
+             * Format: date-time
+             * @description 本次写入的服务端时钟（RFC3339 UTC），客户端据此更新 pk.syncedAt。
+             */
+            updatedAt: string;
+        };
+        PkPlansDeleteResult: {
+            /** @constant */
+            deleted: true;
+        };
+        PkPlansGetResponse: components["schemas"]["PkSuccess"] & {
+            /** @description 云端快照；用户从未上传过时为 null（客户端据此判定首登自动上传）。 */
+            data: components["schemas"]["PkPlansSnapshotData"] | null;
+        };
+        PkPlansPutResponse: components["schemas"]["PkSuccess"] & {
+            data: components["schemas"]["PkPlansPutResult"];
+        };
+        PkPlansDeleteResponse: components["schemas"]["PkSuccess"] & {
+            data: components["schemas"]["PkPlansDeleteResult"];
         };
         MyContentItem: {
             /** Format: uint64 */
@@ -20051,6 +20208,178 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PkSectionTimesResponse"];
+                };
+            };
+            /** @description Internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+        };
+    };
+    pkGetPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cloud snapshot, or null data when the user has no snapshot yet. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkPlansGetResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Rate limit exceeded (pk.plans quota). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedFailure"];
+                };
+            };
+            /** @description Internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+        };
+    };
+    pkPutPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PkPlansPutRequest"];
+            };
+        };
+        responses: {
+            /** @description Snapshot stored; returns the server-side sync clock. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkPlansPutResponse"];
+                };
+            };
+            /** @description Structural validation failed (count/limit/identity/activePlanId/size). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Frozen (or pending-activation) account. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Rate limit exceeded (pk.plans quota). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedFailure"];
+                };
+            };
+            /** @description Internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+        };
+    };
+    pkDeletePlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Snapshot removed (or was already absent). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkPlansDeleteResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Frozen (or pending-activation) account. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Rate limit exceeded (pk.plans quota). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedFailure"];
                 };
             };
             /** @description Internal error. */

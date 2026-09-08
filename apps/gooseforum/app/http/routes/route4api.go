@@ -261,6 +261,13 @@ func apiRoute(ginApp *gin.Engine) {
 	pkApi.POST("course-info-sync", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkJsonReq(pkcontroller.CourseInfoSync))
 	pkApi.GET("course-review-brief", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkQueryReq(pkcontroller.CourseReviewBrief))
 	pkApi.GET("section-times", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkNoReq(pkcontroller.SectionTimes))
+	// 排课方案云端同步（issue #537）：登录端点，独立 pk.plans 配额（写不与
+	// 目录读抢配额）；PUT/DELETE 叠加 CheckWritableAccount（冻结账号不可写，
+	// GET 放行对齐「冻结可读」先例）。JWTAuthCheck 由 pkAuth* 包装消费。
+	pkLoginApi := pkApi.Group("", middleware.JWTAuthCheck)
+	pkLoginApi.GET("plans", middleware.RateLimit(middleware.RateLimitPkPlans), pkAuthNoReq(pkcontroller.GetPlans))
+	pkLoginApi.PUT("plans", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPkPlans), pkAuthJsonReq(pkcontroller.PutPlans))
+	pkLoginApi.DELETE("plans", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPkPlans), pkAuthNoReq(pkcontroller.DeletePlans))
 
 	forumApi := baseApi.Group("forum")
 	forumApi.GET("get-site-statistics", ginUpNP(api.GetSiteStatistics))
