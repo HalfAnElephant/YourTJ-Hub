@@ -51,7 +51,7 @@ class IosResumeTest(unittest.TestCase):
                 return {'data': [{'id': 'build', 'attributes': {'processingState': 'VALID'}}]}
             if args[:3] == ('builds', 'beta-app-review-submission', 'view'):
                 return {'data': None}
-            if args[:3] == ('testflight', 'review', 'view'): return {'data': {'id': 'beta-details'}}
+            if args[:3] == ('testflight', 'review', 'view'): return {'data': [{'id': 'beta-details'}]}
             if prefix == ('versions', 'list'): return {'data': []}
             if prefix == ('versions', 'create'): return {'data': {'id': 'version'}}
             if prefix == ('localizations', 'list'): return {'data': []}
@@ -78,3 +78,22 @@ class IosResumeTest(unittest.TestCase):
             with self.assertRaises(RuntimeError) as error:
                 publisher.asc('review', 'details-update', '--demo-account-password', 'secret-demo-password')
         self.assertNotIn('secret-demo-password', str(error.exception))
+
+    def test_absent_beta_review_cli_message_is_missing_not_failure(self):
+        from subprocess import CompletedProcess
+        result = CompletedProcess([], 4, '', 'Error: builds beta-app-review-submission view: no beta app review submission found for build "new-build"')
+        with patch.object(publisher.subprocess, 'run', return_value=result):
+            self.assertEqual(publisher.asc('builds', 'beta-app-review-submission', 'view', '--build-id', 'new-build', allow_missing=True), {'data': None})
+
+    def test_beta_lookup_other_failures_are_not_treated_as_missing(self):
+        from subprocess import CompletedProcess
+        for code, message in [(4, 'Permission denied'), (1, 'no beta app review submission found for build "x"')]:
+            with patch.object(publisher.subprocess, 'run', return_value=CompletedProcess([], code, '', message)), self.assertRaises(RuntimeError):
+                publisher.asc('builds', 'beta-app-review-submission', 'view', '--build-id', 'x', allow_missing=True)
+
+    def test_single_resource_handles_cli_collections_and_rejects_ambiguity(self):
+        for value in ({'data': []}, {'data': None}):
+            self.assertEqual(publisher.resource(value), {})
+        self.assertEqual(publisher.resource({'data': [{'id': 'one'}]}), {'id': 'one'})
+        with self.assertRaisesRegex(ValueError, 'Ambiguous'):
+            publisher.resource({'data': [{'id': 'one'}, {'id': 'two'}]})

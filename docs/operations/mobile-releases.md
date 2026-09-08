@@ -157,6 +157,8 @@ App Store Connect app ID is `6809457637`, team `4HJTS3G3T2`, bundle `tj.yourtj.f
 finds the exact version/build before uploading, waits for processing, submits to the existing
 **YourTJ TestFlight** external group, updates store localization/screenshots and review credentials,
 attaches the same build, validates and submits for App Store review with release after approval.
+The publisher recognizes ASC's absent-beta-review exit status on a first submission and normalizes
+single-resource lookup collections; ambiguous collections still fail instead of selecting arbitrarily.
 It does not add testers or publish a TestFlight public link. Store metadata says “选课社区” and
 accurately discloses posts, comments and messaging. Privacy labels, age rating, availability,
 agreements and pricing are managed in App Store Connect; source changes affecting disclosures
