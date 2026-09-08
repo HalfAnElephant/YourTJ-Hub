@@ -275,7 +275,8 @@ onMounted(() => {
   document.addEventListener('visibilitychange', handleVisibilityChange)
   void checkDataOutdated()
   // 云同步（#537）：SSR layout.viewer 判定登录态；未登录不 start（零网络请求）。
-  if (pageProps.layout.viewer.isAuthenticated) {
+  // viewer 可为 undefined（e2e fixture / 轻量宿主传空 layout），视为未登录。
+  if (pageProps.layout.viewer?.isAuthenticated) {
     startScheduleSync()
     // loadSolidify 完成后进页同步：云端空自动上传 / 本地空整包采用 / 分歧弹窗二选一。
     void scheduleSync.syncOnPageEnter()
