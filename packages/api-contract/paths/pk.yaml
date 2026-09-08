@@ -768,6 +768,15 @@ putPlans:
             examples:
               frozen:
                 externalValue: ../fixtures/account-frozen.json
+      '409':
+        description: The observed baseUpdatedAt is stale; fetch and resolve before retrying.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/PkFailure
+            examples:
+              conflict:
+                externalValue: ../fixtures/pk-plans-conflict.json
       '429':
         description: Rate limit exceeded (pk.plans quota).
         content:

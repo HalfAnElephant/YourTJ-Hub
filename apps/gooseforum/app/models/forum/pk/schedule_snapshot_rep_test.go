@@ -2,7 +2,11 @@ package pk
 
 import (
 	"errors"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"os"
 	"testing"
+	"time"
 
 	db "github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
 )
@@ -236,3 +240,45 @@ func ptrInt(v int) *int          { return &v }
 func ptrUint64(v uint64) *uint64 { return &v }
 func ptrBool(v bool) *bool       { return &v }
 func ptrString(v string) *string { return &v }
+
+func TestScheduleSnapshotPostgresCompareAndSwap(t *testing.T) {
+	dsn := os.Getenv("YOURTJ_TEST_PG_URL")
+	if dsn == "" {
+		t.Skip("YOURTJ_TEST_PG_URL not set")
+	}
+	conn, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.AutoMigrate(&ScheduleSnapshotEntity{}); err != nil {
+		t.Fatal(err)
+	}
+	const uid = 5570001
+	defer conn.Where("user_id = ?", uid).Delete(&ScheduleSnapshotEntity{})
+	entity := &ScheduleSnapshotEntity{UserId: uid, Plans: samplePlans(), ActivePlanId: "plan_r1"}
+	if err := compareAndSwapScheduleSnapshot(conn, entity, ""); err != nil {
+		t.Fatal(err)
+	}
+	var read ScheduleSnapshotEntity
+	if err := conn.Where("user_id = ?", uid).First(&read).Error; err != nil {
+		t.Fatal(err)
+	}
+	if !read.UpdatedAt.Equal(entity.UpdatedAt) {
+		t.Fatal("PUT clock differs from PG read")
+	}
+	base := read.UpdatedAt.UTC().Format(time.RFC3339Nano)
+	entity.Plans[0].Name = "winner"
+	if err := compareAndSwapScheduleSnapshot(conn, entity, base); err != nil {
+		t.Fatal(err)
+	}
+	entity.Plans[0].Name = "stale"
+	if err := compareAndSwapScheduleSnapshot(conn, entity, base); !errors.Is(err, ErrScheduleSnapshotConflict) {
+		t.Fatalf("stale error: %v", err)
+	}
+	if err := conn.Where("user_id = ?", uid).First(&read).Error; err != nil {
+		t.Fatal(err)
+	}
+	if read.Plans[0].Name != "winner" {
+		t.Fatal("stale writer changed snapshot")
+	}
+}

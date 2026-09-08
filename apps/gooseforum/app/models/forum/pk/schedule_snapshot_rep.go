@@ -7,6 +7,7 @@ import (
 	db "github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/queryopt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func scheduleSnapshotBuilder() *gorm.DB {
@@ -74,4 +75,46 @@ func UpsertScheduleSnapshot(entity *ScheduleSnapshotEntity) error {
 // 幂等：无匹配行时静默成功。
 func DeleteScheduleSnapshotByUser(userId uint64) error {
 	return scheduleSnapshotBuilder().Where(queryopt.Eq("user_id", userId)).Delete(&ScheduleSnapshotEntity{}).Error
+}
+
+// ErrScheduleSnapshotConflict means another writer changed the observed snapshot.
+var ErrScheduleSnapshotConflict = errors.New("schedule snapshot changed")
+
+// CompareAndSwapScheduleSnapshot checks the observed revision in the write itself.
+// An empty base creates only if absent; existing snapshots require their exact clock.
+func CompareAndSwapScheduleSnapshot(entity *ScheduleSnapshotEntity, base string) error {
+	return compareAndSwapScheduleSnapshot(db.Connect(), entity, base)
+}
+
+func compareAndSwapScheduleSnapshot(conn *gorm.DB, entity *ScheduleSnapshotEntity, base string) error {
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	if base == "" {
+		entity.CreatedAt, entity.UpdatedAt = now, now
+		result := conn.Clauses(clause.OnConflict{DoNothing: true}).Create(entity)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return ErrScheduleSnapshotConflict
+		}
+		return nil
+	}
+	revision, err := time.Parse(time.RFC3339Nano, base)
+	if err != nil {
+		return err
+	}
+	if !now.After(revision) {
+		now = revision.Add(time.Microsecond)
+	}
+	entity.UpdatedAt = now
+	result := conn.Model(&ScheduleSnapshotEntity{}).
+		Where("user_id = ? AND updated_at = ?", entity.UserId, revision).
+		Select("plans", "active_plan_id", "major_selected", "week_view", "updated_at").Updates(entity)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrScheduleSnapshotConflict
+	}
+	return nil
 }

@@ -871,6 +871,12 @@ TopicPayload:
       type: string
     lastUpdateTime:
       type: string
+    liked:
+      type: boolean
+      description: Authenticated viewer's like state; absent when unavailable.
+    bookmarked:
+      type: boolean
+      description: Authenticated viewer's bookmark state; absent when unavailable.
     unseen:
       type: boolean
       description: Present only for authenticated viewers with unseen tracking.
@@ -3549,7 +3555,7 @@ PkPlansSnapshotData:
     updatedAt:
       type: string
       format: date-time
-      description: 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，永不回传。
+      description: 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，并以 baseUpdatedAt 回传作为写入条件。
   additionalProperties: false
 
 PkPlansPutRequest:
@@ -3557,6 +3563,9 @@ PkPlansPutRequest:
   description: PUT /api/pk/plans 请求体：快照四字段整体替换（服务端浅校验 1..10 套、id/name 非空、activePlanId 引用、≤1MB）。
   required: [plans, activePlanId, majorSelected, weekView]
   properties:
+    baseUpdatedAt:
+      type: string
+      description: Observed server updatedAt; empty string requires an absent snapshot. Stale writes return 409. Omission preserves unconditional replacement for compatibility; sync clients always supply this field.
     plans:
       type: array
       minItems: 1
@@ -4610,6 +4619,35 @@ ChangePasswordSuccess:
 ChangePasswordResponse:
   oneOf:
     - $ref: '#/ChangePasswordSuccess'
+    - $ref: '#/ApiFailure'
+
+SetPasswordRequest:
+  type: object
+  required: [newPassword]
+  properties:
+    newPassword:
+      type: string
+      minLength: 1
+      description: 6-64 characters containing at least one letter and one digit; violations fail with `auth.password.tooShort` (params minLength) / `auth.password.tooLong` / `auth.password.needsLetterNumber` (HTTP 200).
+  additionalProperties: false
+
+SetPasswordSuccess:
+  allOf:
+    - $ref: '#/ApiSuccess'
+    - type: object
+      required: [result, messageCode]
+      properties:
+        result:
+          type: string
+          const: 密码设置成功，请使用新密码重新登录
+          description: Human-readable success message; messageCode is the stable identifier.
+        messageCode:
+          type: string
+          const: auth.password.updateSuccess
+
+SetPasswordResponse:
+  oneOf:
+    - $ref: '#/SetPasswordSuccess'
     - $ref: '#/ApiFailure'
 
 OAuthBinding:

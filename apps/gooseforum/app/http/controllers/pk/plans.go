@@ -33,6 +33,8 @@ func GetPlans(req Request[Null]) Response {
 
 // PutPlansReq PUT /api/pk/plans 请求体：快照四字段整体替换。
 type PutPlansReq struct {
+	// BaseUpdatedAt is an observed server revision, never a client-generated clock.
+	BaseUpdatedAt *string                  `json:"baseUpdatedAt"`
 	Plans         pk.PlanList              `json:"plans"`
 	ActivePlanId  string                   `json:"activePlanId"`
 	MajorSelected pk.MajorSelectionPayload `json:"majorSelected"`
@@ -69,7 +71,22 @@ func PutPlans(req Request[PutPlansReq]) Response {
 		MajorSelected: params.MajorSelected,
 		WeekView:      params.WeekView,
 	}
-	if err := pk.UpsertScheduleSnapshot(entity); err != nil {
+	var err error
+	if params.BaseUpdatedAt == nil {
+		err = pk.UpsertScheduleSnapshot(entity)
+	} else {
+		base := *params.BaseUpdatedAt
+		if base != "" {
+			if _, parseErr := time.Parse(time.RFC3339Nano, base); parseErr != nil {
+				return BadRequest("同步版本格式错误")
+			}
+		}
+		err = pk.CompareAndSwapScheduleSnapshot(entity, base)
+	}
+	if errors.Is(err, pk.ErrScheduleSnapshotConflict) {
+		return Response{Code: 409, Msg: "云端方案已更新，请重新同步", Data: map[string]any{}}
+	}
+	if err != nil {
 		return Internal("保存排课方案失败")
 	}
 	return Ok(PlansPutResponse{

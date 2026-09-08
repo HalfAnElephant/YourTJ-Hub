@@ -1300,6 +1300,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/set-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the initial password for an OAuth-linked account
+         * @description First-time password setup without an old password (issue #530). Only accounts
+         *     with no stored email address AND at least one OAuth provider binding qualify;
+         *     every other caller fails with `auth.password.setNotAllowed` (HTTP 200):
+         *     accounts with an email must use the password-reset email flow, and accounts
+         *     without an OAuth binding use changePassword. Bot (Agent) accounts are rejected
+         *     with `auth.password.oldInvalid`. On success the account TokenVersion
+         *     increments, so every previously issued JWT — including the one used for this
+         *     request — is immediately invalid and no replacement token is minted; the
+         *     client must log in again. The new password must be 6-64 characters and
+         *     contain at least one letter and one digit (`auth.password.tooShort` params
+         *     minLength=6, `auth.password.tooLong`, `auth.password.needsLetterNumber`).
+         *     Repeated calls by a qualifying account are allowed (rate-limited by
+         *     `password.change`) and behave as a re-set. JSON binding is lenient: a
+         *     malformed body binds to zero values and fails validation as
+         *     `common.request.invalidParams` (HTTP 200). Other business failures:
+         *     `auth.password.updateFailed`.
+         */
+        post: operations["setPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/oauth/bindings": {
         parameters: {
             query?: never;
@@ -6680,6 +6715,20 @@ export interface components {
             messageCode: "auth.password.updateSuccess";
         };
         ChangePasswordResponse: components["schemas"]["ChangePasswordSuccess"] | components["schemas"]["ApiFailure"];
+        SetPasswordRequest: {
+            /** @description 6-64 characters containing at least one letter and one digit; violations fail with `auth.password.tooShort` (params minLength) / `auth.password.tooLong` / `auth.password.needsLetterNumber` (HTTP 200). */
+            newPassword: string;
+        };
+        SetPasswordSuccess: components["schemas"]["ApiSuccess"] & {
+            /**
+             * @description Human-readable success message; messageCode is the stable identifier.
+             * @constant
+             */
+            result: "密码设置成功，请使用新密码重新登录";
+            /** @constant */
+            messageCode: "auth.password.updateSuccess";
+        };
+        SetPasswordResponse: components["schemas"]["SetPasswordSuccess"] | components["schemas"]["ApiFailure"];
         OAuthBinding: {
             /** @constant */
             bound: true;
@@ -9795,12 +9844,14 @@ export interface components {
             weekView: components["schemas"]["PkWeekViewPayload"];
             /**
              * Format: date-time
-             * @description 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，永不回传。
+             * @description 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，并以 baseUpdatedAt 回传作为写入条件。
              */
             updatedAt: string;
         };
         /** @description PUT /api/pk/plans 请求体：快照四字段整体替换（服务端浅校验 1..10 套、id/name 非空、activePlanId 引用、≤1MB）。 */
         PkPlansPutRequest: {
+            /** @description Observed server updatedAt; empty string requires an absent snapshot. Stale writes return 409. Omission preserves unconditional replacement for compatibility; sync clients always supply this field. */
+            baseUpdatedAt?: string;
             plans: components["schemas"]["PkPlanPayload"][];
             /** @description 当前激活方案 id，必须命中 plans 之一（≤64 字符，受服务端列约束）。 */
             activePlanId: string;
@@ -10407,6 +10458,10 @@ export interface components {
             viewCount: number;
             activityText: string;
             lastUpdateTime: string;
+            /** @description Authenticated viewer's like state; absent when unavailable. */
+            liked?: boolean;
+            /** @description Authenticated viewer's bookmark state; absent when unavailable. */
+            bookmarked?: boolean;
             /** @description Present only for authenticated viewers with unseen tracking. */
             unseen?: boolean;
         };
@@ -12859,6 +12914,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangePasswordResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Authenticated account is frozen or its account information cannot be resolved. A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie is not cleared (issue #406). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Password-change rate limit (action `password.change`) exceeded. */
+            429: {
+                headers: {
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedFailure"];
+                };
+            };
+        };
+    };
+    setPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Password set (all existing sessions invalidated), or a legacy business failure envelope. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetPasswordResponse"];
                 };
             };
             /** @description Missing, invalid, expired, or revoked access token. */
@@ -20318,6 +20425,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description The observed baseUpdatedAt is stale; fetch and resolve before retrying. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
                 };
             };
             /** @description Rate limit exceeded (pk.plans quota). */

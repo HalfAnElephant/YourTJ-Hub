@@ -228,6 +228,9 @@ func apiRoute(ginApp *gin.Engine) {
 	loginApi.POST("wear-badge", middleware.CheckWritableAccount, UpButterReq(api.WearBadge))
 	loginApi.POST("upload-avatar", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitUpload), api.UploadAvatar)
 	loginApi.POST("change-password", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPasswordChange), UpButterReq(api.ChangePassword))
+	// set-password（issue #530）：无邮箱 OAuth 绑定账号首次设密，免旧密码；
+	// 资格门禁在控制器内（Email=="" && HasOAuthBinding），限流复用 password.change。
+	loginApi.POST("set-password", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPasswordChange), UpButterReq(api.SetPassword))
 	loginApi.POST("auth/:provider/unbind", middleware.CheckWritableAccount, UpButterReq(api.UnbindOAuth))
 	loginApi.GET("oauth/bindings", UpButterReq(api.GetOAuthBindings))
 	loginApi.GET("user/sessions", UpButterReq(api.ListSessions))
