@@ -16,19 +16,21 @@ import (
 
 func TestTopicListCacheReadsTopics(t *testing.T) {
 	conn := dbconnect.Connect()
-	if err := conn.AutoMigrate(&topics.Entity{}, &category.Entity{}, &topicCategoryIndex.Entity{}, &users.EntityComplete{}); err != nil {
+	if err := conn.AutoMigrate(&topics.Entity{}, &category.Entity{}, &topicCategoryIndex.Entity{}, &users.EntityComplete{}, &posts.Entity{}); err != nil {
 		t.Fatalf("migrate topic list cache tables: %v", err)
 	}
 	conn.Where("1 = 1").Delete(&topics.Entity{})
 	conn.Where("1 = 1").Delete(&category.Entity{})
 	conn.Where("1 = 1").Delete(&topicCategoryIndex.Entity{})
 	conn.Where("1 = 1").Delete(&users.EntityComplete{})
+	conn.Unscoped().Where("id = ?", 1010).Delete(&posts.Entity{})
 	ClearTopicCategoryCache()
 	ClearTopicListCache()
 
 	now := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
 	conn.Create(&users.EntityComplete{Id: 1, Username: "author"})
 	conn.Create(&category.Entity{Id: 3, Name: "General", Slug: "general"})
+	conn.Create(&posts.Entity{Id: 1010, TopicId: 10, PostNo: 1, UserId: 1, Content: "first", ProcessStatus: posts.ProcessStatusNormal, CreatedAt: now, UpdatedAt: now})
 	conn.Create(&topics.Entity{
 		Id:            10,
 		Title:         "topic title",
@@ -38,6 +40,7 @@ func TestTopicListCacheReadsTopics(t *testing.T) {
 		UserId:        1,
 		Status:        1,
 		ProcessStatus: 0,
+		FirstPostId:   1010,
 		ReplyCount:    2,
 		ViewCount:     9,
 		PinWeight:     7,

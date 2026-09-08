@@ -421,6 +421,17 @@ func ListByTopicID(topicID uint64, list *[]*Entity) error {
 		Find(list).Error
 }
 
+// HasVisibleByTopicID 判断话题下是否仍存在未被软删的楼层（与详情页楼层查询同口径：
+// deleted_at IS NULL）。删除/擦除唯一可见楼层后，话题应联动下架（issue #492）。
+func HasVisibleByTopicID(topicID uint64) (bool, error) {
+	var count int64
+	err := builder().
+		Where(queryopt.Eq("topic_id", topicID)).
+		Where("deleted_at IS NULL").
+		Count(&count).Error
+	return count > 0, err
+}
+
 // GetActiveByUserPage 分页返回本人仍公开（ACTIVE、post_no>1）的回复（PRD R9）。
 func GetActiveByUserPage(userId uint64, cursorID uint64, limit int) (entities []Entity) {
 	b := builder().

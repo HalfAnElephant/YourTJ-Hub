@@ -8,6 +8,92 @@ import (
 	"gorm.io/gorm"
 )
 
+// 回归 #492：隐私擦除首楼（唯一可见楼层）后，话题必须联动下架，
+// 不得以「有标题无正文」的孤儿形态继续公开出现在列表/详情。
+func TestPrivacyEraseFirstPostCascadesTopicVisibility(t *testing.T) {
+	conn := setupContentDeleteTestDB(t)
+	const topicID = uint64(948900)
+	authorID, _ := seedTopicWithOptionalReply(t, conn, topicID, false)
+	zzCleanupContent(t, conn, []uint64{topicID, topicID + 100, topicID + 200, topicID + 300})
+
+	if err := PrivacyEraseContent(authorID, ContentTypePost, topicID+100); err != nil {
+		t.Fatalf("PrivacyEraseContent(first post): %v", err)
+	}
+
+	// 首楼自身已擦除（不可恢复）。
+	p := posts.UnscopedGet(topicID + 100)
+	if p.RetentionStatus != posts.RetentionPurged {
+		t.Fatalf("first post retention = %s, want PURGED", p.RetentionStatus)
+	}
+	// 话题联动下架：不再 ACTIVE，且已永久删除（与擦除语义一致）。
+	topic := topics.UnscopedGet(topicID)
+	if topic.VisibilityStatus == topics.VisibilityActive {
+		t.Fatalf("topic still ACTIVE after its only visible post was erased (issue #492)")
+	}
+	if topic.RetentionStatus != topics.RetentionPurged {
+		t.Fatalf("topic retention = %s, want PURGED after cascade", topic.RetentionStatus)
+	}
+	// 公开列表不再出现该话题（与 GetPublished 的首楼可见性口径一致）。
+	page := topics.Page(topics.PageQuery{Page: 1, PageSize: 20, FilterStatus: true})
+	for _, item := range page.Data {
+		if item.Id == topicID {
+			t.Fatalf("postless topic still appears in public list: %#v", item)
+		}
+	}
+}
+
+// 回归 #492：擦除首楼但话题仍有其它可见回复时，不得联动下架话题
+// （他人内容不应因作者擦除自己的首楼而被连带隐藏）。
+func TestPrivacyEraseFirstPostKeepsTopicWhenRepliesVisible(t *testing.T) {
+	conn := setupContentDeleteTestDB(t)
+	const topicID = uint64(949000)
+	authorID, _ := seedTopicWithOptionalReply(t, conn, topicID, true)
+	zzCleanupContent(t, conn, []uint64{topicID, topicID + 100, topicID + 200, topicID + 300})
+
+	if err := PrivacyEraseContent(authorID, ContentTypePost, topicID+100); err != nil {
+		t.Fatalf("PrivacyEraseContent(first post): %v", err)
+	}
+
+	topic := topics.UnscopedGet(topicID)
+	if topic.VisibilityStatus != topics.VisibilityActive {
+		t.Fatalf("topic visibility = %s, want ACTIVE (visible replies must not be cascade-hidden)", topic.VisibilityStatus)
+	}
+	if reply := posts.UnscopedGet(topicID + 200); reply.VisibilityStatus != posts.VisibilityActive {
+		t.Fatalf("reply visibility = %s, want ACTIVE", reply.VisibilityStatus)
+	}
+}
+
+// 回归 #492（review）：PurgeContent(ContentTypePost) 的联动入口覆盖。
+// 场景：首楼经 PrivacyEraseContent 擦除（仍有一条可见回复，话题不联动），
+// 之后该回复被作者软删并永久删除——最后一条可见楼层消失，话题必须联动下架。
+// 注意「直接永久删除首楼」对本入口不可达（checkPurgeable 前置 + 首楼守卫），
+// 首楼场景由 PrivacyEraseContent 的入口测试覆盖。
+func TestPurgeLastVisibleReplyCascadesTopicVisibility(t *testing.T) {
+	conn := setupContentDeleteTestDB(t)
+	// id 段全局唯一：包内测试共享一个库文件且 users 行不做清理（949200 已被占用）。
+	const topicID = uint64(949700)
+	authorID, replyAuthorID := seedTopicWithOptionalReply(t, conn, topicID, true)
+	zzCleanupContent(t, conn, []uint64{topicID, topicID + 100, topicID + 200, topicID + 300})
+
+	if err := PrivacyEraseContent(authorID, ContentTypePost, topicID+100); err != nil {
+		t.Fatalf("PrivacyEraseContent(first post): %v", err)
+	}
+	if _, err := DeletePostByUser(replyAuthorID, topicID+200); err != nil {
+		t.Fatalf("DeletePostByUser(reply): %v", err)
+	}
+	if err := PurgeContent(replyAuthorID, ContentTypePost, topicID+200, "purge last visible reply"); err != nil {
+		t.Fatalf("PurgeContent(reply): %v", err)
+	}
+
+	topic := topics.UnscopedGet(topicID)
+	if topic.VisibilityStatus == topics.VisibilityActive {
+		t.Fatalf("topic still ACTIVE after its last visible reply was purged (issue #492)")
+	}
+	if topic.RetentionStatus != topics.RetentionPurged {
+		t.Fatalf("topic retention = %s, want PURGED after cascade", topic.RetentionStatus)
+	}
+}
+
 func zzCleanupContent(t *testing.T, conn *gorm.DB, ids []uint64) {
 	t.Helper()
 	t.Cleanup(func() {

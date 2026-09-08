@@ -616,6 +616,11 @@ func PurgeContent(userID uint64, contentType ContentType, contentID uint64, reas
 			}
 			return component.NewMessageError(component.MessageContentPurgeFailed, "永久删除失败", component.MessageParams{"error": err.Error()})
 		}
+		// 对 ACTIVE 话题的首楼不可达：checkPurgeable 要求先进入
+		// USER_DELETED+RECOVERABLE，而首楼受 DeletePostByUser 的 PostNo<=1
+		// 守卫无法单独软删。可达的是收尾场景——首楼早已不可见、最后一条
+		// 可见回复被永久删除后联动下架（首楼场景由 PrivacyEraseContent 覆盖）。
+		cascadeHidePostlessTopic(post.TopicId, userID, reason)
 		fileusageservice.PurgeTargetFiles(postsTarget(contentID))
 		notificationservice.NullifyContentPreviews(post.TopicId, contentID)
 		topicEntity := topics.GetSimple(post.TopicId)
@@ -703,6 +708,7 @@ func PrivacyEraseContent(userID uint64, contentType ContentType, contentID uint6
 		if err := posts.MarkPrivacyErased(contentID, userID, reason); err != nil {
 			return component.NewMessageError(component.MessageContentPurgeFailed, "隐私删除失败", component.MessageParams{"error": err.Error()})
 		}
+		cascadeHidePostlessTopic(post.TopicId, userID, reason)
 		fileusageservice.PurgeTargetFiles(postsTarget(contentID))
 		notificationservice.NullifyContentPreviews(post.TopicId, contentID)
 		clearTopicCaches(post.TopicId)
@@ -713,6 +719,42 @@ func PrivacyEraseContent(userID uint64, contentType ContentType, contentID uint6
 	default:
 		return component.NewMessageError(component.MessageRequestInvalidParams, "无效的内容类型", nil)
 	}
+}
+
+// cascadeHidePostlessTopic 在帖子被擦除/永久删除后联动下架话题（issue #492）：
+// 若话题已无任何可见楼层，则不再以「有标题无正文」的孤儿形态公开；
+// 话题内仍有其它可见回复时不联动（他人内容不应因作者擦除自己的首楼而被连带隐藏）。
+// 与擦除语义一致置为隐私擦除态（不可恢复、清空标题/摘要）。
+func cascadeHidePostlessTopic(topicID, erasedBy uint64, reason string) {
+	if topicID == 0 {
+		return
+	}
+	hasVisible, err := posts.HasVisibleByTopicID(topicID)
+	if err != nil {
+		slog.Error("failed to check topic visible posts for cascade hide", "topicId", topicID, "error", err)
+		return
+	}
+	if hasVisible {
+		return
+	}
+	topic := topics.Get(topicID)
+	if topic.Id == 0 || topic.VisibilityStatus != topics.VisibilityActive {
+		return
+	}
+	if err := topics.MarkPrivacyErased(topicID, erasedBy, reason); err != nil {
+		slog.Error("failed to cascade hide postless topic", "topicId", topicID, "error", err)
+		return
+	}
+	clearTopicCaches(topicID)
+	// 广播话题级删除事件：搜索投影 worker 按当前状态（首楼不可见）删除该话题
+	// 的索引文档，避免已下架孤儿继续可搜（review）。
+	eventbus.Publish(context.Background(), &eventhandlers.ContentDeletedEvent{
+		ContentType:  string(ContentTypeTopic),
+		TopicId:      topicID,
+		DeletedBy:    erasedBy,
+		DeleteReason: reason,
+	})
+	recordEvent(contentDeleteEvent.EventPrivacyDelete, ContentTypeTopic, topicID, topicID, erasedBy)
 }
 
 func purgeTopicPosts(topicID uint64, ownerID uint64) {
