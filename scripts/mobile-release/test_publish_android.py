@@ -16,6 +16,26 @@ class ApkIdentityTest(unittest.TestCase):
         check_package(self.package, 'Signer #1 certificate SHA-256 digest: ' + self.certificate,
                       '1.2.0', '12', self.certificate)
 
+    def test_build_tools_37_scheme_labels(self):
+        for label in ('V1 Signer', 'V2 Signer', 'V3 Signer', 'V3.1 Signer', 'V3.2 Signer'):
+            with self.subTest(label=label):
+                check_package(self.package, label + ': certificate SHA-256 digest: ' + self.certificate,
+                              '1.2.0', '12', self.certificate)
+
+    def test_same_certificate_across_schemes_is_one_identity(self):
+        signatures = '\n'.join(label + ': certificate SHA-256 digest: ' + self.certificate
+                               for label in ('V2 Signer', 'V3 Signer'))
+        check_package(self.package, signatures, '1.2.0', '12', self.certificate)
+
+    def test_rejects_unknown_or_conflicting_scheme_certificates(self):
+        valid = 'V2 Signer: certificate SHA-256 digest: ' + self.certificate
+        for signatures in (valid + '\nV3 Signer: certificate SHA-256 digest: ' + 'cd' * 32,
+                           'Source Stamp Signer certificate SHA-256 digest: ' + self.certificate,
+                           'V2 Signer: public key SHA-256 digest: ' + self.certificate,
+                           valid + 'ab', valid[:-2]):
+            with self.subTest(signatures=signatures), self.assertRaises(ValueError):
+                check_package(self.package, signatures, '1.2.0', '12', self.certificate)
+
     def test_rejects_wrong_identity_or_debug_certificate(self):
         signature = 'Signer #1 certificate SHA-256 digest: ' + self.certificate
         for package, signed in [(self.package.replace('forum_app', 'other'), signature),

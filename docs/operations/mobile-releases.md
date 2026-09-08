@@ -116,7 +116,10 @@ Flutter 3.44.9 produces three signed APKs. Their **actual** Android version code
 plus `1000` (armeabi-v7a), `2000` (arm64-v8a) or `4000` (x86_64). Asset names contain that actual
 code: `YourTJ-X.Y.Z+CODE-ABI.apk`. iOS uses the unmodified base `N`. The publisher verifies package,
 version, ABI and signing certificate before writing `SHA256SUMS.txt` or uploading. Changing Flutter's
-split-code algorithm requires updating the validator; a mismatch fails the release.
+split-code algorithm requires updating the validator; a mismatch fails the release. Certificate
+validation accepts both numbered signer output and Build Tools 37 scheme labels. Repeated identical
+certificates across schemes represent one identity; conflicting certificates, public-key digests and
+source-stamp-only output do not satisfy the release certificate check.
 
 APK assets are first uploaded to a draft GitHub release. GitHub-computed SHA-256 digests must match
 local files before it becomes public. Existing asset names with different bytes are never overwritten.
@@ -174,7 +177,17 @@ alone does not implement Sign in with Apple or enable Firebase push configuratio
   Verify the artifact belongs to the same tag/commit first.
 - **Uncertain Apple upload:** rerun to query the exact build. Existing uploads are not duplicated.
   An incomplete reservation without `uploadedDate` requires inspection with `asc builds uploads list`;
-  resolve that failed upload in ASC before resuming. Invalid processing fails immediately.
+  resolve that failed upload in ASC before resuming. Inspect its state with
+  `asc builds uploads view --id UPLOAD_ID` and files with
+  `asc builds uploads files list --upload UPLOAD_ID`. Only an abandoned `AWAITING_UPLOAD` reservation
+  with no uploaded files may be removed using `asc builds uploads delete --id UPLOAD_ID --confirm`;
+  first confirm no uploader is active. Never delete a processing upload or existing build. Invalid
+  processing fails immediately.
+- **Publisher repair after a tag exists:** the tag and retained signed artifacts remain immutable.
+  A workflow rerun checks out the original tagged source, so it does not pick up a later publisher
+  fix. Use the corrected publisher locally against the original run's verified signed artifacts
+  and the original version/build/tag, or publish a new reviewed source with a new version/build.
+  Never move the old tag merely to change the publisher script.
 - **Apple validation/rejection:** correct the reported store fields or app behavior. A binary change
   needs a new version/build release; metadata-only corrections can resume against the existing build.
   Already waiting/in-review/approved submissions using the same build are preserved.

@@ -27,8 +27,15 @@ def check_package(badging, signatures, version, number, certificate):
     match = re.search(r"package: name='([^']+)' versionCode='([^']+)' versionName='([^']+)'", badging)
     if not match or match.groups() != ("tj.yourtj.forum_app", number, version):
         raise ValueError("APK package/version does not match this release")
-    fingerprints = re.findall(r"Signer #\d+ certificate SHA-256 digest: ([0-9a-fA-F]+)", signatures)
-    if [fingerprint.lower() for fingerprint in fingerprints] != [certificate.lower()]:
+    # Build Tools 37 labels certificates by scheme (e.g. "V2 Signer:").
+    # The same identity can appear under multiple schemes. Public-key hashes and
+    # source-stamp certificates are not APK signer identities.
+    fingerprints = re.findall(
+        r"^(?:Signer #\d+|V[123](?:\.[12])? Signer:) certificate SHA-256 digest: ([0-9a-fA-F]{64})$",
+        signatures, re.M)
+    if not fingerprints:
+        raise ValueError("No supported APK signer certificate fingerprint found in apksigner output")
+    if {fingerprint.lower() for fingerprint in fingerprints} != {certificate.lower()}:
         raise ValueError("APK is not signed by the YourTJ release certificate")
 
 
