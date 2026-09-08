@@ -4,6 +4,7 @@ import 'package:ui_kit/ui_kit.dart';
 
 import 'package:core/core.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../format.dart';
 import '../../providers.dart';
@@ -137,16 +138,17 @@ class _CategoryPageState extends ConsumerState<CategoryPage> {
               Expanded(
                 child: GfScrollToTop(
                   semanticLabel: AppLocalizations.of(context).commonBackToTop,
-                  builder: (_, ScrollController controller) => RefreshIndicator(
-                    onRefresh: () => _load(silent: true),
-                    child: GfTopicList(
-                      controller: controller,
-                      loading: _loadingMore,
-                      topics: _topics,
-                      hasMore: props.pagination.hasNext,
-                      onLoadMore: _loadMore,
-                    ),
-                  ),
+                  builder: (_, ScrollController controller) =>
+                      AppRefreshIndicator(
+                        onRefresh: () => _load(silent: true),
+                        child: GfTopicList(
+                          controller: controller,
+                          loading: _loadingMore,
+                          topics: _topics,
+                          hasMore: props.pagination.hasNext,
+                          onLoadMore: _loadMore,
+                        ),
+                      ),
                 ),
               ),
             ],

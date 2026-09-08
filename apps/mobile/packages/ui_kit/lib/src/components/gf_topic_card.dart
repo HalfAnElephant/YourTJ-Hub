@@ -132,7 +132,7 @@ class _GfTopicCardState extends State<GfTopicCard> {
           hot: widget.hot,
           pinned: widget.pinned,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -150,7 +150,7 @@ class _GfTopicCardState extends State<GfTopicCard> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: colors.baseContent,
-                            fontSize: 16,
+                            fontSize: 17,
                             height: 1.45,
                             fontWeight: FontWeight.w600,
                           ),
@@ -171,15 +171,15 @@ class _GfTopicCardState extends State<GfTopicCard> {
                     ],
                   ),
                   if (widget.description.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       widget.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: colors.baseContent.withValues(alpha: 0.85),
-                        fontSize: 15,
-                        height: 1.6,
+                        fontSize: 17,
+                        height: 1.4,
                       ),
                     ),
                   ],
@@ -193,7 +193,7 @@ class _GfTopicCardState extends State<GfTopicCard> {
           ],
         ),
         if (images.isNotEmpty && !singleImage) ...<Widget>[
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
           LayoutBuilder(
             builder: (context, constraints) {
               if (images.length == 1) {
@@ -255,7 +255,7 @@ class _GfTopicCardState extends State<GfTopicCard> {
             },
           ),
         ],
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         Row(
           children: <Widget>[
             _Metric(
@@ -267,27 +267,19 @@ class _GfTopicCardState extends State<GfTopicCard> {
               icon: Icons.visibility_outlined,
               value: '${widget.viewCount}',
             ),
-            const Spacer(),
-            Text(
-              widget.activityText,
-              style: TextStyle(
-                color: colors.baseContent.withValues(alpha: 0.55),
-                fontSize: 12,
-              ),
-            ),
           ],
         ),
       ],
     );
 
     return GfCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       onTap: widget.onTap,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GfAvatar(src: widget.authorAvatarUrl, size: 36),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(child: textContent),
         ],
       ),
@@ -331,23 +323,27 @@ class _AuthorMeta extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: colors.baseContent,
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    activityText,
-                    style: TextStyle(
-                      color: colors.baseContent.withValues(alpha: 0.55),
-                      fontSize: 12,
+                  Flexible(
+                    child: Text(
+                      activityText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.baseContent.withValues(alpha: 0.55),
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
               ),
               if (categories.isNotEmpty || hot) ...<Widget>[
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
@@ -452,7 +448,7 @@ class _Metric extends StatelessWidget {
             value,
             style: TextStyle(
               color: colors.baseContent.withValues(alpha: 0.55),
-              fontSize: 12,
+              fontSize: 13,
             ),
           ),
         ],

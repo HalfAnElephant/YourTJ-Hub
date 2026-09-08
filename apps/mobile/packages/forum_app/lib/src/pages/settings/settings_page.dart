@@ -9,6 +9,7 @@ import 'package:ui_kit/ui_kit.dart';
 
 import 'package:core/core.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../format.dart';
@@ -869,7 +870,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return GfScrollToTop(
       semanticLabel: l10n.commonBackToTop,
       key: ValueKey<_SettingsTab>(_tab),
-      builder: (_, ScrollController controller) => RefreshIndicator(
+      builder: (_, ScrollController controller) => AppRefreshIndicator(
         onRefresh: _refresh,
         child: switch (_tab) {
           _SettingsTab.profile => _buildProfileTab(l10n, controller),

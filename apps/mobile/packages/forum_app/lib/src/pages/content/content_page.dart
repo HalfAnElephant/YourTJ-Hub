@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../server_messages.dart';
@@ -289,7 +290,7 @@ class _ContentPageState extends ConsumerState<ContentPage> {
           Expanded(
             child: _loading && _items.isEmpty
                 ? const GfLoading()
-                : RefreshIndicator(
+                : AppRefreshIndicator(
                     onRefresh: _load,
                     child: ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),

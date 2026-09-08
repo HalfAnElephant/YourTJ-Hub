@@ -2181,11 +2181,35 @@ export interface paths {
         /**
          * List visible course reviews for a course or a single offering
          * @description Public read endpoint. An optional valid JWT (cookie or Bearer) only personalizes the
-         *     `viewer` state (canEdit/canDelete/isHelpful); anonymous callers receive the same reviews
+         *     `viewer` state (canEdit/canDelete/isHelpful) and places the caller's own reviews first,
+         *     preserving newest-first ordering within each ownership group. Anonymous callers receive the same reviews
          *     with viewer flags false. Review payloads never contain author identity fields
          *     (userId/username/avatar): anonymous and legacy reviews expose only a kind/label pair.
          */
         get: operations["listCourseReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forum/my-course-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Manage the current user's course reviews across courses
+         * @description Private session-scoped list, newest review ID first. Includes the caller's anonymous
+         *     and hidden reviews; excludes deleted reviews. No author selector is accepted.
+         *     Hidden reviews can be deleted but cannot be edited or opened publicly. Course metadata
+         *     remains available for management when the corresponding course is unavailable.
+         */
+        get: operations["listOwnCourseReviews"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7224,8 +7248,8 @@ export interface components {
             list: components["schemas"]["ReviewPayload"][];
             /**
              * @description Cursor for the next page, present only when more reviews exist.
-             *     Format is "offeringId:reviewId" of the last item of the current page
-             *     (course-level ordering is (offering_id DESC, id DESC)). Omit to stop paging.
+             *     Opaque position cursor including the ownership phase for personalized lists.
+             *     Pass it back unchanged. Legacy two-part cursors remain accepted. Omit to stop paging.
              */
             nextCursor?: string;
             /**
@@ -10349,6 +10373,24 @@ export interface components {
              * @enum {integer}
              */
             action: 1 | 2;
+        };
+        OwnCourseReviewItem: {
+            review: components["schemas"]["ReviewPayload"];
+            /** Format: uint64 */
+            courseId: number;
+            courseName: string;
+            courseCode: string;
+            hidden: boolean;
+            /** @description False when the review, offering or course is unavailable publicly. */
+            canOpenCourse: boolean;
+        };
+        OwnCourseReviewResponse: {
+            /** @constant */
+            code: 0;
+            result: {
+                list: components["schemas"]["OwnCourseReviewItem"][];
+                nextCursor?: string;
+            };
         };
         ModerationPostRevealRequest: {
             /** Format: uint64 */
@@ -14299,7 +14341,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Visible reviews ordered newest first. */
+            /** @description Visible reviews with the authenticated caller's reviews first, newest first within each group. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14331,6 +14373,56 @@ export interface operations {
                 };
             };
             /** @description Review listing failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    listOwnCourseReviews: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Private course review page; list is empty rather than null. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnCourseReviewResponse"];
+                };
+            };
+            /** @description Invalid cursor or page size. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description A valid session is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Could not load the user's reviews. */
             500: {
                 headers: {
                     [name: string]: unknown;

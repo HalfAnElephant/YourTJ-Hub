@@ -1,4 +1,12 @@
 {
+  "myCourseReviewsTitle": "Meine Kursbewertungen",
+  "myCourseReviewsEmpty": "Noch keine Bewertungen. Entdecke den Kurskatalog.",
+  "myCourseReviewHidden": "Diese Bewertung ist ausgeblendet. Du kannst sie hier löschen.",
+  "myCourseReviewUnavailable": "Dieser Kurs ist nicht verfügbar. Du kannst deine Bewertung weiterhin verwalten.",
+  "myCourseReviewOpen": "Details ansehen",
+  "courseReviewNetworkError": "Verbindung fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen; deine Bewertung bleibt erhalten.",
+  "courseReviewUnknownError": "Die Bewertung konnte nicht gespeichert werden. Der Server hat keinen konkreten Grund angegeben. Bitte später erneut versuchen.",
+  "commonHideKeyboard": "Tastatur ausblenden",
   "@@locale": "de",
   "appTitle": "YourTJ",
   "navHome": "Startseite",
