@@ -1,121 +1,14 @@
-// 排课方案云同步（issue #537 PR-2）—— localStorage 方案快照与云端三端点同步。
-//
-// 同步语义（两端锁定，web/移动同规则）：
-// - 进页（已登录）GET /api/pk/plans：
-//   data=null（云端空）→ 本机空则不动，否则首登自动上传本机快照；
-//   data=快照 → 本机空则整包采用（云端）；本机非空时，dirty（本会话有未上传
-//   变更）或 syncedAt ≠ 快照.updatedAt → 弹窗二选一，否则不动。
-// - 弹窗二选一：「使用云端」= applyRemoteSnapshot 整包采用；「保留本机」=
-//   立即 PUT 本机快照。一次性，选后不再问（关闭弹窗 = 暂缓，下次进页仍提示）。
-// - 本地任意方案变更（store.solidify 尾部钩子注入）→ dirty + 防抖 3s PUT：
-//   成功 syncedAt=服务端 updatedAt、dirty=false；400/403 静默停止本轮（console.warn
-//   诊断，dirty 保持不重试，下次变更开新一轮）；网络错误保持 dirty 待下次触发；
-//   401 停止触发直至下次进页。
-// - 登出/离页：停同步，本地数据原样保留；未登录全程零网络请求（不 start 即不变更）。
-// - web 额外：document visibilitychange → hidden 时 best-effort 冲刷未落盘的防抖 PUT。
+// Schedule cloud synchronization: reconcile before writes, serialize uploads, and
+// require a choice for divergent snapshots or account changes. Server revisions
+// guard every PUT; dirty local state survives page exit and transient failures.
 
 import { shallowRef, type ShallowRef } from 'vue'
 import { setSolidifyHook, useScheduleStore } from './useScheduleStore'
 
-// ---- OpenAPI 契约 wire 形状（手写镜像 packages/api-contract 的 PkPlanPayload /
-// PkPlansPutRequest / PkPlansGetResponse 相关 schema；后续 `pnpm run generate:ts`
-// 再生后可替换为 @gooseforum/client 生成类型）----
+import type { components } from '@gooseforum/client/openapi'
 
-/** 教师（PkTeacherItem）。 */
-export interface PkSyncTeacher {
-  teacherName: string
-  teacherCode: string
-}
-
-/** 一次上课安排（PkArrangementItem）。 */
-export interface PkSyncArrangement {
-  arrangementText: string
-  /** 星期 1-7 */
-  occupyDay: number
-  /** 节次 1-12 */
-  occupyTime: number[]
-  /** 周次（展开） */
-  occupyWeek: number[]
-  occupyRoom: string
-  teacherAndCode: string
-}
-
-/** 教学班（PkCourseDetailItem）。 */
-export interface PkSyncCourseDetail {
-  arrangementInfo: PkSyncArrangement[]
-  campus: string
-  code: string
-  teachingClassId?: number
-  isExclusive?: boolean
-  /** 0 未选 / 1 备选 / 2 已选 */
-  status?: number
-  teachers: PkSyncTeacher[]
-  teachingLanguage: string
-}
-
-/** 备选课程（PkStagedCourseItem）。 */
-export interface PkSyncStagedCourse {
-  courseCode: string
-  courseName: string
-  courseNameReserved: string
-  credit: number
-  courseType: string
-  courseNature: string[]
-  teacher: PkSyncTeacher[]
-  status: number
-  courseDetail: PkSyncCourseDetail[]
-}
-
-/** 自定义占位事件（PkCustomEventItem）。 */
-export interface PkSyncCustomEvent {
-  id: string
-  label: string
-  /** 星期 1-7 */
-  day: number
-  /** 节次集合（1-12） */
-  sections: number[]
-  /** 周次集合 */
-  weeks: number[]
-}
-
-/** 排课方案（PkPlanItem；与前端 PkPlan 字段完全一致）。 */
-export interface PkSyncPlan {
-  id: string
-  name: string
-  createdAt: number
-  stagedCourses: PkSyncStagedCourse[]
-  /** 已选班级课号（含班号） */
-  selectedCourses: string[]
-  customEvents: PkSyncCustomEvent[]
-}
-
-/** majorSelected（学期/年级/专业三元组）。 */
-export interface PkSyncMajorSelection {
-  calendarId?: number
-  grade?: number
-  major?: string
-  majorName?: string
-}
-
-/** weekView（周次视图；week=null 表示全部周次堆叠）。 */
-export interface PkSyncWeekView {
-  week: number | null
-  useCurrent: boolean
-}
-
-/** PUT /api/pk/plans 请求体（PkPlansPutRequest）。 */
-export interface PkSyncPayload {
-  plans: PkSyncPlan[]
-  activePlanId: string
-  majorSelected: PkSyncMajorSelection
-  weekView: PkSyncWeekView
-}
-
-/** GET /api/pk/plans 的 data（PkPlansSnapshot；null = 云端空）。 */
-export interface PkSyncRemoteSnapshot extends PkSyncPayload {
-  /** 服务端权威时钟（RFC3339Nano UTC），存入 pk.syncedAt 供进页冲突判定。 */
-  updatedAt: string
-}
+export type PkSyncPayload = components['schemas']['PkPlansPutRequest']
+export type PkSyncRemoteSnapshot = components['schemas']['PkPlansSnapshotData']
 
 // ---- 传输层 ----
 
@@ -220,7 +113,7 @@ export interface ScheduleSyncController {
   /** 关闭弹窗（暂缓决策）：本轮不再询问，下次进页若仍分歧再提示。 */
   dismissConflict(): void
   /** 启用同步（已登录进页时调用）。 */
-  start(): void
+  start(userId?: number): void
   /** 停止同步（登出/离页）：取消防抖与弹窗，本地数据不动。 */
   stop(): void
   /** 是否有未上传的本地变更（诊断/测试）。 */
@@ -230,160 +123,184 @@ export interface ScheduleSyncController {
 export function createScheduleSyncController(deps: { transport: PkSyncTransport }): ScheduleSyncController {
   const store = useScheduleStore()
   const conflict = shallowRef<PkSyncRemoteSnapshot | null>(null)
-
   let enabled = false
   let dirty = false
-  /** 401 后停摆标志：直至下次进页（syncOnPageEnter）才恢复触发。 */
+  let reconciled = false
   let authStopped = false
-  /** 进页 GET 防重入。 */
   let entering = false
-  /** PUT 串行化（防抖到期与手动冲刷并发时只放一个）。 */
-  let putting = false
+  let putting: Promise<void> | null = null
+  let generation = 0
+  let seq = 0
+  let owner = 0
+  let baseUpdatedAt = ''
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
   function clearDebounce(): void {
-    if (debounceTimer !== null) {
-      clearTimeout(debounceTimer)
-      debounceTimer = null
-    }
+    if (debounceTimer !== null) clearTimeout(debounceTimer)
+    debounceTimer = null
   }
 
-  /** localEmpty := 仅一个方案且三组用户数据全空（首登/清空后的空壳）。 */
   function isLocalEmpty(): boolean {
     const plans = store.state.plans
-    if (plans.length !== 1) return false
-    const plan = plans[0]
-    return (
-      plan.stagedCourses.length === 0 &&
-      plan.selectedCourses.length === 0 &&
-      plan.customEvents.length === 0
-    )
+    return plans.length === 1 && plans[0].stagedCourses.length === 0 &&
+      plans[0].selectedCourses.length === 0 && plans[0].customEvents.length === 0
   }
 
-  async function pushSnapshot(): Promise<void> {
-    if (!enabled || putting || authStopped) return
-    putting = true
-    try {
-      // 前端 PkStagedCourse.courseNature 类型为可选（sanitize 恒回填数组，wire 恒有值），
-      // 此处对齐契约必填形状做一次性结构收窄。
-      const payload = store.snapshotForSync() as PkSyncPayload
-      const { updatedAt } = await deps.transport.putCloudSnapshot(payload)
-      store.markSynced(updatedAt)
-      dirty = false
-    } catch (err) {
-      if (err instanceof PkSyncError) {
-        if (err.kind === 'unauthenticated') {
-          // 401：停止触发直至下次进页；dirty 保持（数据不丢，重登后可续传）。
-          authStopped = true
-        } else if (err.kind === 'rejected') {
-          // 400/403：静默停止本轮（诊断日志），dirty 保持但不重试。
-          console.warn('[pk-sync] 上传被服务端拒绝，已停止本轮同步：', err.message)
-        }
-        // network：保持 dirty，下次触发/下次进页重试。
-      }
-      // 非预期异常按网络错误语义处理（保持 dirty 待重试）。
-    } finally {
-      putting = false
-    }
-  }
-
-  function onLocalChange(): void {
-    if (!enabled || authStopped) return
-    dirty = true
+  function scheduleUpload(): void {
     clearDebounce()
+    if (!enabled || !reconciled || authStopped) return
     debounceTimer = setTimeout(() => {
       debounceTimer = null
       void pushSnapshot()
     }, PK_SYNC_DEBOUNCE_MS)
   }
 
+  async function pushSnapshot(): Promise<void> {
+    if (!enabled || !reconciled || putting || authStopped || !dirty) return
+    const run = generation
+    const revision = seq
+    let retryConflict = false
+    putting = (async () => {
+      try {
+        const payload = { ...store.snapshotForSync(), baseUpdatedAt } as PkSyncPayload
+        const { updatedAt } = await deps.transport.putCloudSnapshot(payload)
+        if (!enabled || generation !== run) return
+        if (!updatedAt) throw new Error('Missing sync revision')
+        baseUpdatedAt = updatedAt
+        if (revision === seq) dirty = !store.markSynced(updatedAt)
+        else scheduleUpload()
+      } catch (err) {
+        if (!enabled || generation !== run) return
+        if (err instanceof PkSyncError) {
+          if (err.status === 409) {
+            reconciled = false
+            retryConflict = true
+          } else if (err.kind === 'unauthenticated') authStopped = true
+          else if (err.status === 400 || err.status === 403) {
+            console.warn('[pk-sync] 上传被拒绝：', err.message)
+          }
+        }
+      }
+    })()
+    await putting
+    putting = null
+    if (retryConflict) await syncOnPageEnter()
+  }
+
+  function onLocalChange(): void {
+    if (!enabled) return
+    dirty = true
+    store.markSyncDirty()
+    seq++
+    scheduleUpload()
+  }
+
   function flushPendingUpload(): void {
-    if (!enabled || !dirty || putting) return
     clearDebounce()
     void pushSnapshot()
   }
 
+  function emptyCloud(): PkSyncRemoteSnapshot {
+    return {
+      plans: [{ id: 'empty', name: store.state.plans[0].name, createdAt: Date.now(), stagedCourses: [], selectedCourses: [], customEvents: [] }],
+      activePlanId: 'empty', majorSelected: {}, weekView: { week: null, useCurrent: false }, updatedAt: '',
+    }
+  }
+
   async function syncOnPageEnter(): Promise<void> {
     if (!enabled || entering) return
+    const run = generation
     entering = true
-    // 新一轮进页：此前 401 停摆解除（可能已重新登录）。
+    reconciled = false
+    clearDebounce()
     authStopped = false
     try {
-      let snapshot: PkSyncRemoteSnapshot | null
-      try {
-        snapshot = await deps.transport.fetchCloudSnapshot()
-      } catch (err) {
-        // 进页同步失败静默：未登录（探测式 GET 401）或网络错误均不作为、不打扰。
-        if (!(err instanceof PkSyncError)) {
-          console.warn('[pk-sync] 进页同步失败：', err)
+      // A reconciliation never races a previous upload or adopts its obsolete base.
+      if (putting) await putting
+      if (!enabled || generation !== run) return
+      const snapshot = await deps.transport.fetchCloudSnapshot()
+      if (!enabled || generation !== run) return
+      baseUpdatedAt = snapshot?.updatedAt ?? ''
+      const previousOwner = store.getSyncOwner()
+      if (previousOwner && previousOwner !== owner) {
+        conflict.value = snapshot ?? emptyCloud()
+        return
+      }
+      if (!store.setSyncOwner(owner)) return
+      if (snapshot === null) {
+        reconciled = true
+        if (!isLocalEmpty() || dirty) {
+          dirty = true
+          store.markSyncDirty()
+          await pushSnapshot()
         }
         return
       }
-      if (snapshot === null) {
-        // 云端空：本机空则不动；非空 = 首登自动上传本机快照。
-        if (!isLocalEmpty()) await pushSnapshot()
-        return
-      }
-      if (isLocalEmpty()) {
-        // 整包采用（云端）：store 内 applyingRemote 守卫防回灌，重建派生态。
-        clearDebounce()
+      if (!dirty && !store.isSyncDirty() && !store.getSyncedAt() && isLocalEmpty()) {
         store.applyRemoteSnapshot(snapshot)
-        store.markSynced(snapshot.updatedAt)
-        dirty = false
+        dirty = !store.markSynced(snapshot.updatedAt)
+        reconciled = true
         return
       }
-      if (!dirty && store.getSyncedAt() === snapshot.updatedAt) return // 已一致：不动
-      conflict.value = snapshot // 本机非空且与云端分歧 → 二选一（一次性）
+      if (!dirty && !store.isSyncDirty() && store.getSyncedAt() === snapshot.updatedAt) {
+        reconciled = true
+        return
+      }
+      conflict.value = snapshot
+    } catch (err) {
+      if (generation === run && err instanceof PkSyncError && err.status === 401) authStopped = true
     } finally {
-      entering = false
+      if (generation === run) entering = false
     }
   }
 
   function useCloud(): void {
     const snapshot = conflict.value
+    if (!enabled || !snapshot || putting || !store.setSyncOwner(owner)) return
     conflict.value = null
-    if (!snapshot) return
     clearDebounce()
     store.applyRemoteSnapshot(snapshot)
-    store.markSynced(snapshot.updatedAt)
-    dirty = false
+    dirty = !store.markSynced(snapshot.updatedAt)
+    reconciled = true
   }
 
   function keepLocal(): void {
+    if (!enabled || !conflict.value || !store.setSyncOwner(owner)) return
     conflict.value = null
     clearDebounce()
+    dirty = true
+    store.markSyncDirty()
+    reconciled = true
     void pushSnapshot()
   }
 
   function dismissConflict(): void {
     conflict.value = null
+    // Dismissal postpones a decision; subsequent edits must not overwrite the cloud.
+    reconciled = false
   }
 
-  function start(): void {
+  function start(userId = 0): void {
+    generation++
+    owner = userId
     enabled = true
+    entering = false
+    reconciled = false
+    dirty = store.isSyncDirty()
     authStopped = false
   }
 
   function stop(): void {
     enabled = false
+    generation++
+    entering = false
+    reconciled = false
     clearDebounce()
     conflict.value = null
-    // dirty 保留：登出/离页时未上传的本机变更不丢——下次进页 GET 分支仍能以
-    // dirty 分歧弹窗（一次性二选一），避免「停同步 → 重进 → 静默跳过上传」。
   }
 
-  return {
-    conflict,
-    syncOnPageEnter,
-    onLocalChange,
-    flushPendingUpload,
-    useCloud,
-    keepLocal,
-    dismissConflict,
-    start,
-    stop,
-    isDirty: () => dirty,
-  }
+  return { conflict, syncOnPageEnter, onLocalChange, flushPendingUpload, useCloud,
+    keepLocal, dismissConflict, start, stop, isDirty: () => dirty }
 }
 
 // ---- 单例接线（排课页生命周期驱动；未登录不 start 即零网络）----
@@ -405,9 +322,9 @@ function wireOnce(): void {
 }
 
 /** 启动云同步（已登录进入排课页时调用；之后由 solidify 钩子驱动增量上传）。 */
-export function startScheduleSync(): void {
+export function startScheduleSync(userId: number): void {
   wireOnce()
-  scheduleSync.start()
+  scheduleSync.start(userId)
 }
 
 /** 停止云同步（离开排课页/登出后调用）：取消防抖与弹窗，本地数据原样保留。 */

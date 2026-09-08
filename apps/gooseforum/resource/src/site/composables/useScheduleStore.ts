@@ -65,11 +65,13 @@ const STORAGE_KEYS = {
   configCollapsed: CONFIG_COLLAPSED_STORAGE_KEY,
 } as const
 
-function writeStorage(key: string, value: unknown): void {
+function writeStorage(key: string, value: unknown): boolean {
   try {
     window.localStorage.setItem(key, JSON.stringify(value))
+    return true
   } catch {
-    // localStorage 可能不可用（隐私/受限浏览模式），静默忽略。
+    // Restricted or full storage must not advance the synchronization clock.
+    return false
   }
 }
 
@@ -105,6 +107,7 @@ interface CommonLists {
 
 interface ScheduleState {
   majorSelected: PkMajorSelection
+  remoteRevision?: number
   plans: PkPlan[]
   activePlanId: string
   /** 侧边栏配置区域（方案条+专业选择器）折叠记忆状态 */
@@ -464,6 +467,7 @@ export function setSolidifyHook(hook: SolidifyHook | null): void {
 
 /** 整包采用云端快照期间为 true：抑制 solidify 尾部钩子（防「采用云端 → 回灌上传」）。 */
 let applyingRemote = false
+let lastSyncPayload = ''
 
 function readTimeTableRows(): number {
   return maxRowsForCalendar(state.majorSelected.calendarId)
@@ -785,7 +789,7 @@ export function useScheduleStore() {
 
   function setWeekView(view: PkWeekView): void {
     state.weekView = sanitizeWeekView(view) ?? { week: null, useCurrent: false }
-    writeStorage(STORAGE_KEYS.weekView, state.weekView)
+    solidify()
   }
 
   /** 学期字典写入（MajorSelector 加载 P1 后回填，供周次定位/日期条消费）。 */
@@ -883,6 +887,7 @@ export function useScheduleStore() {
       state.weekView = sanitizeWeekView(snap.weekView) ?? { week: null, useCurrent: false }
       state.clickedCourseInfo = { courseCode: '', courseName: '', teacherCode: '', teacherName: '' }
       state.flags.majorNotChanged = false
+      state.remoteRevision = (state.remoteRevision ?? 0) + 1
       syncActiveView()
       solidify()
     } finally {
@@ -891,9 +896,19 @@ export function useScheduleStore() {
   }
 
   /** 记录服务端权威同步时钟（PUT 成功 / 整包采用云端后调用）。 */
-  function markSynced(updatedAt: string): void {
-    writeStorage(STORAGE_KEYS.syncedAt, updatedAt)
+  function markSynced(updatedAt: string): boolean {
+    const snapshot = snapshotForSync()
+    for (const key of ['plans', 'activePlanId', 'majorSelected', 'weekView'] as const) {
+      if (!writeStorage(STORAGE_KEYS[key], snapshot[key])) return false
+    }
+    if (!writeStorage(STORAGE_KEYS.syncedAt, updatedAt)) return false
+    return writeStorage('pk.syncDirty', false)
   }
+
+  function markSyncDirty(): void { writeStorage('pk.syncDirty', true) }
+  function isSyncDirty(): boolean { return safeParseJson(readStorage('pk.syncDirty')) === true }
+  function getSyncOwner(): number { return safeParseJson<number>(readStorage('pk.syncOwner')) ?? 0 }
+  function setSyncOwner(id: number): boolean { return writeStorage('pk.syncOwner', id) }
 
   /** 读取同步时钟（无记录返回空串；与云端 updatedAt 不一致时进页弹冲突弹窗）。 */
   function getSyncedAt(): string {
@@ -907,7 +922,10 @@ export function useScheduleStore() {
     writeStorage(STORAGE_KEYS.activePlanId, state.activePlanId)
     writeStorage(STORAGE_KEYS.weekView, state.weekView)
     // 云同步钩子：本地真实变更才标脏/上传；整包采用云端（applyingRemote）不回灌。
-    if (!applyingRemote) solidifyHook?.()
+    const payload = JSON.stringify(snapshotForSync())
+    const changed = lastSyncPayload !== payload
+    lastSyncPayload = payload
+    if (!applyingRemote && changed) solidifyHook?.()
   }
 
   /** 从 localStorage 恢复（v1 旧键迁移 → v2；损坏即回退空方案）。 */
@@ -950,6 +968,7 @@ export function useScheduleStore() {
     }
 
     syncActiveView()
+    lastSyncPayload = JSON.stringify(snapshotForSync())
   }
 
   function setConfigCollapsed(collapsed: boolean): void {
@@ -1068,6 +1087,10 @@ export function useScheduleStore() {
     applyRemoteSnapshot,
     markSynced,
     getSyncedAt,
+    markSyncDirty,
+    isSyncDirty,
+    getSyncOwner,
+    setSyncOwner,
     solidify,
     loadSolidify,
     loadSolidifyTime,

@@ -229,14 +229,16 @@ describe('useScheduleSync（排课方案云同步状态机）', () => {
   })
 
   test('本地变更经 solidify 钩子防抖 3s 合并：多次变更只 PUT 一次', async () => {
-    const { store, controller, putCloudSnapshot } = setup()
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
     controller.start()
+    fetchCloudSnapshot.mockResolvedValue(null)
+    await controller.syncOnPageEnter()
     seedLocalContent(store)
     putCloudSnapshot.mockResolvedValue({ updatedAt: UPDATED_AT })
 
     store.solidify()
     await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS - 1)
-    store.solidify()
+    store.setWeekView({ week: 2, useCurrent: false })
     await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS - 1)
     expect(putCloudSnapshot).not.toHaveBeenCalled()
 
@@ -245,7 +247,7 @@ describe('useScheduleSync（排课方案云同步状态机）', () => {
     // 快照出口只含契约四字段。
     const payload = putCloudSnapshot.mock.calls[0][0]
     expect(Object.keys(payload).sort()).toEqual(
-      ['activePlanId', 'majorSelected', 'plans', 'weekView'].sort(),
+      ['activePlanId', 'baseUpdatedAt', 'majorSelected', 'plans', 'weekView'].sort(),
     )
     expect(controller.isDirty()).toBe(false)
   })
@@ -262,8 +264,10 @@ describe('useScheduleSync（排课方案云同步状态机）', () => {
   })
 
   test('PUT 400：静默停止本轮（无自动重试，dirty 保持），下次变更开新一轮', async () => {
-    const { store, controller, putCloudSnapshot } = setup()
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
     controller.start()
+    fetchCloudSnapshot.mockResolvedValue(null)
+    await controller.syncOnPageEnter()
     seedLocalContent(store)
     putCloudSnapshot.mockRejectedValue(new PkSyncError('方案数超出上限', 400, 'rejected'))
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -278,7 +282,7 @@ describe('useScheduleSync（排课方案云同步状态机）', () => {
     expect(putCloudSnapshot).toHaveBeenCalledTimes(1)
 
     // 新的本地方案变更开新一轮（允许再次尝试）。
-    store.solidify()
+    store.setWeekView({ week: 2, useCurrent: false })
     await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS)
     expect(putCloudSnapshot).toHaveBeenCalledTimes(2)
     warnSpy.mockRestore()
@@ -287,6 +291,8 @@ describe('useScheduleSync（排课方案云同步状态机）', () => {
   test('PUT 401：停止触发直至下次进页（重新登录后恢复）', async () => {
     const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
     controller.start()
+    fetchCloudSnapshot.mockResolvedValue(null)
+    await controller.syncOnPageEnter()
     seedLocalContent(store)
     putCloudSnapshot.mockRejectedValue(new PkSyncError('未登录', 401, 'unauthenticated'))
 
@@ -321,8 +327,10 @@ describe('useScheduleSync（排课方案云同步状态机）', () => {
   })
 
   test('visibility hidden → best-effort 冲刷未到期的防抖 PUT', async () => {
-    const { store, controller, putCloudSnapshot } = setup()
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
     controller.start()
+    fetchCloudSnapshot.mockResolvedValue(null)
+    await controller.syncOnPageEnter()
     seedLocalContent(store)
     putCloudSnapshot.mockResolvedValue({ updatedAt: UPDATED_AT })
 
@@ -356,4 +364,136 @@ describe('useScheduleSync（排课方案云同步状态机）', () => {
     await expect(controller.syncOnPageEnter()).resolves.toBeUndefined()
     expect(controller.conflict.value).toBeNull()
   })
+  test('failed entry GET never permits a blind upload', async () => {
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
+    controller.start()
+    fetchCloudSnapshot.mockRejectedValue(new PkSyncError('offline', 0, 'network'))
+    await controller.syncOnPageEnter()
+    seedLocalContent(store)
+    store.solidify()
+    await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS)
+    expect(putCloudSnapshot).not.toHaveBeenCalled()
+  })
+
+  test('entry GET and unresolved conflict suspend all uploads', async () => {
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
+    controller.start()
+    let resolve!: (value: PkSyncRemoteSnapshot) => void
+    fetchCloudSnapshot.mockReturnValue(new Promise(r => { resolve = r }))
+    const entering = controller.syncOnPageEnter()
+    seedLocalContent(store)
+    store.solidify()
+    await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS)
+    expect(putCloudSnapshot).not.toHaveBeenCalled()
+    resolve(makeSnapshot())
+    await entering
+    controller.flushPendingUpload()
+    await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS)
+    expect(putCloudSnapshot).not.toHaveBeenCalled()
+  })
+
+  test('a stopped controller ignores late entry results', async () => {
+    const { store, controller, fetchCloudSnapshot } = setup()
+    controller.start()
+    let resolve!: (value: PkSyncRemoteSnapshot) => void
+    fetchCloudSnapshot.mockReturnValue(new Promise(r => { resolve = r }))
+    const entering = controller.syncOnPageEnter()
+    controller.stop()
+    resolve(makeSnapshot())
+    await entering
+    expect(store.state.activePlanId).not.toBe('plan_cloud')
+    expect(controller.conflict.value).toBeNull()
+  })
+
+  test('keep-local remains pending after a transient error', async () => {
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
+    controller.start()
+    seedLocalContent(store)
+    fetchCloudSnapshot.mockResolvedValue(makeSnapshot())
+    await controller.syncOnPageEnter()
+    putCloudSnapshot.mockRejectedValueOnce(new PkSyncError('offline', 0, 'network'))
+    controller.keepLocal()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(controller.isDirty()).toBe(true)
+    putCloudSnapshot.mockResolvedValue({ updatedAt: UPDATED_AT_2 })
+    controller.flushPendingUpload()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(putCloudSnapshot).toHaveBeenCalledTimes(2)
+  })
+
+  test('edits made during PUT remain pending and upload the newer snapshot', async () => {
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
+    controller.start()
+    fetchCloudSnapshot.mockResolvedValue(null)
+    await controller.syncOnPageEnter()
+    let resolve!: (value: { updatedAt: string }) => void
+    putCloudSnapshot.mockReturnValueOnce(new Promise(r => { resolve = r }))
+    seedLocalContent(store)
+    store.solidify()
+    await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS)
+    store.createPlan()
+    store.solidify()
+    await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS)
+    resolve({ updatedAt: UPDATED_AT })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(controller.isDirty()).toBe(true)
+    putCloudSnapshot.mockResolvedValue({ updatedAt: UPDATED_AT_2 })
+    await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS)
+    expect(putCloudSnapshot).toHaveBeenCalledTimes(2)
+    expect(putCloudSnapshot.mock.calls[1][0].plans).toHaveLength(2)
+  })
+
+  test('account changes require a choice even when the next cloud is empty', async () => {
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup({ 'pk.syncOwner': '1' })
+    seedLocalContent(store)
+    controller.start(2)
+    fetchCloudSnapshot.mockResolvedValue(null)
+    await controller.syncOnPageEnter()
+    expect(putCloudSnapshot).not.toHaveBeenCalled()
+    expect(controller.conflict.value).not.toBeNull()
+    controller.useCloud()
+    expect(store.getSyncOwner()).toBe(2)
+    expect(store.state.plans[0].stagedCourses).toHaveLength(0)
+  })
+
+  test('catalog persistence without snapshot changes does not upload', async () => {
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
+    controller.start()
+    fetchCloudSnapshot.mockResolvedValue(makeSnapshot())
+    await controller.syncOnPageEnter()
+    store.solidify()
+    await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS)
+    expect(putCloudSnapshot).not.toHaveBeenCalled()
+  })
+
+  test('failed plan persistence cannot advance the cloud clock', async () => {
+    const { store, controller, fetchCloudSnapshot } = setup()
+    controller.start()
+    const setItem = window.localStorage.setItem as ReturnType<typeof vi.fn>
+    const save = setItem.getMockImplementation()!
+    setItem.mockImplementation((key, value) => {
+      if (key === 'pk.plans') throw new Error('quota')
+      return save(key, value)
+    })
+    fetchCloudSnapshot.mockResolvedValue(makeSnapshot())
+    await controller.syncOnPageEnter()
+    expect(store.getSyncedAt()).toBe('')
+    expect(controller.isDirty()).toBe(true)
+  })
+
+  test('409 re-fetches cloud and suspends the stale upload', async () => {
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
+    controller.start()
+    fetchCloudSnapshot.mockResolvedValueOnce(makeSnapshot())
+    await controller.syncOnPageEnter()
+    store.setWeekView({ week: 2, useCurrent: false })
+    putCloudSnapshot.mockRejectedValue(new PkSyncError('conflict', 409, 'rejected'))
+    fetchCloudSnapshot.mockResolvedValue(makeSnapshot({ updatedAt: UPDATED_AT_2 }))
+    await vi.advanceTimersByTimeAsync(PK_SYNC_DEBOUNCE_MS)
+    expect(putCloudSnapshot.mock.calls[0][0].baseUpdatedAt).toBe(UPDATED_AT)
+    expect(controller.conflict.value?.updatedAt).toBe(UPDATED_AT_2)
+    controller.flushPendingUpload()
+    expect(putCloudSnapshot).toHaveBeenCalledTimes(1)
+  })
+
 })
