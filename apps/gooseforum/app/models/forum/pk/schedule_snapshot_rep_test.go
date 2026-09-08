@@ -1,6 +1,7 @@
 package pk
 
 import (
+	"errors"
 	"testing"
 
 	db "github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
@@ -36,7 +37,7 @@ func samplePlans() PlanList {
 // GET 在无行时返回 ErrScheduleSnapshotNotFound（控制器转为 data:null）。
 func TestScheduleSnapshotGetMissingReturnsNotFound(t *testing.T) {
 	setupScheduleSnapshotTest(t)
-	if _, err := GetScheduleSnapshotByUser(5301); err == nil || err != ErrScheduleSnapshotNotFound {
+	if _, err := GetScheduleSnapshotByUser(5301); err == nil || !errors.Is(err, ErrScheduleSnapshotNotFound) {
 		t.Fatalf("missing user error = %v, want ErrScheduleSnapshotNotFound", err)
 	}
 }
@@ -210,7 +211,7 @@ func TestScheduleSnapshotDeleteIsIdempotentAndScoped(t *testing.T) {
 	if err := DeleteScheduleSnapshotByUser(5305); err != nil {
 		t.Fatalf("idempotent delete: %v", err)
 	}
-	if _, err := GetScheduleSnapshotByUser(5305); err != ErrScheduleSnapshotNotFound {
+	if _, err := GetScheduleSnapshotByUser(5305); !errors.Is(err, ErrScheduleSnapshotNotFound) {
 		t.Fatalf("deleted user error = %v, want not found", err)
 	}
 	if _, err := GetScheduleSnapshotByUser(5306); err != nil {
