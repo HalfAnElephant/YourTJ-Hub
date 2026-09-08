@@ -1,4 +1,9 @@
 {
+  "myCourseReviewsTitle": "我的课评",
+  "myCourseReviewsEmpty": "还没有发布课评，去课程目录看看吧。",
+  "myCourseReviewHidden": "这条评价已被隐藏，可在此删除。",
+  "myCourseReviewUnavailable": "课程暂不可访问，你仍可管理自己的评价。",
+  "myCourseReviewOpen": "查看详情",
   "courseReviewNetworkError": "网络连接失败，请检查网络后重试，已保留你的评价。",
   "courseReviewUnknownError": "评价未能保存，服务端没有提供具体原因，请稍后重试。",
   "commonHideKeyboard": "收起键盘",

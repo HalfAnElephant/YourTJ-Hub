@@ -58,3 +58,5 @@ export 'src/api/repositories/content_repository.dart';
 export 'src/gen/post_revision.dart';
 
 export 'src/gen/wiki_search.dart';
+
+export 'src/gen/own_course_reviews.dart';

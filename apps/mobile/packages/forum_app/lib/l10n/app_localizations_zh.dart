@@ -9,6 +9,21 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get myCourseReviewsTitle => '我的课评';
+
+  @override
+  String get myCourseReviewsEmpty => '还没有发布课评，去课程目录看看吧。';
+
+  @override
+  String get myCourseReviewHidden => '这条评价已被隐藏，可在此删除。';
+
+  @override
+  String get myCourseReviewUnavailable => '课程暂不可访问，你仍可管理自己的评价。';
+
+  @override
+  String get myCourseReviewOpen => '查看详情';
+
+  @override
   String get courseReviewNetworkError => '网络连接失败，请检查网络后重试，已保留你的评价。';
 
   @override

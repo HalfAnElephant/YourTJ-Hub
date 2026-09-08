@@ -9,6 +9,24 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get myCourseReviewsTitle => 'My course reviews';
+
+  @override
+  String get myCourseReviewsEmpty =>
+      'No reviews yet. Explore the course catalog to get started.';
+
+  @override
+  String get myCourseReviewHidden =>
+      'This review is hidden. You can delete it here.';
+
+  @override
+  String get myCourseReviewUnavailable =>
+      'This course is unavailable. You can still manage your review.';
+
+  @override
+  String get myCourseReviewOpen => 'View details';
+
+  @override
   String get courseReviewNetworkError =>
       'Could not connect. Check your connection and retry; your review has been kept.';
 

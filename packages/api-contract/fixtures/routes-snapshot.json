@@ -197,6 +197,10 @@
   },
   {
     "method": "GET",
+    "path": "/api/forum/my-course-reviews"
+  },
+  {
+    "method": "GET",
     "path": "/api/forum/notifications"
   },
   {

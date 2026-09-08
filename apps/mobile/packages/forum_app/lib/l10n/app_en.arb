@@ -1,4 +1,9 @@
 {
+  "myCourseReviewsTitle": "My course reviews",
+  "myCourseReviewsEmpty": "No reviews yet. Explore the course catalog to get started.",
+  "myCourseReviewHidden": "This review is hidden. You can delete it here.",
+  "myCourseReviewUnavailable": "This course is unavailable. You can still manage your review.",
+  "myCourseReviewOpen": "View details",
   "courseReviewNetworkError": "Could not connect. Check your connection and retry; your review has been kept.",
   "courseReviewUnknownError": "Your review could not be saved. The server did not provide a specific reason; please retry later.",
   "commonHideKeyboard": "Hide keyboard",

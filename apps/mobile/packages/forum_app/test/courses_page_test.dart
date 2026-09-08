@@ -515,9 +515,11 @@ void main() {
       WidgetTester tester,
       FakeCourseRepository course, {
       int? focusOfferingId,
+      int? focusReviewId,
+      Size size = const Size(800, 3000),
     }) async {
       // 加高画布让整页一次构建，避免 ListView 懒加载影响断言。
-      tester.view.physicalSize = const Size(800, 3000);
+      tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -525,7 +527,11 @@ void main() {
       await tester.pumpWidget(
         _app(
           container,
-          CourseDetailPage(courseId: 42, focusOfferingId: focusOfferingId),
+          CourseDetailPage(
+            courseId: 42,
+            focusOfferingId: focusOfferingId,
+            focusReviewId: focusReviewId,
+          ),
         ),
       );
       await tester.pumpAndSettle();
@@ -675,6 +681,26 @@ void main() {
         ),
         contains('没有提供具体原因'),
       );
+    });
+
+    testWidgets('management deep link reveals the review at phone height', (
+      tester,
+    ) async {
+      final course = FakeCourseRepository(
+        _client(),
+        detailPayload: _detailPayload(),
+        reviewPayloads: [_reviewPayloads().last],
+      );
+      await pumpDetail(
+        tester,
+        course,
+        focusOfferingId: 902,
+        focusReviewId: 4,
+        size: const Size(390, 844),
+      );
+      expect(course.reviewCalls.first.offeringId, 902);
+      expect(find.text('很不错').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('own anonymous review precedes other reviews', (tester) async {

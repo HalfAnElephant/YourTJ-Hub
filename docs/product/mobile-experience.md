@@ -141,6 +141,11 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   bookmark and write-review actions stay in a bottom dock. Scores share a baseline with their
   five-point denominator. The signed-in user’s own reviews (including anonymous reviews) appear
   first across pagination; edit/delete controls remain on those rows.
+- `Current`: Profile includes a private My course reviews entry for paginated management across
+  courses, including anonymous reviews. Each visible review can be edited, deleted or opened at
+  its offering and review position. Hidden reviews remain listed for deletion, with no edit or
+  public-detail action; deleted reviews are omitted. Course detail and management share the same
+  editor and a rounded delete confirmation with the target review excerpt and explicit cancel.
 - `Current`: shared transient feedback appears in dismissible top banners above sheets, below
   the system safe area. Course review failures show localized server reasons and preserve the
   draft; success and error messages use the same surface with distinct semantic icons.

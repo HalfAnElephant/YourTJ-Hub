@@ -1,3 +1,4 @@
+import '../../gen/own_course_reviews.dart';
 import '../../gen/content_pages.dart';
 import '../../gen/course_catalog.dart';
 import '../../gen/course_review.dart';
@@ -7,7 +8,7 @@ import '../gf_api_client.dart';
 /// 课程目录/详情/课评域（`/api/forum/courses*`、`/api/forum/course-reviews*`）。
 ///
 /// forum 信封 `{code,result,messageCode,params}` 由 [GfApiClient.get/post]
-/// 统一解包；读操作公开（可选 JWT 个性化 viewer 态），写操作需登录。
+/// 统一解包；公开读操作可选 JWT 个性化 viewer 态；我的课评与写操作需登录。
 class CourseRepository {
   CourseRepository(this._client);
 
@@ -105,6 +106,20 @@ class CourseRepository {
     },
     parser: (json) =>
         ReviewListResult.fromJson(Map<String, dynamic>.from(json as Map)),
+  );
+
+  /// Private, session-scoped review management across all courses.
+  Future<OwnCourseReviewPage> ownReviews({
+    String cursor = '',
+    int pageSize = 20,
+  }) => _client.get<OwnCourseReviewPage>(
+    '$_base/my-course-reviews',
+    queryParameters: {
+      if (cursor.isNotEmpty) 'cursor': cursor,
+      'pageSize': pageSize,
+    },
+    parser: (json) =>
+        OwnCourseReviewPage.fromJson(Map<String, dynamic>.from(json as Map)),
   );
 
   /// 写课评。

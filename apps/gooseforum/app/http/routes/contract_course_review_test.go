@@ -76,6 +76,7 @@ func setupCourseReviewContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 	forumAPI := router.Group("/api/forum")
 	forumAPI.GET("courses/:courseId/reviews", middleware.JWTAuth, UpUriQueryReq(forum.ListCourseReviews))
 	forumLoginAPI := forumAPI.Use(middleware.JWTAuthCheck)
+	forumLoginAPI.GET("my-course-reviews", UpQueryReq(forum.OwnCourseReviews))
 	forumLoginAPI.POST("course-reviews", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitReviewWrite), UpJsonReq(forum.CreateCourseReview))
 	forumLoginAPI.PATCH("course-reviews/:reviewId", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitReviewWrite), UpUriJsonReq(forum.UpdateCourseReview))
 	forumLoginAPI.DELETE("course-reviews/:reviewId", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitReviewWrite), UpUriReq(forum.DeleteCourseReview))
@@ -1352,5 +1353,66 @@ func TestCourseReviewOwnerFirstHTTPContract(t *testing.T) {
 	}
 	if len(page.List) != 1 || page.List[0]["id"] != float64(2) {
 		t.Fatalf("lost next review: %+v", page)
+	}
+}
+
+func TestOwnCourseReviewsHTTPContract(t *testing.T) {
+	conn, router := setupCourseReviewContractTest(t)
+	seedCourseReviewCatalog(t, conn, 901)
+	alice := createHTTPContractUser(t, conn, contractTestID())
+	bob := createHTTPContractUser(t, conn, contractTestID())
+	// Different offerings allow multiple reviews by the same author.
+	if err := conn.Create(&course.OfferingEntity{Id: 902, CourseId: 42, TermId: 101, Status: course.OfferingStatusVisible}).Error; err != nil {
+		t.Fatal(err)
+	}
+	seedCourseReview(t, conn, 1, 901, alice.Id, intPtr(5), "my anonymous", true, "", course.ReviewStatusVisible)
+	seedCourseReview(t, conn, 2, 902, alice.Id, intPtr(4), "my hidden", true, "", course.ReviewStatusHidden)
+	seedCourseReview(t, conn, 3, 901, bob.Id, intPtr(5), "not mine", true, "", course.ReviewStatusVisible)
+	rec := serveAuthSecurityJSON(router, http.MethodGet, "/api/forum/my-course-reviews", "", "")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous status: %d", rec.Code)
+	}
+	token := contractSessionToken(t, alice)
+	rec = serveAuthSecurityJSON(router, http.MethodGet, fmt.Sprintf("/api/forum/my-course-reviews?pageSize=1&userId=%d", bob.Id), "", token)
+	var page courseservice.OwnReviewPage
+	if err := json.Unmarshal(decodeContractEnvelope(t, rec).Result, &page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.List) != 1 || page.List[0].Review.Id != 2 || page.List[0].Review.Viewer.CanEdit || !page.List[0].Review.Viewer.CanDelete || page.List[0].CanOpenCourse {
+		t.Fatalf("hidden owner page: %+v", page)
+	}
+	rec = serveAuthSecurityJSON(router, http.MethodGet, "/api/forum/my-course-reviews?pageSize=1&cursor="+page.NextCursor, "", token)
+	page = courseservice.OwnReviewPage{}
+	if err := json.Unmarshal(decodeContractEnvelope(t, rec).Result, &page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.List) != 1 || page.List[0].Review.Id != 1 || page.List[0].CourseId != 42 || !page.List[0].CanOpenCourse || page.NextCursor != "" {
+		t.Fatalf("owner next page: %+v", page)
+	}
+	// Private management retains reviews when their course is unavailable, but
+	// does not offer a public link that would return 404.
+	if err := conn.Model(&course.Entity{}).Where("id = ?", 42).Update("status", course.StatusHidden).Error; err != nil {
+		t.Fatal(err)
+	}
+	rec = serveAuthSecurityJSON(router, http.MethodGet, "/api/forum/my-course-reviews?cursor=2", "", token)
+	page = courseservice.OwnReviewPage{}
+	if err := json.Unmarshal(decodeContractEnvelope(t, rec).Result, &page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.List) != 1 || page.List[0].CanOpenCourse || page.List[0].CourseId != 42 {
+		t.Fatalf("unavailable course owner page: %+v", page)
+	}
+	for _, query := range []string{"cursor=garbage", "pageSize=51", "pageSize=0", "pageSize=-1"} {
+		rec = serveAuthSecurityJSON(router, http.MethodGet, "/api/forum/my-course-reviews?"+query, "", token)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("invalid query: %d", rec.Code)
+		}
+	}
+	if err := conn.Model(&course.ReviewEntity{}).Where("author_user_id = ?", alice.Id).Update("status", course.ReviewStatusDeleted).Error; err != nil {
+		t.Fatal(err)
+	}
+	rec = serveAuthSecurityJSON(router, http.MethodGet, "/api/forum/my-course-reviews", "", token)
+	if !strings.Contains(rec.Body.String(), `"list":[]`) {
+		t.Fatalf("deleted reviews remain: %s", rec.Body.String())
 	}
 }

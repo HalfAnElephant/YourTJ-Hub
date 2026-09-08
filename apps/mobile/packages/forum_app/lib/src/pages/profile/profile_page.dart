@@ -278,6 +278,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       child: Text(l10n.draftsTitle),
                     ),
                     PopupMenuItem(
+                      value: '/my-course-reviews',
+                      child: Text(l10n.myCourseReviewsTitle),
+                    ),
+                    PopupMenuItem(
                       value: '/my-content',
                       child: Text(l10n.profileContent),
                     ),
@@ -354,6 +358,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     SliverToBoxAdapter(
                       child: _profileCard(_headerProps ?? props),
                     ),
+                    if (props.isOwnProfile)
+                      SliverToBoxAdapter(
+                        child: ListTile(
+                          leading: GfSymbol(
+                            'star',
+                            color: GfTheme.colorsOf(context).primary,
+                          ),
+                          title: Text(l10n.myCourseReviewsTitle),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => context.push('/my-course-reviews'),
+                        ),
+                      ),
                     const SliverToBoxAdapter(child: GfDivider()),
                     if (tabs.isNotEmpty)
                       SliverLayoutBuilder(

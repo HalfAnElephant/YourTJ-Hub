@@ -764,3 +764,27 @@ func GetRatingDistributionsByCourseIds(courseIds []uint64) map[uint64]RatingDist
 	}
 	return ratingDistributionFromRows(rows)
 }
+
+// OwnedReviewRecord joins only course-domain metadata for the private management list.
+// Hidden reviews remain manageable; deleted reviews and detached authors are excluded.
+type OwnedReviewRecord struct {
+	ReviewEntity
+	CourseId      uint64
+	CourseName    string
+	CourseCode    string
+	CanOpenCourse bool
+}
+
+func ListOwnedReviews(userID, beforeID uint64, limit int) ([]OwnedReviewRecord, error) {
+	records := []OwnedReviewRecord{}
+	query := reviewBuilder().Table(reviewTableName+" r").
+		Select("r.*, COALESCE(c.id, 0) AS course_id, COALESCE(c.name, '') AS course_name, COALESCE(c.primary_code, '') AS course_code, CASE WHEN c.status = ? AND c.deleted_at IS NULL AND o.status = ? AND o.deleted_at IS NULL AND c.id IS NOT NULL THEN true ELSE false END AS can_open_course", StatusVisible, OfferingStatusVisible).
+		Joins("LEFT JOIN "+offeringTableName+" o ON o.id = r.offering_id").
+		Joins("LEFT JOIN "+tableName+" c ON c.id = o.course_id").
+		Where("r.author_user_id = ? AND r.status <> ? AND r.deleted_at IS NULL", userID, ReviewStatusDeleted)
+	if beforeID > 0 {
+		query = query.Where("r.id < ?", beforeID)
+	}
+	err := query.Order("r.id DESC").Limit(limit).Scan(&records).Error
+	return records, err
+}

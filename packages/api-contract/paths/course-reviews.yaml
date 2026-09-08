@@ -928,3 +928,58 @@ moderationCourseReviewReveal:
             examples:
               csrfRejected:
                 externalValue: ../fixtures/csrf-rejected.json
+
+listOwnCourseReviews:
+  get:
+    tags: [Forum]
+    summary: Manage the current user's course reviews across courses
+    operationId: listOwnCourseReviews
+    security:
+      - bearerAuth: []
+      - accessTokenCookie: []
+    description: |
+      Private session-scoped list, newest review ID first. Includes the caller's anonymous
+      and hidden reviews; excludes deleted reviews. No author selector is accepted.
+      Hidden reviews can be deleted but cannot be edited or opened publicly. Course metadata
+      remains available for management when the corresponding course is unavailable.
+    parameters:
+      - name: cursor
+        in: query
+        schema:
+          type: string
+          description: Opaque nextCursor from the previous page; omit for the first page.
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+    responses:
+      '200':
+        description: Private course review page; list is empty rather than null.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/OwnCourseReviewResponse
+            examples:
+              success:
+                externalValue: ../fixtures/own-course-reviews-success.json
+      '400':
+        description: Invalid cursor or page size.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+      '401':
+        description: A valid session is required.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+      '500':
+        description: Could not load the user's reviews.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure

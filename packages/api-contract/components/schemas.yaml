@@ -9187,3 +9187,43 @@ DirectImageUploadAbortResponse:
   oneOf:
     - $ref: '#/DirectImageUploadAbortSuccess'
     - $ref: '#/ApiFailure'
+
+OwnCourseReviewItem:
+  type: object
+  required: [review, courseId, courseName, courseCode, hidden, canOpenCourse]
+  properties:
+    review:
+      $ref: '#/ReviewPayload'
+    courseId:
+      type: integer
+      format: uint64
+    courseName:
+      type: string
+    courseCode:
+      type: string
+    hidden:
+      type: boolean
+    canOpenCourse:
+      type: boolean
+      description: False when the review, offering or course is unavailable publicly.
+  additionalProperties: false
+
+OwnCourseReviewResponse:
+  type: object
+  required: [code, result]
+  properties:
+    code:
+      type: integer
+      const: 0
+    result:
+      type: object
+      required: [list]
+      properties:
+        list:
+          type: array
+          items:
+            $ref: '#/OwnCourseReviewItem'
+        nextCursor:
+          type: string
+      additionalProperties: false
+  additionalProperties: false

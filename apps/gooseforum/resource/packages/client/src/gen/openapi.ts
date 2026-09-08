@@ -2195,6 +2195,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/forum/my-course-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Manage the current user's course reviews across courses
+         * @description Private session-scoped list, newest review ID first. Includes the caller's anonymous
+         *     and hidden reviews; excludes deleted reviews. No author selector is accepted.
+         *     Hidden reviews can be deleted but cannot be edited or opened publicly. Course metadata
+         *     remains available for management when the corresponding course is unavailable.
+         */
+        get: operations["listOwnCourseReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/forum/course-reviews": {
         parameters: {
             query?: never;
@@ -10351,6 +10374,24 @@ export interface components {
              */
             action: 1 | 2;
         };
+        OwnCourseReviewItem: {
+            review: components["schemas"]["ReviewPayload"];
+            /** Format: uint64 */
+            courseId: number;
+            courseName: string;
+            courseCode: string;
+            hidden: boolean;
+            /** @description False when the review, offering or course is unavailable publicly. */
+            canOpenCourse: boolean;
+        };
+        OwnCourseReviewResponse: {
+            /** @constant */
+            code: 0;
+            result: {
+                list: components["schemas"]["OwnCourseReviewItem"][];
+                nextCursor?: string;
+            };
+        };
         ModerationPostRevealRequest: {
             /** Format: uint64 */
             postId: number;
@@ -14332,6 +14373,56 @@ export interface operations {
                 };
             };
             /** @description Review listing failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    listOwnCourseReviews: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Private course review page; list is empty rather than null. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnCourseReviewResponse"];
+                };
+            };
+            /** @description Invalid cursor or page size. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description A valid session is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Could not load the user's reviews. */
             500: {
                 headers: {
                     [name: string]: unknown;
