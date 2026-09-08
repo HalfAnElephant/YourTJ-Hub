@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { MessageSquare, Pin, Sparkles, HelpCircle, BookOpen } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import { formatNumber, timeAgo } from '@/runtime/format'
+import {
+  activateTopicPreview,
+  deactivateTopicPreview,
+  registerTopicPreview,
+  unregisterTopicPreview,
+} from '@/runtime/topic-hover-preview'
 import { topicDescription } from '@/runtime/topic-description'
 import AvatarStack from '@/site/components/AvatarStack.vue'
 import TopicFeedPreview from '@/site/components/TopicFeedPreview.vue'
@@ -31,6 +37,7 @@ const EXPAND_DELAY = 800
 const COLLAPSE_DELAY = 200
 const rowEl = ref<HTMLElement | null>(null)
 const expanded = ref(false)
+const previewTransitionEnabled = ref(true)
 const popoverStyle = ref<{ top: string; left: string; width: string }>({ top: '0px', left: '0px', width: '0px' })
 let enterTimer: number | undefined
 let leaveTimer: number | undefined
@@ -39,13 +46,23 @@ function onRowEnter(event: MouseEvent) {
   // 移动端（<1024px）不启用 hover 弹层：触屏没有悬停语义，弹层易误触遮挡内容
   if (window.innerWidth < 1024) return
   window.clearTimeout(leaveTimer)
+  leaveTimer = undefined
   if (expanded.value) return
-  enterTimer = window.setTimeout(() => openPreview(event), EXPAND_DELAY)
+  window.clearTimeout(enterTimer)
+  enterTimer = window.setTimeout(() => {
+    enterTimer = undefined
+    openPreview(event)
+  }, EXPAND_DELAY)
 }
 
 function onRowLeave() {
   window.clearTimeout(enterTimer)
-  leaveTimer = window.setTimeout(closePreview, COLLAPSE_DELAY)
+  enterTimer = undefined
+  window.clearTimeout(leaveTimer)
+  leaveTimer = window.setTimeout(() => {
+    leaveTimer = undefined
+    closePreview()
+  }, COLLAPSE_DELAY)
 }
 
 function openPreview(event: MouseEvent) {
@@ -78,11 +95,25 @@ function openPreview(event: MouseEvent) {
     left: `${Math.round(left)}px`,
     width: `${width}px`,
   }
+  activateTopicPreview(closePreview, closePreviewImmediately)
   expanded.value = true
 }
 
 function closePreview() {
+  window.clearTimeout(enterTimer)
+  window.clearTimeout(leaveTimer)
+  enterTimer = undefined
+  leaveTimer = undefined
   expanded.value = false
+  deactivateTopicPreview(closePreview)
+}
+
+function closePreviewImmediately() {
+  previewTransitionEnabled.value = false
+  closePreview()
+  void nextTick(() => {
+    previewTransitionEnabled.value = true
+  })
 }
 
 // 弹层展开期间，滚动或缩放视口即关闭，避免卡片停留位置错位
@@ -96,9 +127,15 @@ watch(expanded, (isExpanded) => {
   }
 })
 
+onMounted(() => registerTopicPreview(closePreview))
+
+// 首页及其他列表页会被 KeepAlive 缓存，停用不会触发 onBeforeUnmount。
+// 显式关闭可避免 Teleport 弹层残留在 body，并取消尚未触发的打开计时器。
+onDeactivated(closePreview)
+
 onBeforeUnmount(() => {
-  window.clearTimeout(enterTimer)
-  window.clearTimeout(leaveTimer)
+  closePreview()
+  unregisterTopicPreview(closePreview)
   window.removeEventListener('scroll', closePreview)
   window.removeEventListener('resize', closePreview)
 })
@@ -180,7 +217,7 @@ onBeforeUnmount(() => {
     </div>
 
     <Teleport to="body">
-      <Transition name="preview-pop">
+      <Transition name="preview-pop" :css="previewTransitionEnabled">
         <div
           v-if="expanded"
           class="fixed z-50 overflow-hidden rounded-xl border border-line bg-base-100 shadow-xl shadow-black/10"

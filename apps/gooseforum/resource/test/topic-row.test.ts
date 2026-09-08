@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import TopicRow from '@/site/components/TopicRow.vue'
 import { i18n } from '../src/runtime/i18n'
 import type { TopicPayload } from '@gooseforum/client'
 
-function createMockTopic(contentType: 0 | 1 | 2 | 3): TopicPayload {
+function createMockTopic(contentType: 0 | 1 | 2 | 3, overrides: Partial<TopicPayload> = {}): TopicPayload {
   return {
     id: 100,
     title: '测试瞬间标题',
@@ -40,7 +40,12 @@ function createMockTopic(contentType: 0 | 1 | 2 | 3): TopicPayload {
     activityText: '10分钟前',
     lastUpdateTime: '2026-09-04T02:00:00Z',
     contentType,
+    ...overrides,
   }
+}
+
+function previewCards() {
+  return document.body.querySelectorAll('div.fixed.z-50')
 }
 
 describe('TopicRow.vue 列表行一致性验证', () => {
@@ -92,6 +97,67 @@ describe('TopicRow.vue 列表行一致性验证', () => {
 
       const avatarStacks = wrapper.findAllComponents({ name: 'AvatarStack' })
       expect(avatarStacks.length).toBe(2)
+    }
+  })
+
+  test('打开另一行预览时只保留最新的 Hover Card', async () => {
+    vi.useFakeTimers()
+    const first = mount(TopicRow, {
+      props: {
+        topic: createMockTopic(3, { id: 101, title: '第一篇文章', url: '/p/post/101' }),
+        home: true,
+      },
+      global: { plugins: [i18n] },
+    })
+    const second = mount(TopicRow, {
+      props: {
+        topic: createMockTopic(3, { id: 102, title: '第二篇文章', url: '/p/post/102' }),
+        home: true,
+      },
+      global: { plugins: [i18n] },
+    })
+
+    try {
+      await first.get('article').trigger('mouseenter', { clientX: 360 })
+      await vi.advanceTimersByTimeAsync(800)
+      expect(previewCards()).toHaveLength(1)
+
+      await second.get('article').trigger('mouseenter', { clientX: 420 })
+      await vi.advanceTimersByTimeAsync(800)
+
+      expect(previewCards()).toHaveLength(1)
+      expect(previewCards()[0]?.textContent).toContain('第二篇文章')
+    } finally {
+      first.unmount()
+      second.unmount()
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+  })
+
+  test('窗口失焦时关闭 Hover Card', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(TopicRow, {
+      props: {
+        topic: createMockTopic(3),
+        home: true,
+      },
+      global: { plugins: [i18n] },
+    })
+
+    try {
+      await wrapper.get('article').trigger('mouseenter', { clientX: 360 })
+      await vi.advanceTimersByTimeAsync(800)
+      expect(previewCards()).toHaveLength(1)
+
+      window.dispatchEvent(new Event('blur'))
+      await wrapper.vm.$nextTick()
+
+      expect(previewCards()).toHaveLength(0)
+    } finally {
+      wrapper.unmount()
+      vi.clearAllTimers()
+      vi.useRealTimers()
     }
   })
 })
