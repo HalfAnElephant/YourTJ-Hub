@@ -59,6 +59,28 @@ void main() {
       expect(adapter.requests.single.path, '/api/forum/topics/status');
     });
 
+    test(
+      'own course reviews sends session and pagination without author selector',
+      () async {
+        setupClient(initialToken: 'owner-token');
+        dio.httpClientAdapter = MockAdapter((request) async {
+          expect(request.path, '/api/forum/my-course-reviews');
+          expect(request.method, 'GET');
+          expect(request.headers['Authorization'], 'Bearer owner-token');
+          expect(request.queryParameters, {'cursor': '23', 'pageSize': 10});
+          return ResponseData(200, {
+            'code': 0,
+            'result': {'list': []},
+          });
+        });
+        final result = await CourseRepository(
+          client,
+        ).ownReviews(cursor: '23', pageSize: 10);
+        expect(result.list, isEmpty);
+        expect(result.nextCursor, isEmpty);
+      },
+    );
+
     test('无令牌时不带 Authorization 头', () async {
       setupClient();
       final adapter = MockAdapter((request) async {
@@ -467,29 +489,31 @@ void main() {
       );
     });
 
-    test('page-channel 404 非 error.index(如 JSON 错误体)降级为 ApiFailureException',
-        () async {
-      setupClient();
-      final adapter = MockAdapter((request) async {
-        return ResponseData(404, {
-          'error': 'not found',
-          'path': '/api/unknown',
+    test(
+      'page-channel 404 非 error.index(如 JSON 错误体)降级为 ApiFailureException',
+      () async {
+        setupClient();
+        final adapter = MockAdapter((request) async {
+          return ResponseData(404, {
+            'error': 'not found',
+            'path': '/api/unknown',
+          });
         });
-      });
-      dio.httpClientAdapter = adapter;
+        dio.httpClientAdapter = adapter;
 
-      // 后端已应答的 404 属于服务端错误(#143 语义):非 error.index 页面
-      // 不提升 messageCode,降级为无 messageCode 的 ApiFailureException,
-      // 不再是 NetworkException(后者仅限无 HTTP 状态码的传输层故障)。
-      await expectLater(
-        client.get<bool>('/api/unknown'),
-        throwsA(
-          isA<ApiFailureException>()
-              .having((e) => e.statusCode, 'statusCode', 404)
-              .having((e) => e.messageCode, 'messageCode', isNull),
-        ),
-      );
-    });
+        // 后端已应答的 404 属于服务端错误(#143 语义):非 error.index 页面
+        // 不提升 messageCode,降级为无 messageCode 的 ApiFailureException,
+        // 不再是 NetworkException(后者仅限无 HTTP 状态码的传输层故障)。
+        await expectLater(
+          client.get<bool>('/api/unknown'),
+          throwsA(
+            isA<ApiFailureException>()
+                .having((e) => e.statusCode, 'statusCode', 404)
+                .having((e) => e.messageCode, 'messageCode', isNull),
+          ),
+        );
+      },
+    );
   });
 
   group('repositories 请求体', () {

@@ -560,6 +560,18 @@ void main() {
     });
   });
 
+  test('private course reviews decode the shared contract fixture', () {
+    final response = _contractFixture('own-course-reviews-success.json');
+    final page = OwnCourseReviewPage.fromJson(
+      response['result'] as Map<String, dynamic>,
+    );
+    expect(page.list.single.courseId, 42);
+    expect(page.list.single.canOpenCourse, isTrue);
+    expect(page.list.single.review.viewer.canDelete, isTrue);
+    expect(page.nextCursor, '2');
+    expect(OwnCourseReviewPage.fromJson({'list': []}).nextCursor, isEmpty);
+  });
+
   group('GfResponse 响应包装', () {
     test('code == 0 成功', () {
       final response = GfResponse<int>.fromJson({

@@ -9,6 +9,35 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get myCourseReviewsTitle => 'Meine Kursbewertungen';
+
+  @override
+  String get myCourseReviewsEmpty =>
+      'Noch keine Bewertungen. Entdecke den Kurskatalog.';
+
+  @override
+  String get myCourseReviewHidden =>
+      'Diese Bewertung ist ausgeblendet. Du kannst sie hier löschen.';
+
+  @override
+  String get myCourseReviewUnavailable =>
+      'Dieser Kurs ist nicht verfügbar. Du kannst deine Bewertung weiterhin verwalten.';
+
+  @override
+  String get myCourseReviewOpen => 'Details ansehen';
+
+  @override
+  String get courseReviewNetworkError =>
+      'Verbindung fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen; deine Bewertung bleibt erhalten.';
+
+  @override
+  String get courseReviewUnknownError =>
+      'Die Bewertung konnte nicht gespeichert werden. Der Server hat keinen konkreten Grund angegeben. Bitte später erneut versuchen.';
+
+  @override
+  String get commonHideKeyboard => 'Tastatur ausblenden';
+
+  @override
   String get appTitle => 'YourTJ';
 
   @override

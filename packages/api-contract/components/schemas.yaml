@@ -1523,8 +1523,8 @@ ReviewListResult:
       type: string
       description: |
         Cursor for the next page, present only when more reviews exist.
-        Format is "offeringId:reviewId" of the last item of the current page
-        (course-level ordering is (offering_id DESC, id DESC)). Omit to stop paging.
+        Opaque position cursor including the ownership phase for personalized lists.
+        Pass it back unchanged. Legacy two-part cursors remain accepted. Omit to stop paging.
     total:
       type: integer
       format: int64
@@ -9187,3 +9187,43 @@ DirectImageUploadAbortResponse:
   oneOf:
     - $ref: '#/DirectImageUploadAbortSuccess'
     - $ref: '#/ApiFailure'
+
+OwnCourseReviewItem:
+  type: object
+  required: [review, courseId, courseName, courseCode, hidden, canOpenCourse]
+  properties:
+    review:
+      $ref: '#/ReviewPayload'
+    courseId:
+      type: integer
+      format: uint64
+    courseName:
+      type: string
+    courseCode:
+      type: string
+    hidden:
+      type: boolean
+    canOpenCourse:
+      type: boolean
+      description: False when the review, offering or course is unavailable publicly.
+  additionalProperties: false
+
+OwnCourseReviewResponse:
+  type: object
+  required: [code, result]
+  properties:
+    code:
+      type: integer
+      const: 0
+    result:
+      type: object
+      required: [list]
+      properties:
+        list:
+          type: array
+          items:
+            $ref: '#/OwnCourseReviewItem'
+        nextCursor:
+          type: string
+      additionalProperties: false
+  additionalProperties: false

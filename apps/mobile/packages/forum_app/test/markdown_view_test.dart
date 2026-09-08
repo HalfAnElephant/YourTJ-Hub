@@ -6,6 +6,30 @@ import 'package:ui_kit/ui_kit.dart';
 import 'package:forum_app/src/widgets/markdown_view.dart';
 
 void main() {
+  testWidgets('short replies have compact block spacing and readable text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: gfThemeData(Brightness.light),
+        home: const Scaffold(
+          body: Column(
+            children: [
+              GfMarkdownView(data: 'First paragraph\n\nSecond paragraph'),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getSize(find.byType(GfMarkdownView)).height,
+      lessThanOrEqualTo(64),
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 600));
+  });
+
   testWidgets('embedded markdown does not repeat device safe-area spacing', (
     tester,
   ) async {

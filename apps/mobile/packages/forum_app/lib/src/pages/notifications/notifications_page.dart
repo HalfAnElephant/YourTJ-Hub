@@ -5,6 +5,7 @@ import 'package:ui_kit/ui_kit.dart';
 
 import 'package:core/core.dart';
 import 'notification_text.dart';
+import '../../widgets/app_refresh_indicator.dart';
 import '../../server_messages.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -180,7 +181,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 threshold: 360,
                 showButton: false,
                 builder: (BuildContext context, ScrollController controller) {
-                  return RefreshIndicator(
+                  return AppRefreshIndicator(
+                    edgeOffset: top,
                     onRefresh: () => _load(silent: true),
                     child: _items.isEmpty
                         ? CustomScrollView(

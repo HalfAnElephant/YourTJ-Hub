@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Typography scale, mirroring the stable font conventions of the web
-/// design system (`apps/gooseforum/resource/src/styles/*.css`).
-///
-/// The web has no font-size tokens, but its conventions are stable:
-/// page titles 20–24/w700, list/card titles 15–16/w500-600, body 15
-/// leading-relaxed, excerpt 13, meta 12/11/10. [GfTypography] turns those
-/// conventions into one reusable scale; colors are applied by the caller
-/// (weak text uses `baseContent` with alpha, like web `base-content/55`).
+/// Mobile typography using the Web design system's hierarchy and weights.
+/// Body and secondary text are enlarged for handheld reading; tighter leading
+/// keeps feeds compact without shrinking the text or overriding system scaling.
 @immutable
 class GfTypography extends ThemeExtension<GfTypography> {
   const GfTypography({
@@ -39,20 +34,19 @@ class GfTypography extends ThemeExtension<GfTypography> {
   /// 16 / 24 / w700 — card / list titles (web `text-base font-semibold`).
   final TextStyle heading;
 
-  /// 15 / w400, line height 1.6 — body prose (web `text-[15px]
-  /// leading-relaxed`, adapted to 24 logical pixels).
+  /// 17 / w400, line height 1.4 — readable mobile prose in compact rows.
   final TextStyle body;
 
-  /// 15 / w600 — emphasized body (web `font-medium/semibold` on 15px rows).
+  /// 16 / w600 — emphasized body and author names.
   final TextStyle bodyStrong;
 
-  /// 14 / 22 — excerpts / secondary text (web `text-[13px]`).
+  /// 15 / 21 — excerpts / secondary text.
   final TextStyle small;
 
-  /// 12 — metadata (web `text-xs`).
+  /// 13 — metadata.
   final TextStyle caption;
 
-  /// 11 — compact meta / badges (web `text-[11px]`).
+  /// 12 — compact meta / badges.
   final TextStyle meta;
 
   /// 10 / w700 / tracking-wide — uppercase group labels (web
@@ -84,11 +78,11 @@ class GfTypography extends ThemeExtension<GfTypography> {
       title2: style(18, FontWeight.w700, height: 26 / 18),
       title3: style(17, FontWeight.w700, height: 1.3),
       heading: style(16, FontWeight.w700, height: 1.5),
-      body: style(15, FontWeight.w400, height: 1.6),
-      bodyStrong: style(15, FontWeight.w600, height: 1.4),
-      small: style(14, FontWeight.w400, height: 22 / 14),
-      caption: style(12, FontWeight.w400, height: 1.5),
-      meta: style(11, FontWeight.w500, height: 1.3),
+      body: style(17, FontWeight.w400, height: 1.4),
+      bodyStrong: style(16, FontWeight.w600, height: 1.4),
+      small: style(15, FontWeight.w400, height: 1.4),
+      caption: style(13, FontWeight.w400, height: 1.5),
+      meta: style(12, FontWeight.w500, height: 1.3),
       label: style(10, FontWeight.w700, height: 1.2, letterSpacing: 0.5),
     );
   }

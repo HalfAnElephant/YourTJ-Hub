@@ -9,6 +9,32 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get myCourseReviewsTitle => '自分の授業評価';
+
+  @override
+  String get myCourseReviewsEmpty => 'まだ評価がありません。科目一覧から探してみましょう。';
+
+  @override
+  String get myCourseReviewHidden => 'この評価は非表示です。ここで削除できます。';
+
+  @override
+  String get myCourseReviewUnavailable => 'この科目は現在表示できませんが、自分の評価は管理できます。';
+
+  @override
+  String get myCourseReviewOpen => '詳細を見る';
+
+  @override
+  String get courseReviewNetworkError =>
+      '接続できませんでした。通信環境を確認して再試行してください。評価内容は保持されています。';
+
+  @override
+  String get courseReviewUnknownError =>
+      '評価を保存できませんでした。サーバーから具体的な理由が返されませんでした。後でもう一度お試しください。';
+
+  @override
+  String get commonHideKeyboard => 'キーボードを閉じる';
+
+  @override
   String get appTitle => 'YourTJ';
 
   @override

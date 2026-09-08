@@ -102,6 +102,54 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @myCourseReviewsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My course reviews'**
+  String get myCourseReviewsTitle;
+
+  /// No description provided for @myCourseReviewsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviews yet. Explore the course catalog to get started.'**
+  String get myCourseReviewsEmpty;
+
+  /// No description provided for @myCourseReviewHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'This review is hidden. You can delete it here.'**
+  String get myCourseReviewHidden;
+
+  /// No description provided for @myCourseReviewUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This course is unavailable. You can still manage your review.'**
+  String get myCourseReviewUnavailable;
+
+  /// No description provided for @myCourseReviewOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get myCourseReviewOpen;
+
+  /// No description provided for @courseReviewNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect. Check your connection and retry; your review has been kept.'**
+  String get courseReviewNetworkError;
+
+  /// No description provided for @courseReviewUnknownError.
+  ///
+  /// In en, this message translates to:
+  /// **'Your review could not be saved. The server did not provide a specific reason; please retry later.'**
+  String get courseReviewUnknownError;
+
+  /// No description provided for @commonHideKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide keyboard'**
+  String get commonHideKeyboard;
+
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:

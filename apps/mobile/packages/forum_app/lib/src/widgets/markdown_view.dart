@@ -95,11 +95,15 @@ class _GfMarkdownViewState extends State<GfMarkdownView> {
       data: widget.data,
       selectable: widget.selectable,
       shrinkWrap: true,
+      markdownGenerator: MarkdownGenerator(
+        linesMargin: const EdgeInsets.symmetric(vertical: 3),
+      ),
       // Embedded in the page scroll view: never repeat its safe-area insets.
       padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       config: MarkdownConfig(
         configs: <WidgetConfig>[
+          PConfig(textStyle: GfTheme.typographyOf(context).body),
           // 图片:contain + 高度约束 + 圆角边框(prose.css img)。
           ImgConfig(
             builder: (String url, Map<String, String> attributes) {

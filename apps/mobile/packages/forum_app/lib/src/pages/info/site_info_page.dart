@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../asset_url.dart';
 import '../../providers.dart';
@@ -150,7 +151,7 @@ class _SiteInfoPageState extends ConsumerState<SiteInfoPage> {
         loading: () => const GfLoading(),
         error: (_, _) =>
             GfErrorRetry(message: l10n.commonLoadFailed, onRetry: _load),
-        data: (content) => RefreshIndicator(
+        data: (content) => AppRefreshIndicator(
           onRefresh: _load,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
