@@ -10247,6 +10247,10 @@ export interface components {
             viewCount: number;
             activityText: string;
             lastUpdateTime: string;
+            /** @description Authenticated viewer's like state; absent when unavailable. */
+            liked?: boolean;
+            /** @description Authenticated viewer's bookmark state; absent when unavailable. */
+            bookmarked?: boolean;
             /** @description Present only for authenticated viewers with unseen tracking. */
             unseen?: boolean;
         };

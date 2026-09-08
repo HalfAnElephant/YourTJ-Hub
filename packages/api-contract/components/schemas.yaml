@@ -871,6 +871,12 @@ TopicPayload:
       type: string
     lastUpdateTime:
       type: string
+    liked:
+      type: boolean
+      description: Authenticated viewer's like state; absent when unavailable.
+    bookmarked:
+      type: boolean
+      description: Authenticated viewer's bookmark state; absent when unavailable.
     unseen:
       type: boolean
       description: Present only for authenticated viewers with unseen tracking.

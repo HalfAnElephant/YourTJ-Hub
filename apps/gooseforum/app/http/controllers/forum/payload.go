@@ -291,6 +291,9 @@ type TopicPayload struct {
 	LastUpdateTime string                 `json:"lastUpdateTime"`
 	Unseen         bool                   `json:"unseen,omitempty"`
 	ContentType    int8                   `json:"contentType"`
+	// Nil means personal state is unavailable, never an assumed false value.
+	Liked      *bool `json:"liked,omitempty"`
+	Bookmarked *bool `json:"bookmarked,omitempty"`
 }
 
 type TopicAuthorPayload struct {
@@ -900,6 +903,20 @@ func buildTrackedTopicPayloads(userID uint64, topics []*vo.TopicsSimpleVo) []Top
 	payloads := buildTopicPayloads(topics)
 	if userID == 0 || len(payloads) == 0 {
 		return payloads
+	}
+	topicIDs := make([]uint64, 0, len(payloads))
+	for _, topic := range payloads {
+		topicIDs = append(topicIDs, topic.ID)
+	}
+	states, stateErr := topicUserAction.GetByTopicIDs(userID, topicIDs)
+	if stateErr != nil {
+		slog.Warn("resolve topic interaction state failed", "userId", userID, "error", stateErr)
+	} else {
+		for i := range payloads {
+			state := states[payloads[i].ID]
+			liked, bookmarked := state.LikedAt != nil, state.BookmarkedAt != nil
+			payloads[i].Liked, payloads[i].Bookmarked = &liked, &bookmarked
+		}
 	}
 	activities := make([]topicunseenservice.TopicActivity, 0, len(topics))
 	for _, topic := range topics {
