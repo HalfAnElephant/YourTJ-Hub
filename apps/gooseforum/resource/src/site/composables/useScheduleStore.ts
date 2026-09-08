@@ -302,7 +302,10 @@ function sanitizeCustomEvent(raw: unknown): PkCustomEvent {
   const input = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   return {
     id: typeof input.id === 'string' ? input.id : genId('evt'),
-    label: typeof input.label === 'string' ? input.label : '',
+    label:
+      typeof input.label === 'string' && input.label.trim()
+        ? input.label.trim()
+        : i18n.global.t('schedule.customEventDefaultLabel'),
     day: typeof input.day === 'number' && input.day >= 1 && input.day <= 7 ? input.day : 0,
     sections: [...new Set(ensureArray<number>(input.sections))]
       .filter((sec) => typeof sec === 'number' && sec >= 1 && sec <= 12)

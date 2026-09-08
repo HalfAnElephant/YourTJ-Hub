@@ -335,7 +335,7 @@ const hoverCardStyle = computed(() => {
 /** 课程无障碍描述（屏幕阅读器等辅助技术可用；杜绝原生 title 属性，避免触发浏览器黑色原生 tooltip 遮盖浮动预览面板）。 */
 function courseAriaLabel(course: PkCourseOnTable): string {
   const parts: string[] = [course.courseName || course.code]
-  if (course.code) parts.push(`(${course.code})`)
+  if (course.code && !isCustomEvent(course)) parts.push(`(${course.code})`)
   if (course.occupyRoom) parts.push(`地点: ${course.occupyRoom}`)
   if (teacherName(course)) parts.push(`教师: ${teacherName(course)}`)
   const weeks = formatDisplayWeeks(course.occupyWeek)
@@ -930,7 +930,10 @@ onBeforeUnmount(() => {
               <h4 class="font-bold text-sm text-base-content leading-snug">
                 {{ hoveredCourse.courseName || hoveredCourse.code }}
               </h4>
-              <div class="mt-0.5 flex items-center gap-1.5 text-[11px] text-base-content/60 font-mono">
+              <div
+                v-if="!isCustomEvent(hoveredCourse)"
+                class="mt-0.5 flex items-center gap-1.5 text-[11px] text-base-content/60 font-mono"
+              >
                 <span>{{ hoveredCourse.code }}</span>
                 <span v-if="creditOfCourse(hoveredCourse)">· {{ t('schedule.credit', { credit: creditOfCourse(hoveredCourse) }) }}</span>
               </div>
@@ -980,8 +983,11 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- 交互引导 -->
-          <div class="pt-1 text-[10px] text-base-content/50 flex items-center justify-between border-t border-line/40">
+          <!-- 交互引导：自定义占位不进入课程详情，不展示误导性的课评/替换提示 -->
+          <div
+            v-if="!isCustomEvent(hoveredCourse)"
+            class="pt-1 text-[10px] text-base-content/50 flex items-center justify-between border-t border-line/40"
+          >
             <span>{{ t('schedule.cardClickHint') }}</span>
           </div>
         </div>
