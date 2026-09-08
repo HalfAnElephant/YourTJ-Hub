@@ -24,6 +24,10 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   the text; a landscape image appears below the text with aspect-preserving fit. Portrait galleries
   show up to three columns; two landscape images share a row; larger landscape galleries overlap
   up to three previews with a total count. Tapping opens the full gallery with zoom.
+- `Current`: Home topic cards expose compact authenticated like and bookmark shortcuts beside the
+  reply/view metrics. A successful action updates its selected icon immediately; failed actions
+  preserve the previous state and show the localized error. The home summary does not claim a
+  like total or initial per-user state until the page contract provides those fields.
 - `Current`: simple-content topics show an uncropped, swipeable image gallery above the body. The
   same gallery is used in the publishing preview.
 - `Current`: root headers, filter rails and bottom navigation overlay the reading viewport. They

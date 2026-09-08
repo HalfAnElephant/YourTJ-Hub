@@ -20,6 +20,8 @@ class GfTopicList extends StatelessWidget {
     this.padding = EdgeInsets.zero,
     this.header,
     this.feedMode = GfTopicFeedMode.list,
+    this.onLikeTopic,
+    this.onBookmarkTopic,
     required this.hasMore,
     required this.onLoadMore,
   });
@@ -30,6 +32,8 @@ class GfTopicList extends StatelessWidget {
   final ScrollController? controller;
   final List<TopicPayload> topics;
   final GfTopicFeedMode feedMode;
+  final Future<bool> Function(TopicPayload topic, bool target)? onLikeTopic;
+  final Future<bool> Function(TopicPayload topic, bool target)? onBookmarkTopic;
   final bool hasMore;
   final VoidCallback onLoadMore;
 
@@ -82,7 +86,16 @@ class GfTopicList extends StatelessWidget {
         }
         final TopicPayload topic = topics[index];
         return feedMode == GfTopicFeedMode.card
-            ? _topicCard(context, topic)
+            ? _topicCard(
+                context,
+                topic,
+                onLike: onLikeTopic == null
+                    ? null
+                    : (target) => onLikeTopic!(topic, target),
+                onBookmark: onBookmarkTopic == null
+                    ? null
+                    : (target) => onBookmarkTopic!(topic, target),
+              )
             : _topicRow(context, topic, isLast: index == topics.length - 1);
       },
     );
@@ -125,7 +138,12 @@ Widget _topicRow(
   );
 }
 
-Widget _topicCard(BuildContext context, TopicPayload topic) {
+Widget _topicCard(
+  BuildContext context,
+  TopicPayload topic, {
+  Future<bool> Function(bool target)? onLike,
+  Future<bool> Function(bool target)? onBookmark,
+}) {
   final AppLocalizations l10n = AppLocalizations.of(context);
   final String nickname = topic.author.nickname?.trim() ?? '';
   final List<String> images = <String>[
@@ -137,6 +155,7 @@ Widget _topicCard(BuildContext context, TopicPayload topic) {
   }
 
   return GfTopicCard(
+    key: ValueKey<int>(topic.id),
     title: topic.title,
     description: topic.description,
     authorName: nickname.isNotEmpty ? nickname : topic.author.username,
@@ -155,6 +174,11 @@ Widget _topicCard(BuildContext context, TopicPayload topic) {
     ),
     replyCount: topic.replyCount,
     viewCount: topic.viewCount,
+    onLike: onLike,
+    onBookmark: onBookmark,
+    likeTooltip: l10n.topicLike,
+    bookmarkTooltip: l10n.topicBookmark,
+    bookmarkedTooltip: l10n.topicBookmarked,
     hot: topic.viewCount > 500,
     pinned: topic.pinWeight > 0,
     unseen: topic.unseen == true,

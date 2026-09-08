@@ -138,6 +138,40 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
+  Future<bool> _toggleTopicLike(TopicPayload topic, bool target) async {
+    try {
+      return await ref
+          .read(topicRepositoryProvider)
+          .likeTopic(topicId: topic.id, action: target ? 1 : 2);
+    } catch (error) {
+      if (mounted) {
+        showGfToast(
+          context,
+          resolveErrorMessage(AppLocalizations.of(context), error),
+          error: true,
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _toggleTopicBookmark(TopicPayload topic, bool target) async {
+    try {
+      return await ref
+          .read(topicRepositoryProvider)
+          .bookmarkTopic(topicId: topic.id, action: target ? 1 : 2);
+    } catch (error) {
+      if (mounted) {
+        showGfToast(
+          context,
+          resolveErrorMessage(AppLocalizations.of(context), error),
+          error: true,
+        );
+      }
+      return false;
+    }
+  }
+
   void _switchSort(String sort) {
     if (sort == _sort) return;
     _sort = sort;
@@ -186,6 +220,8 @@ class _HomePageState extends ConsumerState<HomePage> {
               loading: _loadingMore,
               topics: _topics,
               feedMode: _feedMode,
+              onLikeTopic: _toggleTopicLike,
+              onBookmarkTopic: _toggleTopicBookmark,
               hasMore: props.pagination.hasNext,
               onLoadMore: _loadMore,
             ),
