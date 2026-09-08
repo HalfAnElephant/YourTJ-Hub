@@ -74,14 +74,21 @@ class _GfTopicCardState extends State<GfTopicCard>
   late bool _bookmarked = widget.bookmarked;
   bool _likeBusy = false;
   bool _bookmarkBusy = false;
-  late final AnimationController _likeAnimation = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 720),
-  );
-  late final AnimationController _bookmarkAnimation = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 360),
-  );
+  late final AnimationController _likeAnimation;
+  late final AnimationController _bookmarkAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _likeAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 720),
+    );
+    _bookmarkAnimation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
+  }
 
   @override
   void dispose() {
