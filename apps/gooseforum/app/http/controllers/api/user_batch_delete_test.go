@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -189,7 +190,7 @@ func TestAccountCloseAnonymizeKeepsContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if _, err := pk.GetScheduleSnapshotByUser(userID); err != gorm.ErrRecordNotFound {
+		if _, err := pk.GetScheduleSnapshotByUser(userID); !errors.Is(err, gorm.ErrRecordNotFound) {
 			t.Errorf("closed user's cloud snapshot remains: %v", err)
 		}
 	})
@@ -232,7 +233,7 @@ func TestAccountCloseDeleteRemovesContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		if _, err := pk.GetScheduleSnapshotByUser(userID); err != gorm.ErrRecordNotFound {
+		if _, err := pk.GetScheduleSnapshotByUser(userID); !errors.Is(err, gorm.ErrRecordNotFound) {
 			t.Errorf("closed user's cloud snapshot remains: %v", err)
 		}
 	})
