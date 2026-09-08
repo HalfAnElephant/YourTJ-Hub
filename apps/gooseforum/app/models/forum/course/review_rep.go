@@ -379,6 +379,7 @@ func GetOfferingMapByIds(ids []uint64) map[uint64]OfferingEntity {
 
 // ReviewPageQuery cursor 分页查询条件。排序：course 级按
 // (offering_id DESC, id DESC)，offering 级按 id DESC（时间倒序）。
+// OwnerId 非零时优先本人；cursor 包含所在分组，不依赖游标行仍然存在。
 // Cursor 语义：返回 (offering_id, id) 严格小于 cursor 的可见评价
 // （位置游标——删除/隐藏行不影响后续页游标稳定性）。
 type ReviewPageQuery struct {
@@ -388,6 +389,8 @@ type ReviewPageQuery struct {
 	CursorOfferingId uint64   // cursor 中的 offering_id（offering 级时为 0）
 	CursorReviewId   uint64   // cursor 中的 review_id（无 cursor 时为 0）
 	Limit            int
+	OwnerId          uint64
+	CursorOwnReview  bool
 }
 
 // ListReviewsPage 按 cursor 分页列出可见评价（时间倒序）。
@@ -398,10 +401,6 @@ func ListReviewsPage(q ReviewPageQuery) (entities []ReviewEntity, err error) {
 		Where("deleted_at IS NULL")
 	if q.OfferingId > 0 {
 		build = build.Where(queryopt.Eq("offering_id", q.OfferingId))
-		if q.CursorReviewId > 0 {
-			build = build.Where("id < ?", q.CursorReviewId)
-		}
-		build = build.Order("id DESC")
 	} else {
 		// course 级：仅统计可见 offering——隐藏 offering 的评价不出现，
 		// 与 ListOfferingsByCourse/详情页可见性一致（PR #201 security F1）。
@@ -417,14 +416,34 @@ func ListReviewsPage(q ReviewPageQuery) (entities []ReviewEntity, err error) {
 				q.CourseId, OfferingStatusVisible,
 			)
 		}
-		if q.CursorOfferingId > 0 || q.CursorReviewId > 0 {
-			build = build.Where(
-				"(offering_id < ? OR (offering_id = ? AND id < ?))",
-				q.CursorOfferingId, q.CursorOfferingId, q.CursorReviewId,
-			)
-		}
-		build = build.Order("offering_id DESC, id DESC")
 	}
+	// Preserve the existing order within each ownership group. CASE treats
+	// legacy NULL author IDs as other authors on both PostgreSQL and SQLite.
+	if q.CursorReviewId > 0 || (q.OfferingId == 0 && q.CursorOfferingId > 0) {
+		position := "id < ?"
+		args := []any{q.CursorReviewId}
+		if q.OfferingId == 0 {
+			position = "(offering_id < ? OR (offering_id = ? AND id < ?))"
+			args = []any{q.CursorOfferingId, q.CursorOfferingId, q.CursorReviewId}
+		}
+		if q.OwnerId == 0 {
+			build = build.Where(position, args...)
+		} else if q.CursorOwnReview {
+			build = build.Where("(author_user_id IS NULL OR author_user_id <> ? OR ("+position+"))", append([]any{q.OwnerId}, args...)...)
+		} else {
+			build = build.Where("(author_user_id IS NULL OR author_user_id <> ?)", q.OwnerId).Where(position, args...)
+		}
+	}
+	order := "offering_id DESC, id DESC"
+	if q.OfferingId > 0 {
+		order = "id DESC"
+	}
+	if q.OwnerId > 0 {
+		build = build.Order(clause.OrderBy{Expression: clause.Expr{SQL: "CASE WHEN author_user_id = ? THEN 0 ELSE 1 END ASC, " + order, Vars: []any{q.OwnerId}}})
+	} else {
+		build = build.Order(order)
+	}
+
 	if q.Limit > 0 {
 		build = build.Limit(q.Limit)
 	}

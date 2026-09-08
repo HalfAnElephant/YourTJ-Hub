@@ -9,6 +9,14 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get courseReviewNetworkError =>
+      '接続できませんでした。通信環境を確認して再試行してください。評価内容は保持されています。';
+
+  @override
+  String get courseReviewUnknownError =>
+      '評価を保存できませんでした。サーバーから具体的な理由が返されませんでした。後でもう一度お試しください。';
+
+  @override
   String get commonHideKeyboard => 'キーボードを閉じる';
 
   @override

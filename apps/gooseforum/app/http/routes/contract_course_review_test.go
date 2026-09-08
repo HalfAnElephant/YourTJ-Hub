@@ -1319,3 +1319,38 @@ func TestCourseReviewPaginationOfferingStats(t *testing.T) {
 		}
 	}
 }
+
+func TestCourseReviewOwnerFirstHTTPContract(t *testing.T) {
+	conn, router := setupCourseReviewContractTest(t)
+	seedCourseReviewCatalog(t, conn, 901)
+	alice := createHTTPContractUser(t, conn, contractTestID())
+	token := contractSessionToken(t, alice)
+	seedCourseReview(t, conn, 1, 901, alice.Id, intPtr(5), "own anonymous", true, "", course.ReviewStatusVisible)
+	seedCourseReview(t, conn, 2, 901, alice.Id+1, intPtr(4), "other", true, "", course.ReviewStatusVisible)
+	first := serveAuthSecurityJSON(router, http.MethodGet, "/api/forum/courses/42/reviews?pageSize=1", "", token)
+	if first.Code != http.StatusOK {
+		t.Fatal(first.Body.String())
+	}
+	var page struct {
+		List       []map[string]any `json:"list"`
+		NextCursor string           `json:"nextCursor"`
+	}
+	if err := json.Unmarshal(decodeContractEnvelope(t, first).Result, &page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.List) != 1 || page.List[0]["id"] != float64(1) {
+		t.Fatalf("owner not first: %+v", page)
+	}
+	assertNoReviewIdentityKeys(t, page.List[0])
+	// A deleted cursor row must not change phase or hide the remaining reviews.
+	if err := conn.Where("id = ?", 1).Delete(&course.ReviewEntity{}).Error; err != nil {
+		t.Fatal(err)
+	}
+	second := serveAuthSecurityJSON(router, http.MethodGet, "/api/forum/courses/42/reviews?pageSize=1&cursor="+url.QueryEscape(page.NextCursor), "", token)
+	if err := json.Unmarshal(decodeContractEnvelope(t, second).Result, &page); err != nil {
+		t.Fatal(err)
+	}
+	if len(page.List) != 1 || page.List[0]["id"] != float64(2) {
+		t.Fatalf("lost next review: %+v", page)
+	}
+}

@@ -138,7 +138,12 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   the full [Web scheduler](https://f.yourtj.de/schedule) in the external browser without transferring
   the native credential. Plans are not official enrollment results.
 - `Current`: course details retain offering-specific five-star reviews and existing review fields;
-  bookmark and write-review actions stay in a bottom dock.
+  bookmark and write-review actions stay in a bottom dock. Scores share a baseline with their
+  five-point denominator. The signed-in user’s own reviews (including anonymous reviews) appear
+  first across pagination; edit/delete controls remain on those rows.
+- `Current`: shared transient feedback appears in dismissible top banners above sheets, below
+  the system safe area. Course review failures show localized server reasons and preserve the
+  draft; success and error messages use the same surface with distinct semantic icons.
 - `Current`: Wiki search uses the existing page-grouped search contract, debounces input, ignores
   stale results and opens paragraph anchors. Search unavailability has retry feedback. Reading
   keeps directory, Wiki search and GitHub edit actions in a bottom dock; GitHub remains the content

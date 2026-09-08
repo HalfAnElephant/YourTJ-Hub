@@ -7,6 +7,8 @@ import 'package:core/core.dart';
 import 'package:forum_app/l10n/app_localizations.dart';
 import 'package:forum_app/src/pages/courses/catalog_page.dart';
 import 'package:forum_app/src/pages/courses/detail_page.dart';
+import 'package:forum_app/src/pages/courses/course_common.dart';
+import 'package:forum_app/l10n/app_localizations_zh.dart';
 import 'package:forum_app/src/providers.dart';
 
 import 'fixtures/page_fixtures.dart';
@@ -72,6 +74,7 @@ class FakeCourseRepository extends CourseRepository {
   final Map<int, (List<CourseSummaryPayload>, bool)> listPages;
   final String summaryStatus;
   bool failBookmark;
+  Object? createError;
 
   final List<CourseRepoCall> listCalls = <CourseRepoCall>[];
   final List<CourseRepoCall> reviewCalls = <CourseRepoCall>[];
@@ -173,6 +176,7 @@ class FakeCourseRepository extends CourseRepository {
   @override
   Future<ReviewPayload> createReview(CreateCourseReviewInput input) async {
     createInputs.add(input);
+    if (createError != null) throw createError!;
     return ReviewPayload(
       id: 99,
       offeringId: input.offeringId,
@@ -641,6 +645,89 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
     });
 
+    testWidgets('rating stays on one line at phone width', (tester) async {
+      final course = FakeCourseRepository(
+        _client(),
+        detailPayload: _detailPayload().copyWith(ratingAvg: 4.9),
+      );
+      await pumpDetail(tester, course);
+      tester.view.physicalSize = const Size(390, 1200);
+      await tester.pumpAndSettle();
+      final score = find.byKey(const ValueKey('course-rating-score'));
+      expect(score, findsOneWidget);
+      expect(tester.widget<Text>(score).textSpan!.toPlainText(), '4.9 / 5.0');
+      expect(tester.getSize(score).height, lessThan(60));
+      expect(tester.takeException(), isNull);
+    });
+
+    test('review transport failures have an actionable localized reason', () {
+      expect(
+        courseReviewError(
+          AppLocalizationsZh(),
+          const NetworkException(fallbackMessage: 'SocketException'),
+        ),
+        contains('检查网络'),
+      );
+      expect(
+        courseReviewError(
+          AppLocalizationsZh(),
+          const ApiException(fallbackMessage: 'internal'),
+        ),
+        contains('没有提供具体原因'),
+      );
+    });
+
+    testWidgets('own anonymous review precedes other reviews', (tester) async {
+      final reviews = _reviewPayloads();
+      reviews[2] = reviews[2].copyWith(
+        author: const ReviewAuthorPayload(kind: 'anonymous', label: '匿名同学'),
+      );
+      final course = FakeCourseRepository(
+        _client(),
+        detailPayload: _detailPayload(),
+        reviewPayloads: reviews,
+      );
+      await pumpDetail(tester, course);
+      await tester.scrollUntilVisible(
+        find.text('很不错'),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(
+        tester.getTopLeft(find.text('很不错')).dy,
+        lessThan(tester.getTopLeft(find.text('好课')).dy),
+      );
+    });
+
+    testWidgets('review failure explains server reason above the open sheet', (
+      tester,
+    ) async {
+      final course =
+          FakeCourseRepository(_client(), detailPayload: _detailPayload())
+            ..createError = const ApiException(
+              messageCode: 'review.duplicate',
+              fallbackMessage: 'Duplicate',
+            );
+      await pumpDetail(tester, course);
+      await tester.tap(find.text('写课评'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(BottomSheet),
+              matching: find.byIcon(Icons.star_border),
+            )
+            .last,
+      );
+      await tester.enterText(find.byType(TextField).last, '保留这段评价');
+      await tester.tap(find.text('发布评价'));
+      await tester.pumpAndSettle();
+      expect(find.text('你已评价过该开课实例。'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('你已评价过该开课实例。')).dy, lessThan(160));
+      expect(find.text('保留这段评价'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 8));
+    });
+
     testWidgets('写课评成功前置插入列表', (tester) async {
       final FakeCourseRepository course = FakeCourseRepository(
         _client(),
@@ -681,7 +768,7 @@ void main() {
       );
       await pumpDetail(tester, course);
 
-      // 首行（id=1，helpfulCount=0）点「有用」→ 计数 1 且调用 on=true。
+      // 本人评价现在为首行（id=4，helpfulCount=2）。
       final Finder firstHelpfulChip = find.ancestor(
         of: find.text('有用').first,
         matching: find.byType(InkWell),
@@ -689,9 +776,9 @@ void main() {
       await tester.tap(find.text('有用').first);
       await tester.pumpAndSettle();
 
-      expect(course.helpfulCalls, <(int, bool)>[(1, true)]);
+      expect(course.helpfulCalls, <(int, bool)>[(4, true)]);
       expect(
-        find.descendant(of: firstHelpfulChip, matching: find.text('1')),
+        find.descendant(of: firstHelpfulChip, matching: find.text('3')),
         findsOneWidget,
       );
     });

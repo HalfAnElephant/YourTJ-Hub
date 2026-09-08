@@ -1,4 +1,6 @@
 {
+  "courseReviewNetworkError": "接続できませんでした。通信環境を確認して再試行してください。評価内容は保持されています。",
+  "courseReviewUnknownError": "評価を保存できませんでした。サーバーから具体的な理由が返されませんでした。後でもう一度お試しください。",
   "commonHideKeyboard": "キーボードを閉じる",
   "@@locale": "ja",
   "appTitle": "YourTJ",

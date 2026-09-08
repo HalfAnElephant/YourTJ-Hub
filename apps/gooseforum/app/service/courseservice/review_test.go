@@ -661,3 +661,59 @@ func TestListReviewsPageTeamScopeAggregation(t *testing.T) {
 		t.Fatalf("offering-filtered = total %d list %d, want 1/1 on offering %d", filtered.Total, len(filtered.List), aOffering)
 	}
 }
+
+func TestReviewsOwnerFirstAcrossPages(t *testing.T) {
+	courseID, offeringID := setupReviewTest(t)
+	own, err := CreateReview(7001, CreateReviewInput{OfferingId: offeringID, Rating: 5, Content: "my older anonymous review", IsAnonymous: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for user := uint64(7002); user < 7027; user++ {
+		if _, err := CreateReview(user, CreateReviewInput{OfferingId: offeringID, Rating: 4, Content: "newer review", IsAnonymous: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, filter := range []uint64{0, offeringID} {
+		cursor := ReviewCursor{}
+		seen := map[uint64]bool{}
+		for page := 0; page < 30; page++ {
+			result, err := ListReviewsPage(courseID, filter, 7001, cursor, 3)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if page == 0 && (len(result.List) == 0 || result.List[0].Id != own.Id) {
+				t.Fatalf("own review missing from first position: %+v", result.List)
+			}
+			for _, r := range result.List {
+				if seen[r.Id] {
+					t.Fatalf("duplicate review %d", r.Id)
+				}
+				seen[r.Id] = true
+			}
+			if result.NextCursor == "" {
+				break
+			}
+			cursor, err = DecodeCursor(result.NextCursor)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if len(seen) != 26 {
+			t.Fatalf("lost reviews: %d", len(seen))
+		}
+	}
+}
+
+func TestReviewCursorOwnershipPhase(t *testing.T) {
+	for _, raw := range []string{"1:2", "1:2:0", "1:2:1"} {
+		cursor, err := DecodeCursor(raw)
+		if err != nil || EncodeCursor(cursor) != raw {
+			t.Fatalf("cursor roundtrip %q: %+v %v", raw, cursor, err)
+		}
+	}
+	for _, raw := range []string{"1:2:3", "1:2:-1", "1:2:1:0", "x:2:1"} {
+		if _, err := DecodeCursor(raw); err == nil {
+			t.Fatalf("accepted malformed cursor %q", raw)
+		}
+	}
+}

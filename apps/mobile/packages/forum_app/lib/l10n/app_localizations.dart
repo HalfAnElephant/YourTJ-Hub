@@ -102,6 +102,18 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @courseReviewNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect. Check your connection and retry; your review has been kept.'**
+  String get courseReviewNetworkError;
+
+  /// No description provided for @courseReviewUnknownError.
+  ///
+  /// In en, this message translates to:
+  /// **'Your review could not be saved. The server did not provide a specific reason; please retry later.'**
+  String get courseReviewUnknownError;
+
   /// No description provided for @commonHideKeyboard.
   ///
   /// In en, this message translates to:

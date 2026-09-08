@@ -343,7 +343,9 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
       _toast(copy.reviewDeleted);
     } catch (e) {
       if (!mounted) return;
-      if (!_isUnauthorized(e)) _toast(copy.operationFailed, error: true);
+      if (!_isUnauthorized(e)) {
+        _toast(courseReviewError(AppLocalizations.of(context), e), error: true);
+      }
     }
   }
 
@@ -538,7 +540,10 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
         else if (_reviewsLoaded && _reviews.isEmpty)
           GfEmpty(icon: Icons.rate_review_outlined, message: l10n.reviewsEmpty)
         else if (_reviewsLoaded)
-          for (final ReviewPayload review in _reviews) ...<Widget>[
+          for (final ReviewPayload review in [
+            ..._reviews.where((review) => review.viewer.canEdit),
+            ..._reviews.where((review) => !review.viewer.canEdit),
+          ]) ...<Widget>[
             _ReviewRow(
               review: review,
               offeringLabel: _offeringLabel(detail, review.offeringId),
@@ -884,30 +889,25 @@ class _RatingSection extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-                // 均分大数字。
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: <Widget>[
-                        Icon(Icons.star, size: 22, color: colors.warning),
-                        const SizedBox(width: 4),
-                        Text(
-                          formatRating(avg),
-                          style: type.title1.copyWith(
-                            color: colors.baseContent,
-                          ),
+                // One text baseline for the score and denominator.
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: formatRating(avg),
+                        style: type.title1.copyWith(
+                          fontWeight: FontWeight.w700,
                         ),
-                      ],
-                    ),
-                    Text(
-                      copy.ratingOutOf,
-                      style: type.meta.copyWith(
-                        color: colors.baseContent.withValues(alpha: 0.45),
                       ),
-                    ),
-                  ],
+                      TextSpan(
+                        text: ' ${copy.ratingOutOf}',
+                        style: type.small.copyWith(
+                          color: colors.baseContent.withValues(alpha: .5),
+                        ),
+                      ),
+                    ],
+                  ),
+                  key: const ValueKey('course-rating-score'),
                 ),
                 const SizedBox(width: 20),
                 // 分布条 5★ → 1★。
@@ -959,7 +959,7 @@ class _DistributionRow extends StatelessWidget {
       child: Row(
         children: <Widget>[
           SizedBox(
-            width: 28,
+            width: 16 + MediaQuery.textScalerOf(context).scale(12),
             child: Row(
               children: <Widget>[
                 Icon(
@@ -2301,7 +2301,7 @@ class _ReviewFormSheetState extends State<_ReviewFormSheet> {
       if (!mounted) return;
       setState(() => _submitting = false);
       if (e is! UnauthorizedException) {
-        _toast(copy.operationFailed, error: true);
+        _toast(courseReviewError(AppLocalizations.of(context), e), error: true);
       }
     }
   }
@@ -2438,7 +2438,7 @@ class _ReviewFormSheetState extends State<_ReviewFormSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: GfButton(
-                    label: editing ? copy.submitSuccess : l10n.reviewSubmit,
+                    label: editing ? l10n.commonSave : l10n.reviewSubmit,
                     loading: _submitting,
                     onPressed: _submit,
                   ),

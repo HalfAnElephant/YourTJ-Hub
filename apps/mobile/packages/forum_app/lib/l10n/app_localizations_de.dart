@@ -9,6 +9,14 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get courseReviewNetworkError =>
+      'Verbindung fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen; deine Bewertung bleibt erhalten.';
+
+  @override
+  String get courseReviewUnknownError =>
+      'Die Bewertung konnte nicht gespeichert werden. Der Server hat keinen konkreten Grund angegeben. Bitte später erneut versuchen.';
+
+  @override
   String get commonHideKeyboard => 'Tastatur ausblenden';
 
   @override

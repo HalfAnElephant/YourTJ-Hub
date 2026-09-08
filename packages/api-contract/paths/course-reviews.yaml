@@ -6,7 +6,8 @@ listCourseReviews:
     operationId: listCourseReviews
     description: |
       Public read endpoint. An optional valid JWT (cookie or Bearer) only personalizes the
-      `viewer` state (canEdit/canDelete/isHelpful); anonymous callers receive the same reviews
+      `viewer` state (canEdit/canDelete/isHelpful) and places the caller's own reviews first,
+      preserving newest-first ordering within each ownership group. Anonymous callers receive the same reviews
       with viewer flags false. Review payloads never contain author identity fields
       (userId/username/avatar): anonymous and legacy reviews expose only a kind/label pair.
     parameters:
@@ -30,7 +31,8 @@ listCourseReviews:
           type: string
           description: |
             Pagination cursor returned as nextCursor in the previous response
-            (format "offeringId:reviewId"). Omit for the first page.
+            (opaque: return unchanged). Omit for the first page. Personalized cursors include
+            the ownership phase; legacy two-part cursors retain their original ordering.
       - name: pageSize
         in: query
         schema:
@@ -41,7 +43,7 @@ listCourseReviews:
           description: Page size (default 20, max 50).
     responses:
       '200':
-        description: Visible reviews ordered newest first.
+        description: Visible reviews with the authenticated caller's reviews first, newest first within each group.
         content:
           application/json:
             schema:
@@ -49,6 +51,8 @@ listCourseReviews:
             examples:
               success:
                 externalValue: ../fixtures/course-reviews-list-success.json
+              ownerFirst:
+                externalValue: ../fixtures/course-reviews-owner-page-success.json
       '400':
         description: Malformed course id or query parameters.
         content:

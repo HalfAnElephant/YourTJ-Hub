@@ -9,6 +9,12 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get courseReviewNetworkError => '网络连接失败，请检查网络后重试，已保留你的评价。';
+
+  @override
+  String get courseReviewUnknownError => '评价未能保存，服务端没有提供具体原因，请稍后重试。';
+
+  @override
   String get commonHideKeyboard => '收起键盘';
 
   @override

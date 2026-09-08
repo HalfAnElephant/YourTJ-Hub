@@ -2181,7 +2181,8 @@ export interface paths {
         /**
          * List visible course reviews for a course or a single offering
          * @description Public read endpoint. An optional valid JWT (cookie or Bearer) only personalizes the
-         *     `viewer` state (canEdit/canDelete/isHelpful); anonymous callers receive the same reviews
+         *     `viewer` state (canEdit/canDelete/isHelpful) and places the caller's own reviews first,
+         *     preserving newest-first ordering within each ownership group. Anonymous callers receive the same reviews
          *     with viewer flags false. Review payloads never contain author identity fields
          *     (userId/username/avatar): anonymous and legacy reviews expose only a kind/label pair.
          */
@@ -7224,8 +7225,8 @@ export interface components {
             list: components["schemas"]["ReviewPayload"][];
             /**
              * @description Cursor for the next page, present only when more reviews exist.
-             *     Format is "offeringId:reviewId" of the last item of the current page
-             *     (course-level ordering is (offering_id DESC, id DESC)). Omit to stop paging.
+             *     Opaque position cursor including the ownership phase for personalized lists.
+             *     Pass it back unchanged. Legacy two-part cursors remain accepted. Omit to stop paging.
              */
             nextCursor?: string;
             /**
@@ -14299,7 +14300,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Visible reviews ordered newest first. */
+            /** @description Visible reviews with the authenticated caller's reviews first, newest first within each group. */
             200: {
                 headers: {
                     [name: string]: unknown;
