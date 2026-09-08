@@ -73,7 +73,10 @@ const subtitle = computed(() => {
   return t('auth.loginSubtitle')
 })
 
-const showSocial = computed(() => mode.value !== 'forgot')
+// 忘记密码页与 oauthNotice 注册引导页不展示第三方登录入口：后者是被 OAuth
+// 回调按 #531 明确送来密码注册的身份，再点 GitHub/Google 会原样回到本页
+// （PR #552 review P2：避免「按提示注册，却再次回到同一页」的可见循环）。
+const showSocial = computed(() => mode.value !== 'forgot' && !(page.props.oauthNotice && mode.value === 'register'))
 // 仅允许站内相对路径跳转，拒绝 javascript:、//host 及任何含反斜杠的值
 // （浏览器会将 \ 归一化为 /，/\evil.com 会被解析为跨域地址，服务端已同步校验）
 const homeUrl = computed(() => {

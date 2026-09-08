@@ -8,8 +8,10 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	db "github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/sessionstore"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pageConfig"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userOAuth"
@@ -391,5 +393,70 @@ func TestOAuthCallbackLoginPendingUserIssuesSession(t *testing.T) {
 	}
 	if count := countSessions(t, user.Id); count != 1 {
 		t.Fatalf("pending user session rows = %d, want 1", count)
+	}
+}
+
+// seedOIDCResumeCookie 按 oauthservice/oidc_resume.go 的会话契约伪造续跳
+// cookie（cookie 名与 session 键为 oauthservice 侧同构测试覆盖的浏览器契约，
+// controller 测试只关心 CompleteOAuthUserAuth 恢复出 continuation 的语义）。
+func seedOIDCResumeCookie(t *testing.T, provider, state, target string) *http.Cookie {
+	t.Helper()
+	start := httptest.NewRequest(http.MethodGet, "/api/auth/"+provider+"?provider="+provider, nil)
+	session, err := sessionstore.GetSession().New(start, "yourtj_oauth_resume")
+	if err != nil {
+		t.Fatalf("new resume session: %v", err)
+	}
+	session.Values["state"] = state
+	session.Values["provider"] = provider
+	session.Values["target"] = target
+	session.Values["expires"] = time.Now().Add(10 * time.Minute).Unix()
+	recorder := httptest.NewRecorder()
+	if err := session.Save(start, recorder); err != nil {
+		t.Fatalf("save resume session: %v", err)
+	}
+	return recorder.Result().Cookies()[0]
+}
+
+// TestOAuthCallbackLoginWithoutLocalAccountKeepsOIDCContinuation（PR #552 review P1）：
+// 经内置 OIDC 桥接进来的纯新号，CompleteOAuthUserAuth 已从签名 cookie 恢复出
+// /api/oauth/authorize/callback?id=… 续跳目标；provider 回调查询串只有 state/code，
+// 注册跳转必须携带 continuation（注册完成回到桥接回调，移动端才能拿到授权码），
+// 而不是读 callback 查询串的 redirect（实际流程里不存在而丢失续跳）。
+func TestOAuthCallbackLoginWithoutLocalAccountKeepsOIDCContinuation(t *testing.T) {
+	setupOAuthCallbackTestDB(t)
+
+	stubGothUser(t, goth.User{
+		Provider: oauthservice.ProviderGoogle,
+		UserID:   "google-bridge",
+		NickName: "bridgenew",
+		Email:    "bridgenew@gmail.com",
+		RawData:  map[string]any{"verified_email": true},
+	})
+
+	const bridgeTarget = "/api/oauth/authorize/callback?id=reg-1"
+	const state = "resume-state-1"
+	cookie := seedOIDCResumeCookie(t, oauthservice.ProviderGoogle, state, bridgeTarget)
+
+	recorder, c := oauthCallbackRequest(t)
+	c.Params = gin.Params{{Key: "provider", Value: oauthservice.ProviderGoogle}}
+	c.Request.URL.RawQuery = "provider=google&state=" + url.QueryEscape(state)
+	c.Request.AddCookie(cookie)
+	ProviderCallback(c)
+
+	if recorder.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302 (body: %s)", recorder.Code, recorder.Body.String())
+	}
+	loc := recorder.Header().Get("Location")
+	if !strings.HasPrefix(loc, "/login?register=true&oauthNotice=1") {
+		t.Fatalf("redirect location = %q, want /login?register=true&oauthNotice=1 prefix", loc)
+	}
+	if !strings.Contains(loc, "redirect="+url.QueryEscape(bridgeTarget)) {
+		t.Fatalf("OIDC continuation lost in registration redirect: %q", loc)
+	}
+	if hasAccessTokenCookie(recorder) {
+		t.Fatal("no-local-account callback must not set access_token cookie")
+	}
+	if users.ExistUsername("bridgenew") {
+		t.Fatal("OAuth callback created an account")
 	}
 }

@@ -113,14 +113,14 @@ included in the URL, page body or JavaScript. See [mobile experience](mobile-exp
   refresh path, so the admin console cannot lock itself out; ordinary pending users are left
   untouched and must still complete the activation email.
 - Username/nickname policy: `reservedUsernames` / `bannedUsernames` are enforced at
-  registration/rename and at OAuth/Agent account creation with **normalized whole-string
+  password registration/rename and at Agent account creation with **normalized whole-string
   equality** (case folding, NFKC full-width, zero-width stripping, ASCII leetspeak folding):
   `Admin`, `ａｄｍｉｎ`, `adm1n` all collide with a reserved `admin` while `myadmin` does not.
   Nicknames edited through the profile share the same lists and equality rule. Reserved entries
   only block new/renamed accounts and never freeze existing ones; banned entries additionally
-  freeze matching existing accounts (idempotent) when first added by an admin. GitHub OAuth
-  auto-provision backs a matching login off to `<name>_<n>` and re-checks every backoff candidate
-  against both lists; Agent creation rejects reserved/banned usernames outright. Course reviews
+  freeze matching existing accounts (idempotent) when first added by an admin. Agent creation
+  rejects reserved/banned usernames outright; OAuth never provisions accounts (issue #531),
+  so the former GitHub username backoff has no remaining caller. Course reviews
   and profile free text (bio/signature/website/websiteName) are scanned against `sensitiveWords`
   (normalized substring scan, block action with a dedicated `course.review.sensitiveBlocked`
   message for reviews). Built-in defaults ship with an empty banned list and a curated
@@ -163,10 +163,13 @@ included in the URL, page body or JavaScript. See [mobile experience](mobile-exp
   generated TS types, and the Dart mirror shipped in the same change.
 - Email change: `Current` for password accounts; the current password is verified before any write,
   the old address receives a notification, and password reset is suppressed for 24 hours after the
-  change. OAuth-only self-service email change is `Partial`: the API and Web/Mobile clients return a
-  dedicated re-authentication-required message that now points at
-  `POST /api/set-password` (issue #530) as the self-service recovery path for
-  email-less OAuth accounts; administrators retain the console command for recovery.
+  change. OAuth-only self-service email change is `Partial`: the API and the Web client return
+  a dedicated re-authentication-required message pointing at `POST /api/set-password`
+  (issue #530), and the Web settings page offers that recovery branch through the
+  `canSetPassword` prop. The mobile settings flow does not yet expose set-password (its
+  change-password form still requires the old password), so email-less OAuth users on mobile
+  need the Web settings page or an administrator; administrators retain the console command
+  for recovery.
 - Ban/freeze: the forum `users.is_frozen` flag is authoritative; the OIDC userinfo endpoint and
   exchange path reject frozen accounts.
 - Content deletion/export: `Current` for the implemented forum and admin flows. Users can list,
