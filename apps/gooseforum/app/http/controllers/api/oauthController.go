@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/jwtopt"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
@@ -11,6 +12,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/users"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/oauthservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/sessionservice"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/urlconfig"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/userservice"
 	"github.com/gin-gonic/gin"
 )
@@ -75,9 +77,17 @@ func ProviderCallback(c *gin.Context) {
 				forum.RenderOAuthErrorPage(c, http.StatusForbidden, component.MessageOAuthAccountFrozen)
 				return
 			}
-			if errors.Is(err, oauthservice.ErrOAuthEmailUnverified) {
-				slog.Warn("OAuth callback rejected unverified email", "provider", gothUser.Provider)
-				forum.RenderOAuthErrorPage(c, http.StatusForbidden, component.MessageAuthEmailUnverified)
+			if errors.Is(err, oauthservice.ErrOAuthNoLocalAccount) {
+				// 纯新号（issue #531）：OAuth 回调不再建号，注册统一走
+				// /api/register（allowedDomains 白名单在注册单点把关）。
+				// 302 回注册页并携带提示参数；redirect 参数经安全校验后
+				// 透传，不安全值静默丢弃（与登录页 props 同规则）。
+				target := urlconfig.Register() + "?register=true&oauthNotice=1"
+				if redirect := c.Query("redirect"); forum.IsSafeRedirect(redirect) {
+					target += "&redirect=" + url.QueryEscape(redirect)
+				}
+				slog.Info("OAuth callback without local account, redirecting to register", "provider", gothUser.Provider)
+				c.Redirect(http.StatusFound, target)
 				return
 			}
 			slog.Error("Process OAuth callback failed", "error", err)

@@ -226,6 +226,7 @@
 | POST | `/api/register` | `register` |
 | POST | `/api/resend-activation-email` | `resendActivationEmail` |
 | POST | `/api/reset-password` | `resetPassword` |
+| POST | `/api/set-password` | `setPassword` |
 | POST | `/api/set-preset-avatar` | `setPresetAvatar` |
 | POST | `/api/set-user-email` | `setUserEmail` |
 | POST | `/api/set-user-info` | `setUserInfo` |

@@ -126,6 +126,9 @@ type LoginPageProps struct {
 	TermsOfServiceEnabled bool     `json:"termsOfServiceEnabled"`
 	PrivacyPolicyEnabled  bool     `json:"privacyPolicyEnabled"`
 	AllowedDomains        []string `json:"allowedDomains"`
+	// OAuthNotice 标记本次到达注册页来自 OAuth 回调（纯新号改道，issue #531），
+	// 前端在注册表单上方渲染「先注册、后绑定」提示。
+	OAuthNotice bool `json:"oauthNotice"`
 }
 
 type ResetPasswordPageProps struct {
@@ -577,6 +580,10 @@ type SettingsPageProps struct {
 	Stats            SettingsStatsPayload `json:"stats"`
 	Tabs             []TabPayload         `json:"tabs"`
 	GoogleOAuthReady bool                 `json:"googleOAuthReady"`
+	// CanSetPassword 标记当前用户可走 set-password 首次设密（issue #530：
+	// 无邮箱 OAuth 绑定账号）。服务端按同一资格门禁计算，前端据此切换
+	// 「设置密码 / 修改密码」表单，不向前端暴露密码状态。
+	CanSetPassword bool `json:"canSetPassword"`
 }
 
 type SettingsStatsPayload struct {
@@ -923,9 +930,10 @@ func buildTrackedTopicPayloads(userID uint64, topics []*vo.TopicsSimpleVo) []Top
 	return payloads
 }
 
-// isSafeRedirect 仅允许站内相对路径，拒绝 javascript:、//host、\host、/\host 等危险值。
+// IsSafeRedirect 仅允许站内相对路径，拒绝 javascript:、//host、\host、/\host 等危险值。
 // 浏览器按 WHATWG URL 规范会把 \ 归一化为 /，因此路径中任何位置的反斜杠都要拦截。
-func isSafeRedirect(value string) bool {
+// 导出供 api 层 OAuth 回调透传 redirect 复用（issue #531，与登录页 props 同规则）。
+func IsSafeRedirect(value string) bool {
 	if value == "" {
 		return false
 	}
@@ -947,7 +955,7 @@ func buildLoginPageProps(c *gin.Context) LoginPageProps {
 		mode = "register"
 	}
 	redirectURL := c.Query("redirect")
-	if !isSafeRedirect(redirectURL) {
+	if !IsSafeRedirect(redirectURL) {
 		redirectURL = ""
 	}
 	githubURL := "/api/auth/github"
@@ -965,6 +973,7 @@ func buildLoginPageProps(c *gin.Context) LoginPageProps {
 		TermsOfServiceEnabled: hotdataserve.GetTermsOfServiceConfigCache().Enabled,
 		PrivacyPolicyEnabled:  hotdataserve.GetPrivacyPolicyConfigCache().Enabled,
 		AllowedDomains:        hotdataserve.GetSecuritySettingsConfigCache().AllowedDomains,
+		OAuthNotice:           c.Query("oauthNotice") == "1",
 	}
 }
 
@@ -2690,6 +2699,9 @@ func buildSettingsPageProps(user users.EntityComplete) SettingsPageProps {
 	return SettingsPageProps{
 		User:             transform.User2UserDetailedVo(user),
 		GoogleOAuthReady: oauthservice.IsGoogleOAuthReady(),
+		// 与 SetPassword 控制器同门禁（issue #530）：无邮箱 + 有 OAuth 绑定
+		// + 非 bot 才能免旧密码设密。
+		CanSetPassword: !user.IsBot() && user.Email == "" && oauthservice.HasOAuthBinding(user.Id),
 		Stats: SettingsStatsPayload{
 			TopicCount:        stats.TopicCount,
 			ReplyCount:        stats.ReplyCount,

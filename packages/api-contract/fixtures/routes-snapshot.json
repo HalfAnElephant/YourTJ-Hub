@@ -1089,6 +1089,10 @@
   },
   {
     "method": "POST",
+    "path": "/api/set-password"
+  },
+  {
+    "method": "POST",
     "path": "/api/set-preset-avatar"
   },
   {

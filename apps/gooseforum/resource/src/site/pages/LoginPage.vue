@@ -335,6 +335,7 @@ function onToggleTheme() {
 
           <p v-if="error" class="gf-status-message gf-status-message-error mb-4">{{ error }}</p>
           <p v-if="notice" class="gf-status-message gf-status-message-success mb-4">{{ notice }}</p>
+          <p v-if="page.props.oauthNotice && mode === 'register'" class="gf-status-message gf-status-message-info mb-4">{{ t('auth.oauthNoAccount') }}</p>
 
           <form v-if="mode === 'login' && twoFactorPending" class="space-y-3" @submit.prevent="handleTotpVerify">
             <div class="flex items-center gap-2 text-sm font-semibold text-base-content">

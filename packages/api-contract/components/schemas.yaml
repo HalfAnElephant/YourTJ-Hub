@@ -4331,6 +4331,35 @@ ChangePasswordResponse:
     - $ref: '#/ChangePasswordSuccess'
     - $ref: '#/ApiFailure'
 
+SetPasswordRequest:
+  type: object
+  required: [newPassword]
+  properties:
+    newPassword:
+      type: string
+      minLength: 1
+      description: 6-64 characters containing at least one letter and one digit; violations fail with `auth.password.tooShort` (params minLength) / `auth.password.tooLong` / `auth.password.needsLetterNumber` (HTTP 200).
+  additionalProperties: false
+
+SetPasswordSuccess:
+  allOf:
+    - $ref: '#/ApiSuccess'
+    - type: object
+      required: [result, messageCode]
+      properties:
+        result:
+          type: string
+          const: 密码设置成功，请使用新密码重新登录
+          description: Human-readable success message; messageCode is the stable identifier.
+        messageCode:
+          type: string
+          const: auth.password.updateSuccess
+
+SetPasswordResponse:
+  oneOf:
+    - $ref: '#/SetPasswordSuccess'
+    - $ref: '#/ApiFailure'
+
 OAuthBinding:
   oneOf:
     - type: object

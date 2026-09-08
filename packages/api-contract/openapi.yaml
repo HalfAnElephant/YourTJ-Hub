@@ -145,6 +145,8 @@ paths:
     $ref: ./paths/user-account.yaml#/uploadAvatar
   /api/change-password:
     $ref: ./paths/user-account.yaml#/changePassword
+  /api/set-password:
+    $ref: ./paths/user-account.yaml#/setPassword
   /api/oauth/bindings:
     $ref: ./paths/user-account.yaml#/getOAuthBindings
   /api/auth/{provider}/unbind:
@@ -800,6 +802,12 @@ components:
       $ref: ./components/schemas.yaml#/ChangePasswordSuccess
     ChangePasswordResponse:
       $ref: ./components/schemas.yaml#/ChangePasswordResponse
+    SetPasswordRequest:
+      $ref: ./components/schemas.yaml#/SetPasswordRequest
+    SetPasswordSuccess:
+      $ref: ./components/schemas.yaml#/SetPasswordSuccess
+    SetPasswordResponse:
+      $ref: ./components/schemas.yaml#/SetPasswordResponse
     OAuthBinding:
       $ref: ./components/schemas.yaml#/OAuthBinding
     OAuthBindingsResult:
