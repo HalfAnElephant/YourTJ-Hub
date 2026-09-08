@@ -1,21 +1,10 @@
-// 排课方案云端同步控制器（issue #537，web 同规则）。
-//
-// 职责边界：store 只负责本地状态与持久化（pk.* 键 + pk.syncedAt），
-// 本文件负责传输编排——进页拉取对账、冲突上抛（页面弹窗二选一）、
-// 本地变更防抖上行、失败分类（400 停本轮 / 401 停至下次进页 / 网络错误
-// 保持 dirty 重试）与登出零请求。传输走 [PkPlansTransport] 抽象，
-// 测试注入 fake；生产实现桥接 [PkRepository] 的 plans 三端点。
-//
-// 同步语义（锁定）：
-// - 进页（已登录）GET plans：data==null → localEmpty ? 不动 : PUT(本地)；
-//   data=快照 → localEmpty ? 整包采用 : (dirty ? 弹窗 : (syncedAt==
-//   快照.updatedAt ? 不动 : 弹窗))。
-// - 弹窗「使用云端」→ store.applyRemoteSnapshot（applyingRemote 守卫，
-//   绝不回灌）；「保留本地」→ 立即 PUT。一次性（每次进页至多一次）。
-// - 本地变更（store 钩子）→ dirty + 3s 防抖 → PUT；成功推进 syncedAt。
+// Schedule cloud synchronization shares the Web reconciliation rules: no writes
+// before a successful read or while a conflict is unresolved; stale writes return
+// 409 and re-open reconciliation. Retained local plans have an account owner.
 import 'dart:async';
 
 import 'package:core/core.dart';
+import 'package:auth/auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,12 +34,13 @@ class PkPlansRepositoryTransport implements PkPlansTransport {
       (await _repository.putPlans(payload)).updatedAt;
 }
 
-/// 方案云同步控制器（每应用一个实例；由 Provider 创建并绑定 store 钩子）。
+/// Reconciles before writing and guards uploads with the observed server revision.
 class ScheduleSyncController {
   ScheduleSyncController({
     required this.transport,
     required this.tokenStorage,
     required this.store,
+    required this.readUserId,
     Timer Function(Duration delay, void Function() onFire)? debounceTimer,
   }) : _debounceTimer = debounceTimer ?? _defaultDebounceTimer {
     scheduleLocalPlansChanged = _onLocalPlansChanged;
@@ -58,169 +48,228 @@ class ScheduleSyncController {
 
   static Timer _defaultDebounceTimer(Duration delay, void Function() onFire) =>
       Timer(delay, onFire);
-
+  static const Duration debounceDelay = Duration(seconds: 3);
   final PkPlansTransport transport;
   final TokenStorage tokenStorage;
   final ScheduleStoreNotifier store;
+  final Future<int?> Function() readUserId;
   final Timer Function(Duration delay, void Function() onFire) _debounceTimer;
-
-  /// 本地变更防抖窗口（web 同款 3s）。
-  static const Duration debounceDelay = Duration(seconds: 3);
-
+  final ValueNotifier<PkPlansSnapshot?> conflict = ValueNotifier(null);
   bool _dirty = false;
-  bool _stopped = false; // 401 后停至下次进页
-  bool _uploading = false;
+  bool _stopped = false;
   bool _disposed = false;
+  bool _reconciled = false;
+  bool _entering = false;
+  bool _recheckAfterEntry = false;
   int _localChangeSeq = 0;
+  int? _owner;
+  String _baseUpdatedAt = '';
   Timer? _pendingUpload;
+  Future<void>? _uploadFuture;
 
-  /// 是否有未上行的本地变更（测试/诊断用）。
-  bool get isDirty => _dirty;
+  bool get isDirty => _dirty || store.syncDirty;
 
-  /// 释放：解绑 store 钩子并取消挂起防抖。
   void dispose() {
     _disposed = true;
-    _pendingUpload?.cancel();
-    _pendingUpload = null;
+    cancelPendingUpload();
+    conflict.dispose();
     if (identical(scheduleLocalPlansChanged, _onLocalPlansChanged)) {
       scheduleLocalPlansChanged = null;
     }
   }
 
-  Future<bool> _hasToken() async {
+  Future<int?> _identity() async {
     try {
-      final String? token = await tokenStorage.read();
-      return token != null && token.isNotEmpty;
+      final token = await tokenStorage.read();
+      if (_disposed || token == null || token.isEmpty) return null;
+      return await readUserId();
     } catch (_) {
-      return false;
+      return null;
     }
   }
 
-  /// 进页同步对账；返回待决冲突快照（null = 无需弹窗）。每次进页至多
-  /// 返回一次（弹窗一次性）。未登录直接返回 null，零网络请求。
+  Future<bool> _isCurrent() async {
+    final id = await _identity();
+    return !_disposed && _owner != null && id == _owner;
+  }
+
   Future<PkPlansSnapshot?> syncOnEnter() async {
-    if (_disposed || !await _hasToken()) return null;
-    _stopped = false; // 新一次进页：重置 401 停止标记
-    final PkPlansSnapshot? remote;
+    if (_disposed || _entering) return null;
+    _entering = true;
+    _reconciled = false;
+    cancelPendingUpload();
     try {
-      remote = await transport.fetchPlans();
+      await store.ready;
+      if (_uploadFuture != null) await _uploadFuture;
+      _owner = await _identity();
+      if (_owner == null || _disposed) return null;
+      _stopped = false;
+      final remote = await transport.fetchPlans();
+      if (!await _isCurrent()) return null;
+      _baseUpdatedAt = remote?.updatedAt ?? '';
+      if (store.syncOwner != null && store.syncOwner != _owner) {
+        conflict.value =
+            remote ??
+            PkPlansSnapshot(
+              plans: [],
+              activePlanId: '',
+              majorSelected: PkMajorSelection(),
+              weekView: PkWeekView(),
+              updatedAt: '',
+            );
+        return conflict.value;
+      }
+      if (!await store.setSyncOwner(_owner!)) return null;
+      if (remote == null) {
+        _reconciled = true;
+        if (!store.isLocalEmpty || isDirty) {
+          _dirty = true;
+          store.markSyncDirty();
+          await _uploadNow();
+        }
+        return null;
+      }
+      if (!isDirty && store.syncedAt.isEmpty && store.isLocalEmpty) {
+        await adoptRemote(remote);
+        return null;
+      }
+      if (isDirty || store.syncedAt != remote.updatedAt) {
+        conflict.value = remote;
+        return remote;
+      }
+      _reconciled = true;
+      return null;
     } on ApiException catch (e) {
       if (e.statusCode == 401) _stopped = true;
-      return null; // 网络/服务端失败：本次进页放弃对账
-    }
-    if (remote == null) {
-      if (!store.isLocalEmpty) {
-        await _uploadNow(); // 云端空且本地有货 → 上行本地
+      return null;
+    } catch (_) {
+      return null;
+    } finally {
+      _entering = false;
+      if (_recheckAfterEntry && !_disposed) {
+        _recheckAfterEntry = false;
+        unawaited(syncOnEnter());
       }
-      return null;
     }
-    if (store.isLocalEmpty) {
-      await adoptRemote(remote); // 本地空壳 → 无条件整包采用
-      return null;
-    }
-    if (_dirty) return remote; // 本地有未上行变更 → 冲突
-    if (store.syncedAt != remote.updatedAt) return remote; // 云端更新 → 冲突
-    return null; // 一致 → 不动
   }
 
-  /// 冲突弹窗「使用云端」：整包采用（store 内 applyingRemote 守卫，
-  /// 不触发本地变更钩子，不回灌上行）。
   Future<void> adoptRemote(PkPlansSnapshot snapshot) async {
     if (_disposed) return;
-    _pendingUpload?.cancel();
-    _pendingUpload = null;
-    _dirty = false;
+    if (_uploadFuture != null) {
+      await _uploadFuture;
+      await syncOnEnter();
+      return;
+    }
+    _owner ??= await _identity();
+    if (!await _isCurrent()) return;
+    cancelPendingUpload();
     store.applyRemoteSnapshot(snapshot);
+    _dirty = !await store.markSyncedAt(snapshot.updatedAt);
+    if (!await _isCurrent()) return;
+    if (!_dirty && !await store.setSyncOwner(_owner!)) return;
+    _baseUpdatedAt = snapshot.updatedAt;
+    conflict.value = null;
+    _reconciled = true;
   }
 
-  /// 冲突弹窗「保留本地」：取消防抖立即 PUT。
   Future<void> keepLocal() async {
-    if (_disposed) return;
-    _pendingUpload?.cancel();
-    _pendingUpload = null;
+    if (_disposed || conflict.value == null || !await _isCurrent()) return;
+    if (!await store.setSyncOwner(_owner!)) return;
+    cancelPendingUpload();
+    conflict.value = null;
+    _dirty = true;
+    store.markSyncDirty();
+    _reconciled = true;
     await _uploadNow();
   }
 
-  /// App 生命周期 paused 时的尽力冲刷（dirty 且未停止时立即上行；
-  /// 登录态由 [_uploadNow] 统一把关，未登录零网络请求）。
   Future<void> flushPendingUpload() async {
-    if (_disposed || !_dirty || _stopped || _uploading) return;
-    _pendingUpload?.cancel();
-    _pendingUpload = null;
+    cancelPendingUpload();
     await _uploadNow();
   }
 
-  /// 页面离场（dispose）时取消挂起的上行防抖。dirty 保留、store 钩子保持
-  /// 绑定（控制器为应用级实例，生命周期不随页面销毁）；未上行的变更由
-  /// 下次进页对账（dirty → 冲突分支）或后续本地变更重新排程承接。
-  /// 否则 3s 防抖 Timer 会在组件树销毁后仍挂起。
   void cancelPendingUpload() {
     _pendingUpload?.cancel();
     _pendingUpload = null;
   }
 
-  // ---- 本地变更钩子（store _persistPlanData / setWeekView 尾部触发）----
+  void _scheduleUpload() {
+    cancelPendingUpload();
+    if (_disposed || _stopped || !_reconciled) return;
+    _pendingUpload = _debounceTimer(debounceDelay, () {
+      _pendingUpload = null;
+      unawaited(_uploadNow());
+    });
+  }
 
   void _onLocalPlansChanged() {
     if (_disposed) return;
-    // 即使已停止（401）也保持 dirty：下次进页对账需知道本地有未上行
-    // 变更（dirty → 弹窗分支），只是不再排程上行。
     _dirty = true;
-    if (_stopped) return;
+    store.markSyncDirty();
     _localChangeSeq++;
-    // 立即排程防抖（spec：dirty + 3s debounce 同步发生）；未登录时防抖
-    // 到期由 _uploadNow 统一拦截（零网络请求）。
-    _pendingUpload?.cancel();
-    _pendingUpload = _debounceTimer(debounceDelay, _onDebounceFired);
+    _scheduleUpload();
   }
 
-  Future<void> _onDebounceFired() async {
-    _pendingUpload = null;
-    if (!_disposed && _dirty) {
-      await _uploadNow();
+  Future<void> _uploadNow() {
+    if (_disposed ||
+        _stopped ||
+        !_reconciled ||
+        !isDirty ||
+        _uploadFuture != null) {
+      return Future.value();
     }
+    final operation = _performUpload();
+    _uploadFuture = operation;
+    return operation.whenComplete(() => _uploadFuture = null);
   }
 
-  Future<void> _uploadNow() async {
-    if (_disposed || _stopped || _uploading) return;
-    if (!await _hasToken()) return; // 登出后零网络请求
-    _uploading = true;
-    final int seqAtStart = _localChangeSeq;
+  Future<void> _performUpload() async {
+    if (!await _isCurrent()) return;
+    final seq = _localChangeSeq;
     try {
-      final String updatedAt = await transport.uploadPlans(
-        store.buildSnapshotPayload(),
+      final updatedAt = await transport.uploadPlans(
+        store.buildSnapshotPayload(baseUpdatedAt: _baseUpdatedAt),
       );
-      if (_localChangeSeq != seqAtStart) {
-        // 上行期间又有本地变更：保留 dirty 并再排一轮防抖。
-        _onLocalPlansChanged();
+      if (!await _isCurrent()) return;
+      if (updatedAt.isEmpty) throw StateError('Missing sync revision');
+      _baseUpdatedAt = updatedAt;
+      if (_localChangeSeq != seq) {
+        _scheduleUpload();
         return;
       }
-      _dirty = false;
-      store.markSyncedAt(updatedAt);
+      _dirty = !await store.markSyncedAt(updatedAt);
     } on ApiException catch (e) {
+      if (!await _isCurrent()) return;
       if (e.statusCode == 401) {
-        _stopped = true; // 停至下次进页
-      } else if (e.statusCode == 400) {
-        // 结构校验失败：该载荷重试无意义，静默停本轮（debugPrint 留痕）。
-        debugPrint('pk plans sync rejected (400): ${e.params?['detail']}');
-        _dirty = false;
+        _stopped = true;
+      } else if (e.statusCode == 409) {
+        _reconciled = false;
+        if (_entering) {
+          _recheckAfterEntry = true;
+        } else {
+          unawaited(syncOnEnter());
+        }
+      } else if (e.statusCode == 400 || e.statusCode == 403) {
+        debugPrint('pk plans sync rejected (${e.statusCode})');
       }
-      // 其余（429/5xx/网络错误）：保持 dirty，等待下次触发（变更/进页/
-      // paused 冲刷）重试。
-    } finally {
-      _uploading = false;
+    } catch (_) {
+      // Keep the local revision pending for a later edit or lifecycle flush.
     }
   }
 }
 
-/// 方案云同步控制器 Provider（页面进页对账 + 冲突弹窗 + paused 冲刷）。
-final Provider<ScheduleSyncController> scheduleSyncControllerProvider =
-    Provider<ScheduleSyncController>((ref) {
-      final ScheduleSyncController controller = ScheduleSyncController(
-        transport: PkPlansRepositoryTransport(ref.watch(pkRepositoryProvider)),
-        tokenStorage: ref.watch(tokenStorageProvider),
-        store: ref.watch(scheduleStoreProvider.notifier),
-      );
-      ref.onDispose(controller.dispose);
-      return controller;
-    });
+final Provider<ScheduleSyncController>
+scheduleSyncControllerProvider = Provider((ref) {
+  // Discard in-flight callbacks and timers when the authenticated session changes.
+  ref.watch(offlineCacheEpochProvider);
+  final storage = ref.watch(tokenStorageProvider);
+  final controller = ScheduleSyncController(
+    transport: PkPlansRepositoryTransport(ref.watch(pkRepositoryProvider)),
+    tokenStorage: storage,
+    readUserId: () async =>
+        storage is SecureTokenStorage ? storage.readUserId() : null,
+    store: ref.watch(scheduleStoreProvider.notifier),
+  );
+  ref.onDispose(controller.dispose);
+  return controller;
+});

@@ -128,6 +128,7 @@ export function createScheduleSyncController(deps: { transport: PkSyncTransport 
   let reconciled = false
   let authStopped = false
   let entering = false
+  let recheckAfterEntry = false
   let putting: Promise<void> | null = null
   let generation = 0
   let seq = 0
@@ -184,7 +185,10 @@ export function createScheduleSyncController(deps: { transport: PkSyncTransport 
     })()
     await putting
     putting = null
-    if (retryConflict) await syncOnPageEnter()
+    if (retryConflict) {
+      if (entering) recheckAfterEntry = true
+      else await syncOnPageEnter()
+    }
   }
 
   function onLocalChange(): void {
@@ -250,7 +254,13 @@ export function createScheduleSyncController(deps: { transport: PkSyncTransport 
     } catch (err) {
       if (generation === run && err instanceof PkSyncError && err.status === 401) authStopped = true
     } finally {
-      if (generation === run) entering = false
+      if (generation === run) {
+        entering = false
+        if (recheckAfterEntry) {
+          recheckAfterEntry = false
+          void syncOnPageEnter()
+        }
+      }
     }
   }
 

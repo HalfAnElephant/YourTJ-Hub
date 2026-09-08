@@ -214,6 +214,8 @@ class ScheduleStoreNotifier extends StateNotifier<ScheduleState> {
   int _eventSeq = 0;
   bool _applyingRemote = false;
   String _syncedAt = '';
+  bool _syncDirty = false;
+  int _syncSeq = 0;
   int _nowMs() => DateTime.now().millisecondsSinceEpoch;
 
   /// 初始化完成（恢复持久化状态后 resolve）。
@@ -236,6 +238,7 @@ class ScheduleStoreNotifier extends StateNotifier<ScheduleState> {
     _loadFrom(_prefs);
     final String? syncedRaw = _prefs?.getString(ScheduleStorageKeys.syncedAt);
     if (syncedRaw != null && syncedRaw.isNotEmpty) _syncedAt = syncedRaw;
+    _syncDirty = _prefs?.getString('pk.syncDirty') == '1';
     _rebuild();
   }
 
@@ -702,19 +705,68 @@ class ScheduleStoreNotifier extends StateNotifier<ScheduleState> {
   /// 服务端同步时钟（PUT 成功 / 整包采用后推进；持久化 pk.syncedAt）。
   String get syncedAt => _syncedAt;
 
-  void markSyncedAt(String updatedAt) {
-    if (updatedAt.isEmpty || _syncedAt == updatedAt) return;
-    _syncedAt = updatedAt;
-    _persist(ScheduleStorageKeys.syncedAt, updatedAt);
+  bool get syncDirty => _syncDirty;
+  int? get syncOwner => int.tryParse(_prefs?.getString('pk.syncOwner') ?? '');
+
+  Future<bool> setSyncOwner(int id) async {
+    await flush;
+    try {
+      return await _prefs?.setString('pk.syncOwner', '$id') ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
-  /// 当前状态 → 云端快照上行载荷（四字段整体替换，不含 updatedAt）。
-  PkPlanSnapshotPayload buildSnapshotPayload() => PkPlanSnapshotPayload(
-    plans: state.plans,
-    activePlanId: state.activePlanId,
-    majorSelected: state.majorSelected,
-    weekView: state.weekView,
-  );
+  void markSyncDirty() {
+    _syncDirty = true;
+    _syncSeq++;
+    _persist('pk.syncDirty', '1');
+  }
+
+  /// Persist a complete local snapshot before advancing its synchronization clock.
+  Future<bool> markSyncedAt(String updatedAt) {
+    final seq = _syncSeq;
+    final payload = buildSnapshotPayload().toJson();
+    var saved = false;
+    _writeQueue = _writeQueue.then((_) async {
+      final prefs = _prefs;
+      if (prefs == null) return;
+      try {
+        for (final key in [
+          'plans',
+          'activePlanId',
+          'majorSelected',
+          'weekView',
+        ]) {
+          if (!await prefs.setString('pk.$key', jsonEncode(payload[key]))) {
+            return;
+          }
+        }
+        if (seq != _syncSeq) return;
+        if (!await prefs.setString(ScheduleStorageKeys.syncedAt, updatedAt)) {
+          return;
+        }
+        if (!await prefs.setString('pk.syncDirty', '0')) return;
+        if (seq != _syncSeq) return;
+        _syncedAt = updatedAt;
+        _syncDirty = false;
+        saved = true;
+      } catch (_) {
+        /* A failed write leaves reconciliation pending. */
+      }
+    });
+    return _writeQueue.then((_) => saved);
+  }
+
+  /// Snapshot upload with an optional observed server revision.
+  PkPlanSnapshotPayload buildSnapshotPayload({String? baseUpdatedAt}) =>
+      PkPlanSnapshotPayload(
+        plans: state.plans,
+        activePlanId: state.activePlanId,
+        majorSelected: state.majorSelected,
+        weekView: state.weekView,
+        baseUpdatedAt: baseUpdatedAt,
+      );
 
   /// 云端快照整包采用：applyingRemote 守卫下原子替换四字段并重建派生，
   /// 绝不触发本地变更钩子（防回灌），也不走 [setMajorSelection] 的
@@ -758,7 +810,7 @@ class ScheduleStoreNotifier extends StateNotifier<ScheduleState> {
         ScheduleStorageKeys.weekView,
         jsonEncode({'week': weekView.week, 'useCurrent': weekView.useCurrent}),
       );
-      markSyncedAt(snapshot.updatedAt);
+
       _rebuild();
     } finally {
       _applyingRemote = false;

@@ -87,8 +87,9 @@ class _SchedulePageState extends ConsumerState<SchedulePage>
   List<SectionTime> _sectionOverrides = const <SectionTime>[];
   final GlobalKey _gridBoundaryKey = GlobalKey();
 
-  // 同步控制器：initState 显式捕获（dispose 阶段不再触碰 provider）；离场取消挂起防抖。
+  // Capture the application controller; page exit flushes pending local edits.
   late final ScheduleSyncController _syncController;
+  bool _showingSyncConflict = false;
 
   ScheduleState get _state => ref.read(scheduleStoreProvider);
 
@@ -99,6 +100,7 @@ class _SchedulePageState extends ConsumerState<SchedulePage>
   void initState() {
     super.initState();
     _syncController = ref.read(scheduleSyncControllerProvider);
+    _syncController.conflict.addListener(_onSyncConflict);
     WidgetsBinding.instance.addObserver(this);
     ref.read(scheduleStoreProvider.notifier).ready.then((_) {
       if (!mounted) return;
@@ -110,9 +112,8 @@ class _SchedulePageState extends ConsumerState<SchedulePage>
 
   @override
   void dispose() {
-    // 离场取消挂起的上行防抖（dirty 保留，下次进页对账承接）；
-    // 否则 3s 防抖 Timer 在组件树销毁后仍挂起。
-    _syncController.cancelPendingUpload();
+    _syncController.conflict.removeListener(_onSyncConflict);
+    unawaited(_syncController.flushPendingUpload());
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -127,11 +128,18 @@ class _SchedulePageState extends ConsumerState<SchedulePage>
 
   /// 进页方案云同步对账（issue #537）：未登录零请求；冲突时弹窗二选一。
   Future<void> _syncPlansOnEnter() async {
-    final PkPlansSnapshot? conflict = await ref
-        .read(scheduleSyncControllerProvider)
-        .syncOnEnter();
-    if (!mounted || conflict == null) return;
-    await _showPlanSyncConflictDialog(conflict);
+    await _syncController.syncOnEnter();
+  }
+
+  void _onSyncConflict() {
+    final snapshot = _syncController.conflict.value;
+    if (!mounted || snapshot == null || _showingSyncConflict) return;
+    _showingSyncConflict = true;
+    unawaited(
+      _showPlanSyncConflictDialog(snapshot).whenComplete(() {
+        _showingSyncConflict = false;
+      }),
+    );
   }
 
   /// 冲突弹窗（一次性）：「使用云端」整包采用 / 「保留本地」立即上行。

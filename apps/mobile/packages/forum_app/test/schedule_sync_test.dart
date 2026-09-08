@@ -18,6 +18,7 @@ import 'package:forum_app/src/schedule/schedule_sync.dart';
 /// 内存 TokenStorage（登出 = clear）。
 class _MemoryTokenStorage implements TokenStorage {
   String? _token;
+  int userId = 1;
 
   @override
   Future<String?> read() async => _token;
@@ -33,6 +34,8 @@ class _MemoryTokenStorage implements TokenStorage {
 class _FakeTransport implements PkPlansTransport {
   PkPlansSnapshot? remote;
   Object? fetchError;
+  Completer<PkPlansSnapshot?>? pendingFetch;
+  Completer<String>? pendingUpload;
   Object? uploadError;
   int fetchCount = 0;
   int uploadCount = 0;
@@ -44,6 +47,7 @@ class _FakeTransport implements PkPlansTransport {
     fetchCount++;
     final Object? error = fetchError;
     if (error != null) throw error;
+    if (pendingFetch != null) return pendingFetch!.future;
     return remote;
   }
 
@@ -53,6 +57,7 @@ class _FakeTransport implements PkPlansTransport {
     uploaded.add(payload);
     final Object? error = uploadError;
     if (error != null) throw error;
+    if (pendingUpload != null) return pendingUpload!.future;
     return nextUpdatedAt;
   }
 }
@@ -235,6 +240,7 @@ Future<_Harness> _harness({
   final ScheduleSyncController controller = ScheduleSyncController(
     transport: transport,
     tokenStorage: tokens,
+    readUserId: () async => tokens.userId,
     store: store,
     debounceTimer: timers.schedule,
   );
@@ -362,6 +368,8 @@ void main() {
       addTearDown(controller.dispose);
       addTearDown(store.dispose);
 
+      transport.remote = _cloudSnapshot();
+      await controller.syncOnEnter();
       await controller.keepLocal();
       expect(transport.uploadCount, 1);
       expect(
@@ -377,6 +385,7 @@ void main() {
       final (store, transport, timers, _, controller) = await _harness();
       addTearDown(controller.dispose);
       addTearDown(store.dispose);
+      await controller.syncOnEnter();
 
       store.selectClass(_localDetail('L.01'), '线性代数');
       expect(controller.isDirty, isTrue);
@@ -393,6 +402,7 @@ void main() {
       final (store, transport, timers, _, controller) = await _harness();
       addTearDown(controller.dispose);
       addTearDown(store.dispose);
+      await controller.syncOnEnter();
 
       store.selectClass(_localDetail('L.01'), '线性代数');
       store.selectClass(_localDetail('M.01'), '大学物理');
@@ -410,6 +420,7 @@ void main() {
       final (store, transport, timers, _, controller) = await _harness();
       addTearDown(controller.dispose);
       addTearDown(store.dispose);
+      await controller.syncOnEnter();
 
       store.selectClass(_localDetail('L.01'), '线性代数');
       expect(timers.pendingCount, 1);
@@ -421,17 +432,18 @@ void main() {
   });
 
   group('失败分类', () {
-    test('400：静默停本轮（dirty 清零，不再自动重试）', () async {
+    test('400：静默停本轮（dirty 保留，不再自动重试）', () async {
       final (store, transport, timers, _, controller) = await _harness();
       addTearDown(controller.dispose);
       addTearDown(store.dispose);
+      await controller.syncOnEnter();
 
       transport.uploadError = _badRequest();
       store.selectClass(_localDetail('L.01'), '线性代数');
       timers.firePending();
       await Future<void>.delayed(Duration.zero);
       expect(transport.uploadCount, 1);
-      expect(controller.isDirty, isFalse, reason: '400 后停本轮');
+      expect(controller.isDirty, isTrue, reason: '400 保留未保存的本地状态');
 
       // 后续新变更按新轮次处理（新载荷可能通过校验）。
       store.selectClass(_localDetail('N.01'), '概率论');
@@ -442,6 +454,7 @@ void main() {
       final (store, transport, timers, _, controller) = await _harness();
       addTearDown(controller.dispose);
       addTearDown(store.dispose);
+      await controller.syncOnEnter();
 
       transport.uploadError = _networkError();
       store.selectClass(_localDetail('L.01'), '线性代数');
@@ -460,6 +473,7 @@ void main() {
       final (store, transport, timers, _, controller) = await _harness();
       addTearDown(controller.dispose);
       addTearDown(store.dispose);
+      await controller.syncOnEnter();
 
       transport.uploadError = _unauthorized();
       store.selectClass(_localDetail('L.01'), '线性代数');
@@ -548,4 +562,132 @@ void main() {
       expect(timers.pendingCount, 1, reason: '本地路径正常触发防抖');
     });
   });
+  test('failed reconciliation cannot upload later edits', () async {
+    final (store, transport, timers, _, controller) = await _harness();
+    addTearDown(controller.dispose);
+    addTearDown(store.dispose);
+    transport.fetchError = _networkError();
+    await controller.syncOnEnter();
+    store.selectClass(_localDetail('L.01'), 'local');
+    timers.firePending();
+    await Future<void>.delayed(Duration.zero);
+    expect(transport.uploadCount, 0);
+  });
+
+  test('dirty empty plans cannot resurrect deleted courses', () async {
+    final (store, transport, _, _, controller) = await _harness();
+    addTearDown(controller.dispose);
+    addTearDown(store.dispose);
+    transport.remote = _cloudSnapshot();
+    await controller.syncOnEnter();
+    store.clearActivePlan();
+    expect(await controller.syncOnEnter(), isNotNull);
+    expect(store.isLocalEmpty, isTrue);
+  });
+
+  test('keep-local choice survives a transient upload failure', () async {
+    final (store, transport, _, _, controller) = await _harness(
+      seed: (store) => store.selectClass(_localDetail('L.01'), 'local'),
+    );
+    addTearDown(controller.dispose);
+    addTearDown(store.dispose);
+    transport.remote = _cloudSnapshot();
+    await controller.syncOnEnter();
+    transport.uploadError = _networkError();
+    await controller.keepLocal();
+    expect(controller.isDirty, isTrue);
+    transport.uploadError = null;
+    await controller.flushPendingUpload();
+    expect(transport.uploadCount, 2);
+  });
+
+  test('disposed controller ignores a late cloud response', () async {
+    final (store, transport, _, _, controller) = await _harness();
+    addTearDown(store.dispose);
+    transport.pendingFetch = Completer<PkPlansSnapshot?>();
+    final entering = controller.syncOnEnter();
+    await Future<void>.delayed(Duration.zero);
+    controller.dispose();
+    transport.pendingFetch!.complete(_cloudSnapshot());
+    await entering;
+    expect(store.isLocalEmpty, isTrue);
+  });
+  test(
+    'account change does not auto-upload retained plans to an empty account',
+    () async {
+      final (store, transport, _, tokens, controller) = await _harness(
+        seed: (store) => store.selectClass(_localDetail('L.01'), 'local'),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(store.dispose);
+      await controller.syncOnEnter();
+      tokens.userId = 2;
+      final conflict = await controller.syncOnEnter();
+      expect(conflict, isNotNull);
+      expect(transport.uploadCount, 1);
+      await controller.adoptRemote(conflict!);
+      expect(store.isLocalEmpty, isTrue);
+      expect(store.syncOwner, 2);
+    },
+  );
+
+  test('reconciliation waits for the active upload before fetching', () async {
+    final (store, transport, timers, _, controller) = await _harness();
+    addTearDown(controller.dispose);
+    addTearDown(store.dispose);
+    await controller.syncOnEnter();
+    transport.pendingUpload = Completer<String>();
+    store.selectClass(_localDetail('L.01'), 'local');
+    timers.firePending();
+    await Future<void>.delayed(Duration.zero);
+    final entering = controller.syncOnEnter();
+    await Future<void>.delayed(Duration.zero);
+    expect(transport.fetchCount, 1);
+    transport.remote = _cloudSnapshot(updatedAt: '2026-09-10T00:00:00Z');
+    transport.pendingUpload!.complete('2026-09-09T00:00:00Z');
+    final conflict = await entering;
+    expect(conflict?.updatedAt, '2026-09-10T00:00:00Z');
+    expect(transport.fetchCount, 2);
+  });
+
+  test('409 publishes a fresh conflict and preserves dirty state', () async {
+    final (store, transport, timers, _, controller) = await _harness();
+    addTearDown(controller.dispose);
+    addTearDown(store.dispose);
+    transport.remote = _cloudSnapshot();
+    await controller.syncOnEnter();
+    store.selectClass(_localDetail('L.01'), 'local');
+    transport.uploadError = const ApiException(
+      fallbackMessage: 'conflict',
+      statusCode: 409,
+    );
+    transport.remote = _cloudSnapshot(updatedAt: '2026-09-10T00:00:00Z');
+    timers.firePending();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    expect(transport.uploaded.single.baseUpdatedAt, '2026-09-08T07:00:00Z');
+    expect(controller.conflict.value?.updatedAt, '2026-09-10T00:00:00Z');
+    expect(controller.isDirty, isTrue);
+  });
+
+  test(
+    'initial upload conflict also re-fetches rather than remaining stalled',
+    () async {
+      final (store, transport, _, _, controller) = await _harness(
+        seed: (store) => store.selectClass(_localDetail('L.01'), 'local'),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(store.dispose);
+      transport.pendingUpload = Completer<String>();
+      final entering = controller.syncOnEnter();
+      await Future<void>.delayed(Duration.zero);
+      transport.remote = _cloudSnapshot();
+      transport.pendingUpload!.completeError(
+        const ApiException(fallbackMessage: 'conflict', statusCode: 409),
+      );
+      await entering;
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.conflict.value, isNotNull);
+    },
+  );
 }
