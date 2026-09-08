@@ -4,11 +4,11 @@
 
 路由快照来自 `TestRoutesSnapshot`（`fixtures/routes-snapshot.json`，默认配置装配，不含 OIDC `/api/oauth/*` 端点——OIDC 另有专项）。
 
-- 快照路由总数：296
-- /api JSON 路由：233，已入契约：234（100%），已知未覆盖：0
+- 快照路由总数：297
+- /api JSON 路由：234，已入契约：235（100%），已知未覆盖：0
 - 非 API 排除路由：62
 
-## 已覆盖（234）
+## 已覆盖（235）
 
 | Method | Path | operationId |
 | --- | --- | --- |
