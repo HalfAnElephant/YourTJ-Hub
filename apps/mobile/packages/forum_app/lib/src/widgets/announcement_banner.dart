@@ -99,46 +99,60 @@ class _AnnouncementBannerState extends ConsumerState<AnnouncementBanner> {
     final type = GfTheme.typographyOf(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: colors.primary.withValues(alpha: 0.05),
         border: Border(
           bottom: BorderSide(color: colors.primary.withValues(alpha: 0.15)),
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (item.title.trim().isNotEmpty)
-            Text(item.title.trim(), style: type.bodyStrong),
-          if (item.title.trim().isNotEmpty && item.html.trim().isNotEmpty)
-            const SizedBox(height: 4),
-          if (item.html.trim().isNotEmpty)
-            HtmlWidget(
-              item.html,
-              baseUrl: Uri.parse(ref.read(apiClientProvider).baseUrl),
-              textStyle: type.body,
-              customStylesBuilder: (element) =>
-                  element.localName == 'p' ? {'margin': '0 0 4px'} : null,
-              onTapUrl: _open,
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: ExcludeSemantics(
+              child: GfSymbol('bell', size: 18, color: colors.primary),
             ),
-          if (items.length > 1)
-            Wrap(
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var i = 0; i < items.length; i++)
-                  Semantics(
-                    selected: i == _current,
-                    child: TextButton(
-                      onPressed: () {
-                        setState(() => _current = i);
-                        _restart();
-                      },
-                      child: Text('${i + 1} / ${items.length}'),
-                    ),
+                if (item.title.trim().isNotEmpty)
+                  Text(item.title.trim(), style: type.bodyStrong),
+                if (item.title.trim().isNotEmpty && item.html.trim().isNotEmpty)
+                  const SizedBox(height: 4),
+                if (item.html.trim().isNotEmpty)
+                  HtmlWidget(
+                    item.html,
+                    baseUrl: Uri.parse(ref.read(apiClientProvider).baseUrl),
+                    textStyle: type.body,
+                    customStylesBuilder: (element) =>
+                        element.localName == 'p' ? {'margin': '0 0 4px'} : null,
+                    onTapUrl: _open,
+                  ),
+                if (items.length > 1)
+                  Wrap(
+                    children: [
+                      for (var i = 0; i < items.length; i++)
+                        Semantics(
+                          selected: i == _current,
+                          child: TextButton(
+                            onPressed: () {
+                              setState(() => _current = i);
+                              _restart();
+                            },
+                            child: Text('${i + 1} / ${items.length}'),
+                          ),
+                        ),
+                    ],
                   ),
               ],
             ),
+          ),
         ],
       ),
     );

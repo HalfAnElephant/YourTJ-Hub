@@ -588,6 +588,21 @@ class _PublishPageState extends ConsumerState<PublishPage> {
           ],
         ),
         body: AbsorbPointer(absorbing: _submitting, child: _buildBody(l10n)),
+        bottomNavigationBar:
+            _mode == _ComposeMode.edit && !_loading && _loadError.isEmpty
+            ? Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: AbsorbPointer(
+                    absorbing: _submitting,
+                    child: _buildWritingToolbar(l10n),
+                  ),
+                ),
+              )
+            : null,
       ),
     );
   }
@@ -627,7 +642,7 @@ class _PublishPageState extends ConsumerState<PublishPage> {
                     ],
                     if (_mode == _ComposeMode.edit || wide) ...[
                       _buildTopicFields(l10n),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 4),
                     ],
                     if (wide) ...[
                       _buildBodyHeader(l10n),
@@ -690,7 +705,7 @@ class _PublishPageState extends ConsumerState<PublishPage> {
                       ),
                     if (_error.isNotEmpty || _message.isNotEmpty)
                       const SizedBox(height: 12),
-                    _buildFooter(l10n),
+                    if (_mode == _ComposeMode.preview) _buildFooter(l10n),
                   ],
                 ),
               ),
@@ -717,6 +732,10 @@ class _PublishPageState extends ConsumerState<PublishPage> {
             maxLength: 100,
             decoration: InputDecoration(
               hintText: l10n.publishTitleHint,
+              hintStyle: TextStyle(
+                color: colors.iconMuted.withValues(alpha: 0.75),
+                fontWeight: FontWeight.w500,
+              ),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -795,10 +814,6 @@ class _PublishPageState extends ConsumerState<PublishPage> {
   );
 
   Widget _buildEditor(AppLocalizations l10n) {
-    final GfColors colors = GfTheme.colorsOf(context);
-    final GfRadii radii = GfTheme.radiiOf(context);
-    final GfBorders borders = GfTheme.bordersOf(context);
-
     if (_contentType != 3) {
       return TextField(
         key: const Key('publish-editor'),
@@ -816,53 +831,109 @@ class _PublishPageState extends ConsumerState<PublishPage> {
           filled: false,
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
         ),
-        minLines: 10,
+        minLines: 6,
         maxLines: 80,
         onChanged: (_) {
           _handleEditorChanged();
         },
       );
     }
-    return Container(
+    final type = GfTheme.typographyOf(context);
+    final defaults = DefaultStyles.getInstance(context);
+    return ConstrainedBox(
       key: const Key('publish-editor'),
+      constraints: const BoxConstraints(minHeight: 220),
+      child: QuillEditor.basic(
+        controller: _quill,
+        config: QuillEditorConfig(
+          scrollable: false,
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          placeholder: l10n.publishBodyPlaceholder,
+          customStyles: DefaultStyles(
+            paragraph: defaults.paragraph!.copyWith(
+              style: type.body,
+              verticalSpacing: const VerticalSpacing(4, 4),
+            ),
+            placeHolder: defaults.placeHolder!.copyWith(
+              style: type.body.copyWith(
+                color: GfTheme.colorsOf(context).iconMuted,
+              ),
+            ),
+          ),
+          embedBuilders: [_ComposerImageBuilder()],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWritingToolbar(AppLocalizations l10n) {
+    final colors = GfTheme.colorsOf(context);
+    return DecoratedBox(
+      key: const Key('publish-writing-tools'),
       decoration: BoxDecoration(
         color: colors.base100,
-        border: Border.all(color: colors.line, width: borders.width),
-        borderRadius: BorderRadius.circular(radii.box),
+        border: Border(top: BorderSide(color: colors.line)),
       ),
-      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            children: [
-              _toolButton(
-                icon: Icons.text_fields,
-                tooltip: l10n.publishFormatting,
-                onPressed: () => setState(() => _formatting = !_formatting),
-              ),
-              Text(l10n.publishFormatting),
-              const Spacer(),
-              _toolButton(
-                icon: Icons.image_outlined,
-                tooltip: l10n.publishToolImage,
-                onPressed: _uploading ? null : _pickAndInsertImage,
-              ),
-            ],
-          ),
-          if (_formatting) _buildToolbar(l10n),
-          const GfDivider(),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 340),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: QuillEditor.basic(
-                controller: _quill,
-                config: QuillEditorConfig(
-                  placeholder: l10n.publishBodyPlaceholder,
-                  embedBuilders: [_ComposerImageBuilder()],
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_contentType == 3 && _formatting) _buildToolbar(l10n),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                if (_contentType == 3)
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: () =>
+                          setState(() => _formatting = !_formatting),
+                      icon: Icon(
+                        _formatting
+                            ? Icons.keyboard_arrow_down_rounded
+                            : Icons.text_fields_rounded,
+                        size: 20,
+                      ),
+                      label: Text(
+                        l10n.publishFormatting,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: _formatting
+                            ? colors.primary
+                            : colors.iconMuted,
+                        backgroundColor: _formatting
+                            ? colors.primary.withValues(alpha: 0.08)
+                            : colors.base200,
+                        minimumSize: const Size(44, 44),
+                      ),
+                    ),
+                  ),
+                _toolButton(
+                  icon: _uploading
+                      ? Icons.hourglass_top_rounded
+                      : Icons.image_outlined,
+                  tooltip: l10n.publishToolImage,
+                  onPressed:
+                      _uploading || (_contentType != 3 && _images.length >= 9)
+                      ? null
+                      : _pickAndInsertImage,
                 ),
-              ),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: GfButton(
+                      key: const Key('publish-save-draft'),
+                      label: l10n.publishSaveDraft,
+                      variant: GfButtonVariant.ghost,
+                      loading: _submitting,
+                      onPressed: _uploading
+                          ? null
+                          : () => _submit(topicStatus: 0),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -982,13 +1053,6 @@ class _PublishPageState extends ConsumerState<PublishPage> {
               tooltip: l10n.publishToolOrderedList,
               onPressed: () => _toggleFormat(Attribute.ol),
             ),
-            _toolButton(
-              icon: _uploading
-                  ? Icons.hourglass_top_rounded
-                  : Icons.image_outlined,
-              tooltip: l10n.publishToolImage,
-              onPressed: _uploading ? null : _pickAndInsertImage,
-            ),
           ],
         ),
       ),
@@ -1076,6 +1140,49 @@ class _PublishPageState extends ConsumerState<PublishPage> {
   }
 
   Widget _buildGallery(AppLocalizations l10n, {required bool editing}) {
+    if (editing && _images.isEmpty) {
+      final colors = GfTheme.colorsOf(context);
+      final type = GfTheme.typographyOf(context);
+      return Material(
+        color: colors.base200,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: _uploading ? null : _pickAndInsertImage,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                _uploading
+                    ? const SizedBox.square(
+                        dimension: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 28,
+                        color: colors.primary,
+                      ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(l10n.publishGallery, style: type.bodyStrong),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.publishGalleryHint,
+                        style: type.caption.copyWith(color: colors.iconMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

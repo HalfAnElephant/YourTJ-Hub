@@ -16,7 +16,8 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 ## Navigation and reading
 
 - `Current`: Home announcements render optional titles and HTML bodies, including the legacy
-  single-HTML payload. They grow with their contents and text size; empty announcements take no
+  single-HTML payload. A small bell sits in a separate leading column, with title and body aligned
+  to the same inset as Web. They grow with their contents and text size; empty announcements take no
   space. Multiple announcements rotate with numbered manual controls; assistive navigation and
   reduced motion disable automatic rotation. Refresh replaces the active announcement safely.
 - `Current`: mobile body text uses 17 logical pixels with system text scaling. Feed cards use
@@ -95,6 +96,11 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   unless a semantic or provider color is explicitly set.
 
 ## Publishing
+
+- `Current`: publishing uses an unframed title and writing canvas. Article formatting tools remain
+  folded in a bottom accessory bar above the software keyboard; expanding them preserves the editor
+  selection. Image and draft actions remain in the accessory bar; the empty simple gallery is a compact
+  selection tile. Rich and simple body text use the same mobile reading scale. Preview hides the accessory bar.
 
 - `Current`: reply composers use one rounded surface with a borderless, growing two-line input.
   Image, hide-keyboard, collapse and send actions share the bottom row. The reply target is a

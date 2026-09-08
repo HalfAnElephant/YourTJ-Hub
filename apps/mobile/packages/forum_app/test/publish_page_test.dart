@@ -265,6 +265,50 @@ void main() {
     );
   }
 
+  testWidgets(
+    'writing tools stay above keyboard and format the selected text',
+    (tester) async {
+      await pumpPublishPage(tester, editing: false, contentType: 3);
+      final editor = tester.widget<QuillEditor>(find.byType(QuillEditor));
+      editor.controller.replaceText(
+        0,
+        0,
+        'Selected words',
+        const TextSelection(baseOffset: 0, extentOffset: 8),
+      );
+      await tester.tap(find.byType(QuillEditor));
+      editor.controller.updateSelection(
+        const TextSelection(baseOffset: 0, extentOffset: 8),
+        ChangeSource.local,
+      );
+      tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+      final tools = find.byKey(const Key('publish-writing-tools'));
+      final keyboardTop =
+          tester.view.physicalSize.height / tester.view.devicePixelRatio -
+          250 / tester.view.devicePixelRatio;
+      expect(tester.getBottomLeft(tools).dy, lessThanOrEqualTo(keyboardTop + 0.01));
+      await tester.tap(find.text('文字格式'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('粗体'));
+      await tester.pump();
+      expect(
+        editor.controller.getSelectionStyle().attributes.containsKey(
+          Attribute.bold.key,
+        ),
+        isTrue,
+      );
+      expect(editor.controller.document.toPlainText(), 'Selected words\n');
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const Key('publish-appbar-submit')));
+      await tester.pumpAndSettle();
+      expect(tools, findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    },
+  );
+
   for (final type in [2, 3]) {
     testWidgets('dismiss keyboard preserves type $type draft', (tester) async {
       await pumpPublishPage(tester, editing: false, contentType: type);

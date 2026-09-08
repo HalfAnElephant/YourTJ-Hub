@@ -25,6 +25,27 @@ void main() {
     await tester.pump();
   }
 
+  testWidgets('announcement body is indented alongside a leading bell', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const AnnouncementPayload(
+        enabled: true,
+        html: '<p>Announcement body</p>',
+      ),
+    );
+    final bell = find.byWidgetPredicate(
+      (widget) => widget is GfSymbol && widget.name == 'bell',
+    );
+    expect(bell, findsOneWidget);
+    final text = find.text('Announcement body', findRichText: true).last;
+    expect(
+      tester.getTopLeft(text).dx,
+      greaterThanOrEqualTo(tester.getTopRight(bell).dx + 10),
+    );
+  });
+
   testWidgets('HTML-only announcements display their body', (tester) async {
     await pump(
       tester,
