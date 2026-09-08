@@ -31,6 +31,7 @@ import 'package:ui_kit/ui_kit.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../schedule/schedule_store.dart';
+import '../../schedule/schedule_sync.dart';
 import '../../server_messages.dart';
 import '../../widgets/status_views.dart';
 
@@ -76,7 +77,8 @@ class SchedulePage extends ConsumerStatefulWidget {
   ConsumerState<SchedulePage> createState() => _SchedulePageState();
 }
 
-class _SchedulePageState extends ConsumerState<SchedulePage> {
+class _SchedulePageState extends ConsumerState<SchedulePage>
+    with WidgetsBindingObserver {
   bool _ready = false;
   bool _tabTimetable = false;
   bool _syncing = false;
@@ -84,6 +86,9 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
   List<PkCalendarItem> _calendars = const <PkCalendarItem>[];
   List<SectionTime> _sectionOverrides = const <SectionTime>[];
   final GlobalKey _gridBoundaryKey = GlobalKey();
+
+  // 同步控制器：initState 显式捕获（dispose 阶段不再触碰 provider）；离场取消挂起防抖。
+  late final ScheduleSyncController _syncController;
 
   ScheduleState get _state => ref.read(scheduleStoreProvider);
 
@@ -93,11 +98,92 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
   @override
   void initState() {
     super.initState();
+    _syncController = ref.read(scheduleSyncControllerProvider);
+    WidgetsBinding.instance.addObserver(this);
     ref.read(scheduleStoreProvider.notifier).ready.then((_) {
       if (!mounted) return;
       setState(() => _ready = true);
       _loadSessionMeta();
+      _syncPlansOnEnter();
     });
+  }
+
+  @override
+  void dispose() {
+    // 离场取消挂起的上行防抖（dirty 保留，下次进页对账承接）；
+    // 否则 3s 防抖 Timer 在组件树销毁后仍挂起。
+    _syncController.cancelPendingUpload();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // paused 尽力冲刷未上行的本地方案（issue #537；best-effort）。
+    if (state == AppLifecycleState.paused) {
+      unawaited(ref.read(scheduleSyncControllerProvider).flushPendingUpload());
+    }
+  }
+
+  /// 进页方案云同步对账（issue #537）：未登录零请求；冲突时弹窗二选一。
+  Future<void> _syncPlansOnEnter() async {
+    final PkPlansSnapshot? conflict = await ref
+        .read(scheduleSyncControllerProvider)
+        .syncOnEnter();
+    if (!mounted || conflict == null) return;
+    await _showPlanSyncConflictDialog(conflict);
+  }
+
+  /// 冲突弹窗（一次性）：「使用云端」整包采用 / 「保留本地」立即上行。
+  Future<void> _showPlanSyncConflictDialog(PkPlansSnapshot snapshot) async {
+    final AppLocalizations l10n = AppLocalizations.of(context);
+    final ScheduleSyncController sync = ref.read(
+      scheduleSyncControllerProvider,
+    );
+    await showGfAlertDialog<void>(
+      context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              l10n.scheduleSyncConflictTitle,
+              style: GfTheme.typographyOf(dialogContext).heading,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.scheduleSyncConflictBody,
+              style: GfTheme.typographyOf(dialogContext).body,
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                GfButton(
+                  label: l10n.scheduleSyncKeepLocal,
+                  variant: GfButtonVariant.ghost,
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    unawaited(sync.keepLocal());
+                  },
+                ),
+                const SizedBox(width: 8),
+                GfButton(
+                  label: l10n.scheduleSyncUseCloud,
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    unawaited(sync.adoptRemote(snapshot));
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
