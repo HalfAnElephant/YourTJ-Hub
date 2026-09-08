@@ -100,9 +100,10 @@ func setupPkPlansContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 	cleanup()
 	t.Cleanup(cleanup)
 
-	// 中间件链与 route4api.go 生产注册一致（pkApi 组尾三行）。
+	// 中间件链与 route4api.go 生产注册一致（pkApi 组尾三行；CSRFProtection
+	// 前置于认证，issue #406 契约，review blocker 修复后同链）。
 	pkApi := router.Group("/api/pk")
-	pkLoginApi := pkApi.Group("", middleware.JWTAuthCheck)
+	pkLoginApi := pkApi.Group("", middleware.CSRFProtection, middleware.JWTAuthCheck)
 	pkLoginApi.GET("plans", middleware.RateLimit(middleware.RateLimitPkPlans), pkAuthNoReq(pkcontroller.GetPlans))
 	pkLoginApi.PUT("plans", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPkPlans), pkAuthJsonReq(pkcontroller.PutPlans))
 	pkLoginApi.DELETE("plans", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPkPlans), pkAuthNoReq(pkcontroller.DeletePlans))
@@ -301,6 +302,58 @@ func TestPkPlansGuardsHTTPContract(t *testing.T) {
 		}
 		if got := string(decodePkPlansEnvelope(t, recorder).Data); got != "null" {
 			t.Fatalf("frozen get data = %s, want literal null", got)
+		}
+	})
+}
+
+// review: CSRF 门（issue #406 契约，#557 review blocker 修复证据）——
+// 带 access_token cookie 的跨站 PUT 在认证之前被 403 拒绝（auth.csrf.rejected，
+// 不触发 JWT 续期/会话延长）；同源 cookie PUT 正常通过全链（契约声明的
+// accessTokenCookie 一等认证路径）。Bearer 客户端对 CSRF 自豁免（既有
+// 全部用例走 Authorization 头即其证明）。
+func TestPkPlansCsrfGateHTTPContract(t *testing.T) {
+	t.Run("cross-site cookie put rejected 403 before authentication", func(t *testing.T) {
+		conn, router := setupPkPlansContractTest(t)
+		user := createHTTPContractUser(t, conn, contractTestID())
+		token := contractSessionToken(t, user)
+
+		request := httptest.NewRequest(http.MethodPut, "http://forum.example.test/api/pk/plans", strings.NewReader(pkPlansPutBody))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Origin", "http://evil.example.test")
+		request.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusForbidden {
+			t.Fatalf("cross-site cookie put status = %d, want 403: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "csrf-rejected.json"))
+		// 与其他 cookie 写组同语义：拒绝发生在认证之前，不得产生任何数据。
+		var count int64
+		if err := conn.Model(&pk.ScheduleSnapshotEntity{}).Count(&count).Error; err != nil || count != 0 {
+			t.Fatalf("rejected cross-site put must not write (count=%d err=%v)", count, err)
+		}
+	})
+
+	t.Run("same-origin cookie put passes gate and reaches handler", func(t *testing.T) {
+		conn, router := setupPkPlansContractTest(t)
+		user := createHTTPContractUser(t, conn, contractTestID())
+		token := contractSessionToken(t, user)
+
+		request := httptest.NewRequest(http.MethodPut, "http://forum.example.test/api/pk/plans", strings.NewReader(pkPlansPutBody))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Origin", "http://forum.example.test")
+		request.AddCookie(&http.Cookie{Name: "access_token", Value: token})
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("same-origin cookie put status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		if env := decodePkPlansEnvelope(t, recorder); env.Code != 0 {
+			t.Fatalf("same-origin cookie put code = %d, want 0: %s", env.Code, recorder.Body.String())
+		}
+		var count int64
+		if err := conn.Model(&pk.ScheduleSnapshotEntity{}).Count(&count).Error; err != nil || count != 1 {
+			t.Fatalf("same-origin cookie put must persist snapshot (count=%d err=%v)", count, err)
 		}
 	})
 }

@@ -9765,6 +9765,7 @@ export interface components {
         };
         /** @description 一套排课方案（镜像前端 PkPlan；与 web localStorage pk.plans 元素逐字段一致）。 */
         PkPlanPayload: {
+            /** @description 客户端生成的方案 id（≤64 字符，与服务端 active_plan_id 列约束一致）。 */
             id: string;
             name: string;
             /** @description 客户端生成时间（epoch 毫秒）。 */
@@ -9788,6 +9789,7 @@ export interface components {
         /** @description 排课方案云端快照（issue */
         PkPlansSnapshotData: {
             plans: components["schemas"]["PkPlanPayload"][];
+            /** @description 当前激活方案 id，必须命中 plans 之一（≤64 字符，受服务端列约束）。 */
             activePlanId: string;
             majorSelected: components["schemas"]["PkMajorSelectionPayload"];
             weekView: components["schemas"]["PkWeekViewPayload"];
@@ -9800,6 +9802,7 @@ export interface components {
         /** @description PUT /api/pk/plans 请求体：快照四字段整体替换（服务端浅校验 1..10 套、id/name 非空、activePlanId 引用、≤1MB）。 */
         PkPlansPutRequest: {
             plans: components["schemas"]["PkPlanPayload"][];
+            /** @description 当前激活方案 id，必须命中 plans 之一（≤64 字符，受服务端列约束）。 */
             activePlanId: string;
             majorSelected: components["schemas"]["PkMajorSelectionPayload"];
             weekView: components["schemas"]["PkWeekViewPayload"];

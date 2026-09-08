@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/pk"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/pkservice"
 	"github.com/gin-gonic/gin"
 )
 
@@ -50,9 +51,13 @@ func pkAuthNoReq(action func(pkcontroller.Request[pkcontroller.Null]) pkcontroll
 	}
 }
 
-// pkAuthJsonReq 绑定 JSON 请求体并填充 UserId，发出 PK 信封。
+// pkAuthJsonReq 绑定 JSON 请求体并填充 UserId，发出 PK 信封。绑定前以
+// http.MaxBytesReader 封顶请求体（1MB 快照上限 + 64KB 信封余量）：超限请求
+// 在解码阶段即被拒绝，超大载荷不再先全量读入内存再被体积校验拒绝
+// （admin import / wiki webhook 同模式，issue #557 review P2）。
 func pkAuthJsonReq[T any](action func(pkcontroller.Request[T]) pkcontroller.Response) func(c *gin.Context) {
 	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, pkservice.MaxSnapshotBytes+64<<10)
 		var params T
 		if err := c.ShouldBindJSON(&params); err != nil {
 			c.JSON(http.StatusBadRequest, pkcontroller.BadRequest("参数错误"))

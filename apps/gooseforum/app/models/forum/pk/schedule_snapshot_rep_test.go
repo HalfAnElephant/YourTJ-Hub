@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	db "github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
-	"gorm.io/gorm"
 )
 
 // setupScheduleSnapshotTest 迁移快照表并注册清理。
@@ -237,7 +236,3 @@ func ptrInt(v int) *int          { return &v }
 func ptrUint64(v uint64) *uint64 { return &v }
 func ptrBool(v bool) *bool       { return &v }
 func ptrString(v string) *string { return &v }
-
-// 静默对齐 gorm 包引用（ErrScheduleSnapshotNotFound 即 gorm.ErrRecordNotFound 的
-// 语义别名，测试断言依赖 errors.Is 可比性）。
-var _ = gorm.ErrRecordNotFound

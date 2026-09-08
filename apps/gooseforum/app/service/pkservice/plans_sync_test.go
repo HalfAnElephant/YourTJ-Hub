@@ -121,3 +121,51 @@ func TestValidatePlanSnapshotSize(t *testing.T) {
 		t.Fatal("oversized payload should be rejected")
 	}
 }
+
+func TestValidatePlanSnapshotRejectsDuplicateIds(t *testing.T) {
+	plans := makeValidPlanList(2)
+	plans[1].Id = plans[0].Id
+	if err := ValidatePlanSnapshot(plans, plans[0].Id); err == nil {
+		t.Fatal("duplicate plan ids should be rejected")
+	}
+}
+
+func TestValidatePlanSnapshotRejectsOverlongId(t *testing.T) {
+	plans := makeValidPlanList(1)
+	plans[0].Id = strings.Repeat("x", MaxPlanIdLength+1)
+	if err := ValidatePlanSnapshot(plans, plans[0].Id); err == nil {
+		t.Fatal("plan id longer than the active_plan_id column limit should be rejected")
+	}
+}
+
+// review: NormalizePlans 把 nil 切片归一化为空数组——移动端合法上传
+// （courseNature null 或省略）经 Go JSON 编码输出 null，违反契约的
+// required 数组；落库前归一化保证 GET 响应恒符合契约。
+func TestNormalizePlansFillsNilSlices(t *testing.T) {
+	plans := pk.PlanList{{
+		Id:        "plan_n",
+		Name:      "方案",
+		CreatedAt: 1725000000000,
+		StagedCourses: []pk.StagedCoursePayload{{
+			CourseCode: "X",
+			CourseName: "课",
+			CourseDetail: []pk.CourseDetailPayload{{
+				ArrangementInfo: []pk.ArrangementPayload{{ArrangementText: "t", OccupyDay: 1}},
+			}},
+		}},
+		CustomEvents: []pk.CustomEventPayload{{Id: "e1", Label: "有事", Day: 6}},
+	}}
+	normalized := NormalizePlans(plans)
+	course := normalized[0].StagedCourses[0]
+	if course.CourseNature == nil || len(course.CourseNature) != 0 {
+		t.Fatalf("courseNature = %v, want empty non-nil array", course.CourseNature)
+	}
+	arrangement := course.CourseDetail[0].ArrangementInfo[0]
+	if arrangement.OccupyTime == nil || arrangement.OccupyWeek == nil {
+		t.Fatal("arrangement nil slices must normalize to empty arrays")
+	}
+	event := normalized[0].CustomEvents[0]
+	if event.Sections == nil || event.Weeks == nil {
+		t.Fatal("custom event nil slices must normalize to empty arrays")
+	}
+}

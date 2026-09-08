@@ -40,13 +40,17 @@ type PutPlansReq struct {
 }
 
 // PutPlans PUT /api/pk/plans：整体快照 upsert。服务端浅校验（方案数 1..10、
-// id/name 非空、activePlanId 引用、1MB 体积），深度 sanitize 留在客户端加载路径。
-// updated_at 服务端时钟在保存时刷新，响应带回供客户端更新 pk.syncedAt。
+// id/name 非空且 id 长度受列约束、id 不重复、activePlanId 引用、1MB 体积），
+// 深度 sanitize 留在客户端加载路径。写入前归一化 nil 切片为空数组（nil 会被
+// Go JSON 编码为 null，违反契约的 required 数组，见 pkservice.NormalizePlans）。
+// updated_at 服务端时钟在保存时刷新（微秒精度，与 PG 列一致），响应带回供
+// 客户端更新 pk.syncedAt。
 func PutPlans(req Request[PutPlansReq]) Response {
 	if req.UserId == 0 {
 		return BadRequest("缺少登录态")
 	}
 	params := req.Params
+	params.Plans = pkservice.NormalizePlans(params.Plans)
 	if err := pkservice.ValidatePlanSnapshot(params.Plans, params.ActivePlanId); err != nil {
 		return BadRequest(err.Error())
 	}
@@ -90,8 +94,9 @@ type PlansSnapshotResponse struct {
 	ActivePlanId  string                   `json:"activePlanId"`
 	MajorSelected pk.MajorSelectionPayload `json:"majorSelected"`
 	WeekView      pk.WeekViewPayload       `json:"weekView"`
-	// UpdatedAt 服务端权威同步时钟（RFC3339 纳秒精度 UTC）；客户端存为
-	// pk.syncedAt，下次进页与云端比对决定是否弹冲突窗。
+	// UpdatedAt 服务端权威同步时钟（RFC3339 微秒精度 UTC，与 PG timestamp 列
+	// 精度一致，PUT 响应与后续 GET 回读逐位相等）；客户端存为 pk.syncedAt，
+	// 下次进页与云端比对决定是否弹冲突窗。
 	UpdatedAt string `json:"updatedAt"`
 }
 

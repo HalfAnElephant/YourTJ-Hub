@@ -246,6 +246,15 @@ func AccountClose(req component.BetterRequest[AccountCloseReq]) component.Respon
 		}
 	}
 
+	// 清空排课方案云端快照（issue #537）：方案含用户自选课程与自定义占位等
+	// 个人数据（anonymize 与 delete 两 mode 共用；与 pushDevice 同语义）。
+	// 注销前置**必需**步骤（issue #557 review P1）：瞬时失败中止注销并返回
+	// 失败——账号仍有效、用户可立即重试；若放在 CloseAccount 之后 best-effort，
+	// 一旦失败快照将永久残留（会话已吊销、用户无法再认证删除、无补偿路径）。
+	if err := pk.DeleteScheduleSnapshotByUser(req.UserId); err != nil {
+		slog.Error("delete pk schedule snapshot on account close failed", "userId", req.UserId, "err", err)
+		return component.FailResponseCode(component.MessageOperationFailed, nil)
+	}
 	if err := users.CloseAccount(req.UserId); err != nil {
 		slog.Error("close account failed", "userId", req.UserId, "err", err)
 		return component.FailResponseCode(component.MessageOperationFailed, nil)
@@ -274,12 +283,6 @@ func AccountClose(req component.BetterRequest[AccountCloseReq]) component.Respon
 	// IsAccountClosed 检查兜底，绝不外发。
 	if err := pushDevice.DeleteByUser(req.UserId); err != nil {
 		slog.Error("delete push devices on account close failed", "userId", req.UserId, "err", err)
-	}
-	// 清空排课方案云端快照（issue #537）：方案含用户自选课程与自定义占位等
-	// 个人数据（anonymize 与 delete 两 mode 共用；与 pushDevice 同语义）。
-	// best-effort：清理失败仅记日志不阻断响应。
-	if err := pk.DeleteScheduleSnapshotByUser(req.UserId); err != nil {
-		slog.Error("delete pk schedule snapshot on account close failed", "userId", req.UserId, "err", err)
 	}
 	slog.Info("account closed", "userId", req.UserId, "mode", req.Params.Mode)
 	return component.SuccessResponse(true)

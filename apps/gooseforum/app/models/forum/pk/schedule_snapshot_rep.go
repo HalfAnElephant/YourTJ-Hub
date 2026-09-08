@@ -1,9 +1,7 @@
 package pk
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	db "github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
@@ -34,7 +32,11 @@ func GetScheduleSnapshotByUser(userId uint64) (ScheduleSnapshotEntity, error) {
 // 由 user_id 唯一索引兜底（后到者报唯一冲突，客户端保持 dirty 下次重试即走更新
 // 路径，见 issue #537 Blueprint「单笔 pending PUT」语义）。
 func UpsertScheduleSnapshot(entity *ScheduleSnapshotEntity) error {
-	now := time.Now()
+	// 截断到微秒：PG timestamp 列只保留微秒精度，若以 time.Now() 的纳秒值
+	// 写响应、落库后被截断，PUT 返回的 updatedAt 与后续 GET 回读必然不同，
+	// 客户端 pk.syncedAt 等值比对每次误报冲突（issue #557 review blocker）。
+	// 截断后写入值与回读值逐位一致，SQLite/PG 两侧行为相同。
+	now := time.Now().Truncate(time.Microsecond)
 	return db.Connect().Transaction(func(tx *gorm.DB) error {
 		var existing ScheduleSnapshotEntity
 		err := tx.Table(scheduleSnapshotTableName).
@@ -72,13 +74,4 @@ func UpsertScheduleSnapshot(entity *ScheduleSnapshotEntity) error {
 // 幂等：无匹配行时静默成功。
 func DeleteScheduleSnapshotByUser(userId uint64) error {
 	return scheduleSnapshotBuilder().Where(queryopt.Eq("user_id", userId)).Delete(&ScheduleSnapshotEntity{}).Error
-}
-
-// marshalSnapshotField 服务端存储口径的 JSON 编码（体积校验与写入共用）。
-func marshalSnapshotField(v any) (int, error) {
-	encoded, err := json.Marshal(v)
-	if err != nil {
-		return 0, fmt.Errorf("serialize snapshot field: %w", err)
-	}
-	return len(encoded), nil
 }

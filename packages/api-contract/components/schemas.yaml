@@ -3477,6 +3477,8 @@ PkPlanPayload:
     id:
       type: string
       minLength: 1
+      maxLength: 64
+      description: 客户端生成的方案 id（≤64 字符，与服务端 active_plan_id 列约束一致）。
     name:
       type: string
       minLength: 1
@@ -3538,6 +3540,8 @@ PkPlansSnapshotData:
     activePlanId:
       type: string
       minLength: 1
+      maxLength: 64
+      description: 当前激活方案 id，必须命中 plans 之一（≤64 字符，受服务端列约束）。
     majorSelected:
       $ref: '#/PkMajorSelectionPayload'
     weekView:
@@ -3562,6 +3566,8 @@ PkPlansPutRequest:
     activePlanId:
       type: string
       minLength: 1
+      maxLength: 64
+      description: 当前激活方案 id，必须命中 plans 之一（≤64 字符，受服务端列约束）。
     majorSelected:
       $ref: '#/PkMajorSelectionPayload'
     weekView:
