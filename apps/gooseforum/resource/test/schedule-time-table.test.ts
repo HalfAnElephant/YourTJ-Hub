@@ -606,4 +606,43 @@ describe('ScheduleTimeTable 同格多课渲染', () => {
     const container = courseTd!.find('.h-full.w-full')
     expect(container.exists()).toBe(true)
   })
+
+  test('自定义占位 hover 预览不泄漏 custom 伪课号，真实课程仍展示课号', async () => {
+    const store = useScheduleStore()
+    const custom = store.addCustomEvent({ label: '有事', day: 1, sections: [2], weeks: [2, 4, 6, 8] })
+    expect(custom).not.toBeNull()
+
+    const detail = makeDetail('MATH101.01', 2, [2], [1, 16])
+    store.pushStagedCourse(makeStaged('MATH101', '高等数学', [detail]))
+    store.setClickedCourseInfo({ courseCode: 'MATH101', courseName: '高等数学' })
+    store.stageCourse(detail)
+    store.solidify()
+
+    mountTable()
+    await flushPromises()
+
+    const customBlock = cellBlocks('有事')[0]
+    expect(customBlock).toBeTruthy()
+    expect(customBlock.getAttribute('aria-label')).not.toContain('custom:')
+    customBlock.dispatchEvent(new MouseEvent('mouseenter'))
+    await new Promise((resolve) => setTimeout(resolve, 140))
+    await flushPromises()
+
+    let hoverCard = document.querySelector<HTMLElement>('.pointer-events-none.fixed.z-\\[2200\\]')
+    expect(hoverCard).toBeTruthy()
+    expect(hoverCard!.textContent).toContain('有事')
+    expect(hoverCard!.textContent).not.toContain('custom:')
+    expect(hoverCard!.textContent).not.toContain(i18n.global.t('schedule.cardClickHint'))
+
+    customBlock.dispatchEvent(new MouseEvent('mouseleave'))
+    const realBlock = cellBlocks('高等数学')[0]
+    expect(realBlock).toBeTruthy()
+    realBlock.dispatchEvent(new MouseEvent('mouseenter'))
+    await new Promise((resolve) => setTimeout(resolve, 140))
+    await flushPromises()
+
+    hoverCard = document.querySelector<HTMLElement>('.pointer-events-none.fixed.z-\\[2200\\]')
+    expect(hoverCard).toBeTruthy()
+    expect(hoverCard!.textContent).toContain('MATH101.01')
+  })
 })

@@ -356,7 +356,7 @@ onBeforeUnmount(() => {
               <div
                 v-if="exportOpen"
                 ref="exportMenu"
-                class="gf-menu-surface absolute right-0 top-[calc(100%+0.375rem)] z-30 w-48 p-1"
+                class="gf-menu-surface absolute left-0 right-auto sm:left-auto sm:right-0 top-[calc(100%+0.375rem)] z-30 w-48 p-1"
               >
                 <button type="button" class="gf-menu-item w-full" @click="exportCsv">
                   {{ t('schedule.exportCsv') }}

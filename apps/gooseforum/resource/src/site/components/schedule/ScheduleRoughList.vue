@@ -234,7 +234,7 @@ function teacherSummary(course: PkStagedCourse): string {
       </button>
     </EmptyState>
 
-    <ul v-else class="gf-panel rounded-2xl border border-line/70 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] gf-scrollbar-thin flex-1 divide-y divide-line/60 overflow-y-auto overscroll-contain">
+    <ul v-else class="gf-panel rounded-2xl border border-line/70 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] gf-scrollbar-thin flex-1 divide-y divide-line/60 lg:overflow-y-auto lg:overscroll-contain">
       <li
         v-for="course in filteredCourses"
         :key="course.courseCode"
