@@ -42,10 +42,20 @@ def check_package(badging, signatures, version, number, certificate):
 def gh(*args, allow_missing=False):
     result = subprocess.run(["gh", *args], capture_output=True, text=True)
     if result.returncode:
-        if allow_missing and "404" in result.stderr:
+        if allow_missing and ("404" in result.stderr or result.stderr.strip() == "release not found"):
             return None
         raise RuntimeError(result.stderr.strip())
     return result.stdout
+
+
+def find_release(tag):
+    # The tag REST endpoint does not reliably expose drafts. gh release view
+    # resolves drafts too; use the immutable database ID for subsequent API reads.
+    resolved = gh("release", "view", tag, "--repo", REPOSITORY, "--json", "databaseId", allow_missing=True)
+    if resolved is None:
+        return None
+    release_id = json.loads(resolved)["databaseId"]
+    return json.loads(gh("api", f"repos/{REPOSITORY}/releases/{release_id}"))
 
 
 def main():
@@ -84,8 +94,7 @@ def main():
         print("Verified three signed APKs and wrote SHA256SUMS.txt")
         return
 
-    endpoint = f"repos/{REPOSITORY}/releases/tags/{tag}"
-    release = gh("api", endpoint, allow_missing=True)
+    release = find_release(tag)
     if release is None:
         notes = output / "notes.md"
         notes.write_text((ROOT / "apps/mobile/store/zh-Hans/metadata.json").read_text())
@@ -93,8 +102,11 @@ def main():
         notes.write_text(metadata["whatsNew"] + "\n\nAndroid：按设备架构下载安装 APK。iOS：通过 TestFlight 或 App Store 分发，审核状态以 Apple 为准。\n")
         gh("release", "create", tag, "--repo", REPOSITORY, "--verify-tag", "--draft", "--latest=false",
            "--title", f"YourTJ {version}", "--notes-file", str(notes))
-        release = gh("api", endpoint)
-    existing = {asset["name"]: asset for asset in json.loads(release)["assets"]}
+        release = find_release(tag)
+        if release is None:
+            raise RuntimeError("Created release is not discoverable yet; retry to resume its draft")
+    endpoint = f"repos/{REPOSITORY}/releases/{release['id']}"
+    existing = {asset["name"]: asset for asset in release["assets"]}
     for path, digest in assets:
         if path.name in existing:
             if existing[path.name].get("digest") != "sha256:" + digest:

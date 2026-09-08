@@ -122,7 +122,8 @@ certificates across schemes represent one identity; conflicting certificates, pu
 source-stamp-only output do not satisfy the release certificate check.
 
 APK assets are first uploaded to a draft GitHub release. GitHub-computed SHA-256 digests must match
-local files before it becomes public. Existing asset names with different bytes are never overwritten.
+local files before it becomes public. The publisher resolves drafts through `gh release view` and
+queries their database ID, since the REST tag lookup may return 404 for a draft. Existing asset names with different bytes are never overwritten.
 The release is published with `latest=false`, so server downloads keep their separate latest marker.
 
 On Android, startup/resume checks at most once every six hours; About exposes a manual check. The

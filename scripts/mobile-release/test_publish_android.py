@@ -47,5 +47,35 @@ class ApkIdentityTest(unittest.TestCase):
                 check_package(package, signed, '1.2.0', '12', self.certificate)
 
 
+class DraftReleaseTest(unittest.TestCase):
+    def test_reads_existing_draft_by_id_instead_of_tag_endpoint(self):
+        import json
+        from unittest.mock import patch
+        import publish_android as publisher
+        draft = {'id': 123, 'tag_name': 'mobile-v1.0.1', 'draft': True, 'assets': []}
+        with patch.object(publisher, 'gh', side_effect=[json.dumps({'databaseId': 123}), json.dumps(draft)]) as gh:
+            self.assertEqual(publisher.find_release('mobile-v1.0.1'), draft)
+        self.assertEqual(gh.call_args_list[1].args, ('api', 'repos/YourTongji/YourTJ-Hub/releases/123'))
+
+    def test_missing_release_does_not_query_an_id(self):
+        from unittest.mock import patch
+        import publish_android as publisher
+        with patch.object(publisher, 'gh', return_value=None) as gh:
+            self.assertIsNone(publisher.find_release('mobile-v1.0.1'))
+        gh.assert_called_once()
+
+    def test_only_explicit_missing_release_is_treated_as_absent(self):
+        from unittest.mock import patch
+        from subprocess import CompletedProcess
+        import publish_android as publisher
+        for message in ('release not found', 'HTTP 403: Forbidden'):
+            with patch.object(publisher.subprocess, 'run', return_value=CompletedProcess([], 1, '', message)):
+                if message == 'release not found':
+                    self.assertIsNone(publisher.gh('release', 'view', 'mobile-v1.0.1', allow_missing=True))
+                else:
+                    with self.assertRaises(RuntimeError):
+                        publisher.gh('release', 'view', 'mobile-v1.0.1', allow_missing=True)
+
+
 if __name__ == '__main__':
     unittest.main()
