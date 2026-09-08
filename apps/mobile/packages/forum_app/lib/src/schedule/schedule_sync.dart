@@ -49,11 +49,10 @@ class PkPlansRepositoryTransport implements PkPlansTransport {
 class ScheduleSyncController {
   ScheduleSyncController({
     required this.transport,
-    required TokenStorage tokenStorage,
+    required this.tokenStorage,
     required this.store,
     Timer Function(Duration delay, void Function() onFire)? debounceTimer,
-  }) : _tokenStorage = tokenStorage,
-       _debounceTimer = debounceTimer ?? _defaultDebounceTimer {
+  }) : _debounceTimer = debounceTimer ?? _defaultDebounceTimer {
     scheduleLocalPlansChanged = _onLocalPlansChanged;
   }
 
@@ -61,7 +60,7 @@ class ScheduleSyncController {
       Timer(delay, onFire);
 
   final PkPlansTransport transport;
-  final TokenStorage _tokenStorage;
+  final TokenStorage tokenStorage;
   final ScheduleStoreNotifier store;
   final Timer Function(Duration delay, void Function() onFire) _debounceTimer;
 
@@ -90,7 +89,7 @@ class ScheduleSyncController {
 
   Future<bool> _hasToken() async {
     try {
-      final String? token = await _tokenStorage.read();
+      final String? token = await tokenStorage.read();
       return token != null && token.isNotEmpty;
     } catch (_) {
       return false;

@@ -62,7 +62,7 @@ class _ManualTimer implements Timer {
   _ManualTimer(this._owner, this._onFire);
 
   final _ManualTimers _owner;
-  void Function() _onFire;
+  final void Function() _onFire;
   bool _active = true;
 
   @override
@@ -220,7 +220,7 @@ Future<_Harness> _harness({
   void Function(ScheduleStoreNotifier store)? seed,
 }) async {
   SharedPreferences.setMockInitialValues(<String, Object>{
-    if (syncedAt != null) ScheduleStorageKeys.syncedAt: syncedAt,
+    ScheduleStorageKeys.syncedAt: ?syncedAt,
   });
   final ScheduleStoreNotifier store = ScheduleStoreNotifier();
   await store.ready;
