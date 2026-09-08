@@ -842,6 +842,8 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                               builder: (context, value, _) {
                                 return GfPostComposer(
                                   hideKeyboardLabel: l10n.commonHideKeyboard,
+                                  onCollapse: _closeComposer,
+                                  collapseLabel: l10n.commonCancel,
                                   controller: _replyController,
                                   focusNode: _replyFocus,
                                   targetName: _replyTargetName,
@@ -867,11 +869,9 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                   publishLabel: l10n.commonSend,
                                   hintText: l10n.topicReplyHint,
                                   onPublish: _submitReply,
-                                  toolbar: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (_replyCaptcha != null)
-                                        Row(
+                                  toolbar: _replyCaptcha == null
+                                      ? null
+                                      : Row(
                                           children: [
                                             InkWell(
                                               onTap: _replyCaptchaLoading
@@ -910,18 +910,6 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                                             ),
                                           ],
                                         ),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: GfIconButton(
-                                          icon:
-                                              Icons.keyboard_arrow_down_rounded,
-                                          tooltip: l10n.commonCancel,
-                                          size: 44,
-                                          onPressed: _closeComposer,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
                                 );
                               },
                             ),

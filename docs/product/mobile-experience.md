@@ -96,6 +96,10 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 
 ## Publishing
 
+- `Current`: reply composers use one rounded surface with a borderless, growing two-line input.
+  Image, hide-keyboard, collapse and send actions share the bottom row. The reply target is a
+  lightweight text row; attachment previews and server-required captcha controls appear only when needed.
+
 - `Current`: publishing and reply composers have a localized hide-keyboard button that preserves
   unsent text. Dragging the publishing page or topic stream also dismisses the keyboard; opening
   the publishing preview removes editor focus. Rich-text formatting remains available while editing.
