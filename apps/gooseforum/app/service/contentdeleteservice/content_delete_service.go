@@ -616,6 +616,10 @@ func PurgeContent(userID uint64, contentType ContentType, contentID uint64, reas
 			}
 			return component.NewMessageError(component.MessageContentPurgeFailed, "永久删除失败", component.MessageParams{"error": err.Error()})
 		}
+		// 对 ACTIVE 话题的首楼不可达：checkPurgeable 要求先进入
+		// USER_DELETED+RECOVERABLE，而首楼受 DeletePostByUser 的 PostNo<=1
+		// 守卫无法单独软删。可达的是收尾场景——首楼早已不可见、最后一条
+		// 可见回复被永久删除后联动下架（首楼场景由 PrivacyEraseContent 覆盖）。
 		cascadeHidePostlessTopic(post.TopicId, userID, reason)
 		fileusageservice.PurgeTargetFiles(postsTarget(contentID))
 		notificationservice.NullifyContentPreviews(post.TopicId, contentID)
@@ -742,6 +746,14 @@ func cascadeHidePostlessTopic(topicID, erasedBy uint64, reason string) {
 		return
 	}
 	clearTopicCaches(topicID)
+	// 广播话题级删除事件：搜索投影 worker 按当前状态（首楼不可见）删除该话题
+	// 的索引文档，避免已下架孤儿继续可搜（review）。
+	eventbus.Publish(context.Background(), &eventhandlers.ContentDeletedEvent{
+		ContentType:  string(ContentTypeTopic),
+		TopicId:      topicID,
+		DeletedBy:    erasedBy,
+		DeleteReason: reason,
+	})
 	recordEvent(contentDeleteEvent.EventPrivacyDelete, ContentTypeTopic, topicID, topicID, erasedBy)
 }
 
