@@ -450,6 +450,9 @@ export interface TopicPayload {
   activityText: string
   lastUpdateTime: string
   unseen?: boolean
+  /** Absent when authenticated interaction state is unavailable. */
+  liked?: boolean
+  bookmarked?: boolean
   contentType: 0 | 1 | 2 | 3
 }
 

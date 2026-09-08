@@ -22,6 +22,7 @@ class GfTopicList extends StatelessWidget {
     this.feedMode = GfTopicFeedMode.list,
     this.onLikeTopic,
     this.onBookmarkTopic,
+    this.onReturnFromTopic,
     required this.hasMore,
     required this.onLoadMore,
   });
@@ -34,6 +35,7 @@ class GfTopicList extends StatelessWidget {
   final GfTopicFeedMode feedMode;
   final Future<bool> Function(TopicPayload topic, bool target)? onLikeTopic;
   final Future<bool> Function(TopicPayload topic, bool target)? onBookmarkTopic;
+  final VoidCallback? onReturnFromTopic;
   final bool hasMore;
   final VoidCallback onLoadMore;
 
@@ -89,14 +91,20 @@ class GfTopicList extends StatelessWidget {
             ? _topicCard(
                 context,
                 topic,
-                onLike: onLikeTopic == null
+                onReturn: onReturnFromTopic,
+                onLike: onLikeTopic == null || topic.liked == null
                     ? null
                     : (target) => onLikeTopic!(topic, target),
-                onBookmark: onBookmarkTopic == null
+                onBookmark: onBookmarkTopic == null || topic.bookmarked == null
                     ? null
                     : (target) => onBookmarkTopic!(topic, target),
               )
-            : _topicRow(context, topic, isLast: index == topics.length - 1);
+            : _topicRow(
+                context,
+                topic,
+                isLast: index == topics.length - 1,
+                onReturn: onReturnFromTopic,
+              );
       },
     );
   }
@@ -107,6 +115,7 @@ Widget _topicRow(
   BuildContext context,
   TopicPayload topic, {
   required bool isLast,
+  VoidCallback? onReturn,
 }) {
   final AppLocalizations l10n = AppLocalizations.of(context);
   final List<GfTopicCategory> categories = <GfTopicCategory>[
@@ -134,13 +143,17 @@ Widget _topicRow(
     pinned: topic.pinWeight > 0,
     unseen: topic.unseen == true,
     showDivider: !isLast,
-    onTap: () => context.push('/p/${topic.id}'),
+    onTap: () async {
+      await context.push('/p/${topic.id}');
+      onReturn?.call();
+    },
   );
 }
 
 Widget _topicCard(
   BuildContext context,
   TopicPayload topic, {
+  VoidCallback? onReturn,
   Future<bool> Function(bool target)? onLike,
   Future<bool> Function(bool target)? onBookmark,
 }) {
@@ -174,6 +187,8 @@ Widget _topicCard(
     ),
     replyCount: topic.replyCount,
     viewCount: topic.viewCount,
+    liked: topic.liked ?? false,
+    bookmarked: topic.bookmarked ?? false,
     onLike: onLike,
     onBookmark: onBookmark,
     likeTooltip: l10n.topicLike,
@@ -182,6 +197,9 @@ Widget _topicCard(
     hot: topic.viewCount > 500,
     pinned: topic.pinWeight > 0,
     unseen: topic.unseen == true,
-    onTap: () => context.push('/p/${topic.id}'),
+    onTap: () async {
+      await context.push('/p/${topic.id}');
+      onReturn?.call();
+    },
   );
 }

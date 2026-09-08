@@ -35,8 +35,11 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   up to three previews with a total count. Tapping opens the full gallery with zoom.
 - `Current`: Home topic cards expose compact authenticated like and bookmark shortcuts beside the
   reply/view metrics. A successful action updates its selected icon immediately; failed actions
-  preserve the previous state and show the localized error. The home summary does not claim a
-  like total or initial per-user state until the page contract provides those fields.
+  preserve the previous state and show the localized error. Home summaries batch-load the viewer's
+  like/bookmark state; absent state (anonymous, unavailable or older servers) suppresses the
+  shortcuts. Selected states survive offscreen card recycling, and returning from detail refreshes
+  them. In-flight reads cannot overwrite newer successful actions. Metrics and actions wrap at
+  narrow widths and enlarged text sizes. Like totals are not part of the home summary.
 - `Current`: simple-content topics show an uncropped, swipeable image gallery above the body. The
   same gallery is used in the publishing preview.
 - `Current`: root headers, filter rails and bottom navigation overlay the reading viewport. They

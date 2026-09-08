@@ -9,7 +9,7 @@ import 'fixtures/page_fixtures.dart';
 void main() {
   testWidgets('topic cards expose like and bookmark shortcuts', (tester) async {
     final home = parsePageProps<HomeProps>(parsePayload(homePayloadJson()))!;
-    final topic = home.topics.first;
+    var topic = home.topics.first.copyWith(liked: false, bookmarked: false);
     bool? likeTarget;
     bool? bookmarkTarget;
 
@@ -19,20 +19,24 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: GfTopicList(
-            loading: false,
-            topics: [topic],
-            feedMode: GfTopicFeedMode.card,
-            hasMore: false,
-            onLoadMore: () {},
-            onLikeTopic: (topic, target) async {
-              likeTarget = target;
-              return true;
-            },
-            onBookmarkTopic: (topic, target) async {
-              bookmarkTarget = target;
-              return true;
-            },
+          body: StatefulBuilder(
+            builder: (context, setState) => GfTopicList(
+              loading: false,
+              topics: [topic],
+              feedMode: GfTopicFeedMode.card,
+              hasMore: false,
+              onLoadMore: () {},
+              onLikeTopic: (_, target) async {
+                likeTarget = target;
+                setState(() => topic = topic.copyWith(liked: target));
+                return true;
+              },
+              onBookmarkTopic: (_, target) async {
+                bookmarkTarget = target;
+                setState(() => topic = topic.copyWith(bookmarked: target));
+                return true;
+              },
+            ),
           ),
         ),
       ),
@@ -67,7 +71,7 @@ void main() {
 
   testWidgets('failed topic actions keep the unselected state', (tester) async {
     final home = parsePageProps<HomeProps>(parsePayload(homePayloadJson()))!;
-    final topic = home.topics.first;
+    var topic = home.topics.first.copyWith(liked: false, bookmarked: false);
     var calls = 0;
 
     await tester.pumpWidget(
@@ -76,16 +80,18 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: GfTopicList(
-            loading: false,
-            topics: [topic],
-            feedMode: GfTopicFeedMode.card,
-            hasMore: false,
-            onLoadMore: () {},
-            onLikeTopic: (topic, target) async {
-              calls++;
-              return false;
-            },
+          body: StatefulBuilder(
+            builder: (context, setState) => GfTopicList(
+              loading: false,
+              topics: [topic],
+              feedMode: GfTopicFeedMode.card,
+              hasMore: false,
+              onLoadMore: () {},
+              onLikeTopic: (_, target) async {
+                calls++;
+                return false;
+              },
+            ),
           ),
         ),
       ),

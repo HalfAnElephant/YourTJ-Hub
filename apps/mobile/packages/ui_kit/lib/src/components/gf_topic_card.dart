@@ -51,6 +51,7 @@ class GfTopicCard extends StatefulWidget {
   final String? likeTooltip;
   final String? bookmarkTooltip;
   final String? bookmarkedTooltip;
+  /// Controlled by the owning list so recycling never resets server state.
   final bool liked;
   final bool bookmarked;
 
@@ -70,8 +71,8 @@ class _GfTopicCardState extends State<GfTopicCard>
   ImageStreamListener? _listener;
   double _ratio = 1.5;
   String? _observedUrl;
-  late bool _liked = widget.liked;
-  late bool _bookmarked = widget.bookmarked;
+  bool get _liked => widget.liked;
+  bool get _bookmarked => widget.bookmarked;
   bool _likeBusy = false;
   bool _bookmarkBusy = false;
   late final AnimationController _likeAnimation;
@@ -107,12 +108,6 @@ class _GfTopicCardState extends State<GfTopicCard>
   @override
   void didUpdateWidget(GfTopicCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_likeBusy && oldWidget.liked != widget.liked) {
-      _liked = widget.liked;
-    }
-    if (!_bookmarkBusy && oldWidget.bookmarked != widget.bookmarked) {
-      _bookmarked = widget.bookmarked;
-    }
     _observeImage();
   }
 
@@ -123,7 +118,6 @@ class _GfTopicCardState extends State<GfTopicCard>
     setState(() => _likeBusy = true);
     try {
       if (await callback(target) && mounted) {
-        setState(() => _liked = target);
         if (target && !MediaQuery.disableAnimationsOf(context)) {
           _likeAnimation.forward(from: 0);
         }
@@ -140,7 +134,6 @@ class _GfTopicCardState extends State<GfTopicCard>
     setState(() => _bookmarkBusy = true);
     try {
       if (await callback(target) && mounted) {
-        setState(() => _bookmarked = target);
         if (target && !MediaQuery.disableAnimationsOf(context)) {
           _bookmarkAnimation.forward(from: 0);
         }
@@ -334,39 +327,52 @@ class _GfTopicCardState extends State<GfTopicCard>
           ),
         ],
         const SizedBox(height: 4),
-        Row(
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
           children: <Widget>[
-            _Metric(
-              icon: Icons.chat_bubble_outline,
-              value: '${widget.replyCount}',
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Metric(
+                  icon: Icons.chat_bubble_outline,
+                  value: '${widget.replyCount}',
+                ),
+                const SizedBox(width: 6),
+                _Metric(
+                  icon: Icons.visibility_outlined,
+                  value: '${widget.viewCount}',
+                ),
+              ],
             ),
-            const SizedBox(width: 6),
-            _Metric(
-              icon: Icons.visibility_outlined,
-              value: '${widget.viewCount}',
-            ),
-            const Spacer(),
-            if (widget.onLike != null)
-              _LikeAction(
-                liked: _liked,
-                animation: _likeAnimation,
-                activeColor: colors.error,
-                inactiveColor: colors.iconMuted,
-                tooltip: widget.likeTooltip,
-                onPressed: _likeBusy ? null : _toggleLike,
+            if (widget.onLike != null || widget.onBookmark != null)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.onLike != null)
+                    _LikeAction(
+                      liked: _liked,
+                      animation: _likeAnimation,
+                      activeColor: colors.error,
+                      inactiveColor: colors.iconMuted,
+                      tooltip: widget.likeTooltip,
+                      onPressed: _likeBusy ? null : _toggleLike,
+                    ),
+                  if (widget.onBookmark != null)
+                    _BookmarkAction(
+                      bookmarked: _bookmarked,
+                      animation: _bookmarkAnimation,
+                      activeColor: colors.primary,
+                      inactiveColor: colors.iconMuted,
+                      tooltip: _bookmarked
+                          ? widget.bookmarkedTooltip
+                          : widget.bookmarkTooltip,
+                      onPressed: _bookmarkBusy ? null : _toggleBookmark,
+                    ),
+                ],
               ),
-            if (widget.onBookmark != null)
-              _BookmarkAction(
-                bookmarked: _bookmarked,
-                animation: _bookmarkAnimation,
-                activeColor: colors.primary,
-                inactiveColor: colors.iconMuted,
-                tooltip: _bookmarked
-                    ? widget.bookmarkedTooltip
-                    : widget.bookmarkTooltip,
-                onPressed: _bookmarkBusy ? null : _toggleBookmark,
-              ),
-            const SizedBox(width: 4),
           ],
         ),
       ],
