@@ -3555,7 +3555,7 @@ PkPlansSnapshotData:
     updatedAt:
       type: string
       format: date-time
-      description: 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，永不回传。
+      description: 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，并以 baseUpdatedAt 回传作为写入条件。
   additionalProperties: false
 
 PkPlansPutRequest:
@@ -3563,6 +3563,9 @@ PkPlansPutRequest:
   description: PUT /api/pk/plans 请求体：快照四字段整体替换（服务端浅校验 1..10 套、id/name 非空、activePlanId 引用、≤1MB）。
   required: [plans, activePlanId, majorSelected, weekView]
   properties:
+    baseUpdatedAt:
+      type: string
+      description: Observed server updatedAt; empty string requires an absent snapshot. Stale writes return 409. Omission preserves unconditional replacement for compatibility; sync clients always supply this field.
     plans:
       type: array
       minItems: 1

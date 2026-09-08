@@ -9844,12 +9844,14 @@ export interface components {
             weekView: components["schemas"]["PkWeekViewPayload"];
             /**
              * Format: date-time
-             * @description 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，永不回传。
+             * @description 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，并以 baseUpdatedAt 回传作为写入条件。
              */
             updatedAt: string;
         };
         /** @description PUT /api/pk/plans 请求体：快照四字段整体替换（服务端浅校验 1..10 套、id/name 非空、activePlanId 引用、≤1MB）。 */
         PkPlansPutRequest: {
+            /** @description Observed server updatedAt; empty string requires an absent snapshot. Stale writes return 409. Omission preserves unconditional replacement for compatibility; sync clients always supply this field. */
+            baseUpdatedAt?: string;
             plans: components["schemas"]["PkPlanPayload"][];
             /** @description 当前激活方案 id，必须命中 plans 之一（≤64 字符，受服务端列约束）。 */
             activePlanId: string;
@@ -20423,6 +20425,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description The observed baseUpdatedAt is stale; fetch and resolve before retrying. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
                 };
             };
             /** @description Rate limit exceeded (pk.plans quota). */

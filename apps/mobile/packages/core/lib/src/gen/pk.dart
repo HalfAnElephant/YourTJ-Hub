@@ -543,14 +543,18 @@ class PkPlanSnapshotPayload {
     required this.activePlanId,
     required this.majorSelected,
     required this.weekView,
+    this.baseUpdatedAt,
   });
 
+  /// Observed server revision; empty means create only when absent.
+  final String? baseUpdatedAt;
   final List<PkPlan> plans;
   final String activePlanId;
   final PkMajorSelection majorSelected;
   final PkWeekView weekView;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+    if (baseUpdatedAt != null) 'baseUpdatedAt': baseUpdatedAt,
     'plans': plans.map((plan) => plan.toJson()).toList(),
     'activePlanId': activePlanId,
     'majorSelected': majorSelected.toJson(),

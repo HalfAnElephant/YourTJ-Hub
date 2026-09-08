@@ -357,3 +357,40 @@ func TestPkPlansCsrfGateHTTPContract(t *testing.T) {
 		}
 	})
 }
+
+// Two devices must not silently replace each other's edits or recreate a deleted revision.
+func TestPkPlansRejectsStaleRevision(t *testing.T) {
+	conn, router := setupPkPlansContractTest(t)
+	user := createHTTPContractUser(t, conn, contractTestID())
+	token := contractSessionToken(t, user)
+	put := func(base string) *httptest.ResponseRecorder {
+		body := strings.TrimSuffix(pkPlansPutBody, "}") + `,"baseUpdatedAt":"` + base + `"}`
+		return serveAuthSecurityJSON(router, http.MethodPut, "/api/pk/plans", body, token)
+	}
+	first := put("")
+	if first.Code != 200 {
+		t.Fatal(first.Body.String())
+	}
+	var data struct {
+		UpdatedAt string `json:"updatedAt"`
+	}
+	if err := json.Unmarshal(decodePkPlansEnvelope(t, first).Data, &data); err != nil {
+		t.Fatal(err)
+	}
+	if got := put(""); got.Code != 409 {
+		t.Fatalf("concurrent creation = %d, want 409", got.Code)
+	}
+	second := put(data.UpdatedAt)
+	if second.Code != 200 {
+		t.Fatal(second.Body.String())
+	}
+	stale := put(data.UpdatedAt)
+	if stale.Code != 409 {
+		t.Fatalf("stale update = %d, want 409", stale.Code)
+	}
+	assertPkPlansFixture(t, decodePkPlansEnvelope(t, stale), pkPlansFixtureOf(t, "pk-plans-conflict.json"))
+	serveAuthSecurityJSON(router, http.MethodDelete, "/api/pk/plans", "", token)
+	if got := put(data.UpdatedAt); got.Code != 409 {
+		t.Fatalf("deleted base = %d, want 409", got.Code)
+	}
+}

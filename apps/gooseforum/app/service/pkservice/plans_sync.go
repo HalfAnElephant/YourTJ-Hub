@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pk"
 )
@@ -49,7 +50,7 @@ func ValidatePlanSnapshot(plans pk.PlanList, activePlanId string) error {
 		if strings.TrimSpace(plan.Id) == "" || strings.TrimSpace(plan.Name) == "" {
 			return fmt.Errorf("方案缺少 id 或名称")
 		}
-		if len(plan.Id) > MaxPlanIdLength {
+		if utf8.RuneCountInString(plan.Id) > MaxPlanIdLength {
 			return fmt.Errorf("方案 id 过长（最多 %d 字符）", MaxPlanIdLength)
 		}
 		// 两端客户端都按 id 唯一处理（active 定位/删除命中首个），重复 id

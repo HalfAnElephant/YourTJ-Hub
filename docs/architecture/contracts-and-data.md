@@ -400,3 +400,5 @@ and per-topic documents preserve the stored Markdown source.
 - Automated Dart generation remains Planned; route coverage is a current contract gate as described
   above and is not a Planned capability.
 - Docs status words updated in step (docs/README.md).
+
+PK plan uploads support an observed `baseUpdatedAt` revision: an empty string creates only if no snapshot exists, and a stale revision returns HTTP 409 without changing data. Sync clients must send this condition and fetch again before resolving a conflict. The server remains the sole clock source; omission retains unconditional replacement for existing API consumers.
