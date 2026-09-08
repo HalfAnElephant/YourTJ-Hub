@@ -6,9 +6,12 @@
 // 数据全部走 /api/pk/* JSON API 异步加载（SSR 空壳）；localStorage 持久化由 store 负责。
 // 数据过期提示 + 「同步最新」：P11 latest-update 对比本地 updateTime，P12 course-info-sync
 // 以全方案课程并集请求，applySyncToAllPlans 各方案保留排课状态。
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
+import {
+  DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle,
+  DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger,
+} from 'reka-ui'
 import { Download, Loader2, RefreshCw, Star, X } from '@lucide/vue'
 import PageHeader from '@/site/components/PageHeader.vue'
 import ScheduleConfigSection from '@/site/components/schedule/ScheduleConfigSection.vue'
@@ -203,47 +206,7 @@ function handleReplacedCourse(from: string, to: string) {
 }
 
 // ---- 导出（CSV/XLS 菜单保留在页头；PNG 在课表工具条内）----
-const exportOpen = ref(false)
-const exportRoot = ref<HTMLElement | null>(null)
-const exportButton = ref<HTMLButtonElement | null>(null)
-const exportMenu = ref<HTMLElement | null>(null)
-
-function openExportMenu() {
-  exportOpen.value = true
-  // 打开后聚焦首项，保证键盘用户可直接继续导航（无需再 Tab 到菜单内）。
-  nextTick(() => {
-    exportMenu.value?.querySelector<HTMLButtonElement>('button')?.focus()
-  })
-}
-
-function closeExportMenu() {
-  exportOpen.value = false
-  // 菜单项激活 / Esc 关闭后，焦点还原到触发按钮。
-  exportButton.value?.focus()
-}
-
-function toggleExportMenu() {
-  if (exportOpen.value) {
-    closeExportMenu()
-  } else {
-    openExportMenu()
-  }
-}
-
-function handleExportOutsidePointerDown(event: PointerEvent) {
-  const target = event.target
-  if (target instanceof Node && exportRoot.value?.contains(target)) return
-  // 外部点击关闭时不抢焦点，焦点留给用户点击的目标。
-  exportOpen.value = false
-}
-
-function handleExportKeydown(event: KeyboardEvent) {
-  // 监听 document，菜单打开时无论焦点在按钮还是菜单项内，Esc 都能关闭。
-  if (event.key !== 'Escape' || !exportOpen.value) return
-  event.preventDefault()
-  closeExportMenu()
-}
-
+// Reka handles viewport collisions, keyboard navigation and focus restoration.
 function exportableClassCodes(): string[] {
   const codes: string[] = []
   for (const plan of store.state.plans) {
@@ -258,7 +221,6 @@ function exportableClassCodes(): string[] {
 }
 
 function exportCsv() {
-  closeExportMenu()
   const codes = exportableClassCodes()
   if (codes.length === 0) {
     flash(t('schedule.exportEmpty'), 'warning')
@@ -269,7 +231,6 @@ function exportCsv() {
 }
 
 function exportXls() {
-  closeExportMenu()
   const codes = exportableClassCodes()
   if (codes.length === 0) {
     flash(t('schedule.exportEmpty'), 'warning')
@@ -308,16 +269,12 @@ onMounted(() => {
   }
   apply()
   query.addEventListener('change', apply)
-  document.addEventListener('pointerdown', handleExportOutsidePointerDown)
-  document.addEventListener('keydown', handleExportKeydown)
   window.addEventListener('pageshow', handlePageShow)
   document.addEventListener('visibilitychange', handleVisibilityChange)
   void checkDataOutdated()
 })
 
 onBeforeUnmount(() => {
-  document.removeEventListener('pointerdown', handleExportOutsidePointerDown)
-  document.removeEventListener('keydown', handleExportKeydown)
   window.removeEventListener('pageshow', handlePageShow)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   sectionTimesRefresher.dispose()
@@ -340,33 +297,34 @@ onBeforeUnmount(() => {
             <RefreshCw v-else class="h-4 w-4" />
             {{ syncing ? t('schedule.syncSyncing') : t('schedule.syncLatest') }}
           </button>
-          <div ref="exportRoot" class="relative">
-            <button
-              ref="exportButton"
-              type="button"
-              class="gf-button gf-button-md gf-button-outline"
-              :aria-expanded="exportOpen"
-              aria-haspopup="menu"
-              @click="toggleExportMenu"
-            >
-              <Download class="h-4 w-4" />
-              {{ t('schedule.export') }}
-            </button>
-            <Transition name="gf-menu">
-              <div
-                v-if="exportOpen"
-                ref="exportMenu"
-                class="gf-menu-surface absolute left-0 right-auto sm:left-auto sm:right-0 top-[calc(100%+0.375rem)] z-30 w-48 p-1"
+          <DropdownMenuRoot :modal="false">
+            <DropdownMenuTrigger as-child>
+              <button type="button" class="gf-button gf-button-md gf-button-outline">
+                <Download class="h-4 w-4" />
+                {{ t('schedule.export') }}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuContent
+                side="bottom"
+                align="end"
+                :side-offset="6"
+                :collision-padding="16"
+                class="gf-menu-surface z-30 w-48 max-w-[calc(100vw-2rem)] p-1"
               >
-                <button type="button" class="gf-menu-item w-full" @click="exportCsv">
-                  {{ t('schedule.exportCsv') }}
-                </button>
-                <button type="button" class="gf-menu-item w-full" @click="exportXls">
-                  {{ t('schedule.exportXls') }}
-                </button>
-              </div>
-            </Transition>
-          </div>
+                <DropdownMenuItem as-child @select="exportCsv">
+                  <button type="button" class="gf-menu-item w-full">
+                    {{ t('schedule.exportCsv') }}
+                  </button>
+                </DropdownMenuItem>
+                <DropdownMenuItem as-child @select="exportXls">
+                  <button type="button" class="gf-menu-item w-full">
+                    {{ t('schedule.exportXls') }}
+                  </button>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenuRoot>
         </div>
       </template>
     </PageHeader>

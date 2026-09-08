@@ -63,6 +63,14 @@ jobs:
         if: steps.filter.outputs.frontend == 'true'
         working-directory: apps/gooseforum/resource
         run: pnpm test
+      - name: Install browser for layout tests
+        if: steps.filter.outputs.frontend == 'true'
+        working-directory: apps/gooseforum/resource
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Browser layout tests
+        if: steps.filter.outputs.frontend == 'true'
+        working-directory: apps/gooseforum/resource
+        run: pnpm test:browser
       - name: Check i18n keys
         if: steps.filter.outputs.frontend == 'true'
         working-directory: apps/gooseforum/resource
