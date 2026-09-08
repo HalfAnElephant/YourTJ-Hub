@@ -140,10 +140,20 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 
 - `Current`: Campus previews real reviewed courses and links to the course catalog, scheduler and
   Wiki. It does not display an official personal calendar or claim an enrollment integration.
-- `Current`: the scheduler opens in course selection. Plan preview remains a local planning grid,
-  with week filters, conflicts, custom blocks and existing plan operations. A prominent tip opens
+- `Current`: the scheduler opens in course selection. Plan preview remains a local planning
+  grid, with week filters, conflicts, custom blocks and existing plan operations. A prominent tip opens
   the full [Web scheduler](https://f.yourtj.de/schedule) in the external browser without transferring
   the native credential. Plans are not official enrollment results.
+- `Current`: signed-in plans cloud-sync with the Web scheduler (`GET/PUT/DELETE /api/pk/plans`,
+  issue #537): local changes upload after a 3s debounce, entering the scheduler reconciles against
+  the cloud snapshot (empty cloud auto-uploads local; conflicting edits show a one-time
+  use-cloud / keep-local dialog), and the server's `updatedAt` clock is the only sync authority.
+  Uploads carry the observed server revision; HTTP 409 triggers another read and a conflict
+  dialog. Initial read failures and unresolved conflicts block writes. Pending local changes
+  survive page exit and transient failures, and the sync clock advances only after local
+  persistence succeeds. Switching accounts requires choosing the cloud copy or explicitly
+  keeping the retained local plans, including when the new account has no cloud snapshot.
+  Signed-out use stays purely local with zero requests; account closure deletes the cloud copy.
 - `Current`: course details retain offering-specific five-star reviews and existing review fields;
   bookmark and write-review actions stay in a bottom dock. Scores share a baseline with their
   five-point denominator. The signed-in user’s own reviews (including anonymous reviews) appear

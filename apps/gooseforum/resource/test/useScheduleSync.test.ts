@@ -496,4 +496,15 @@ describe('useScheduleSync（排课方案云同步状态机）', () => {
     expect(putCloudSnapshot).toHaveBeenCalledTimes(1)
   })
 
+  test('an initial create conflict fetches the winning cloud snapshot', async () => {
+    const { store, controller, fetchCloudSnapshot, putCloudSnapshot } = setup()
+    controller.start()
+    seedLocalContent(store)
+    fetchCloudSnapshot.mockResolvedValueOnce(null).mockResolvedValue(makeSnapshot())
+    putCloudSnapshot.mockRejectedValue(new PkSyncError('conflict', 409, 'rejected'))
+    await controller.syncOnPageEnter()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(controller.conflict.value).not.toBeNull()
+  })
+
 })
