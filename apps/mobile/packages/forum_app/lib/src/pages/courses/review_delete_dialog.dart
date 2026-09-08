@@ -25,8 +25,8 @@ Future<bool> confirmCourseReviewDeletion(
             vertical: 24,
           ),
           titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-          contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-          actionsPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+          contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+          actionsPadding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
           title: Text(
             copy.deleteReviewTitle,
             style: GfTheme.typographyOf(context).heading,
