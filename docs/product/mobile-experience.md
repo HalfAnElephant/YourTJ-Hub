@@ -44,6 +44,10 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 - `Current`: Home, Campus and Notifications have a stable compose button; Messages has a new-chat
   button. Topic pages keep reply and floor controls in the bottom dock. Pull-to-refresh and
   reselecting the active root destination provide refresh and return-to-top without changing icons.
+  Refreshable pages accept a short pull from the top on release, including empty lists; the gesture
+  uses finger travel so tall screens and iOS rubber-band damping do not demand a longer pull.
+  Home, Campus and Notifications show the refresh indicator below their overlaid navigation.
+  Small or retracted pulls do not refresh, and an ongoing refresh cannot be started twice.
 - `Current`: the floor slider loads the selected server window on release. Earliest/latest
   shortcuts, reply links, and earlier/later pagination navigate the actual reply stream. Returning
   to the first post from a middle window reloads that window before offering refresh; stale

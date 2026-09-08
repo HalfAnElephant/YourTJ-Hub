@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 import 'package:core/core.dart';
+import '../../widgets/app_refresh_indicator.dart';
 import '../../asset_url.dart';
 import '../../server_messages.dart';
 
@@ -367,7 +368,7 @@ class _SearchResults extends StatelessWidget {
         props.categories.isNotEmpty;
     final bool hasResults = showUsers || showTopics || showCategories;
 
-    return RefreshIndicator(
+    return AppRefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
         controller: controller,

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:core/core.dart';
 import 'package:ui_kit/ui_kit.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../format.dart';
 import '../../providers.dart';
@@ -407,7 +408,7 @@ class _CourseDetailPageState extends ConsumerState<CourseDetailPage> {
     return Stack(
       children: <Widget>[
         Positioned.fill(
-          child: RefreshIndicator(
+          child: AppRefreshIndicator(
             onRefresh: () async {
               await _load();
               await _loadRelated();

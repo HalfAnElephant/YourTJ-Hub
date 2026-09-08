@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:core/core.dart';
 import 'package:ui_kit/ui_kit.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../server_messages.dart';
@@ -596,7 +597,7 @@ class _CourseCatalogPageState extends ConsumerState<CourseCatalogPage> {
 
   Widget _buildList(AppLocalizations l10n) {
     final CourseCopy copy = CourseCopy(l10n);
-    return RefreshIndicator(
+    return AppRefreshIndicator(
       onRefresh: _load,
       child: _courses.isEmpty
           ? ListView(

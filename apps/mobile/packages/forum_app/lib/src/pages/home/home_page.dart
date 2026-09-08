@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:core/core.dart';
 import 'package:ui_kit/ui_kit.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../navigation/tab_scroll_registry.dart';
@@ -176,7 +177,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           semanticLabel: l10n.commonBackToTop,
           controller: _scrollToTopController,
           showButton: false,
-          builder: (_, controller) => RefreshIndicator(
+          builder: (_, controller) => AppRefreshIndicator(
+            edgeOffset: top,
             onRefresh: () => _load(silent: true),
             child: GfTopicList(
               controller: controller,

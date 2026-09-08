@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:core/core.dart';
 import 'package:ui_kit/ui_kit.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../asset_url.dart';
 import '../../current_user.dart';
@@ -344,7 +345,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             controller: _isShellProfile ? _scrollToTopController : null,
             threshold: 360,
             builder: (BuildContext context, ScrollController controller) {
-              return RefreshIndicator(
+              return AppRefreshIndicator(
                 onRefresh: () => _load(silent: true),
                 child: CustomScrollView(
                   controller: controller,

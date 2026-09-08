@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:core/core.dart';
 import 'package:ui_kit/ui_kit.dart';
+import '../../widgets/app_refresh_indicator.dart';
 import '../../asset_url.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -726,7 +727,7 @@ class _TopicPageState extends ConsumerState<TopicPage> {
                   threshold: 360,
                   bottomInset: 84,
                   builder: (context, scrollController) {
-                    return RefreshIndicator(
+                    return AppRefreshIndicator(
                       onRefresh: () => _load(silent: true),
                       child: CustomScrollView(
                         keyboardDismissBehavior:
