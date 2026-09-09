@@ -209,22 +209,19 @@ func GetMapByIds(userIds []uint64) map[uint64]*EntityComplete {
 // 非机器人（Agent）；未知 username 不会出现在结果中。
 // 单次 IN 查询批量解析，避免逐用户名查库造成 N+1。
 func GetMentionTargetIds(usernames []string) map[string]uint64 {
-	if len(usernames) == 0 {
-		return map[string]uint64{}
-	}
-	var entities []*EntityComplete
-	builder().
-		Where("username IN ?", usernames).
-		Where(queryopt.Eq(fieldIsFrozen, StatusNormal)).
-		Where(queryopt.Eq("actor_type", ActorTypeHuman)).
-		Find(&entities)
-
-	result := make(map[string]uint64, len(entities))
-	for _, entity := range entities {
-		if entity == nil || entity.Id == 0 {
-			continue
+	result := make(map[string]uint64)
+	// User-authored content can contain more names than the database bind limit.
+	for start := 0; start < len(usernames); start += 500 {
+		var entities []*EntityComplete
+		end := min(start+500, len(usernames))
+		builder().Where("username IN ?", usernames[start:end]).
+			Where(queryopt.Eq(fieldIsFrozen, StatusNormal)).
+			Where(queryopt.Eq("actor_type", ActorTypeHuman)).Find(&entities)
+		for _, entity := range entities {
+			if entity != nil && entity.Id != 0 {
+				result[entity.Username] = entity.Id
+			}
 		}
-		result[entity.Username] = entity.Id
 	}
 	return result
 }
