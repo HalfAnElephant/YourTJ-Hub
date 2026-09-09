@@ -34,7 +34,8 @@ func IncrementUserPostTx(tx *gorm.DB, topicId, userId uint64) error {
 	return tx.Table(tableName).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "topic_id"}, {Name: "user_id"}},
 		DoUpdates: clause.Assignments(map[string]any{
-			"reply_count":   gorm.Expr("reply_count + 1"),
+			// Qualify the target row: PostgreSQL also exposes EXCLUDED.reply_count here.
+			"reply_count":   gorm.Expr("? + 1", clause.Column{Table: tableName, Name: "reply_count"}),
 			"last_reply_at": now,
 		}),
 	}).Create(map[string]any{
