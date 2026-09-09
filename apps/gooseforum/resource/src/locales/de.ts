@@ -499,6 +499,8 @@ export default {
     // ---- Cloud-Sync (#573: immer hochladen, Auto-Wiederherstellung, manuelles Speichern) ----
     syncSaved: 'Stundenplan gespeichert und mit der Cloud synchronisiert',
     syncSaveFailed: 'Speichern fehlgeschlagen. Netzwerk prüfen und erneut versuchen',
+    syncAdoptPreviousOwner: 'Diese lokalen Pläne gehören zum vorherigen Konto. Im aktuell angemeldeten Konto speichern?',
+    syncMergeLimit: 'Die zusammengeführten Pläne überschreiten das Speicherlimit. Lokale Änderungen bleiben erhalten. Anzahl oder Größe der Pläne reduzieren und erneut versuchen.',
     syncAutoRestored: 'Cloud- und lokale Pläne unterscheiden sich. Lokale Pläne erhalten als: {name}',
     planAutoRestoreName: '[Automatisch wiederhergestellt] Plan {n}',
     loading: 'Wird geladen…',

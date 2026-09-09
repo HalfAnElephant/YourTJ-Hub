@@ -499,6 +499,8 @@ export default {
     // ---- Cloud sync (#573: always upload, auto-restore, manual save) ----
     syncSaved: 'Timetable saved and synced to cloud',
     syncSaveFailed: 'Save failed. Check your network and try again',
+    syncAdoptPreviousOwner: 'These local plans belong to the previous account. Save them to the currently signed-in account?',
+    syncMergeLimit: 'Merged plans exceed the storage limit. Local edits are preserved. Reduce the number or size of plans and try again.',
     syncAutoRestored: 'Cloud and local plans differ. Local plans preserved as: {name}',
     planAutoRestoreName: '[Auto-recovered] Plan {n}',
     loading: 'Loading…',

@@ -97,9 +97,15 @@ watch(scheduleSync.notice, (message) => {
   scheduleSync.clearNotice()
 })
 
+watch(scheduleSync.mergeBlocked, (blocked) => {
+  if (blocked) flash(t('schedule.syncMergeLimit'), 'error')
+})
+
 /** 手动保存（「保存课表」按钮）：立即上传本地方案到云端。 */
 async function saveTimetableNow() {
-  const ok = await scheduleSync.saveNow()
+  const adoptPreviousOwner = scheduleSync.needsOwnerConfirmation()
+  if (adoptPreviousOwner && !window.confirm(t('schedule.syncAdoptPreviousOwner'))) return
+  const ok = await scheduleSync.saveNow(adoptPreviousOwner)
   flash(ok ? t('schedule.syncSaved') : t('schedule.syncSaveFailed'), ok ? 'success' : 'error')
 }
 
