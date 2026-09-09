@@ -8,9 +8,9 @@ import (
 
 	db "github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/eventbus"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/forum"
-	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/postRevisions"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/postUserAction"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/posts"
@@ -445,7 +445,7 @@ type CreatePostReq struct {
 	TopicId       uint64 `json:"topicId"`
 	Content       string `json:"content"`
 	ReplyToPostId uint64 `json:"replyToPostId"`
-	IsAnonymous   bool   `json:"isAnonymous"` // 匿名发布（仅 wiki 评论区，issue #524）
+	IsAnonymous   bool   `json:"isAnonymous"`       // 匿名发布（仅 wiki 评论区，issue #524）
 	Website       string `json:"website,omitempty"` // 蜜罐字段，正常用户不可见
 	CaptchaId     string `json:"captchaId,omitempty"`
 	CaptchaCode   string `json:"captchaCode,omitempty"`

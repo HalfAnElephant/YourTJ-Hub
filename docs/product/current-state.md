@@ -72,3 +72,11 @@ Before expanding features, close these baselines (avoid building on a wrong foun
 1. Decide MFA policy for built-in OIDC / GitHub OAuth login paths (forum TOTP reuse is a `Decision needed`).
 2. Expand OpenAPI and generated-client coverage before broad API rework, so uncovered routes do not
    become a new source of contract drift.
+
+### Web editor mentions
+
+`Current`: The forum reply editor suggests users after `@`, combining reply targets, topic authors
+and participants with debounced server search. Keyboard selection stays inside the editor;
+errors discard stale candidates, caret operations stay within the editable root, and popup
+position and accessible option references follow the current session. Code and links suppress
+suggestions; insertion preserves plain `@username` Markdown with a trailing space.
