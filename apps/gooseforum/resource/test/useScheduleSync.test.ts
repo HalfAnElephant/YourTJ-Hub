@@ -10,6 +10,17 @@ import {
   type ScheduleSyncController,
 } from '../src/site/composables/useScheduleSync'
 import { setSolidifyHook, useScheduleStore } from '../src/site/composables/useScheduleStore'
+import { i18n } from '../src/runtime/i18n'
+
+/** 默认方案名（跟随当前 locale，构造云端方案名用）。 */
+function defaultPlanName(n: number): string {
+  return i18n.global.t('schedule.planDefaultName', { n })
+}
+
+/** 自动恢复方案名（跟随当前 locale）。 */
+function autoRestoreName(n: number): string {
+  return i18n.global.t('schedule.planAutoRestoreName', { n })
+}
 
 // 云同步状态机（useScheduleSync）单测：传输层注入 fake，vi.useFakeTimers 驱动
 // 防抖/心跳语义。覆盖（#573）：进页总是上传本地、云端分歧自动恢复（保留本地为
@@ -37,7 +48,7 @@ function makeSnapshot(overrides: Partial<PkSyncRemoteSnapshot> = {}): PkSyncRemo
     plans: [
       {
         id: 'plan_cloud',
-        name: '方案 1',
+        name: defaultPlanName(1),
         createdAt: 1725000000000,
         stagedCourses: [],
         selectedCourses: [],
@@ -203,7 +214,7 @@ describe('useScheduleSync（排课方案云同步状态机 #573）', () => {
     await controller.syncOnPageEnter()
 
     // 本地（122004）与云端（空方案）内容分歧 → 本地方案保留为恢复方案，云端为主上传合并。
-    expect(controller.notice.value).toContain('[本地自动恢复]')
+    expect(controller.notice.value).toBe(store.state.plans[1]?.name ?? null)
     expect(putCloudSnapshot).toHaveBeenCalledTimes(1)
     expect(store.state.plans).toHaveLength(2)
     expect(store.getSyncedAt()).toBe(UPDATED_AT_2)
@@ -431,11 +442,11 @@ describe('useScheduleSync（排课方案云同步状态机 #573）', () => {
     await controller.syncOnPageEnter()
 
     expect(controller.notice.value).not.toBeNull()
-    expect(controller.notice.value).toContain('[本地自动恢复]')
+    expect(controller.notice.value).toBe(store.state.plans[1]?.name ?? null)
     // 云端为主 + 本地方案克隆为恢复方案追加保留。
     expect(store.state.plans).toHaveLength(2)
     expect(store.state.plans[0]?.id).toBe('plan_cloud')
-    expect(store.state.plans[1]?.name).toContain('[本地自动恢复]')
+    expect(store.state.plans[1]?.name).toBe(autoRestoreName(2))
     expect(store.state.plans[1]?.stagedCourses[0]?.courseCode).toBe('122004')
     // 合并快照上传（云端 + 恢复方案）。
     expect(putCloudSnapshot).toHaveBeenCalledTimes(1)
@@ -572,8 +583,8 @@ describe('useScheduleSync（排课方案云同步状态机 #573）', () => {
     seedLocalContent(store)
     fetchCloudSnapshot.mockResolvedValue(makeSnapshot({
       plans: [
-        { id: 'cloud_1', name: '方案 1', createdAt: 1, stagedCourses: [], selectedCourses: [], customEvents: [] },
-        { id: 'cloud_2', name: '方案 2', createdAt: 2, stagedCourses: [], selectedCourses: [], customEvents: [] },
+        { id: 'cloud_1', name: defaultPlanName(1), createdAt: 1, stagedCourses: [], selectedCourses: [], customEvents: [] },
+        { id: 'cloud_2', name: defaultPlanName(2), createdAt: 2, stagedCourses: [], selectedCourses: [], customEvents: [] },
       ],
       activePlanId: 'cloud_1',
     }))
@@ -583,8 +594,8 @@ describe('useScheduleSync（排课方案云同步状态机 #573）', () => {
     await controller.syncOnPageEnter()
 
     expect(store.state.plans).toHaveLength(3)
-    expect(store.state.plans[2]?.name).toBe('[本地自动恢复]方案 3')
-    expect(controller.notice.value).toContain('[本地自动恢复]方案 3')
+    expect(store.state.plans[2]?.name).toBe(autoRestoreName(3))
+    expect(controller.notice.value).toContain(autoRestoreName(3))
   })
 
   test('进页 GET 挂起期间不上传；对账完成后按策略上传', async () => {
