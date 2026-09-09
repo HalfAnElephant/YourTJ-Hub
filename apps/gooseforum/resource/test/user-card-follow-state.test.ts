@@ -178,4 +178,49 @@ describe('UserCard 关注状态（issue #593）', () => {
     expect(followButton()?.textContent?.trim()).toBe(t('userCard.following'))
     expect(followerStatValue()).toBe('11')
   })
+
+  test('toggle 成功但回源失败：不算关注失败，保持已关注（PR #600 review 1）', async () => {
+    getUserCardMock.mockResolvedValueOnce(makeCard({ isFollowing: false }))
+    followUserMock.mockResolvedValueOnce(true)
+    getUserCardMock.mockRejectedValueOnce(new Error('network down'))
+    await mountCard()
+    showCard()
+    await flushAll()
+
+    followButton()!.click()
+    await flushAll()
+
+    expect(followUserMock).toHaveBeenCalledTimes(1)
+    expect(followButton()?.textContent?.trim()).toBe(t('userCard.following'))
+    expect(document.body.querySelector('[role="alert"]')).toBeNull()
+  })
+
+  test('回源飞行期间收到同 tab 广播：旧快照不回退关注状态（PR #600 review 2）', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    getUserCardMock.mockResolvedValueOnce(makeCard({ isFollowing: false, followerCount: 10 }))
+    await mountCard()
+    showCard()
+    await flushAll()
+
+    // TTL 过期触发 SWR，并让重验请求挂起
+    window.dispatchEvent(new CustomEvent('goose:page'))
+    vi.setSystemTime(Date.now() + 61_000)
+    let resolveRefresh!: (v: UserCardPayload) => void
+    getUserCardMock.mockImplementationOnce(() => new Promise<UserCardPayload>((r) => { resolveRefresh = r }))
+    showCard()
+    await flushAll()
+    expect(getUserCardMock).toHaveBeenCalledTimes(2)
+
+    // 飞行期间其他 surface 关注了该用户
+    broadcastFollowChange(42, true)
+    await flushAll()
+    expect(followButton()?.textContent?.trim()).toBe(t('userCard.following'))
+
+    // 旧快照（广播前的服务端状态）落地，不得覆盖较新的广播状态
+    resolveRefresh(makeCard({ isFollowing: false, followerCount: 11 }))
+    await flushAll()
+
+    expect(getKnownFollowState(42)).toBe(true)
+    expect(followButton()?.textContent?.trim()).toBe(t('userCard.following'))
+  })
 })

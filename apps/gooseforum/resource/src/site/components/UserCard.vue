@@ -12,7 +12,7 @@ import {
 } from '@lucide/vue'
 import { getUserCard, followUser } from '@/runtime/api'
 // 关注状态单一事实源：卡片缓存的可变状态必须经它登记/广播，跨 surface 才能一致（issue #593）
-import { broadcastFollowChange, getKnownFollowState, onFollowChange, recordFollowState } from '@/runtime/follow-state'
+import { broadcastFollowChange, getFollowChangeSeq, getKnownFollowState, onFollowChange, recordFollowState } from '@/runtime/follow-state'
 import { formatDate, formatNumber, timeAgo } from '@/runtime/format'
 import type { UserCardShowDetail } from '@/runtime/user-card-events'
 import type { UserCardPayload } from '@gooseforum/client'
@@ -124,12 +124,23 @@ function storeInCache(userId: number, payload: UserCardPayload) {
   recordFollowState(userId, payload.isFollowing)
 }
 
+// 回源落地（PR #600 review 2）：若请求飞行期间发生了同 tab 关注变更广播，
+// 响应里的 isFollowing 是变更前的旧快照，关注状态以广播为准，其余字段照常采纳。
+function adoptFreshCard(userId: number, fresh: UserCardPayload, seqAtRequest: number) {
+  if (getFollowChangeSeq(userId) !== seqAtRequest) {
+    const known = getKnownFollowState(userId)
+    if (known !== undefined) fresh.isFollowing = known
+  }
+  storeInCache(userId, fresh)
+}
+
 // stale-while-revalidate：立即展示缓存，后台向 /api/user-card 回源。
 // 命中缓存不再意味着「本会话内永远正确」——用户主页取关、其他标签页变更都要靠这里收敛。
 async function revalidateCard(userId: number, token: number) {
+  const seqAtRequest = getFollowChangeSeq(userId)
   try {
     const result = await getUserCard(userId)
-    storeInCache(userId, result)
+    adoptFreshCard(userId, result, seqAtRequest)
     // 仅当仍在展示同一用户时才刷新 UI；token 过期说明已切换到别的卡片，只更新缓存
     if (token !== requestToken) return
     if (card.value?.userId === userId) {
@@ -167,9 +178,10 @@ async function show(event: Event) {
   const token = ++requestToken
   loading.value = true
   card.value = null
+  const seqAtRequest = getFollowChangeSeq(detail.user.id)
   try {
     const result = await getUserCard(detail.user.id)
-    storeInCache(detail.user.id, result)
+    adoptFreshCard(detail.user.id, result, seqAtRequest)
     if (token !== requestToken) return
     card.value = result
     isFollowing.value = result.isFollowing
@@ -189,23 +201,31 @@ async function toggleFollow() {
   followError.value = ''
   try {
     await followUser(userCard.userId, isFollowing.value)
-    const target = !isFollowing.value
-    isFollowing.value = target
-    userCard.isFollowing = target
-    broadcastFollowChange(userCard.userId, target)
-    // 回源拿权威结果：本地翻转只是乐观更新，isFollowing 与粉丝数以 /api/user-card 为准
+  } catch (e) {
+    // 只有关注操作本身的失败才算「关注失败」，保持原状态并内联提示
+    followError.value = e instanceof Error ? e.message : t('api.followFailed')
+    followLoading.value = false
+    return
+  }
+  // 以下不再有「关注失败」：POST 已成功，翻转与广播是本地的即时反馈
+  const target = !isFollowing.value
+  isFollowing.value = target
+  userCard.isFollowing = target
+  broadcastFollowChange(userCard.userId, target)
+  // 回源拿权威结果与粉丝数；失败只代表资料未刷新，不算关注失败（PR #600 review 1），
+  // 计数等字段由 SWR/TTL 下次重验兜底。loading 保持到回源结束，避免飞行期间再次点击发出反向 action
+  const seqAtRequest = getFollowChangeSeq(userCard.userId)
+  try {
     const fresh = await getUserCard(userCard.userId)
-    storeInCache(userCard.userId, fresh)
+    adoptFreshCard(userCard.userId, fresh, seqAtRequest)
     if (card.value?.userId === userCard.userId) {
       card.value = fresh
       isFollowing.value = fresh.isFollowing
     }
-  } catch (e) {
-    // 关注失败保持原状态，内联提示（对齐 UserPage 的 followError 模式）
-    followError.value = e instanceof Error ? e.message : t('api.followFailed')
-  } finally {
-    followLoading.value = false
+  } catch {
+    // 回源失败保留乐观状态，静默等待下次重验
   }
+  followLoading.value = false
 }
 
 function onDocumentPointerDown(event: PointerEvent) {

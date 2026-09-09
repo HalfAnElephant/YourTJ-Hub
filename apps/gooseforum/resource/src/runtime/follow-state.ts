@@ -13,9 +13,18 @@ export interface FollowChangeDetail {
 export const FOLLOW_CHANGE_EVENT = 'goose:follow-changed'
 
 const known = new Map<number, boolean>()
+// 每用户变更代次：广播一次递增一次。回源请求落地时对比代次，
+// 可识别「请求发出后、响应落地前发生了同 tab 关注变更」，避免旧快照回退新状态。
+const changeSeq = new Map<number, number>()
+let lastSeq = 0
 
 export function getKnownFollowState(userId: number): boolean | undefined {
   return known.get(userId)
+}
+
+// 读取用户当前的变更代次（请求发出前快照用）。
+export function getFollowChangeSeq(userId: number): number {
+  return changeSeq.get(userId) ?? 0
 }
 
 export function recordFollowState(userId: number, isFollowing: boolean) {
@@ -25,6 +34,7 @@ export function recordFollowState(userId: number, isFollowing: boolean) {
 // 关注/取关成功后调用：登记新状态并广播，供 UserCard/UserPage 等即时同步。
 export function broadcastFollowChange(userId: number, isFollowing: boolean) {
   recordFollowState(userId, isFollowing)
+  changeSeq.set(userId, ++lastSeq)
   window.dispatchEvent(
     new CustomEvent<FollowChangeDetail>(FOLLOW_CHANGE_EVENT, {
       detail: { userId, isFollowing },
@@ -41,4 +51,6 @@ export function onFollowChange(handler: (detail: FollowChangeDetail) => void): (
 // 仅供测试：清空会话内登记状态。
 export function resetFollowState() {
   known.clear()
+  changeSeq.clear()
+  lastSeq = 0
 }
