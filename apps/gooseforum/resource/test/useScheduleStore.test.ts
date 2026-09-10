@@ -205,6 +205,33 @@ describe('useScheduleStore（v2 多方案 + 容忍式冲突）', () => {
     expect(store.state.timeTableData).toEqual([])
   })
 
+  test('旧占位数据缺少 label 时回退默认文案，不泄漏 custom: 伪课号', () => {
+    const storage = makeStorage({
+      'pk.plans': JSON.stringify([
+        {
+          id: 'plan_legacy',
+          name: '方案 1',
+          createdAt: 1,
+          stagedCourses: [],
+          selectedCourses: [],
+          customEvents: [
+            { id: 'evt_legacy', label: '', day: 1, sections: [1], weeks: [1] },
+          ],
+        },
+      ]),
+      'pk.activePlanId': 'plan_legacy',
+    })
+    vi.stubGlobal('window', storage)
+
+    const store = useScheduleStore()
+    store.loadSolidify()
+
+    const defaultLabel = i18n.global.t('schedule.customEventDefaultLabel')
+    expect(store.state.plans[0].customEvents[0].label).toBe(defaultLabel)
+    expect(store.state.timeTableData[0].courseName).toBe(defaultLabel)
+    expect(store.state.timeTableData[0].courseName).not.toContain(CUSTOM_EVENT_CODE_PREFIX)
+  })
+
   test('v1 → v2 迁移：旧键包装为单方案且旧键只读保留', () => {
     const legacyStaged = [makeStaged('122004', [makeDetail('122004.01', 1, [3, 4], [1, 8])])]
     const storage = makeStorage({

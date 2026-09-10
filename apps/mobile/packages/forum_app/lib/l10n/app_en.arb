@@ -1,4 +1,12 @@
 {
+  "myCourseReviewsTitle": "My course reviews",
+  "myCourseReviewsEmpty": "No reviews yet. Explore the course catalog to get started.",
+  "myCourseReviewHidden": "This review is hidden. You can delete it here.",
+  "myCourseReviewUnavailable": "This course is unavailable. You can still manage your review.",
+  "myCourseReviewOpen": "View details",
+  "courseReviewNetworkError": "Could not connect. Check your connection and retry; your review has been kept.",
+  "courseReviewUnknownError": "Your review could not be saved. The server did not provide a specific reason; please retry later.",
+  "commonHideKeyboard": "Hide keyboard",
   "@@locale": "en",
   "appTitle": "YourTJ",
   "navHome": "Home",
@@ -491,6 +499,10 @@
       }
     }
   },
+  "scheduleSyncConflictTitle": "Plan sync conflict",
+  "scheduleSyncConflictBody": "Your local schedule plans differ from the cloud copy. Which one should be kept?",
+  "scheduleSyncUseCloud": "Use cloud",
+  "scheduleSyncKeepLocal": "Keep local",
   "scheduleWeekAll": "All weeks",
   "scheduleWeekN": "Week {week}",
   "@scheduleWeekN": {
@@ -525,6 +537,26 @@
   "scheduleStatsHours": "Hours",
   "scheduleStatsConflicts": "Conflicts",
   "scheduleConflictBadge": "Conflict",
+  "scheduleConflictWith": "Conflicts with \"{course}\"",
+  "@scheduleConflictWith": {
+    "placeholders": {
+      "course": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleConflictsWith": "Conflicts with \"{course}\" and {count} other courses",
+  "@scheduleConflictsWith": {
+    "placeholders": {
+      "course": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleConflictCanAdd": "Can still add",
   "scheduleAddCustomEvent": "Add placeholder",
   "scheduleCustomEventLabel": "Busy",
   "scheduleExportPng": "Export image",
@@ -637,7 +669,6 @@
   "contentRestore": "Restore",
   "contentDelete": "Delete",
   "contentPurge": "Delete permanently",
-  "contentPrivacyErase": "Erase personal content",
   "contentDeleteConfirm": "Content moves to the recycle bin and can be restored within 30 days when eligible.",
   "contentPurgeConfirm": "This cannot be undone. Text and images will be permanently erased.",
   "contentPassword": "Enter your current password to confirm",
@@ -748,6 +779,8 @@
       }
     }
   },
+  "notificationMention": "{actor} mentioned you",
+  "@notificationMention": {"placeholders": {"actor": {"type": "String"}}},
   "notificationPostReply": "{actor} replied to you",
   "@notificationPostReply": {
     "placeholders": {

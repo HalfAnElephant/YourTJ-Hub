@@ -42,7 +42,6 @@ import {
   getDeletedContent,
   purgeDeletedContent,
   restoreDeletedContent,
-  privacyEraseContent,
   getMyContent,
   batchDeleteContent,
   closeAccount,
@@ -54,6 +53,7 @@ import {
   saveUserProfileCover,
   sensitiveWordsFromError,
   unbindOAuth,
+  setPassword,
   wearBadge,
   type OAuthBindingsPayload,
   type DeletedContentItem,
@@ -431,7 +431,7 @@ function deletedContentTitle(item: DeletedContentItem) {
   return item.title || item.excerpt || t('settings.deleted.untitled')
 }
 
-function deletedContentActionKey(item: DeletedContentItem, action: 'restore' | 'purge' | 'privacy') {
+function deletedContentActionKey(item: DeletedContentItem, action: 'restore' | 'purge') {
   return `${action}:${item.contentType}:${item.id}`
 }
 
@@ -638,22 +638,6 @@ async function purgeDeletedItem(item: DeletedContentItem) {
   try {
     await purgeDeletedContent(item.contentType as DeletedContentType, item.id)
     pushFlash(t('settings.deleted.purgeSuccess'), 'success')
-    await loadDeletedContent()
-  } catch (err) {
-    pushFlash(err instanceof Error ? err.message : t('api.contentPurgeFailed'), 'error')
-  } finally {
-    deletedContentAction.value = ''
-  }
-}
-
-/** 隐私紧急删除（PRD R8）：跳过 30 天恢复窗口，全渠道立即彻底删除。 */
-async function privacyEraseDeletedItem(item: DeletedContentItem) {
-  if (deletedContentAction.value) return
-  if (!window.confirm(t('settings.deleted.privacyEraseConfirm'))) return
-  deletedContentAction.value = deletedContentActionKey(item, 'privacy')
-  try {
-    await privacyEraseContent(item.contentType as DeletedContentType, item.id)
-    pushFlash(t('settings.deleted.privacyEraseSuccess'), 'success')
     await loadDeletedContent()
   } catch (err) {
     pushFlash(err instanceof Error ? err.message : t('api.contentPurgeFailed'), 'error')
@@ -1000,6 +984,13 @@ async function submitPassword() {
 
   savingPassword.value = true
   try {
+    if (page.props.canSetPassword) {
+      // set-password（issue #530）成功即 TokenVersion++ 全端吊销（含当前会话），
+      // 必须跳转登录页用新密码重新登录，不能再发任何已失效会话的请求。
+      await setPassword(passwordForm.newPassword)
+      window.location.href = '/login'
+      return
+    }
     await changePassword(passwordForm.oldPassword, passwordForm.newPassword)
     passwordForm.oldPassword = ''
     passwordForm.newPassword = ''
@@ -1967,7 +1958,8 @@ async function toggleBinding(provider: string) {
           <section v-show="activeTab === 'account'">
             <SectionHeader :icon="KeyRound" :title="t('settings.account.title')" />
             <form class="max-w-xl space-y-4 p-4" @submit.prevent="submitPassword">
-              <label class="block">
+              <p v-if="page.props.canSetPassword" class="gf-status-message gf-status-message-info">{{ t('settings.account.setPasswordHint') }}</p>
+              <label v-else class="block">
                 <span class="text-sm font-medium text-base-content/75">{{ t('settings.account.currentPassword') }}</span>
                 <input v-model="passwordForm.oldPassword" required type="password" class="gf-input mt-1" />
               </label>
@@ -1982,7 +1974,7 @@ async function toggleBinding(provider: string) {
               </label>
               <button type="submit" class="gf-button gf-button-lg gf-button-primary disabled:cursor-wait" :disabled="savingPassword">
                 <Loader2 v-if="savingPassword" class="h-4 w-4 animate-spin" />
-                {{ t('settings.account.changePassword') }}
+                {{ page.props.canSetPassword ? t('settings.account.setPassword') : t('settings.account.changePassword') }}
               </button>
             </form>
 
@@ -2575,17 +2567,6 @@ async function toggleBinding(provider: string) {
                       <Loader2 v-if="deletedContentAction === deletedContentActionKey(item, 'purge')" class="h-3.5 w-3.5 animate-spin" />
                       <Trash2 v-else class="h-3.5 w-3.5" />
                       {{ t('settings.deleted.purge') }}
-                    </button>
-                    <button
-                      type="button"
-                      class="gf-tip gf-button gf-button-sm gf-button-secondary"
-                      :data-tip="t('settings.deleted.privacyEraseHint')"
-                      :disabled="Boolean(deletedContentAction)"
-                      @click="privacyEraseDeletedItem(item)"
-                    >
-                      <Loader2 v-if="deletedContentAction === deletedContentActionKey(item, 'privacy')" class="h-3.5 w-3.5 animate-spin" />
-                      <Shield v-else class="h-3.5 w-3.5" />
-                      {{ t('settings.deleted.privacyErase') }}
                     </button>
                   </div>
                 </div>

@@ -11,6 +11,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// firstPostVisibleSQL 首楼可见性半连接条件，与详情页/GetPublished 的公开
+// 口径一致：首楼需 process_status 正常且未软删。首楼被删除/擦除后主题无
+// 正文，继续公开展示会产生「有标题无正文」的孤儿条目（issue #492）。
+// 所有公开列表/导出入口应统一附加本条件。
+const firstPostVisibleSQL = "EXISTS (SELECT 1 FROM posts WHERE posts.id = topics.first_post_id AND posts.topic_id = topics.id AND posts.process_status = ? AND posts.deleted_at IS NULL)"
+
 func SaveOrCreateById(entity *Entity) int64 {
 	if entity.Id == 0 {
 		return builder().Create(entity).RowsAffected
@@ -185,6 +191,7 @@ func GetLatestPublished(limit int) (entities []*Entity, err error) {
 		Where(queryopt.Eq("process_status", 0)).
 		Where(queryopt.Eq("visibility_status", VisibilityActive)).
 		Where(queryopt.Eq("topic_type", TopicTypeForum)).
+		Where(firstPostVisibleSQL, ProcessStatusNormal).
 		Order(queryopt.Desc("updated_at")).
 		Order(queryopt.Desc("id")).
 		Limit(limit).
@@ -204,7 +211,7 @@ func GetPublishedBeforeID(beforeID uint64, limit int) (entities []*Entity, err e
 		Where(queryopt.Eq("process_status", ProcessStatusNormal)).
 		Where(queryopt.Eq("visibility_status", VisibilityActive)).
 		Where(queryopt.Eq("topic_type", TopicTypeForum)).
-		Where("EXISTS (SELECT 1 FROM posts WHERE posts.id = topics.first_post_id AND posts.topic_id = topics.id AND posts.process_status = ? AND posts.deleted_at IS NULL)", ProcessStatusNormal).
+		Where(firstPostVisibleSQL, ProcessStatusNormal).
 		Order(queryopt.Desc("id")).
 		Limit(limit).
 		Find(&entities).Error
@@ -217,7 +224,7 @@ func GetPublished(id uint64) (entity Entity, err error) {
 		Where(queryopt.Eq("status", 1)).
 		Where(queryopt.Eq("process_status", ProcessStatusNormal)).
 		Where(queryopt.Eq("visibility_status", VisibilityActive)).
-		Where("EXISTS (SELECT 1 FROM posts WHERE posts.id = topics.first_post_id AND posts.topic_id = topics.id AND posts.process_status = ? AND posts.deleted_at IS NULL)", ProcessStatusNormal).
+		Where(firstPostVisibleSQL, ProcessStatusNormal).
 		First(&entity).Error
 	return
 }
@@ -230,6 +237,7 @@ func GetLatestPublishedByUserId(userId uint64, limit int) ([]*Entity, error) {
 		Where(queryopt.Eq("process_status", 0)).
 		Where(queryopt.Eq("visibility_status", VisibilityActive)).
 		Where(queryopt.Eq("topic_type", TopicTypeForum)).
+		Where(firstPostVisibleSQL, ProcessStatusNormal).
 		Order(queryopt.Desc("updated_at")).
 		Order(queryopt.Desc("id")).
 		Limit(limit).
@@ -244,7 +252,8 @@ func GetPublishedByUserBeforeId(userId uint64, beforeId uint64, limit int) ([]*E
 		Where(queryopt.Eq("status", 1)).
 		Where(queryopt.Eq("process_status", 0)).
 		Where(queryopt.Eq("visibility_status", VisibilityActive)).
-		Where(queryopt.Eq("topic_type", TopicTypeForum))
+		Where(queryopt.Eq("topic_type", TopicTypeForum)).
+		Where(firstPostVisibleSQL, ProcessStatusNormal)
 	if beforeId > 0 {
 		query = query.Where(queryopt.Lt("id", beforeId))
 	}
@@ -369,6 +378,9 @@ func Page(q PageQuery) struct {
 		// 删除（MODERATOR_REMOVED）的话题一律不进首页/分类/Agent 列表，
 		// 避免删除后仍公开泄露标题与正文摘录。
 		b.Where(queryopt.Eq("visibility_status", VisibilityActive))
+		// 且首楼仍可见（与 GetPublished/GetPublishedBeforeID 口径一致）：首楼被
+		// 删除/擦除后主题无正文，继续展示会产生「有标题无正文」的孤儿条目（issue #492）。
+		b.Where(firstPostVisibleSQL, ProcessStatusNormal)
 	}
 	if q.CategoryId != 0 {
 		b.Where(
@@ -552,7 +564,12 @@ func IncrementViews(counts map[uint64]uint64) error {
 }
 
 func IncrementPostFast(topicId uint64, posters []Poster, lastPostID uint64, lastPostedAt time.Time) error {
-	return builder().Where("id = ?", topicId).Updates(map[string]any{
+	return IncrementPostFastTx(builder(), topicId, posters, lastPostID, lastPostedAt)
+}
+
+// IncrementPostFastTx updates counters while the post transaction holds the topic lock.
+func IncrementPostFastTx(tx *gorm.DB, topicId uint64, posters []Poster, lastPostID uint64, lastPostedAt time.Time) error {
+	return tx.Model(&Entity{}).Where("id = ?", topicId).Updates(map[string]any{
 		"post_count":  gorm.Expr("post_count + 1"),
 		"reply_count": gorm.Expr("reply_count + 1"),
 		"posters":     jsonopt.Encode(posters),
@@ -578,21 +595,32 @@ func DecrementPostFast(topicId uint64, posters []Poster, lastPostID uint64, last
 	}).Error
 }
 
-// ReplacePostStats writes the exact derived post counters for a topic.
-// Recovery must use this instead of increment/decrement helpers because those
-// helpers intentionally model a single state transition, not a full rebuild.
-func ReplacePostStats(topicID uint64, postCount uint64, replyCount uint64, posters []Poster, lastPostID uint64, lastPostedAt time.Time) error {
-	return builder().Where("id = ?", topicID).Updates(map[string]any{
-		"post_count":     postCount,
-		"reply_count":    replyCount,
-		"posters":        jsonopt.Encode(posters),
-		"last_post_id":   lastPostID,
-		"last_posted_at": lastPostedAt,
-	}).Error
+// ReplacePostStatsTx writes the exact derived post counters for a topic
+// inside the caller's transaction. UpdateColumns keeps the write
+// column-exact: derived rebuilds must never touch topics.updated_at
+// (home list sort key); Unscoped keeps soft-deleted rows repairable.
+// Recovery must use this instead of increment/decrement helpers because
+// those helpers intentionally model a single state transition, not a
+// full rebuild.
+func ReplacePostStatsTx(tx *gorm.DB, topicID uint64, postCount uint64, replyCount uint64, posters []Poster, lastPostID uint64, lastPostedAt time.Time) error {
+	return tx.Unscoped().Model(&Entity{}).
+		Where("id = ?", topicID).
+		UpdateColumns(map[string]any{
+			"post_count":     postCount,
+			"reply_count":    replyCount,
+			"posters":        jsonopt.Encode(posters),
+			"last_post_id":   lastPostID,
+			"last_posted_at": lastPostedAt,
+		}).Error
 }
 
 func ReservePostSequence(topicId uint64) (uint64, error) {
-	result := builder().
+	return ReservePostSequenceTx(builder(), topicId)
+}
+
+// ReservePostSequenceTx holds the topic write lock until the caller commits.
+func ReservePostSequenceTx(tx *gorm.DB, topicId uint64) (uint64, error) {
+	result := tx.Model(&Entity{}).
 		Where("id = ?", topicId).
 		Update("post_seq", gorm.Expr("post_seq + 1"))
 	if result.Error != nil {
@@ -603,7 +631,7 @@ func ReservePostSequence(topicId uint64) (uint64, error) {
 	}
 
 	var postSeq uint64
-	err := builder().
+	err := tx.Model(&Entity{}).
 		Select("post_seq").
 		Where("id = ?", topicId).
 		Scan(&postSeq).Error

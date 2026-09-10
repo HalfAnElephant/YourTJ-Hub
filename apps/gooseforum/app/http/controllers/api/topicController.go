@@ -5,12 +5,13 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	db "github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/eventbus"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/forum"
-	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/postRevisions"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/postUserAction"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/posts"
@@ -164,7 +165,8 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 		return component.FailResponseCode(component.MessageRequestInvalidParams, nil)
 	}
 
-	if len(req.Params.Title) < postingConfig.TextControl.MinTitleLength {
+	titleLength := utf8.RuneCountInString(req.Params.Title)
+	if titleLength < postingConfig.TextControl.MinTitleLength {
 		minLength := postingConfig.TextControl.MinTitleLength
 		return component.FailResponseCode(
 			component.MessageTopicTitleTooShort,
@@ -173,7 +175,7 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 
 	}
 
-	if len(req.Params.Title) > postingConfig.TextControl.MaxTitleLength {
+	if titleLength > postingConfig.TextControl.MaxTitleLength {
 		maxLength := postingConfig.TextControl.MaxTitleLength
 		return component.FailResponseCode(
 			component.MessageTopicTitleTooLong,
@@ -182,7 +184,8 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 
 	}
 
-	if len(req.Params.Content) < postingConfig.TextControl.MinPostLength {
+	contentLength := utf8.RuneCountInString(req.Params.Content)
+	if contentLength < postingConfig.TextControl.MinPostLength {
 		minLength := postingConfig.TextControl.MinPostLength
 		return component.FailResponseCode(
 			component.MessageTopicContentTooShort,
@@ -191,7 +194,7 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 
 	}
 
-	if len(req.Params.Content) > postingConfig.TextControl.MaxPostLength {
+	if contentLength > postingConfig.TextControl.MaxPostLength {
 		maxLength := postingConfig.TextControl.MaxPostLength
 		return component.FailResponseCode(
 			component.MessageTopicContentTooLong,
@@ -286,7 +289,7 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 			return component.FailResponseCode(component.MessageTopicNotFound, nil)
 		}
 		firstPost.Content = req.Params.Content
-		firstPost.RenderedHTML = markdown2html.PostMarkdownToHTML(req.Params.Content)
+		firstPost.RenderedHTML = postservice.RenderPostHTML(req.Params.Content)
 		firstPost.RenderedVersion = markdown2html.GetPostVersion()
 		firstPost.ContentType = req.Params.ContentType
 		if pendingReview {
@@ -332,7 +335,7 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 				PostNo:          1,
 				UserId:          req.UserId,
 				Content:         req.Params.Content,
-				RenderedHTML:    markdown2html.PostMarkdownToHTML(req.Params.Content),
+				RenderedHTML:    postservice.RenderPostHTML(req.Params.Content),
 				RenderedVersion: markdown2html.GetPostVersion(),
 				ProcessStatus:   posts.ProcessStatusNormal,
 				ContentType:     req.Params.ContentType,
@@ -378,6 +381,10 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 		// 由审核批准路径补发对应事件，避免敏感内容在审核前外泄。
 		if topic.Status == 1 && !pendingReview {
 			eventbus.Publish(detachedRequestContext(req.GinContext), &eventhandlers.TopicUpdatedEvent{Topic: &topic, FirstPost: &firstPost})
+			eventbus.Publish(detachedRequestContext(req.GinContext), &eventhandlers.PostUpdatedEvent{
+				TopicId: topic.Id, PostId: firstPost.Id, PostNo: firstPost.PostNo, UserId: req.UserId,
+				OldContent: oldContent, NewContent: firstPost.Content, IsAnonymous: firstPost.IsAnonymous,
+			})
 		}
 	} else {
 		if topic.Status == 1 && !pendingReview {
@@ -445,7 +452,7 @@ type CreatePostReq struct {
 	TopicId       uint64 `json:"topicId"`
 	Content       string `json:"content"`
 	ReplyToPostId uint64 `json:"replyToPostId"`
-	IsAnonymous   bool   `json:"isAnonymous"` // 匿名发布（仅 wiki 评论区，issue #524）
+	IsAnonymous   bool   `json:"isAnonymous"`       // 匿名发布（仅 wiki 评论区，issue #524）
 	Website       string `json:"website,omitempty"` // 蜜罐字段，正常用户不可见
 	CaptchaId     string `json:"captchaId,omitempty"`
 	CaptchaCode   string `json:"captchaCode,omitempty"`
@@ -504,7 +511,8 @@ func createPost(req component.BetterRequest[CreatePostReq], agent bool) componen
 	}
 
 	content := strings.TrimSpace(req.Params.Content)
-	if len(content) < postingConfig.TextControl.MinPostLength {
+	contentLength := utf8.RuneCountInString(content)
+	if contentLength < postingConfig.TextControl.MinPostLength {
 		minLength := postingConfig.TextControl.MinPostLength
 		return component.FailResponseCode(
 			component.MessageCommentContentTooShort,
@@ -513,7 +521,7 @@ func createPost(req component.BetterRequest[CreatePostReq], agent bool) componen
 
 	}
 
-	if len(content) > postingConfig.TextControl.MaxPostLength {
+	if contentLength > postingConfig.TextControl.MaxPostLength {
 		maxLength := postingConfig.TextControl.MaxPostLength
 		return component.FailResponseCode(
 			component.MessageCommentContentTooLong,
@@ -559,7 +567,7 @@ func createPost(req component.BetterRequest[CreatePostReq], agent bool) componen
 	postEntity := &posts.Entity{
 		TopicId:         req.Params.TopicId,
 		Content:         content,
-		RenderedHTML:    markdown2html.PostMarkdownToHTML(content),
+		RenderedHTML:    postservice.RenderPostHTML(content),
 		RenderedVersion: markdown2html.GetPostVersion(),
 		UserId:          req.UserId,
 		ReplyToPostId:   req.Params.ReplyToPostId,
@@ -667,7 +675,8 @@ func UpdatePost(req component.BetterRequest[UpdatePostReq]) component.Response {
 	}
 
 	content := strings.TrimSpace(req.Params.Content)
-	if len(content) < postingConfig.TextControl.MinPostLength {
+	contentLength := utf8.RuneCountInString(content)
+	if contentLength < postingConfig.TextControl.MinPostLength {
 		minLength := postingConfig.TextControl.MinPostLength
 		return component.FailResponseCode(
 			component.MessageCommentContentTooShort,
@@ -676,7 +685,7 @@ func UpdatePost(req component.BetterRequest[UpdatePostReq]) component.Response {
 
 	}
 
-	if len(content) > postingConfig.TextControl.MaxPostLength {
+	if contentLength > postingConfig.TextControl.MaxPostLength {
 		maxLength := postingConfig.TextControl.MaxPostLength
 		return component.FailResponseCode(
 			component.MessageCommentContentTooLong,
@@ -701,7 +710,7 @@ func UpdatePost(req component.BetterRequest[UpdatePostReq]) component.Response {
 	// v1 = 旧正文，避免原始正文永久丢失（已有 v1 的帖子走正常追加）。
 	oldContent := postEntity.Content
 	postEntity.Content = content
-	postEntity.RenderedHTML = markdown2html.PostMarkdownToHTML(content)
+	postEntity.RenderedHTML = postservice.RenderPostHTML(content)
 	postEntity.RenderedVersion = markdown2html.GetPostVersion()
 
 	isFirstPost := postEntity.PostNo == 1
@@ -758,6 +767,20 @@ func UpdatePost(req component.BetterRequest[UpdatePostReq]) component.Response {
 	} else {
 		// 回复编辑不发布事件，同步清理 LLMS 投影缓存。
 		llmsservice.ClearCache()
+	}
+	// 编辑后 mention 增量通知（issue #563）：正文已上线（非待审）才发布，
+	// 处理器按旧/新内容集合差只通知新增 mention。待审编辑批准后不补发
+	// （与创建路径相反：创建时未发事件、批准时补发；编辑批准走下方）。
+	if !pendingReview && topicEntity.Status == 1 && topicEntity.ProcessStatus == topics.ProcessStatusNormal {
+		eventbus.Publish(detachedRequestContext(req.GinContext), &eventhandlers.PostUpdatedEvent{
+			TopicId:     postEntity.TopicId,
+			PostId:      postEntity.Id,
+			PostNo:      postEntity.PostNo,
+			UserId:      req.UserId,
+			OldContent:  oldContent,
+			NewContent:  postEntity.Content,
+			IsAnonymous: postEntity.IsAnonymous,
+		})
 	}
 
 	return component.SuccessResponse(map[string]any{

@@ -172,21 +172,34 @@ func TestTopicRepositoryParity(t *testing.T) {
 	conn.Where("1 = 1").Delete(&topicCategoryIndex.Entity{})
 
 	now := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
+	// 首楼：公开列表查询要求 first_post_id 指向未删除、process_status 正常的楼层
+	// （与 GetPublished 口径一致，issue #492），此处补齐真实话题的首楼。
+	conn.Create(&[]posts.Entity{
+		{Id: 1010, TopicId: 10, PostNo: 1, Content: "first", ProcessStatus: posts.ProcessStatusNormal, CreatedAt: now, UpdatedAt: now},
+		{Id: 1020, TopicId: 20, PostNo: 1, Content: "first", ProcessStatus: posts.ProcessStatusNormal, CreatedAt: now, UpdatedAt: now},
+		{Id: 1030, TopicId: 30, PostNo: 1, Content: "first", ProcessStatus: posts.ProcessStatusNormal, CreatedAt: now, UpdatedAt: now},
+		{Id: 1040, TopicId: 40, PostNo: 1, Content: "first", ProcessStatus: posts.ProcessStatusNormal, CreatedAt: now, UpdatedAt: now},
+		// 孤儿话题 50 的首楼已被软删：主题壳公开但无正文。
+		{Id: 1050, TopicId: 50, PostNo: 1, Content: "first", ProcessStatus: posts.ProcessStatusNormal, CreatedAt: now, UpdatedAt: now},
+	})
+	conn.Where("id = ?", 1050).Delete(&posts.Entity{})
 	conn.Create(&[]Entity{
-		{Id: 10, Title: "zeta topic", CategoryIds: []uint64{3}, UserId: 1, Status: 1, ProcessStatus: 0, ReplyCount: 1, ViewCount: 9, PinWeight: 0, CreatedAt: now, UpdatedAt: now},
-		{Id: 20, Title: "alpha topic", CategoryIds: []uint64{4}, UserId: 2, Status: 1, ProcessStatus: 0, ReplyCount: 4, ViewCount: 3, PinWeight: 20, CreatedAt: now.Add(time.Minute), UpdatedAt: now.Add(time.Minute)},
-		{Id: 30, Title: "draft topic", CategoryIds: []uint64{3}, UserId: 1, Status: 0, ProcessStatus: 0, CreatedAt: now.Add(2 * time.Minute), UpdatedAt: now.Add(2 * time.Minute)},
-		{Id: 40, Title: "blocked topic", CategoryIds: []uint64{3}, UserId: 1, Status: 1, ProcessStatus: 1, CreatedAt: now.Add(3 * time.Minute), UpdatedAt: now.Add(3 * time.Minute)},
+		{Id: 10, Title: "zeta topic", CategoryIds: []uint64{3}, UserId: 1, Status: 1, ProcessStatus: 0, FirstPostId: 1010, ReplyCount: 1, ViewCount: 9, PinWeight: 0, CreatedAt: now, UpdatedAt: now},
+		{Id: 20, Title: "alpha topic", CategoryIds: []uint64{4}, UserId: 2, Status: 1, ProcessStatus: 0, FirstPostId: 1020, ReplyCount: 4, ViewCount: 3, PinWeight: 20, CreatedAt: now.Add(time.Minute), UpdatedAt: now.Add(time.Minute)},
+		{Id: 30, Title: "draft topic", CategoryIds: []uint64{3}, UserId: 1, Status: 0, ProcessStatus: 0, FirstPostId: 1030, CreatedAt: now.Add(2 * time.Minute), UpdatedAt: now.Add(2 * time.Minute)},
+		{Id: 40, Title: "blocked topic", CategoryIds: []uint64{3}, UserId: 1, Status: 1, ProcessStatus: 1, FirstPostId: 1040, CreatedAt: now.Add(3 * time.Minute), UpdatedAt: now.Add(3 * time.Minute)},
+		{Id: 50, Title: "orphan topic", CategoryIds: []uint64{3}, UserId: 3, Status: 1, ProcessStatus: 0, FirstPostId: 1050, CreatedAt: now.Add(4 * time.Minute), UpdatedAt: now.Add(4 * time.Minute)},
 	})
 	conn.Create(&[]topicCategoryIndex.Entity{
 		{TopicId: 10, CategoryId: 3, Effective: 1},
 		{TopicId: 20, CategoryId: 4, Effective: 1},
 		{TopicId: 40, CategoryId: 3, Effective: 1},
+		{TopicId: 50, CategoryId: 3, Effective: 1},
 	})
 
 	page := Page(PageQuery{Page: 1, PageSize: 10, FilterStatus: true, CategoryId: 3, Sort: "new"})
 	if len(page.Data) != 1 || page.Data[0].Id != 10 {
-		t.Fatalf("Page() filtered ids = %#v, want only topic 10", page.Data)
+		t.Fatalf("Page() filtered ids = %#v, want only topic 10 (orphan topic 50 excluded)", page.Data)
 	}
 
 	moderationPage := PageForModeration(ModerationPageQuery{

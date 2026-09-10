@@ -102,6 +102,54 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @myCourseReviewsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'My course reviews'**
+  String get myCourseReviewsTitle;
+
+  /// No description provided for @myCourseReviewsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No reviews yet. Explore the course catalog to get started.'**
+  String get myCourseReviewsEmpty;
+
+  /// No description provided for @myCourseReviewHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'This review is hidden. You can delete it here.'**
+  String get myCourseReviewHidden;
+
+  /// No description provided for @myCourseReviewUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This course is unavailable. You can still manage your review.'**
+  String get myCourseReviewUnavailable;
+
+  /// No description provided for @myCourseReviewOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'View details'**
+  String get myCourseReviewOpen;
+
+  /// No description provided for @courseReviewNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect. Check your connection and retry; your review has been kept.'**
+  String get courseReviewNetworkError;
+
+  /// No description provided for @courseReviewUnknownError.
+  ///
+  /// In en, this message translates to:
+  /// **'Your review could not be saved. The server did not provide a specific reason; please retry later.'**
+  String get courseReviewUnknownError;
+
+  /// No description provided for @commonHideKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide keyboard'**
+  String get commonHideKeyboard;
+
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
@@ -1698,6 +1746,30 @@ abstract class AppLocalizations {
   /// **'Synced to {date}'**
   String scheduleSyncedTo(String date);
 
+  /// No description provided for @scheduleSyncConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan sync conflict'**
+  String get scheduleSyncConflictTitle;
+
+  /// No description provided for @scheduleSyncConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your local schedule plans differ from the cloud copy. Which one should be kept?'**
+  String get scheduleSyncConflictBody;
+
+  /// No description provided for @scheduleSyncUseCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Use cloud'**
+  String get scheduleSyncUseCloud;
+
+  /// No description provided for @scheduleSyncKeepLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep local'**
+  String get scheduleSyncKeepLocal;
+
   /// No description provided for @scheduleWeekAll.
   ///
   /// In en, this message translates to:
@@ -1775,6 +1847,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Conflict'**
   String get scheduleConflictBadge;
+
+  /// No description provided for @scheduleConflictWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts with \"{course}\"'**
+  String scheduleConflictWith(String course);
+
+  /// No description provided for @scheduleConflictsWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts with \"{course}\" and {count} other courses'**
+  String scheduleConflictsWith(String course, int count);
+
+  /// No description provided for @scheduleConflictCanAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Can still add'**
+  String get scheduleConflictCanAdd;
 
   /// No description provided for @scheduleAddCustomEvent.
   ///
@@ -2322,12 +2412,6 @@ abstract class AppLocalizations {
   /// **'Delete permanently'**
   String get contentPurge;
 
-  /// No description provided for @contentPrivacyErase.
-  ///
-  /// In en, this message translates to:
-  /// **'Erase personal content'**
-  String get contentPrivacyErase;
-
   /// No description provided for @contentDeleteConfirm.
   ///
   /// In en, this message translates to:
@@ -2861,6 +2945,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{actor} commented on your topic'**
   String notificationComment(String actor);
+
+  /// No description provided for @notificationMention.
+  ///
+  /// In en, this message translates to:
+  /// **'{actor} mentioned you'**
+  String notificationMention(String actor);
 
   /// No description provided for @notificationPostReply.
   ///

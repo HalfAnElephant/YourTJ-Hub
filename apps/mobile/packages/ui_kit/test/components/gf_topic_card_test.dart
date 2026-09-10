@@ -5,6 +5,63 @@ import 'package:ui_kit/ui_kit.dart';
 import '../helpers.dart';
 
 void main() {
+  testWidgets('feed uses one timestamp and compact readable rows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      gfApp(
+        const SizedBox(
+          width: 390,
+          child: GfTopicCard(
+            title: 'Campus',
+            description: 'A short preview',
+            authorName: 'Student',
+            authorAvatarUrl: '',
+            imageUrls: [],
+            categories: [],
+            activityText: 'now',
+            replyCount: 4,
+            viewCount: 12,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('now'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('A short preview')).style!.fontSize,
+      greaterThanOrEqualTo(16),
+    );
+    expect(tester.getSize(find.byType(GfTopicCard)).height, lessThan(150));
+  });
+
+  testWidgets(
+    'compact feed remains readable on narrow screens with large text',
+    (tester) async {
+      await tester.pumpWidget(
+        gfApp(
+          const MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: SizedBox(
+              width: 320,
+              child: GfTopicCard(
+                title: 'A longer campus discussion title',
+                description: 'A longer preview that wraps onto several lines',
+                authorName: 'A long author name',
+                authorAvatarUrl: '',
+                imageUrls: [],
+                categories: [],
+                activityText: '2 hours ago',
+                replyCount: 10,
+                viewCount: 100,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('2 hours ago'), findsOneWidget);
+    },
+  );
   for (final (name, count, ratio) in [
     ('text only', 0, 1.5),
     ('portrait single', 1, 0.75),

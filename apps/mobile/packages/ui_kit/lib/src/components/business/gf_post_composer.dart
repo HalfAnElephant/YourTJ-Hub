@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../theme/gf_theme.dart';
 import '../gf_button.dart';
-import '../surfaces/gf_floating_surface.dart';
 
-/// Floating reply composer mirroring web `PostComposer.vue` mobile form: a
-/// `gf-floating-surface` panel (`w-[min(42rem,100vw-1.5rem)]`) with an
-/// optional reply-target bar, the markdown editor, an image button and a
-/// publish button. Callers place it in a [Stack]/[Overlay] at bottom-4.
+/// Compact reply surface with a borderless growing editor and one action row.
+/// Optional verification content appears only when supplied by the caller.
 class GfPostComposer extends StatelessWidget {
   const GfPostComposer({
     super.key,
@@ -16,6 +13,9 @@ class GfPostComposer extends StatelessWidget {
     required this.publishLabel,
     required this.hintText,
     this.focusNode,
+    this.hideKeyboardLabel,
+    this.onCollapse,
+    this.collapseLabel,
     this.targetName,
     this.targetLabel,
     this.onCloseTarget,
@@ -33,6 +33,9 @@ class GfPostComposer extends StatelessWidget {
 
   final TextEditingController controller;
   final FocusNode? focusNode;
+  final String? hideKeyboardLabel;
+  final VoidCallback? onCollapse;
+  final String? collapseLabel;
   final VoidCallback onPublish;
 
   /// When replying to a user, the target name and localized label shown in the
@@ -62,54 +65,125 @@ class GfPostComposer extends StatelessWidget {
     final GfColors colors = GfTheme.colorsOf(context);
     final GfRadii radii = GfTheme.radiiOf(context);
 
-    return GfFloatingSurface(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          if (targetName != null)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: colors.base200,
-                borderRadius: BorderRadius.circular(radii.field),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Icon(
-                    Icons.reply,
-                    size: 14,
-                    color: colors.baseContent.withValues(alpha: 0.55),
-                  ),
+    return Material(
+      color: colors.base100,
+      elevation: 4,
+      shadowColor: colors.baseContent.withValues(alpha: 0.12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: colors.line.withValues(alpha: 0.65)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            if (targetName != null)
+              Row(
+                children: [
+                  Icon(Icons.reply_rounded, size: 18, color: colors.iconMuted),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       targetLabel ?? targetName!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colors.baseContent.withValues(alpha: 0.75),
-                      ),
+                      style: GfTheme.typographyOf(
+                        context,
+                      ).caption.copyWith(color: colors.iconMuted),
                     ),
                   ),
                   if (onCloseTarget != null)
-                    InkWell(
-                      onTap: onCloseTarget,
-                      child: Icon(
-                        Icons.close,
-                        size: 16,
+                    IconButton(
+                      onPressed: onCloseTarget,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).closeButtonTooltip,
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 18,
                         color: colors.iconMuted,
                       ),
                     ),
                 ],
               ),
+            if (imageUrl != null && imageUrl!.isNotEmpty) ...<Widget>[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(radii.field),
+                      child: Image.network(
+                        imageUrl!,
+                        width: 88,
+                        height: 72,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          width: 88,
+                          height: 72,
+                          color: colors.base300,
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.broken_image_outlined,
+                            color: colors.iconMuted,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (onRemoveImage != null)
+                      Positioned(
+                        right: -10,
+                        top: -10,
+                        child: IconButton.filled(
+                          onPressed: onRemoveImage,
+                          tooltip: removeImageTooltip,
+                          icon: const Icon(Icons.close, size: 15),
+                          style: IconButton.styleFrom(
+                            minimumSize: const Size(32, 32),
+                            backgroundColor: colors.baseContent,
+                            foregroundColor: colors.base100,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 160),
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                maxLines: null,
+                minLines: 2,
+                style: GfTheme.typographyOf(context).body,
+                decoration: InputDecoration(
+                  hintText: hintText,
+                  hintStyle: TextStyle(color: colors.iconMuted),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  filled: false,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+              ),
             ),
-          if (toolbar != null || onPickImage != null) ...<Widget>[
+            if (toolbar != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: toolbar!,
+              ),
+            const SizedBox(height: 4),
             Row(
-              children: <Widget>[
+              children: [
                 if (onPickImage != null)
                   IconButton(
                     icon: uploading
@@ -124,91 +198,50 @@ class GfPostComposer extends StatelessWidget {
                           ),
                     onPressed: uploading ? null : onPickImage,
                     tooltip: imageTooltip,
-                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 44,
+                      minHeight: 44,
+                    ),
                   ),
-                if (toolbar != null) Expanded(child: toolbar!),
+                IconButton(
+                  icon: Icon(
+                    Icons.keyboard_hide_rounded,
+                    size: 21,
+                    color: colors.iconMuted,
+                  ),
+                  tooltip:
+                      hideKeyboardLabel ??
+                      MaterialLocalizations.of(context).closeButtonTooltip,
+                  onPressed: () =>
+                      FocusManager.instance.primaryFocus?.unfocus(),
+                ),
+                if (onCollapse != null)
+                  IconButton(
+                    onPressed: onCollapse,
+                    tooltip:
+                        collapseLabel ??
+                        MaterialLocalizations.of(context).closeButtonTooltip,
+                    icon: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 22,
+                      color: colors.iconMuted,
+                    ),
+                  ),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: GfButton(
+                      label: publishLabel,
+                      size: GfButtonSize.medium,
+                      loading: publishing,
+                      onPressed: publishing || !canPublish ? null : onPublish,
+                    ),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 6),
           ],
-          if (imageUrl != null && imageUrl!.isNotEmpty) ...<Widget>[
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(radii.field),
-                    child: Image.network(
-                      imageUrl!,
-                      width: 88,
-                      height: 72,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
-                        width: 88,
-                        height: 72,
-                        color: colors.base300,
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.broken_image_outlined,
-                          color: colors.iconMuted,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (onRemoveImage != null)
-                    Positioned(
-                      right: -10,
-                      top: -10,
-                      child: IconButton.filled(
-                        onPressed: onRemoveImage,
-                        tooltip: removeImageTooltip,
-                        icon: const Icon(Icons.close, size: 15),
-                        style: IconButton.styleFrom(
-                          minimumSize: const Size(32, 32),
-                          backgroundColor: colors.baseContent,
-                          foregroundColor: colors.base100,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          Container(
-            constraints: const BoxConstraints(minHeight: 76, maxHeight: 160),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: colors.base100,
-              borderRadius: BorderRadius.circular(radii.field),
-              border: Border.all(color: colors.line, width: 1),
-            ),
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              maxLines: null,
-              minLines: 2,
-              expands: false,
-              style: const TextStyle(fontSize: 16, height: 1.5),
-              decoration: InputDecoration(
-                hintText: hintText,
-                border: InputBorder.none,
-                isDense: true,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: GfButton(
-              label: publishLabel,
-              size: GfButtonSize.medium,
-              loading: publishing,
-              onPressed: publishing || !canPublish ? null : onPublish,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

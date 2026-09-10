@@ -305,7 +305,72 @@ void main() {
 
   group('GfPostComposer', () {
     testWidgets(
-      'places image action above input and disables it while uploading',
+      'compact composer fits enlarged text and preserves collapse action',
+      (tester) async {
+        final controller = TextEditingController(text: 'A reply draft');
+        addTearDown(controller.dispose);
+        var collapsed = false;
+        await tester.pumpWidget(
+          gfApp(
+            MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+              child: SizedBox(
+                width: 320,
+                child: GfPostComposer(
+                  controller: controller,
+                  publishLabel: 'Senden',
+                  hintText: 'Reply',
+                  targetName: 'A long author name',
+                  onCloseTarget: () {},
+                  onPublish: () {},
+                  onPickImage: () {},
+                  imageTooltip: 'Image',
+                  onCollapse: () => collapsed = true,
+                  collapseLabel: 'Collapse',
+                  toolbar: const Text('Verification required'),
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        expect(find.text('Verification required'), findsOneWidget);
+        await tester.tap(find.byTooltip('Collapse'));
+        expect(collapsed, isTrue);
+        expect(controller.text, 'A reply draft');
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+
+    testWidgets('keyboard dismissal retains reply text', (tester) async {
+      final controller = TextEditingController(text: 'Unsent reply');
+      final focus = FocusNode();
+      await tester.pumpWidget(
+        gfApp(
+          GfPostComposer(
+            controller: controller,
+            focusNode: focus,
+            onPublish: () {},
+            publishLabel: 'Send',
+            hintText: 'Reply',
+          ),
+        ),
+      );
+      await tester.tap(find.byType(TextField));
+      await tester.pump();
+      expect(focus.hasFocus, isTrue);
+      expect(find.byIcon(Icons.keyboard_hide_rounded), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.keyboard_hide_rounded));
+      await tester.pump();
+      expect(focus.hasFocus, isFalse);
+      expect(controller.text, 'Unsent reply');
+      await tester.pumpWidget(const SizedBox.shrink());
+      controller.dispose();
+      focus.dispose();
+    });
+
+    testWidgets(
+      'keeps image and keyboard actions beside send below the borderless input',
       (tester) async {
         int imageTaps = 0;
         final TextEditingController controller = TextEditingController();
@@ -335,7 +400,18 @@ void main() {
         expect(imageTaps, 0);
         final Offset imageTopLeft = tester.getTopLeft(imageButton);
         final Offset inputTopLeft = tester.getTopLeft(find.byType(TextField));
-        expect(imageTopLeft.dy, lessThan(inputTopLeft.dy));
+        expect(imageTopLeft.dy, greaterThan(inputTopLeft.dy));
+        expect(
+          tester.getCenter(imageButton).dy,
+          tester.getCenter(find.byIcon(Icons.keyboard_hide_rounded)).dy,
+        );
+        final field = tester.widget<TextField>(find.byType(TextField));
+        expect(field.decoration!.focusedBorder, InputBorder.none);
+        expect(field.decoration!.filled, isFalse);
+        expect(
+          tester.getSize(find.byType(GfPostComposer)).height,
+          lessThan(190),
+        );
       },
     );
   });

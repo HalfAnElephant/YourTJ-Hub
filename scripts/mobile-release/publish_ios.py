@@ -30,7 +30,12 @@ def asc(*args, allow_missing=False):
     result = subprocess.run([os.environ.get("ASC_BIN", "asc"), *args],
                             capture_output=True, text=True)
     if result.returncode:
-        if allow_missing and ("404" in result.stderr or "NOT_FOUND" in result.stderr):
+        # ASC 5 reports an absent beta review with exit 4 and a domain message,
+        # without an HTTP 404. This is expected before a build's first submission.
+        absent_beta_review = (args[:3] == ("builds", "beta-app-review-submission", "view")
+                              and result.returncode == 4
+                              and "no beta app review submission found for build" in result.stderr)
+        if allow_missing and ("404" in result.stderr or "NOT_FOUND" in result.stderr or absent_beta_review):
             return {"data": None}
         # Never echo argv: review fields include private credentials.
         raise RuntimeError(f"ASC {args[0]} {args[1]} failed (exit {result.returncode}); inspect the corresponding App Store Connect status")
@@ -38,7 +43,13 @@ def asc(*args, allow_missing=False):
 
 
 def resource(result):
-    return result.get("data", result) or {}
+    value = result.get("data", result)
+    # Some ASC single-app lookups return a one-element JSON:API collection.
+    if isinstance(value, list):
+        if len(value) > 1:
+            raise ValueError("Ambiguous ASC resource collection")
+        return value[0] if value else {}
+    return value or {}
 
 
 def find_build(version, number):

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../server_messages.dart';
@@ -191,9 +192,8 @@ class _ContentPageState extends ConsumerState<ContentPage> {
     if (action == 'restore') {
       await _run((_) => ref.read(contentRepositoryProvider).restore(item));
     } else {
-      final privacy = action == 'privacy';
       if (!await _confirm(
-            privacy ? l10n.contentPrivacyErase : l10n.contentPurge,
+            l10n.contentPurge,
             l10n.contentPurgeConfirm,
           ) ||
           !mounted ||
@@ -203,7 +203,7 @@ class _ContentPageState extends ConsumerState<ContentPage> {
       await _run(
         (password) => ref
             .read(contentRepositoryProvider)
-            .purge(item, privacy: privacy, password: password),
+            .purge(item, password: password),
       );
     }
   }
@@ -289,7 +289,7 @@ class _ContentPageState extends ConsumerState<ContentPage> {
           Expanded(
             child: _loading && _items.isEmpty
                 ? const GfLoading()
-                : RefreshIndicator(
+                : AppRefreshIndicator(
                     onRefresh: _load,
                     child: ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -365,11 +365,6 @@ class _ContentPageState extends ConsumerState<ContentPage> {
                                       PopupMenuItem(
                                         value: 'purge',
                                         child: Text(l10n.contentPurge),
-                                      ),
-                                    if (!widget.deleted)
-                                      PopupMenuItem(
-                                        value: 'privacy',
-                                        child: Text(l10n.contentPrivacyErase),
                                       ),
                                   ],
                                 ),

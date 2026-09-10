@@ -9,6 +9,32 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get myCourseReviewsTitle => '自分の授業評価';
+
+  @override
+  String get myCourseReviewsEmpty => 'まだ評価がありません。科目一覧から探してみましょう。';
+
+  @override
+  String get myCourseReviewHidden => 'この評価は非表示です。ここで削除できます。';
+
+  @override
+  String get myCourseReviewUnavailable => 'この科目は現在表示できませんが、自分の評価は管理できます。';
+
+  @override
+  String get myCourseReviewOpen => '詳細を見る';
+
+  @override
+  String get courseReviewNetworkError =>
+      '接続できませんでした。通信環境を確認して再試行してください。評価内容は保持されています。';
+
+  @override
+  String get courseReviewUnknownError =>
+      '評価を保存できませんでした。サーバーから具体的な理由が返されませんでした。後でもう一度お試しください。';
+
+  @override
+  String get commonHideKeyboard => 'キーボードを閉じる';
+
+  @override
   String get appTitle => 'YourTJ';
 
   @override
@@ -876,6 +902,18 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get scheduleSyncConflictTitle => 'プラン同期の競合';
+
+  @override
+  String get scheduleSyncConflictBody => 'クラウドとローカルのプランが一致しません。残す方を選択してください。';
+
+  @override
+  String get scheduleSyncUseCloud => 'クラウドを使用';
+
+  @override
+  String get scheduleSyncKeepLocal => 'ローカルを保持';
+
+  @override
   String get scheduleWeekAll => '全週';
 
   @override
@@ -919,6 +957,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get scheduleConflictBadge => '時間重複';
+
+  @override
+  String scheduleConflictWith(String course) {
+    return '「$course」と時間重複';
+  }
+
+  @override
+  String scheduleConflictsWith(String course, int count) {
+    return '「$course」など$count件と時間重複';
+  }
+
+  @override
+  String get scheduleConflictCanAdd => '追加可能';
 
   @override
   String get scheduleAddCustomEvent => '予定枠を追加';
@@ -1200,9 +1251,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get contentPurge => '完全削除';
 
   @override
-  String get contentPrivacyErase => '個人の投稿を消去';
-
-  @override
   String get contentDeleteConfirm => 'ごみ箱に移動します。対象のコンテンツは30日以内であれば復元できます。';
 
   @override
@@ -1475,6 +1523,11 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String notificationComment(String actor) {
     return '$actorがあなたのトピックにコメントしました';
+  }
+
+  @override
+  String notificationMention(String actor) {
+    return '$actorがあなたにメンションしました';
   }
 
   @override

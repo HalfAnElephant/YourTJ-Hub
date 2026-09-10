@@ -19,6 +19,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/posts"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/taskQueue"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/topicCategoryIndex"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/topicUserStat"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/topics"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userStatistics"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/users"
@@ -39,6 +40,7 @@ func setupMCPServiceTestDB(t *testing.T) *gorm.DB {
 		&userStatistics.Entity{},
 		&agents.Entity{},
 		&topics.Entity{},
+		&topicUserStat.Entity{},
 		&postRevisions.Entity{},
 		&posts.Entity{},
 		&category.Entity{},
@@ -60,6 +62,7 @@ func setupMCPServiceTestDB(t *testing.T) *gorm.DB {
 }
 
 func cleanMCPServiceTables(conn *gorm.DB) {
+	conn.Where("1 = 1").Delete(&topicUserStat.Entity{})
 	conn.Where("1 = 1").Delete(&posts.Entity{})
 	conn.Where("1 = 1").Delete(&topicCategoryIndex.Entity{})
 	conn.Where("1 = 1").Delete(&postRevisions.Entity{})
@@ -207,7 +210,11 @@ func TestListTopicsTool(t *testing.T) {
 	conn := db.Connect()
 	conn.Create(&category.Entity{Id: 9001, Name: "general", Slug: "general"})
 	now := time.Now().Add(-time.Hour)
-	topic := topics.Entity{Id: 9001, Title: "MCP visible", UserId: agentID, Status: 1, ProcessStatus: 0, CategoryIds: []uint64{9001}, CreatedAt: now, UpdatedAt: now}
+	firstPost := posts.Entity{Id: 900101, TopicId: 9001, PostNo: 1, UserId: agentID, Content: "first", ProcessStatus: posts.ProcessStatusNormal, CreatedAt: now, UpdatedAt: now}
+	if err := conn.Create(&firstPost).Error; err != nil {
+		t.Fatalf("create first post: %v", err)
+	}
+	topic := topics.Entity{Id: 9001, Title: "MCP visible", UserId: agentID, Status: 1, ProcessStatus: 0, FirstPostId: firstPost.Id, CategoryIds: []uint64{9001}, CreatedAt: now, UpdatedAt: now}
 	if err := conn.Create(&topic).Error; err != nil {
 		t.Fatalf("create topic: %v", err)
 	}
@@ -293,7 +300,7 @@ func TestCreatePostTool(t *testing.T) {
 		t.Fatalf("call create_post: %v", err)
 	}
 	if res.IsError {
-		t.Fatalf("create_post returned error: %+v", res.Content)
+		t.Fatalf("create_post returned error: %s", mustJSON(res.Content))
 	}
 	out := res.StructuredContent.(map[string]any)
 	if id := asUint(out["id"]); id == 0 {

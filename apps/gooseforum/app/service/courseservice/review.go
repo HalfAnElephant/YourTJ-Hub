@@ -10,6 +10,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/course"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/dailyStats"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/users"
 	"gorm.io/gorm"
 )
@@ -136,6 +137,11 @@ func CreateReview(userId uint64, input CreateReviewInput) (ReviewPayload, error)
 			if err := course.UpsertOfferingStatsTx(tx, offering.Id, 1, rating, 1); err != nil {
 				return err
 			}
+			// 流量概览课评统计（issue #582 review）：与评价写同事务，计数失败则
+			// 整体回滚，避免评价可见而流量统计静默丢失。
+			if err := dailyStats.IncrementTx(tx, time.Now(), dailyStats.StatTypeCourseReviewCount, 1); err != nil {
+				return err
+			}
 			// 恢复重写改变了 summary 输入 → 失效 AI 总结缓存。
 			if err := course.DeleteCourseAiSummaryTx(tx, offering.CourseId); err != nil {
 				return err
@@ -171,6 +177,10 @@ func CreateReview(userId uint64, input CreateReviewInput) (ReviewPayload, error)
 			return err
 		}
 		if err := course.UpsertOfferingStatsTx(tx, offering.Id, 1, rating, 1); err != nil {
+			return err
+		}
+		// 流量概览课评统计（issue #582 review）：与评价写同事务，语义同上。
+		if err := dailyStats.IncrementTx(tx, time.Now(), dailyStats.StatTypeCourseReviewCount, 1); err != nil {
 			return err
 		}
 		// 新评价进入 summary 输入 → 失效 AI 总结缓存。
@@ -423,16 +433,26 @@ type ReviewPageResult struct {
 	Total      int64           `json:"total"`
 }
 
-// ReviewCursor 复合游标（offering_id, review_id）。
+// ReviewCursor includes the owner/non-owner phase for personalized pagination.
+// The phase survives cursor-row deletion; older two-part cursors remain supported.
 // Course 级列表按 (offering_id DESC, id DESC) 排序，cursor 是上一页
 // 最后一条的 (offeringId, id)；offering 级列表只用 reviewId。
 type ReviewCursor struct {
 	OfferingId uint64
 	ReviewId   uint64
+	OwnerFirst bool
+	OwnReview  bool
 }
 
-// EncodeCursor 编码 cursor 为明文 "offeringId:reviewId"。
+// EncodeCursor returns an opaque cursor; personalized cursors append the owner phase.
 func EncodeCursor(c ReviewCursor) string {
+	if c.OwnerFirst {
+		phase := 0
+		if c.OwnReview {
+			phase = 1
+		}
+		return fmt.Sprintf("%d:%d:%d", c.OfferingId, c.ReviewId, phase)
+	}
 	return fmt.Sprintf("%d:%d", c.OfferingId, c.ReviewId)
 }
 
@@ -443,7 +463,7 @@ func DecodeCursor(raw string) (ReviewCursor, error) {
 		return ReviewCursor{}, nil
 	}
 	parts := strings.Split(raw, ":")
-	if len(parts) != 2 {
+	if len(parts) != 2 && len(parts) != 3 {
 		return ReviewCursor{}, ErrReviewInvalidCursor
 	}
 	oid, err1 := strconv.ParseUint(parts[0], 10, 64)
@@ -451,7 +471,15 @@ func DecodeCursor(raw string) (ReviewCursor, error) {
 	if err1 != nil || err2 != nil {
 		return ReviewCursor{}, ErrReviewInvalidCursor
 	}
-	return ReviewCursor{OfferingId: oid, ReviewId: rid}, nil
+	c := ReviewCursor{OfferingId: oid, ReviewId: rid}
+	if len(parts) == 3 {
+		if parts[2] != "0" && parts[2] != "1" {
+			return ReviewCursor{}, ErrReviewInvalidCursor
+		}
+		c.OwnerFirst = true
+		c.OwnReview = parts[2] == "1"
+	}
+	return c, nil
 }
 
 // ListReviewsPage 按 cursor 分页返回课程（或指定 offering）的可见评价。
@@ -475,6 +503,11 @@ func ListReviewsPage(courseId, offeringId, viewerId uint64, cursor ReviewCursor,
 		CursorOfferingId: cursor.OfferingId,
 		CursorReviewId:   cursor.ReviewId,
 		Limit:            pageSize + 1,
+	}
+	// Legacy two-part cursors retain their ordering; new signed-in lists pin the owner.
+	if viewerId > 0 && ((cursor.ReviewId == 0 && cursor.OfferingId == 0) || cursor.OwnerFirst) {
+		query.OwnerId = viewerId
+		query.CursorOwnReview = cursor.OwnReview
 	}
 	// team 档：先取团队全部可见卡 id，列表与 total 都按多卡口径。
 	var teamIds []uint64
@@ -526,7 +559,7 @@ func ListReviewsPage(courseId, offeringId, viewerId uint64, cursor ReviewCursor,
 	}
 	if hasNext {
 		last := entities[len(entities)-1]
-		result.NextCursor = EncodeCursor(ReviewCursor{OfferingId: last.OfferingId, ReviewId: last.Id})
+		result.NextCursor = EncodeCursor(ReviewCursor{OfferingId: last.OfferingId, ReviewId: last.Id, OwnerFirst: query.OwnerId > 0, OwnReview: last.AuthorID() == viewerId})
 	}
 	return result, nil
 }

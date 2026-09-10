@@ -9,6 +9,30 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get myCourseReviewsTitle => '我的课评';
+
+  @override
+  String get myCourseReviewsEmpty => '还没有发布课评，去课程目录看看吧。';
+
+  @override
+  String get myCourseReviewHidden => '这条评价已被隐藏，可在此删除。';
+
+  @override
+  String get myCourseReviewUnavailable => '课程暂不可访问，你仍可管理自己的评价。';
+
+  @override
+  String get myCourseReviewOpen => '查看详情';
+
+  @override
+  String get courseReviewNetworkError => '网络连接失败，请检查网络后重试，已保留你的评价。';
+
+  @override
+  String get courseReviewUnknownError => '评价未能保存，服务端没有提供具体原因，请稍后重试。';
+
+  @override
+  String get commonHideKeyboard => '收起键盘';
+
+  @override
   String get appTitle => 'YourTJ';
 
   @override
@@ -876,6 +900,18 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get scheduleSyncConflictTitle => '排课方案同步冲突';
+
+  @override
+  String get scheduleSyncConflictBody => '本地与云端的排课方案不一致，保留哪一份？';
+
+  @override
+  String get scheduleSyncUseCloud => '使用云端';
+
+  @override
+  String get scheduleSyncKeepLocal => '保留本地';
+
+  @override
   String get scheduleWeekAll => '全部周次';
 
   @override
@@ -919,6 +955,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scheduleConflictBadge => '冲突';
+
+  @override
+  String scheduleConflictWith(String course) {
+    return '与「$course」时间冲突';
+  }
+
+  @override
+  String scheduleConflictsWith(String course, int count) {
+    return '与「$course」等$count门课程冲突';
+  }
+
+  @override
+  String get scheduleConflictCanAdd => '仍可加入';
 
   @override
   String get scheduleAddCustomEvent => '添加占位';
@@ -1200,9 +1249,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get contentPurge => '永久删除';
 
   @override
-  String get contentPrivacyErase => '隐私清除';
-
-  @override
   String get contentDeleteConfirm => '内容会移入回收站，符合恢复条件时可在 30 天内恢复。';
 
   @override
@@ -1474,6 +1520,11 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String notificationComment(String actor) {
     return '$actor 评论了你的主题';
+  }
+
+  @override
+  String notificationMention(String actor) {
+    return '$actor 提到了你';
   }
 
   @override

@@ -53,6 +53,7 @@ abstract class ReviewPayload with _$ReviewPayload {
 abstract class ReviewListResult with _$ReviewListResult {
   const factory ReviewListResult({
     required List<ReviewPayload> list,
+    // Opaque pagination cursor; preserve the server ownership phase unchanged.
     String? nextCursor,
     required int total,
   }) = _ReviewListResult;

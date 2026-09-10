@@ -1300,6 +1300,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/set-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the initial password for an OAuth-linked account
+         * @description First-time password setup without an old password (issue #530). Only accounts
+         *     with no stored email address AND at least one OAuth provider binding qualify;
+         *     every other caller fails with `auth.password.setNotAllowed` (HTTP 200):
+         *     accounts with an email must use the password-reset email flow, and accounts
+         *     without an OAuth binding use changePassword. Bot (Agent) accounts are rejected
+         *     with `auth.password.oldInvalid`. On success the account TokenVersion
+         *     increments, so every previously issued JWT — including the one used for this
+         *     request — is immediately invalid and no replacement token is minted; the
+         *     client must log in again. The new password must be 6-64 characters and
+         *     contain at least one letter and one digit (`auth.password.tooShort` params
+         *     minLength=6, `auth.password.tooLong`, `auth.password.needsLetterNumber`).
+         *     Repeated calls by a qualifying account are allowed (rate-limited by
+         *     `password.change`) and behave as a re-set. JSON binding is lenient: a
+         *     malformed body binds to zero values and fails validation as
+         *     `common.request.invalidParams` (HTTP 200). Other business failures:
+         *     `auth.password.updateFailed`.
+         */
+        post: operations["setPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/oauth/bindings": {
         parameters: {
             query?: never;
@@ -1895,36 +1930,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/forum/user/content-privacy-erase": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Privacy emergency-erase an own topic or reply
-         * @description Privacy emergency deletion (R8). Unlike purgeContent this also accepts
-         *     still-ACTIVE caller-owned content; the row is immediately hidden, made
-         *     unrecoverable (retention PURGED) and reply body fields are cleared across
-         *     all channels. Erasing a topic cascades to the caller's own replies under
-         *     it. The operation is refused with `content.notRecoverable` when the target
-         *     — or any of the caller's replies under a target topic — is
-         *     moderator-removed, so privacy erasure cannot destroy governance evidence.
-         *     It counts into the shared deletion rate window (see content-batch-delete;
-         *     `content.batchDelete.confirmRequired` / `auth.credentials.invalid` on the
-         *     force+password path). Other business failures: `topic.notFound` /
-         *     `post.notFound`, `content.purge.failed`, `common.request.invalidParams`.
-         */
-        post: operations["privacyEraseContent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/forum/user/content-event": {
         parameters: {
             query?: never;
@@ -1941,7 +1946,7 @@ export interface paths {
          *     `content_delete_confirmed` are accepted; any other eventType — including
          *     the backend-owned lifecycle events — fails with
          *     `common.request.invalidParams` (HTTP 200). contentId is not checked for
-         *     existence. Backend state changes (delete/restore/purge/privacy-erase) are
+         *     existence. Backend state changes (delete/restore/purge) are
          *     recorded by the server itself and must not be reported here. JSON binding
          *     is lenient: a malformed body binds to zero values and fails validation as
          *     `common.request.invalidParams`.
@@ -2181,11 +2186,35 @@ export interface paths {
         /**
          * List visible course reviews for a course or a single offering
          * @description Public read endpoint. An optional valid JWT (cookie or Bearer) only personalizes the
-         *     `viewer` state (canEdit/canDelete/isHelpful); anonymous callers receive the same reviews
+         *     `viewer` state (canEdit/canDelete/isHelpful) and places the caller's own reviews first,
+         *     preserving newest-first ordering within each ownership group. Anonymous callers receive the same reviews
          *     with viewer flags false. Review payloads never contain author identity fields
          *     (userId/username/avatar): anonymous and legacy reviews expose only a kind/label pair.
          */
         get: operations["listCourseReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/forum/my-course-reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Manage the current user's course reviews across courses
+         * @description Private session-scoped list, newest review ID first. Includes the caller's anonymous
+         *     and hidden reviews; excludes deleted reviews. No author selector is accepted.
+         *     Hidden reviews can be deleted but cannot be edited or opened publicly. Course metadata
+         *     remains available for management when the corresponding course is unavailable.
+         */
+        get: operations["listOwnCourseReviews"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5472,6 +5501,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pk/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch the caller's cloud schedule plan snapshot
+         * @description Login-required read of the caller's PK scheduler plan snapshot (issue #537).
+         *     Returns the four persisted fields (plans/activePlanId/majorSelected/weekView)
+         *     plus the server-side authoritative updatedAt clock (RFC3339Nano UTC) that
+         *     clients store as pk.syncedAt for load-time conflict detection. When the user
+         *     has never uploaded a snapshot data is null. Frozen accounts may still read
+         *     (no writable-account check, aligned with the myContentList precedent).
+         *     Rate limited under the dedicated pk.plans quota (independent from the
+         *     course.catalog read quota).
+         */
+        get: operations["pkGetPlans"];
+        /**
+         * Replace the caller's cloud schedule plan snapshot wholesale
+         * @description Login-required whole-snapshot upsert (issue #537): plans/activePlanId/
+         *     majorSelected/weekView are replaced atomically; created_at stays fixed and
+         *     the server-side updated_at clock is refreshed. Server-side shallow
+         *     validation only (1..10 plans, non-blank id/name per plan, activePlanId must
+         *     reference one of the plans, whole payload <= 1MB) — deep sanitize remains the
+         *     client's load-path responsibility. Writes require a writable account
+         *     (frozen/pending activation rejected). The response carries the new
+         *     updatedAt for the client's pk.syncedAt.
+         */
+        put: operations["pkPutPlans"];
+        post?: never;
+        /**
+         * Delete the caller's cloud schedule plan snapshot
+         * @description Login-required idempotent delete of the caller's cloud snapshot (issue #537);
+         *     local data is untouched. Same account-close semantics as the push device
+         *     cleanup (anonymize and delete modes both erase the row). Writes require a
+         *     writable account.
+         */
+        delete: operations["pkDeletePlans"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/forum/moderation/course-list": {
         parameters: {
             query?: never;
@@ -6141,7 +6215,9 @@ export interface components {
              * @description Existing topic ID when updating; omit or send 0 when creating.
              */
             topicId?: number;
+            /** @description Markdown content; configurable minimum and maximum lengths count Unicode code points. */
             content: string;
+            /** @description Title; configurable minimum and maximum lengths count Unicode code points. */
             title: string;
             categoryId: number[];
             /**
@@ -6233,7 +6309,7 @@ export interface components {
              * @description Target topic; unknown or not-viewable ids fail with `topic.notFound` (HTTP 200).
              */
             topicId: number;
-            /** @description Markdown reply content. The server trims whitespace and enforces configurable length bounds (`comment.content.tooShort` / `comment.content.tooLong`, params minLength/maxLength). */
+            /** @description Markdown reply content. The server trims whitespace and enforces configurable length bounds in Unicode code points (`comment.content.tooShort` / `comment.content.tooLong`, params minLength/maxLength). */
             content: string;
             /**
              * Format: uint64
@@ -6272,7 +6348,7 @@ export interface components {
              * @description Post owned by the caller; someone else's post fails with `topic.operationDenied` (HTTP 200).
              */
             postId: number;
-            /** @description Replacement markdown content; trimmed and length-checked like posts/create. */
+            /** @description Replacement markdown content; trimmed and length-checked in Unicode code points like posts/create. */
             content: string;
         };
         UpdatePostResult: {
@@ -6611,6 +6687,20 @@ export interface components {
             messageCode: "auth.password.updateSuccess";
         };
         ChangePasswordResponse: components["schemas"]["ChangePasswordSuccess"] | components["schemas"]["ApiFailure"];
+        SetPasswordRequest: {
+            /** @description 6-64 characters containing at least one letter and one digit; violations fail with `auth.password.tooShort` (params minLength) / `auth.password.tooLong` / `auth.password.needsLetterNumber` (HTTP 200). */
+            newPassword: string;
+        };
+        SetPasswordSuccess: components["schemas"]["ApiSuccess"] & {
+            /**
+             * @description Human-readable success message; messageCode is the stable identifier.
+             * @constant
+             */
+            result: "密码设置成功，请使用新密码重新登录";
+            /** @constant */
+            messageCode: "auth.password.updateSuccess";
+        };
+        SetPasswordResponse: components["schemas"]["SetPasswordSuccess"] | components["schemas"]["ApiFailure"];
         OAuthBinding: {
             /** @constant */
             bound: true;
@@ -7224,8 +7314,8 @@ export interface components {
             list: components["schemas"]["ReviewPayload"][];
             /**
              * @description Cursor for the next page, present only when more reviews exist.
-             *     Format is "offeringId:reviewId" of the last item of the current page
-             *     (course-level ordering is (offering_id DESC, id DESC)). Omit to stop paging.
+             *     Opaque position cursor including the ownership phase for personalized lists.
+             *     Pass it back unchanged. Legacy two-part cursors remain accepted. Omit to stop paging.
              */
             nextCursor?: string;
             /**
@@ -9644,6 +9734,123 @@ export interface components {
         PkSectionTimesResponse: components["schemas"]["PkSuccess"] & {
             data: components["schemas"]["PkSectionTimesResult"];
         };
+        /** @description 排课方案快照中的教师（镜像前端 PkTeacher）。 */
+        PkTeacherPayload: {
+            teacherName: string;
+            teacherCode: string;
+        };
+        /** @description 排课方案快照中的一次上课安排（镜像前端 PkArrangement）。 */
+        PkArrangementPayload: {
+            arrangementText: string;
+            occupyDay: number;
+            occupyTime: number[];
+            occupyWeek: number[];
+            occupyRoom: string;
+            teacherAndCode: string;
+        };
+        /** @description 排课方案快照中的一个教学班（镜像前端 PkCourseDetail；status 为前端持久化字段）。 */
+        PkCourseDetailPayload: {
+            arrangementInfo: components["schemas"]["PkArrangementPayload"][];
+            campus: string;
+            code: string;
+            /**
+             * Format: uint64
+             * @description 可选；P13 by-offering 直查键。
+             */
+            teachingClassId?: number;
+            isExclusive?: boolean;
+            /** @description 0 未选 / 1 备选 / 2 已选（前端持久化状态）。 */
+            status?: number;
+            teachers: components["schemas"]["PkTeacherPayload"][];
+            teachingLanguage: string;
+        };
+        /** @description 排课方案快照中的备选/已选课程（镜像前端 PkStagedCourse）。 */
+        PkStagedCoursePayload: {
+            courseCode: string;
+            courseName: string;
+            courseNameReserved: string;
+            credit: number;
+            courseType: string;
+            courseNature: string[];
+            teacher: components["schemas"]["PkTeacherPayload"][];
+            status: number;
+            courseDetail: components["schemas"]["PkCourseDetailPayload"][];
+        };
+        /** @description 排课方案快照中的自定义占位事件（镜像前端 PkCustomEvent；label 为用户自由文本）。 */
+        PkCustomEventPayload: {
+            id: string;
+            label: string;
+            day: number;
+            sections: number[];
+            weeks: number[];
+        };
+        /** @description 一套排课方案（镜像前端 PkPlan；与 web localStorage pk.plans 元素逐字段一致）。 */
+        PkPlanPayload: {
+            /** @description 客户端生成的方案 id（≤64 字符，与服务端 active_plan_id 列约束一致）。 */
+            id: string;
+            name: string;
+            /** @description 客户端生成时间（epoch 毫秒）。 */
+            createdAt: number;
+            stagedCourses: components["schemas"]["PkStagedCoursePayload"][];
+            selectedCourses: string[];
+            customEvents: components["schemas"]["PkCustomEventPayload"][];
+        };
+        /** @description 学期/年级/专业选择三元组（镜像前端 PkMajorSelection；缺省字段为 null/省略）。 */
+        PkMajorSelectionPayload: {
+            calendarId?: number | null;
+            grade?: number | null;
+            major?: string | null;
+            majorName?: string | null;
+        };
+        /** @description 周次视图状态（镜像前端 PkWeekView；week 为 null 表示全部周次堆叠视图）。 */
+        PkWeekViewPayload: {
+            week?: number | null;
+            useCurrent: boolean;
+        };
+        /** @description 排课方案云端快照（issue */
+        PkPlansSnapshotData: {
+            plans: components["schemas"]["PkPlanPayload"][];
+            /** @description 当前激活方案 id，必须命中 plans 之一（≤64 字符，受服务端列约束）。 */
+            activePlanId: string;
+            majorSelected: components["schemas"]["PkMajorSelectionPayload"];
+            weekView: components["schemas"]["PkWeekViewPayload"];
+            /**
+             * Format: date-time
+             * @description 服务端权威同步时钟（RFC3339 UTC）；客户端存为 pk.syncedAt 用于冲突判定，并以 baseUpdatedAt 回传作为写入条件。
+             */
+            updatedAt: string;
+        };
+        /** @description PUT /api/pk/plans 请求体：快照四字段整体替换（服务端浅校验 1..10 套、id/name 非空、activePlanId 引用、≤1MB）。 */
+        PkPlansPutRequest: {
+            /** @description Observed server updatedAt; empty string requires an absent snapshot. Stale writes return 409. Omission preserves unconditional replacement for compatibility; sync clients always supply this field. */
+            baseUpdatedAt?: string;
+            plans: components["schemas"]["PkPlanPayload"][];
+            /** @description 当前激活方案 id，必须命中 plans 之一（≤64 字符，受服务端列约束）。 */
+            activePlanId: string;
+            majorSelected: components["schemas"]["PkMajorSelectionPayload"];
+            weekView: components["schemas"]["PkWeekViewPayload"];
+        };
+        PkPlansPutResult: {
+            /**
+             * Format: date-time
+             * @description 本次写入的服务端时钟（RFC3339 UTC），客户端据此更新 pk.syncedAt。
+             */
+            updatedAt: string;
+        };
+        PkPlansDeleteResult: {
+            /** @constant */
+            deleted: true;
+        };
+        PkPlansGetResponse: components["schemas"]["PkSuccess"] & {
+            /** @description 云端快照；用户从未上传过时为 null（客户端据此判定首登自动上传）。 */
+            data: components["schemas"]["PkPlansSnapshotData"] | null;
+        };
+        PkPlansPutResponse: components["schemas"]["PkSuccess"] & {
+            data: components["schemas"]["PkPlansPutResult"];
+        };
+        PkPlansDeleteResponse: components["schemas"]["PkSuccess"] & {
+            data: components["schemas"]["PkPlansDeleteResult"];
+        };
         MyContentItem: {
             /** Format: uint64 */
             id: number;
@@ -9769,16 +9976,6 @@ export interface components {
             contentId: number;
             /** @description Optional audit text recorded with the purge. */
             reason?: string;
-            /** @description Second-confirmation flag required once the deletion rate gate trips. */
-            force?: boolean;
-            /** @description Current account password; mandatory when force=true. */
-            password?: string;
-        };
-        PrivacyEraseRequest: {
-            /** @enum {string} */
-            contentType: "topic" | "post";
-            /** Format: uint64 */
-            contentId: number;
             /** @description Second-confirmation flag required once the deletion rate gate trips. */
             force?: boolean;
             /** @description Current account password; mandatory when force=true. */
@@ -9985,6 +10182,11 @@ export interface components {
              * @description Published replies that day; 0 when no stat row exists.
              */
             replyCount: number;
+            /**
+             * Format: int64
+             * @description Published course reviews that day; 0 when no stat row exists.
+             */
+            courseReviewCount: number;
         };
         AdminOptRecordItem: {
             /** Format: uint64 */
@@ -10223,6 +10425,10 @@ export interface components {
             viewCount: number;
             activityText: string;
             lastUpdateTime: string;
+            /** @description Authenticated viewer's like state; absent when unavailable. */
+            liked?: boolean;
+            /** @description Authenticated viewer's bookmark state; absent when unavailable. */
+            bookmarked?: boolean;
             /** @description Present only for authenticated viewers with unseen tracking. */
             unseen?: boolean;
         };
@@ -10349,6 +10555,24 @@ export interface components {
              * @enum {integer}
              */
             action: 1 | 2;
+        };
+        OwnCourseReviewItem: {
+            review: components["schemas"]["ReviewPayload"];
+            /** Format: uint64 */
+            courseId: number;
+            courseName: string;
+            courseCode: string;
+            hidden: boolean;
+            /** @description False when the review, offering or course is unavailable publicly. */
+            canOpenCourse: boolean;
+        };
+        OwnCourseReviewResponse: {
+            /** @constant */
+            code: 0;
+            result: {
+                list: components["schemas"]["OwnCourseReviewItem"][];
+                nextCursor?: string;
+            };
         };
         ModerationPostRevealRequest: {
             /** Format: uint64 */
@@ -12689,6 +12913,58 @@ export interface operations {
             };
         };
     };
+    setPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetPasswordRequest"];
+            };
+        };
+        responses: {
+            /** @description Password set (all existing sessions invalidated), or a legacy business failure envelope. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetPasswordResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Authenticated account is frozen or its account information cannot be resolved. A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie is not cleared (issue #406). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Password-change rate limit (action `password.change`) exceeded. */
+            429: {
+                headers: {
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedFailure"];
+                };
+            };
+        };
+    };
     getOAuthBindings: {
         parameters: {
             query?: never;
@@ -13559,69 +13835,6 @@ export interface operations {
             };
         };
     };
-    privacyEraseContent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PrivacyEraseRequest"];
-            };
-        };
-        responses: {
-            /** @description Erased (messageCode `content.privacy.erased`), or a legacy business failure envelope. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ContentLifecycleResponse"];
-                };
-            };
-            /** @description Missing, invalid, expired, or revoked access token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiFailure"];
-                };
-            };
-            /**
-             * @description Authenticated account is frozen (`permission.userFrozen`) or its account
-             *     information cannot be resolved. Pending-activation accounts are
-             *     intentionally allowed on this endpoint (self-service escape hatch): the
-             *     route uses the allow-pending variant of the write gate so users who
-             *     cannot or will not verify their email can still emergency-erase their
-             *     own content. Ownership checks and the shared deletion rate window are
-             *     unchanged. A cross-site cookie-authenticated request (missing or
-             *     mismatched Origin/Referer) is rejected by the CSRF gate before the
-             *     handler with HTTP 403 `auth.csrf.rejected`; the session cookie is not
-             *     cleared (issue #406).
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiFailure"];
-                };
-            };
-            /** @description Interaction rate limit (action `interact`) exceeded. */
-            429: {
-                headers: {
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RateLimitedFailure"];
-                };
-            };
-        };
-    };
     reportContentEvent: {
         parameters: {
             query?: never;
@@ -14299,7 +14512,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Visible reviews ordered newest first. */
+            /** @description Visible reviews with the authenticated caller's reviews first, newest first within each group. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -14331,6 +14544,56 @@ export interface operations {
                 };
             };
             /** @description Review listing failed. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    listOwnCourseReviews: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Private course review page; list is empty rather than null. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnCourseReviewResponse"];
+                };
+            };
+            /** @description Invalid cursor or page size. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description A valid session is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Could not load the user's reviews. */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -19959,6 +20222,187 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PkSectionTimesResponse"];
+                };
+            };
+            /** @description Internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+        };
+    };
+    pkGetPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cloud snapshot, or null data when the user has no snapshot yet. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkPlansGetResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Rate limit exceeded (pk.plans quota). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedFailure"];
+                };
+            };
+            /** @description Internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+        };
+    };
+    pkPutPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PkPlansPutRequest"];
+            };
+        };
+        responses: {
+            /** @description Snapshot stored; returns the server-side sync clock. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkPlansPutResponse"];
+                };
+            };
+            /** @description Structural validation failed (count/limit/identity/activePlanId/size). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Frozen (or pending-activation) account. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description The observed baseUpdatedAt is stale; fetch and resolve before retrying. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+            /** @description Rate limit exceeded (pk.plans quota). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedFailure"];
+                };
+            };
+            /** @description Internal error. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkFailure"];
+                };
+            };
+        };
+    };
+    pkDeletePlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Snapshot removed (or was already absent). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkPlansDeleteResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Frozen (or pending-activation) account. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Rate limit exceeded (pk.plans quota). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedFailure"];
                 };
             };
             /** @description Internal error. */

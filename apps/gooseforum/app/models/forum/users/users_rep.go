@@ -204,6 +204,28 @@ func GetMapByIds(userIds []uint64) map[uint64]*EntityComplete {
 	})
 }
 
+// GetMentionTargetIds 批量解析 @mention 目标用户（username → userId）。
+// 仅返回可作为正常交互对象的有效用户：未冻结、未删除（软删默认过滤）、
+// 非机器人（Agent）；未知 username 不会出现在结果中。
+// 单次 IN 查询批量解析，避免逐用户名查库造成 N+1。
+func GetMentionTargetIds(usernames []string) map[string]uint64 {
+	result := make(map[string]uint64)
+	// User-authored content can contain more names than the database bind limit.
+	for start := 0; start < len(usernames); start += 500 {
+		var entities []*EntityComplete
+		end := min(start+500, len(usernames))
+		builder().Where("username IN ?", usernames[start:end]).
+			Where(queryopt.Eq(fieldIsFrozen, StatusNormal)).
+			Where(queryopt.Eq("actor_type", ActorTypeHuman)).Find(&entities)
+		for _, entity := range entities {
+			if entity != nil && entity.Id != 0 {
+				result[entity.Username] = entity.Id
+			}
+		}
+	}
+	return result
+}
+
 // ExistUsername 检查用户名是否已存在
 func ExistUsername(username string) bool {
 	var id uint64

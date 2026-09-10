@@ -26,7 +26,7 @@ export interface PostStreamTopicActions {
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, Teleport, useSlots, watch } from 'vue'
 import { AlertTriangle, Ban, Bell, BookOpen, Bookmark, ChevronsUp, Clock, CornerDownLeft, Flag, Heart, HelpCircle, History, Loader2, MoreHorizontal, PencilLine, RotateCcw, Share2, Sparkles, Trash2, X } from '@lucide/vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { bookmarkTopic, deletePost, deleteTopic, getPostRevisions, getPostWindow, likeTopic, createPost, sensitiveWordsFromError, submitReport, updateModerationTopicStatus, updateModerationPostStatus, updatePost, watchTopic, likePost, bookmarkPost, reportContentEvent, privacyEraseContent, type PostRevisionResult } from '@/runtime/api'
+import { bookmarkTopic, deletePost, deleteTopic, getPostRevisions, getPostWindow, likeTopic, createPost, sensitiveWordsFromError, submitReport, updateModerationTopicStatus, updateModerationPostStatus, updatePost, watchTopic, likePost, bookmarkPost, reportContentEvent, type PostRevisionResult } from '@/runtime/api'
 import { formatDateTime, formatNumber } from '@/runtime/format'
 import { useFlashMessages } from '@/runtime/flash-message'
 import { fetchPage } from '@/runtime/router'
@@ -149,6 +149,22 @@ const replyTargets = ref<ReplyTargetPayload[]>([...(initialPostStream.replyTarge
 const replyTargetMap = computed(() => new Map(replyTargets.value.map((target) => [target.id, target])))
 const topicProcessStatus = ref(props.topicActions?.processStatus ?? 0)
 const targetPost = computed(() => posts.value.find((post) => post.id === targetPostId.value))
+// @mention 本地上下文（issue #564）：回复目标 > 主题作者 > 参与者，按此优先级传入 composer
+const mentionUsers = computed(() => {
+  const list: Array<import('@/runtime/mention').MentionUser> = []
+  const targetAuthor = targetPost.value?.author
+  if (targetAuthor && !targetPost.value?.isAnonymous && targetAuthor.id > 0) {
+    list.push({ ...targetAuthor, tag: 'reply-target' })
+  }
+  const topicAuthor = props.topicActions?.author
+  if (topicAuthor && topicAuthor.id > 0) {
+    list.push({ ...topicAuthor, tag: 'topic-author' })
+  }
+  for (const participant of props.topicActions?.participants ?? []) {
+    if (participant.id > 0) list.push({ ...participant, tag: 'participant' })
+  }
+  return list
+})
 const postHasBefore = ref(initialPostStream.hasBefore)
 const postHasAfter = ref(initialPostStream.hasAfter)
 const postBeforePostNo = ref(initialPostStream.beforePostNo || firstPostNo(initialPosts))
@@ -1599,42 +1615,6 @@ async function removeTopic() {
   }
 }
 
-/** 隐私紧急删除（PRD R8）：跳过 30 天恢复窗口，全渠道立即彻底删除。 */
-async function privacyEraseTopic() {
-  if (deletingTopic.value || !pendingDeleteTopic.value) return
-  if (!window.confirm(t('topic.privacyEraseConfirm'))) return
-  deletingTopic.value = true
-  deleteErrorMessage.value = ''
-  try {
-    await privacyEraseContent('topic', props.topicId)
-    pendingDeleteTopic.value = false
-    pushFlash(t('topic.privacyEraseSuccess'), 'success')
-    await refreshCurrentPage()
-  } catch (error) {
-    deleteErrorMessage.value = error instanceof Error ? error.message : t('api.topicDeleteFailed')
-  } finally {
-    deletingTopic.value = false
-  }
-}
-
-async function privacyErasePost() {
-  if (!pendingDeletePost.value || deletingPostId.value) return
-  if (!window.confirm(t('topic.privacyEraseConfirm'))) return
-  deletingPostId.value = pendingDeletePost.value.id
-  deleteErrorMessage.value = ''
-  try {
-    await privacyEraseContent('post', pendingDeletePost.value.id)
-    const deletedId = pendingDeletePost.value.id
-    pendingDeletePost.value = null
-    pushFlash(t('topic.privacyEraseSuccess'), 'success')
-    posts.value = posts.value.filter((post) => post.id !== deletedId)
-  } catch (error) {
-    deleteErrorMessage.value = error instanceof Error ? error.message : t('api.replyDeleteFailed')
-  } finally {
-    deletingPostId.value = 0
-  }
-}
-
 function requestTopicModeration(action: 'ban' | 'unban') {
   actionMessage.value = ''
   pendingModerationAction.value = action
@@ -2714,7 +2694,9 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
     :captcha-img="captchaImg"
     :captcha-loading="captchaLoading"
     :captcha-required="captchaRequired"
+    :current-user-id="viewer.id"
     :error-message="errorMessage"
+    :mention-users="mentionUsers"
     :mode="composerMode"
     :submitting="editingPostId ? savingEditPostId > 0 : submitting"
     :success-message="successMessage"
@@ -2797,17 +2779,6 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
             <div class="mt-3 flex items-start gap-2.5 rounded-[var(--gf-radius-field)] border border-line/80 bg-base-200/40 px-3 py-2.5">
               <Clock class="mt-0.5 h-3.5 w-3.5 shrink-0 text-base-content/45" aria-hidden="true" />
               <p class="text-xs leading-5 text-base-content/55">{{ t('topic.deleteNotice') }}</p>
-            </div>
-
-            <div class="mt-3">
-              <button
-                type="button"
-                class="inline-flex min-h-8 items-center rounded-[var(--gf-radius-field)] px-1 text-left text-xs font-medium text-base-content/55 transition-colors hover:bg-base-200 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                :disabled="Boolean(deletingPostId)"
-                @click="privacyErasePost"
-              >
-                {{ t('topic.privacyErase') }}
-              </button>
             </div>
 
             <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -3028,17 +2999,6 @@ defineExpose({ openFloatingPostComposer, focusPostComposer })
             <div class="mt-3 flex items-start gap-2.5 rounded-[var(--gf-radius-field)] border border-line/80 bg-base-200/40 px-3 py-2.5">
               <Clock class="mt-0.5 h-3.5 w-3.5 shrink-0 text-base-content/45" aria-hidden="true" />
               <p class="text-xs leading-5 text-base-content/55">{{ t('topic.deleteNotice') }}</p>
-            </div>
-
-            <div class="mt-3">
-              <button
-                type="button"
-                class="inline-flex min-h-8 items-center rounded-[var(--gf-radius-field)] px-1 text-left text-xs font-medium text-base-content/55 transition-colors hover:bg-base-200 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                :disabled="deletingTopic"
-                @click="privacyEraseTopic"
-              >
-                {{ t('topic.privacyErase') }}
-              </button>
             </div>
 
             <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

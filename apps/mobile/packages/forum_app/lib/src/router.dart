@@ -18,6 +18,7 @@ import 'pages/content/content_page.dart';
 import 'pages/category/category_page.dart';
 import 'pages/courses/catalog_page.dart';
 import 'pages/courses/detail_page.dart';
+import 'pages/courses/my_reviews_page.dart';
 import 'pages/drafts/drafts_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/info/site_info_page.dart';
@@ -341,6 +342,10 @@ final GoRouter appRouter = GoRouter(
       builder: (_, state) =>
           SettingsPage(initialSection: state.pathParameters['section']),
     ),
+    GoRoute(
+      path: '/my-course-reviews',
+      builder: (_, _) => const MyCourseReviewsPage(),
+    ),
     GoRoute(path: '/my-content', builder: (_, _) => const ContentPage()),
     GoRoute(
       path: '/recycle-bin',
@@ -382,6 +387,9 @@ final GoRouter appRouter = GoRouter(
       path: '/courses/:courseId',
       builder: (BuildContext context, GoRouterState state) => CourseDetailPage(
         courseId: int.parse(state.pathParameters['courseId']!),
+        focusReviewId: int.tryParse(
+          state.uri.queryParameters['reviewId'] ?? '',
+        ),
         focusOfferingId: int.tryParse(
           state.uri.queryParameters['offeringId'] ?? '',
         ),
@@ -395,7 +403,8 @@ final GoRouter appRouter = GoRouter(
       path: '/wiki/:wikiPath(.*)',
       builder: (BuildContext context, GoRouterState state) => WikiPage(
         wikiPath: state.pathParameters['wikiPath']!,
-        initialAnchor: state.uri.fragment,
+        // state.uri.fragment 保留 percent-encoded 态;解码后再传给 scrollToAnchor。
+        initialAnchor: decodeWikiAnchor(state.uri.fragment),
       ),
     ),
   ],

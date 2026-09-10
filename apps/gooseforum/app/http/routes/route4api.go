@@ -228,6 +228,9 @@ func apiRoute(ginApp *gin.Engine) {
 	loginApi.POST("wear-badge", middleware.CheckWritableAccount, UpButterReq(api.WearBadge))
 	loginApi.POST("upload-avatar", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitUpload), api.UploadAvatar)
 	loginApi.POST("change-password", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPasswordChange), UpButterReq(api.ChangePassword))
+	// set-password（issue #530）：无邮箱 OAuth 绑定账号首次设密，免旧密码；
+	// 资格门禁在控制器内（Email=="" && HasOAuthBinding），限流复用 password.change。
+	loginApi.POST("set-password", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPasswordChange), UpButterReq(api.SetPassword))
 	loginApi.POST("auth/:provider/unbind", middleware.CheckWritableAccount, UpButterReq(api.UnbindOAuth))
 	loginApi.GET("oauth/bindings", UpButterReq(api.GetOAuthBindings))
 	loginApi.GET("user/sessions", UpButterReq(api.ListSessions))
@@ -261,6 +264,15 @@ func apiRoute(ginApp *gin.Engine) {
 	pkApi.POST("course-info-sync", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkJsonReq(pkcontroller.CourseInfoSync))
 	pkApi.GET("course-review-brief", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkQueryReq(pkcontroller.CourseReviewBrief))
 	pkApi.GET("section-times", middleware.RateLimit(middleware.RateLimitCourseCatalog), pkNoReq(pkcontroller.SectionTimes))
+	// 排课方案云端同步（issue #537）：登录端点，独立 pk.plans 配额（写不与
+	// 目录读抢配额）；PUT/DELETE 叠加 CheckWritableAccount（冻结账号不可写，
+	// GET 放行对齐「冻结可读」先例）。CSRFProtection 前置于认证（issue #406
+	// 契约：cookie 可认证的写组必须挂 CSRF；对 Bearer 客户端与 GET 自豁免，
+	// 移动端不受影响）。
+	pkLoginApi := pkApi.Group("", middleware.CSRFProtection, middleware.JWTAuthCheck)
+	pkLoginApi.GET("plans", middleware.RateLimit(middleware.RateLimitPkPlans), pkAuthNoReq(pkcontroller.GetPlans))
+	pkLoginApi.PUT("plans", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPkPlans), pkAuthJsonReq(pkcontroller.PutPlans))
+	pkLoginApi.DELETE("plans", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPkPlans), pkAuthNoReq(pkcontroller.DeletePlans))
 
 	forumApi := baseApi.Group("forum")
 	forumApi.GET("get-site-statistics", ginUpNP(api.GetSiteStatistics))
@@ -316,10 +328,9 @@ func apiRoute(ginApp *gin.Engine) {
 	forumLoginApi.POST("user/content-restore", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.RestoreContent))
 	forumLoginApi.POST("user/content-purge", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.PurgeContent))
 	// 账号/内容生命周期销毁类写路由（隐私擦除、注销账号）用放行变体：pending
-	// 用户（未验证邮箱、不打算/无法验证）仍可注销自有账号或执行紧急隐私擦除
-	// 自救，控制器自带 ownership/密码/限流校验（issue #415 review P2）；
-	// 普通写仍被 CheckWritableAccount 拦截。
-	forumLoginApi.POST("user/content-privacy-erase", middleware.CheckWritableAccountAllowPendingActivation, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.PrivacyErase))
+	// 用户（未验证邮箱、不打算/无法验证）仍可注销自有账号自救，控制器自带
+	// ownership/密码/限流校验（issue #415 review P2）；普通写仍被
+	// CheckWritableAccount 拦截。
 	forumLoginApi.POST("user/content-event", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.ReportContentEvent))
 	forumLoginApi.POST("user/account-close", middleware.CheckWritableAccountAllowPendingActivation, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.AccountClose))
 	forumLoginApi.POST("posts/create", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPostCreate), UpButterReq(api.CreatePost))
@@ -333,6 +344,7 @@ func apiRoute(ginApp *gin.Engine) {
 	forumLoginApi.POST("follow-user", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.FollowUser))
 	forumLoginApi.POST("report", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(forum.CreateReport))
 	// 课评写接口：登录 + 可写账号 + 独立限流。
+	forumLoginApi.GET("my-course-reviews", UpQueryReq(forum.OwnCourseReviews))
 	forumLoginApi.POST("course-reviews", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitReviewWrite), UpJsonReq(forum.CreateCourseReview))
 	forumLoginApi.PATCH("course-reviews/:reviewId", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitReviewWrite), UpUriJsonReq(forum.UpdateCourseReview))
 	forumLoginApi.DELETE("course-reviews/:reviewId", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitReviewWrite), UpUriReq(forum.DeleteCourseReview))

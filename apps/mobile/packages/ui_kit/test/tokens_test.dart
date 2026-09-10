@@ -156,11 +156,11 @@ void main() {
         expect(t.title2.fontSize, 18);
         expect(t.title3.fontSize, 17);
         expect(t.heading.fontSize, 16);
-        expect(t.body.fontSize, 15);
-        expect(t.bodyStrong.fontSize, 15);
-        expect(t.small.fontSize, 14);
-        expect(t.caption.fontSize, 12);
-        expect(t.meta.fontSize, 11);
+        expect(t.body.fontSize, 17);
+        expect(t.bodyStrong.fontSize, 16);
+        expect(t.small.fontSize, 15);
+        expect(t.caption.fontSize, 13);
+        expect(t.meta.fontSize, 12);
         expect(t.label.fontSize, 10);
       }
     });
@@ -177,9 +177,9 @@ void main() {
       expect(t.label.fontWeight, FontWeight.w700);
     });
 
-    test('body uses the mobile 15/24 reading scale', () {
+    test('body uses the compact mobile 17px reading scale', () {
       final GfTypography t = GfTypography.standard(GfColors.light.baseContent);
-      expect(t.body.height, 1.6);
+      expect(t.body.height, 1.4);
       expect(
         t.display.fontFeatures,
         contains(const FontFeature.tabularFigures()),

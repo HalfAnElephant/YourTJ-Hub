@@ -9,6 +9,35 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get myCourseReviewsTitle => 'Meine Kursbewertungen';
+
+  @override
+  String get myCourseReviewsEmpty =>
+      'Noch keine Bewertungen. Entdecke den Kurskatalog.';
+
+  @override
+  String get myCourseReviewHidden =>
+      'Diese Bewertung ist ausgeblendet. Du kannst sie hier löschen.';
+
+  @override
+  String get myCourseReviewUnavailable =>
+      'Dieser Kurs ist nicht verfügbar. Du kannst deine Bewertung weiterhin verwalten.';
+
+  @override
+  String get myCourseReviewOpen => 'Details ansehen';
+
+  @override
+  String get courseReviewNetworkError =>
+      'Verbindung fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen; deine Bewertung bleibt erhalten.';
+
+  @override
+  String get courseReviewUnknownError =>
+      'Die Bewertung konnte nicht gespeichert werden. Der Server hat keinen konkreten Grund angegeben. Bitte später erneut versuchen.';
+
+  @override
+  String get commonHideKeyboard => 'Tastatur ausblenden';
+
+  @override
   String get appTitle => 'YourTJ';
 
   @override
@@ -894,6 +923,20 @@ class AppLocalizationsDe extends AppLocalizations {
   }
 
   @override
+  String get scheduleSyncConflictTitle =>
+      'Konflikt bei der Plan-Synchronisierung';
+
+  @override
+  String get scheduleSyncConflictBody =>
+      'Cloud- und lokale Pläne unterscheiden sich. Wähle, welche Version behalten wird.';
+
+  @override
+  String get scheduleSyncUseCloud => 'Cloud verwenden';
+
+  @override
+  String get scheduleSyncKeepLocal => 'Lokal behalten';
+
+  @override
   String get scheduleWeekAll => 'Alle Wochen';
 
   @override
@@ -937,6 +980,19 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get scheduleConflictBadge => 'Konflikt';
+
+  @override
+  String scheduleConflictWith(String course) {
+    return 'Zeitkonflikt mit \"$course\"';
+  }
+
+  @override
+  String scheduleConflictsWith(String course, int count) {
+    return 'Zeitkonflikt mit \"$course\" und $count weiteren Kursen';
+  }
+
+  @override
+  String get scheduleConflictCanAdd => 'Kann trotzdem hinzugefügt werden';
 
   @override
   String get scheduleAddCustomEvent => 'Platzhalter hinzufügen';
@@ -1224,9 +1280,6 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get contentPurge => 'Endgültig löschen';
-
-  @override
-  String get contentPrivacyErase => 'Eigene Inhalte löschen';
 
   @override
   String get contentDeleteConfirm =>
@@ -1519,6 +1572,11 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String notificationComment(String actor) {
     return '$actor hat dein Thema kommentiert';
+  }
+
+  @override
+  String notificationMention(String actor) {
+    return '$actor hat dich erwähnt';
   }
 
   @override

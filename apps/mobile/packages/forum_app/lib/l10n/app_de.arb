@@ -1,4 +1,12 @@
 {
+  "myCourseReviewsTitle": "Meine Kursbewertungen",
+  "myCourseReviewsEmpty": "Noch keine Bewertungen. Entdecke den Kurskatalog.",
+  "myCourseReviewHidden": "Diese Bewertung ist ausgeblendet. Du kannst sie hier löschen.",
+  "myCourseReviewUnavailable": "Dieser Kurs ist nicht verfügbar. Du kannst deine Bewertung weiterhin verwalten.",
+  "myCourseReviewOpen": "Details ansehen",
+  "courseReviewNetworkError": "Verbindung fehlgeschlagen. Bitte Verbindung prüfen und erneut versuchen; deine Bewertung bleibt erhalten.",
+  "courseReviewUnknownError": "Die Bewertung konnte nicht gespeichert werden. Der Server hat keinen konkreten Grund angegeben. Bitte später erneut versuchen.",
+  "commonHideKeyboard": "Tastatur ausblenden",
   "@@locale": "de",
   "appTitle": "YourTJ",
   "navHome": "Startseite",
@@ -266,6 +274,10 @@
   "scheduleSyncLatest": "Synchronisieren",
   "scheduleDataOutdated": "Kursdaten wurden aktualisiert. Zum Synchronisieren tippen.",
   "scheduleSyncedTo": "Stand: {date}",
+  "scheduleSyncConflictTitle": "Konflikt bei der Plan-Synchronisierung",
+  "scheduleSyncConflictBody": "Cloud- und lokale Pläne unterscheiden sich. Wähle, welche Version behalten wird.",
+  "scheduleSyncUseCloud": "Cloud verwenden",
+  "scheduleSyncKeepLocal": "Lokal behalten",
   "scheduleWeekAll": "Alle Wochen",
   "scheduleWeekN": "Woche {week}",
   "scheduleCurrentWeek": "Aktuelle Woche",
@@ -279,6 +291,26 @@
   "scheduleStatsHours": "Stunden",
   "scheduleStatsConflicts": "Konflikte",
   "scheduleConflictBadge": "Konflikt",
+  "scheduleConflictWith": "Zeitkonflikt mit \"{course}\"",
+  "@scheduleConflictWith": {
+    "placeholders": {
+      "course": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleConflictsWith": "Zeitkonflikt mit \"{course}\" und {count} weiteren Kursen",
+  "@scheduleConflictsWith": {
+    "placeholders": {
+      "course": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleConflictCanAdd": "Kann trotzdem hinzugefügt werden",
   "scheduleAddCustomEvent": "Platzhalter hinzufügen",
   "scheduleCustomEventLabel": "Beschäftigt",
   "scheduleExportPng": "Bild exportieren",
@@ -370,7 +402,6 @@
   "contentRestore": "Wiederherstellen",
   "contentDelete": "Löschen",
   "contentPurge": "Endgültig löschen",
-  "contentPrivacyErase": "Eigene Inhalte löschen",
   "contentDeleteConfirm": "Der Inhalt wird in den Papierkorb verschoben und kann, sofern zulässig, innerhalb von 30 Tagen wiederhergestellt werden.",
   "contentPurgeConfirm": "Dies kann nicht rückgängig gemacht werden. Text und Bilder werden endgültig gelöscht.",
   "contentPassword": "Zur Bestätigung aktuelles Passwort eingeben",
@@ -460,6 +491,8 @@
   "wikiSearchHint": "Campuswissen suchen",
   "wikiExploreTitle": "Dein Campusbegleiter",
   "notificationComment": "{actor} hat dein Thema kommentiert",
+  "notificationMention": "{actor} hat dich erwähnt",
+  "@notificationMention": {"placeholders": {"actor": {"type": "String"}}},
   "notificationPostReply": "{actor} hat dir geantwortet",
   "notificationTopicPost": "{actor} hat in einem von dir verfolgten Thema geschrieben",
   "notificationFollow": "{actor} folgt dir jetzt",

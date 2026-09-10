@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
 import '../../navigation/tab_scroll_registry.dart';
@@ -56,7 +57,8 @@ class _CampusPageState extends ConsumerState<CampusPage> {
         controller: _scroll,
         showButton: false,
         semanticLabel: l10n.commonBackToTop,
-        builder: (_, controller) => RefreshIndicator(
+        builder: (_, controller) => AppRefreshIndicator(
+          edgeOffset: top,
           onRefresh: () => ref.refresh(campusCoursesProvider.future),
           child: ListView(
             controller: controller,

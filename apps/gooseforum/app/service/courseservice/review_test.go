@@ -2,11 +2,14 @@ package courseservice
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/course"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/dailyStats"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/taskQueue"
 )
 
@@ -21,6 +24,7 @@ var reviewTestModels = []any{
 	&course.CourseStatsEntity{},
 	&course.OfferingStatsEntity{},
 	&course.CourseAiSummaryEntity{},
+	&dailyStats.Entity{},
 	&taskQueue.Entity{},
 }
 
@@ -113,6 +117,67 @@ func TestCreateReviewDuplicate(t *testing.T) {
 	}
 	if _, err := CreateReview(1001, input); err != ErrReviewDuplicate {
 		t.Fatalf("expected ErrReviewDuplicate, got %v", err)
+	}
+}
+
+// TestCreateReviewTrafficStats 流量概览课评统计口径（issue #582）：写评成功
+// 当日 +1；重复评价、编辑与删除不改变计数；删除后的恢复重写计为新课评。
+func TestCreateReviewTrafficStats(t *testing.T) {
+	_, offeringId := setupReviewTest(t)
+	day := time.Now().Format("2006-01-02")
+	statToday := func() int64 {
+		stats, err := dailyStats.GetStatsInRange([]dailyStats.StatType{dailyStats.StatTypeCourseReviewCount}, day, day)
+		if err != nil {
+			t.Fatalf("get course review stat: %v", err)
+		}
+		if len(stats) == 0 {
+			return 0
+		}
+		return stats[0].StatValue
+	}
+	t.Cleanup(func() {
+		dbconnect.Connect().
+			Where("stat_date >= ?", day).
+			Where("stat_date <= ?", day).
+			Where("stat_key = ?", string(dailyStats.StatTypeCourseReviewCount)).
+			Delete(&dailyStats.Entity{})
+	})
+
+	payload, err := CreateReview(1001, CreateReviewInput{OfferingId: offeringId, Rating: 5, Content: "讲得很好"})
+	if err != nil {
+		t.Fatalf("create review: %v", err)
+	}
+	if got := statToday(); got != 1 {
+		t.Fatalf("course_review_count after create = %d, want 1", got)
+	}
+	// 重复评价不计数。
+	if _, err := CreateReview(1001, CreateReviewInput{OfferingId: offeringId, Rating: 4, Content: "重复"}); !errors.Is(err, ErrReviewDuplicate) {
+		t.Fatalf("expected ErrReviewDuplicate, got %v", err)
+	}
+	if got := statToday(); got != 1 {
+		t.Fatalf("course_review_count after duplicate = %d, want 1", got)
+	}
+	// 编辑不计数。
+	keep := "改写正文"
+	if _, err := UpdateReview(1001, payload.Id, UpdateReviewInput{Content: &keep}); err != nil {
+		t.Fatalf("update review: %v", err)
+	}
+	if got := statToday(); got != 1 {
+		t.Fatalf("course_review_count after update = %d, want 1", got)
+	}
+	// 删除不回拨计数。
+	if err := DeleteReview(1001, payload.Id); err != nil {
+		t.Fatalf("delete review: %v", err)
+	}
+	if got := statToday(); got != 1 {
+		t.Fatalf("course_review_count after delete = %d, want 1", got)
+	}
+	// 恢复重写计为新课评。
+	if _, err := CreateReview(1001, CreateReviewInput{OfferingId: offeringId, Rating: 3, Content: "恢复重写"}); err != nil {
+		t.Fatalf("reactivate review: %v", err)
+	}
+	if got := statToday(); got != 2 {
+		t.Fatalf("course_review_count after reactivate = %d, want 2", got)
 	}
 }
 
@@ -659,5 +724,61 @@ func TestListReviewsPageTeamScopeAggregation(t *testing.T) {
 	}
 	if filtered.Total != 1 || len(filtered.List) != 1 || filtered.List[0].OfferingId != aOffering {
 		t.Fatalf("offering-filtered = total %d list %d, want 1/1 on offering %d", filtered.Total, len(filtered.List), aOffering)
+	}
+}
+
+func TestReviewsOwnerFirstAcrossPages(t *testing.T) {
+	courseID, offeringID := setupReviewTest(t)
+	own, err := CreateReview(7001, CreateReviewInput{OfferingId: offeringID, Rating: 5, Content: "my older anonymous review", IsAnonymous: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for user := uint64(7002); user < 7027; user++ {
+		if _, err := CreateReview(user, CreateReviewInput{OfferingId: offeringID, Rating: 4, Content: "newer review", IsAnonymous: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, filter := range []uint64{0, offeringID} {
+		cursor := ReviewCursor{}
+		seen := map[uint64]bool{}
+		for page := 0; page < 30; page++ {
+			result, err := ListReviewsPage(courseID, filter, 7001, cursor, 3)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if page == 0 && (len(result.List) == 0 || result.List[0].Id != own.Id) {
+				t.Fatalf("own review missing from first position: %+v", result.List)
+			}
+			for _, r := range result.List {
+				if seen[r.Id] {
+					t.Fatalf("duplicate review %d", r.Id)
+				}
+				seen[r.Id] = true
+			}
+			if result.NextCursor == "" {
+				break
+			}
+			cursor, err = DecodeCursor(result.NextCursor)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if len(seen) != 26 {
+			t.Fatalf("lost reviews: %d", len(seen))
+		}
+	}
+}
+
+func TestReviewCursorOwnershipPhase(t *testing.T) {
+	for _, raw := range []string{"1:2", "1:2:0", "1:2:1"} {
+		cursor, err := DecodeCursor(raw)
+		if err != nil || EncodeCursor(cursor) != raw {
+			t.Fatalf("cursor roundtrip %q: %+v %v", raw, cursor, err)
+		}
+	}
+	for _, raw := range []string{"1:2:3", "1:2:-1", "1:2:1:0", "x:2:1"} {
+		if _, err := DecodeCursor(raw); err == nil {
+			t.Fatalf("accepted malformed cursor %q", raw)
+		}
 	}
 }

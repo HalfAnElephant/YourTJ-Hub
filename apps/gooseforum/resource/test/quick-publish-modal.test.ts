@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { loadQuickPublishModal, useEverOpenedQuickPublish } from '../src/site/composables/useQuickPublish'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
+import * as api from '../src/runtime/api'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import Draggable from 'vuedraggable'
@@ -26,6 +27,7 @@ const mockLayout: LayoutPayload = {
   },
   footer: { links: [], primary: [] },
   unread: { notifications: 0, messages: 0 },
+  posting: { maxTitleLength: 100 },
   theme: { enabled: true, current: 'gf-light', themeColor: '#3b82f6' },
   insightFlareEnabled: false,
 }
@@ -45,12 +47,98 @@ describe('QuickPublishModal 组件', () => {
     const dialog = document.body.querySelector('[role="dialog"]')
     expect(dialog).not.toBeNull()
 
-    // 检查分类标签
+    // 打开分类选择器后检查分类选项
+    const categoryTrigger = document.body.querySelector(
+      `button[aria-label="${i18n.global.t('publish.modal.addCategoryAndTopic')}"]`,
+    ) as HTMLButtonElement | null
+    expect(categoryTrigger).not.toBeNull()
+    categoryTrigger?.click()
+    await flushPromises()
     const categoryButtons = document.body.querySelectorAll('button')
     const categoryTexts = Array.from(categoryButtons).map((b) => b.textContent)
     expect(categoryTexts.some((t) => t?.includes('学术讨论'))).toBe(true)
 
     // 关闭弹层
+    closeQuickPublish()
+    await flushPromises()
+    wrapper.unmount()
+  })
+
+  test('新建短文不默认分类，未选分类提交时提示并定位分类选择器', async () => {
+    i18n.global.locale.value = 'zh'
+    const { openQuickPublish, closeQuickPublish } = useQuickPublish()
+    openQuickPublish(2) // 瞬间类型
+
+    const wrapper = mount(QuickPublishModal, {
+      props: { layout: mockLayout },
+      global: { plugins: [i18n, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const vm = wrapper.vm as any
+    const dialog = document.body.querySelector('[role="dialog"]')
+    const categoryTrigger = dialog?.querySelector(
+      `button[aria-label="${i18n.global.t('publish.modal.addCategoryAndTopic')}"]`,
+    ) as HTMLButtonElement | null
+    const titleInput = dialog?.querySelector('input[type="text"]') as HTMLInputElement | null
+
+    expect(vm.categoryIds).toEqual([])
+    expect(categoryTrigger).not.toBeNull()
+    expect(titleInput).not.toBeNull()
+    expect(categoryTrigger!.compareDocumentPosition(titleInput!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    vm.title = '测试标题'
+    vm.content = '测试正文'
+    await vm.handleSubmit()
+    await flushPromises()
+
+    expect(vm.categoryMissing).toBe(true)
+    expect(vm.errorMessage).toBe(i18n.global.t('publish.validation.categoryRequired'))
+    expect(categoryTrigger?.getAttribute('aria-invalid')).toBe('true')
+    expect(categoryTrigger?.className).toContain('border-error')
+    expect(document.activeElement).toBe(categoryTrigger)
+
+    closeQuickPublish()
+    await flushPromises()
+    wrapper.unmount()
+  })
+
+  test('标题长度使用服务端配置并按 Unicode code point 计数', async () => {
+    i18n.global.locale.value = 'zh'
+    const { openQuickPublish, closeQuickPublish } = useQuickPublish()
+    openQuickPublish(1)
+
+    const wrapper = mount(QuickPublishModal, {
+      props: { layout: mockLayout },
+      global: { plugins: [i18n, router] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+
+    const dialog = document.body.querySelector('[role="dialog"]')
+    const input = dialog?.querySelector('input[type="text"]') as HTMLInputElement | null
+    expect(input).not.toBeNull()
+    expect(input?.hasAttribute('maxlength')).toBe(false)
+
+    input!.value = 'a'.repeat(100)
+    input!.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+    expect(input!.value).toBe('a'.repeat(100))
+
+    const mixed = `${'汉'.repeat(99)}😀`
+    input!.value = mixed
+    input!.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+    expect(input!.value).toBe(mixed)
+    expect(dialog?.textContent).toContain('100/100')
+
+    input!.value = `${mixed}A`
+    input!.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+    expect(input!.value).toBe(mixed)
+    expect(dialog?.textContent).toContain('100/100')
+
     closeQuickPublish()
     await flushPromises()
     wrapper.unmount()
@@ -290,4 +378,36 @@ describe('QuickPublish 懒加载与首开锁存', () => {
     await new Promise((resolve) => setTimeout(resolve, 300))
     expect(everOpened.value).toBe(true)
   })
+})
+
+test.each([
+  { limit: 4, body: '汉😀abc', expected: '汉😀ab' },
+  { limit: 30, body: 'a'.repeat(29) + '😀tail', expected: 'a'.repeat(29) + '😀' },
+  { limit: 4, body: '', expected: '' },
+])('automatic moment title respects code points and server limit: $limit / $body', async ({ limit, body, expected }) => {
+  i18n.global.locale.value = 'zh'
+  const { openQuickPublish, closeQuickPublish } = useQuickPublish()
+  openQuickPublish(2)
+  const submit = vi.spyOn(api, 'submitTopic').mockRejectedValue(new Error('stop after capture'))
+  const wrapper = mount(QuickPublishModal, {
+    props: { layout: { ...mockLayout, posting: { maxTitleLength: limit } } },
+    global: { plugins: [i18n, router] },
+    attachTo: document.body,
+  })
+  try {
+    await flushPromises()
+    const vm = wrapper.vm as any
+    vm.categoryIds = [101]
+    vm.content = body
+    vm.editor = { syncValue: () => body }
+    if (!body) vm.uploadedImages = [{ id: 'image', url: '/file/img/test.png', uploading: false }]
+    await vm.handleSubmit()
+    const expectedTitle = body ? expected : Array.from(i18n.global.t('publish.modal.imageOnlyTitle')).slice(0, limit).join('')
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ title: expectedTitle }))
+  } finally {
+    closeQuickPublish()
+    await flushPromises()
+    wrapper.unmount()
+    submit.mockRestore()
+  }
 })

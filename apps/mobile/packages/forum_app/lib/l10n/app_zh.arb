@@ -1,4 +1,12 @@
 {
+  "myCourseReviewsTitle": "我的课评",
+  "myCourseReviewsEmpty": "还没有发布课评，去课程目录看看吧。",
+  "myCourseReviewHidden": "这条评价已被隐藏，可在此删除。",
+  "myCourseReviewUnavailable": "课程暂不可访问，你仍可管理自己的评价。",
+  "myCourseReviewOpen": "查看详情",
+  "courseReviewNetworkError": "网络连接失败，请检查网络后重试，已保留你的评价。",
+  "courseReviewUnknownError": "评价未能保存，服务端没有提供具体原因，请稍后重试。",
+  "commonHideKeyboard": "收起键盘",
   "@@locale": "zh",
   "appTitle": "YourTJ",
   "navHome": "首页",
@@ -491,6 +499,10 @@
       }
     }
   },
+  "scheduleSyncConflictTitle": "排课方案同步冲突",
+  "scheduleSyncConflictBody": "本地与云端的排课方案不一致，保留哪一份？",
+  "scheduleSyncUseCloud": "使用云端",
+  "scheduleSyncKeepLocal": "保留本地",
   "scheduleWeekAll": "全部周次",
   "scheduleWeekN": "第 {week} 周",
   "@scheduleWeekN": {
@@ -525,6 +537,26 @@
   "scheduleStatsHours": "学时",
   "scheduleStatsConflicts": "冲突",
   "scheduleConflictBadge": "冲突",
+  "scheduleConflictWith": "与「{course}」时间冲突",
+  "@scheduleConflictWith": {
+    "placeholders": {
+      "course": {
+        "type": "String"
+      }
+    }
+  },
+  "scheduleConflictsWith": "与「{course}」等{count}门课程冲突",
+  "@scheduleConflictsWith": {
+    "placeholders": {
+      "course": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "scheduleConflictCanAdd": "仍可加入",
   "scheduleAddCustomEvent": "添加占位",
   "scheduleCustomEventLabel": "有事",
   "scheduleExportPng": "导出图片",
@@ -637,7 +669,6 @@
   "contentRestore": "恢复",
   "contentDelete": "删除",
   "contentPurge": "永久删除",
-  "contentPrivacyErase": "隐私清除",
   "contentDeleteConfirm": "内容会移入回收站，符合恢复条件时可在 30 天内恢复。",
   "contentPurgeConfirm": "此操作不可撤销。正文和图片将被永久清除。",
   "contentPassword": "请输入当前密码以确认操作",
@@ -748,6 +779,8 @@
       }
     }
   },
+  "notificationMention": "{actor} 提到了你",
+  "@notificationMention": {"placeholders": {"actor": {"type": "String"}}},
   "notificationPostReply": "{actor} 回复了你",
   "@notificationPostReply": {
     "placeholders": {

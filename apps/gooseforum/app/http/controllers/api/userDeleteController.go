@@ -8,6 +8,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/connect/dbconnect"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/component"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/contentDeleteEvent"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pk"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/posts"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pushDevice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pushSubscription"
@@ -160,12 +161,12 @@ const (
 
 // BatchDeleteContent 批量删除本人内容（R9）。
 // 10 分钟内删除超过 20 条时要求二次确认：force=true 且校验当前用户密码
-// （防止账号被盗后无脑清空）。单条删除端点与隐私擦除同样计入该窗口。
+// （防止账号被盗后无脑清空）。单条删除端点同样计入该窗口。
 func BatchDeleteContent(req component.BetterRequest[BatchDeleteContentReq]) component.Response {
 	if len(req.Params.ContentIDs) == 0 {
 		return component.FailResponseCode(component.MessageRequestInvalidParams, nil)
 	}
-	// 频率窗口同时计入普通删除与隐私紧急删除（PRD R9），避免通过隐私删除绕过限速。
+	// 频率窗口计入普通删除与级联下架事件（PRD R9），避免删除动作绕过限速。
 	if err := contentdeleteservice.CheckDeleteRate(req.UserId, len(req.Params.ContentIDs), req.Params.Force, req.Params.Password); err != nil {
 		return component.FailResponseError(err)
 	}
@@ -245,6 +246,15 @@ func AccountClose(req component.BetterRequest[AccountCloseReq]) component.Respon
 		}
 	}
 
+	// 清空排课方案云端快照（issue #537）：方案含用户自选课程与自定义占位等
+	// 个人数据（anonymize 与 delete 两 mode 共用；与 pushDevice 同语义）。
+	// 注销前置**必需**步骤（issue #557 review P1）：瞬时失败中止注销并返回
+	// 失败——账号仍有效、用户可立即重试；若放在 CloseAccount 之后 best-effort，
+	// 一旦失败快照将永久残留（会话已吊销、用户无法再认证删除、无补偿路径）。
+	if err := pk.DeleteScheduleSnapshotByUser(req.UserId); err != nil {
+		slog.Error("delete pk schedule snapshot on account close failed", "userId", req.UserId, "err", err)
+		return component.FailResponseCode(component.MessageOperationFailed, nil)
+	}
 	if err := users.CloseAccount(req.UserId); err != nil {
 		slog.Error("close account failed", "userId", req.UserId, "err", err)
 		return component.FailResponseCode(component.MessageOperationFailed, nil)
@@ -401,25 +411,6 @@ func PurgeContent(req component.BetterRequest[PurgeContentReq]) component.Respon
 		return component.FailResponseError(err)
 	}
 	return component.SuccessResponseCode("操作成功", component.MessageContentPurgeSuccess, nil)
-}
-
-// PrivacyEraseReq 隐私紧急删除请求（R8，跳过恢复窗口立即彻底删除）。
-type PrivacyEraseReq struct {
-	ContentType string `json:"contentType" validate:"required,oneof=topic post"`
-	ContentID   uint64 `json:"contentId" validate:"required"`
-	Force       bool   `json:"force"`
-	Password    string `json:"password"`
-}
-
-// PrivacyErase 隐私紧急删除（R8）：与永久删除等价，但更强调全渠道立即清除。
-func PrivacyErase(req component.BetterRequest[PrivacyEraseReq]) component.Response {
-	if err := contentdeleteservice.CheckDeleteRate(req.UserId, 1, req.Params.Force, req.Params.Password); err != nil {
-		return component.FailResponseError(err)
-	}
-	if err := contentdeleteservice.PrivacyEraseContent(req.UserId, contentdeleteservice.ContentType(req.Params.ContentType), req.Params.ContentID); err != nil {
-		return component.FailResponseError(err)
-	}
-	return component.SuccessResponseCode("操作成功", component.MessageContentPrivacyErased, nil)
 }
 
 func formatDeletedAt(t time.Time) string {

@@ -6,7 +6,7 @@
 >
 > Owner: Platform maintainers
 >
-> Last verified: 2026-09-07
+> Last verified: 2026-09-08
 
 The Flutter app combines the forum, course catalog, scheduler and Wiki. Ordinary browsing and
 writing use native pages. Management uses the same first-party workspaces and permission checks as
@@ -14,6 +14,15 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 [0012](../decisions/0012-unified-mobile-reading-navigation.md).
 
 ## Navigation and reading
+
+- `Current`: Home announcements render optional titles and HTML bodies, including the legacy
+  single-HTML payload. A small bell sits in a separate leading column, with title and body aligned
+  to the same inset as Web. They grow with their contents and text size; empty announcements take no
+  space. Multiple announcements rotate with numbered manual controls; assistive navigation and
+  reduced motion disable automatic rotation. Refresh replaces the active announcement safely.
+- `Current`: mobile body text uses 17 logical pixels with system text scaling. Feed cards use
+  compact vertical padding and one timestamp; embedded Markdown uses smaller paragraph margins
+  so short replies do not acquire a large empty footer.
 
 - `Current`: four persistent destinations — Home, Campus, Notifications and Messages — use icon-only
   navigation with accessible labels. Search is a pushed page, reachable from Home. Campus links to
@@ -24,6 +33,13 @@ Web inside an authenticated in-app browser. The navigation and management bounda
   the text; a landscape image appears below the text with aspect-preserving fit. Portrait galleries
   show up to three columns; two landscape images share a row; larger landscape galleries overlap
   up to three previews with a total count. Tapping opens the full gallery with zoom.
+- `Current`: Home topic cards expose compact authenticated like and bookmark shortcuts beside the
+  reply/view metrics. A successful action updates its selected icon immediately; failed actions
+  preserve the previous state and show the localized error. Home summaries batch-load the viewer's
+  like/bookmark state; absent state (anonymous, unavailable or older servers) suppresses the
+  shortcuts. Selected states survive offscreen card recycling, and returning from detail refreshes
+  them. In-flight reads cannot overwrite newer successful actions. Metrics and actions wrap at
+  narrow widths and enlarged text sizes. Like totals are not part of the home summary.
 - `Current`: simple-content topics show an uncropped, swipeable image gallery above the body. The
   same gallery is used in the publishing preview.
 - `Current`: root headers, filter rails and bottom navigation overlay the reading viewport. They
@@ -35,6 +51,10 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 - `Current`: Home, Campus and Notifications have a stable compose button; Messages has a new-chat
   button. Topic pages keep reply and floor controls in the bottom dock. Pull-to-refresh and
   reselecting the active root destination provide refresh and return-to-top without changing icons.
+  Refreshable pages accept a short pull from the top on release, including empty lists; the gesture
+  uses finger travel so tall screens and iOS rubber-band damping do not demand a longer pull.
+  Home, Campus and Notifications show the refresh indicator below their overlaid navigation.
+  Small or retracted pulls do not refresh, and an ongoing refresh cannot be started twice.
 - `Current`: the floor slider loads the selected server window on release. Earliest/latest
   shortcuts, reply links, and earlier/later pagination navigate the actual reply stream. Returning
   to the first post from a middle window reloads that window before offering refresh; stale
@@ -88,6 +108,19 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 
 ## Publishing
 
+- `Current`: publishing uses an unframed title and writing canvas. Article formatting tools remain
+  folded in a bottom accessory bar above the software keyboard; expanding them preserves the editor
+  selection. Image and draft actions remain in the accessory bar; the empty simple gallery is a compact
+  selection tile. Rich and simple body text use the same mobile reading scale. Preview hides the accessory bar.
+
+- `Current`: reply composers use one rounded surface with a borderless, growing two-line input.
+  Image, hide-keyboard, collapse and send actions share the bottom row. The reply target is a
+  lightweight text row; attachment previews and server-required captcha controls appear only when needed.
+
+- `Current`: publishing and reply composers have a localized hide-keyboard button that preserves
+  unsent text. Dragging the publishing page or topic stream also dismisses the keyboard; opening
+  the publishing preview removes editor focus. Rich-text formatting remains available while editing.
+
 - `Current`: the type selector keeps Web's moment/question/article values. Moments and questions
   use a simple gallery plus text; articles use an inline rich editor backed by Markdown. Article
   formatting tools are folded by default. Existing topics retain their type when edited.
@@ -107,12 +140,34 @@ Web inside an authenticated in-app browser. The navigation and management bounda
 
 - `Current`: Campus previews real reviewed courses and links to the course catalog, scheduler and
   Wiki. It does not display an official personal calendar or claim an enrollment integration.
-- `Current`: the scheduler opens in course selection. Plan preview remains a local planning grid,
-  with week filters, conflicts, custom blocks and existing plan operations. A prominent tip opens
+- `Current`: the scheduler opens in course selection. Plan preview remains a local planning
+  grid, with week filters, conflicts, custom blocks and existing plan operations. Web and mobile
+  warn about time conflicts before a teaching class is selected, while keeping the add action
+  non-blocking. A prominent tip opens
   the full [Web scheduler](https://f.yourtj.de/schedule) in the external browser without transferring
   the native credential. Plans are not official enrollment results.
+- `Current`: signed-in plans cloud-sync with the Web scheduler (`GET/PUT/DELETE /api/pk/plans`,
+  issue #537): local changes upload after a 3s debounce, entering the scheduler reconciles against
+  the cloud snapshot (empty cloud auto-uploads local; conflicting edits show a one-time
+  use-cloud / keep-local dialog), and the server's `updatedAt` clock is the only sync authority.
+  Uploads carry the observed server revision; HTTP 409 triggers another read and a conflict
+  dialog. Initial read failures and unresolved conflicts block writes. Pending local changes
+  survive page exit and transient failures, and the sync clock advances only after local
+  persistence succeeds. Switching accounts requires choosing the cloud copy or explicitly
+  keeping the retained local plans, including when the new account has no cloud snapshot.
+  Signed-out use stays purely local with zero requests; account closure deletes the cloud copy.
 - `Current`: course details retain offering-specific five-star reviews and existing review fields;
-  bookmark and write-review actions stay in a bottom dock.
+  bookmark and write-review actions stay in a bottom dock. Scores share a baseline with their
+  five-point denominator. The signed-in user’s own reviews (including anonymous reviews) appear
+  first across pagination; edit/delete controls remain on those rows.
+- `Current`: Profile includes a private My course reviews entry for paginated management across
+  courses, including anonymous reviews. Each visible review can be edited, deleted or opened at
+  its offering and review position. Hidden reviews remain listed for deletion, with no edit or
+  public-detail action; deleted reviews are omitted. Course detail and management share the same
+  editor and a rounded delete confirmation with the target review excerpt and explicit cancel.
+- `Current`: shared transient feedback appears in dismissible top banners above sheets, below
+  the system safe area. Course review failures show localized server reasons and preserve the
+  draft; success and error messages use the same surface with distinct semantic icons.
 - `Current`: Wiki search uses the existing page-grouped search contract, debounces input, ignores
   stale results and opens paragraph anchors. Search unavailability has retry feedback. Reading
   keeps directory, Wiki search and GitHub edit actions in a bottom dock; GitHub remains the content

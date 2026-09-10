@@ -28,6 +28,9 @@ cd apps/gooseforum && go vet ./... && go test ./...
 # Frontend
 cd apps/gooseforum/resource && pnpm typecheck && pnpm test && pnpm build
 
+# Browser layout regressions (install Chromium once; Linux CI adds --with-deps)
+cd apps/gooseforum/resource && pnpm exec playwright install chromium && pnpm test:browser
+
 # Full
 make test
 
@@ -92,8 +95,11 @@ path filters directly, so an unrelated PR does not start a Flutter runner.
   locally when unset). **Any model/migration change must pass these PG tests** — models must not
   hardcode MySQL-only types (`bigint unsigned` / `datetime` / `tinyint`), which GORM renders verbatim
   and PostgreSQL rejects, silently leaving tables uncreated (issue #8 production regression).
-- ci-frontend.yml: changed frontend paths run pnpm typecheck + site unit tests + build
-  (apps/gooseforum/resource/** and shared markdown compatibility fixtures).
+- ci-frontend.yml: changed frontend paths run pnpm typecheck + site unit tests + Chromium layout tests + build
+  (apps/gooseforum/resource/** and shared markdown compatibility fixtures). Browser regressions live in
+  `resource/test/*.browser.mjs`, render the production Vue components and CSS through Vite, and stub API
+  responses. The scheduler export-menu cases cover viewport bounds across locales, sync-button states,
+  resize while open, and Escape focus restoration; these are separate from happy-dom component tests.
 - ci-contract.yml: changed contract inputs install the locked `packages/api-contract` pnpm tooling, run OpenAPI
   lint + bundle + TypeScript generation, then rejects an uncommitted diff below
   `apps/gooseforum/resource/packages/client/src/gen`. Its inputs are the contract package, generated

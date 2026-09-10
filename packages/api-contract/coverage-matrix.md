@@ -4,17 +4,18 @@
 
 路由快照来自 `TestRoutesSnapshot`（`fixtures/routes-snapshot.json`，默认配置装配，不含 OIDC `/api/oauth/*` 端点——OIDC 另有专项）。
 
-- 快照路由总数：295
-- /api JSON 路由：232，已入契约：233（100%），已知未覆盖：0
+- 快照路由总数：299
+- /api JSON 路由：236，已入契约：237（100%），已知未覆盖：0
 - 非 API 排除路由：62
 
-## 已覆盖（233）
+## 已覆盖（237）
 
 | Method | Path | operationId |
 | --- | --- | --- |
 | DELETE | `/api/forum/course-reviews/:reviewId` | `deleteCourseReview` |
 | DELETE | `/api/forum/course-reviews/:reviewId/dislike` | `unmarkReviewDislike` |
 | DELETE | `/api/forum/course-reviews/:reviewId/helpful` | `unmarkReviewHelpful` |
+| DELETE | `/api/pk/plans` | `pkDeletePlans` |
 | GET | `/api/admin/ai-summary-settings` | `adminGetAiSummarySettings` |
 | GET | `/api/admin/announcement` | `adminGetAnnouncement` |
 | GET | `/api/admin/badges` | `adminListBadges` |
@@ -53,6 +54,7 @@
 | GET | `/api/forum/courses/:courseId/reviews` | `listCourseReviews` |
 | GET | `/api/forum/courses/:courseId/summary` | `getCourseSummary` |
 | GET | `/api/forum/get-site-statistics` | `getSiteStatistics` |
+| GET | `/api/forum/my-course-reviews` | `listOwnCourseReviews` |
 | GET | `/api/forum/notifications` | `getNotifications` |
 | GET | `/api/forum/posts/revisions` | `getPostRevisions` |
 | GET | `/api/forum/posts/window` | `getPostWindow` |
@@ -69,6 +71,7 @@
 | GET | `/api/pk/course-review-brief` | `pkGetCourseReviewBrief` |
 | GET | `/api/pk/faculties` | `pkListFaculties` |
 | GET | `/api/pk/latest-update` | `pkGetLatestUpdate` |
+| GET | `/api/pk/plans` | `pkGetPlans` |
 | GET | `/api/pk/section-times` | `pkGetSectionTimes` |
 | GET | `/api/site-theme/tokens` | `getPublicSiteThemeTokens` |
 | GET | `/api/user-card` | `getUserCard` |
@@ -208,7 +211,6 @@
 | POST | `/api/forum/user/account-close` | `closeAccount` |
 | POST | `/api/forum/user/content-batch-delete` | `batchDeleteContent` |
 | POST | `/api/forum/user/content-event` | `reportContentEvent` |
-| POST | `/api/forum/user/content-privacy-erase` | `privacyEraseContent` |
 | POST | `/api/forum/user/content-purge` | `purgeContent` |
 | POST | `/api/forum/user/content-restore` | `restoreContent` |
 | POST | `/api/login` | `login` |
@@ -225,6 +227,7 @@
 | POST | `/api/register` | `register` |
 | POST | `/api/resend-activation-email` | `resendActivationEmail` |
 | POST | `/api/reset-password` | `resetPassword` |
+| POST | `/api/set-password` | `setPassword` |
 | POST | `/api/set-preset-avatar` | `setPresetAvatar` |
 | POST | `/api/set-user-email` | `setUserEmail` |
 | POST | `/api/set-user-info` | `setUserInfo` |
@@ -245,6 +248,7 @@
 | POST | `/file/img-upload/init` | `initDirectImageUpload` |
 | PUT | `/api/forum/course-reviews/:reviewId/dislike` | `markReviewDislike` |
 | PUT | `/api/forum/course-reviews/:reviewId/helpful` | `markReviewHelpful` |
+| PUT | `/api/pk/plans` | `pkPutPlans` |
 
 ## 已知未覆盖（0）
 

@@ -1,3 +1,5 @@
+import 'package:core/core.dart';
+import '../../server_messages.dart';
 import '../../../l10n/app_localizations.dart';
 
 /// 课程域页面文案与纯格式化工具。
@@ -177,4 +179,14 @@ String formatCreditText(int creditX10) {
 String formatRating(double? ratingAvg) {
   if (ratingAvg == null || ratingAvg <= 0) return '—';
   return ratingAvg.toStringAsFixed(1);
+}
+
+/// Keep server-provided business reasons localized; never expose transport internals.
+String courseReviewError(AppLocalizations l10n, Object error) {
+  if (error is NetworkException) return l10n.courseReviewNetworkError;
+  if (error is ApiException) {
+    final reason = resolveErrorMessage(l10n, error);
+    if (reason != l10n.commonLoadFailed) return reason;
+  }
+  return l10n.courseReviewUnknownError;
 }

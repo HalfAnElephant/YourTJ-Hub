@@ -20,7 +20,7 @@ import (
 )
 
 func GetPostVersion() uint32 {
-	return 5
+	return 6
 }
 
 var md = goldmark.New(
@@ -299,6 +299,11 @@ func ExtractDescription(content string, maxLength int) string {
 	}
 
 	return description
+}
+
+// ExtractMentions shares the source-aware parser used by rendered post links.
+func ExtractMentions(content string) []string {
+	return ExtractUsernames(content)
 }
 
 // ExtractPreview converts Markdown into compact readable text for notifications and activity lists.

@@ -5,6 +5,7 @@ import 'package:ui_kit/ui_kit.dart';
 
 import 'package:core/core.dart';
 
+import '../../widgets/app_refresh_indicator.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../format.dart';
 import '../../providers.dart';
@@ -65,7 +66,7 @@ class _DraftsPageState extends ConsumerState<DraftsPage> {
           semanticLabel: l10n.commonBackToTop,
           threshold: 360,
           builder: (BuildContext context, ScrollController controller) {
-            return RefreshIndicator(
+            return AppRefreshIndicator(
               onRefresh: () => _load(silent: true),
               child: props.drafts.isEmpty
                   ? CustomScrollView(

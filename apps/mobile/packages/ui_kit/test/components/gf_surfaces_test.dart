@@ -170,10 +170,53 @@ void main() {
   });
 
   group('GfToast', () {
-    testWidgets('renders toast helper scaffold', (tester) async {
-      // showGfToast needs a ScaffoldMessenger; smoke via building app.
-      await tester.pumpWidget(gfApp(const SizedBox()));
-      expect(find.byType(Scaffold), findsOneWidget);
+    testWidgets('top banners replace, dismiss and survive sheet closure', (
+      tester,
+    ) async {
+      late BuildContext page;
+      await tester.pumpWidget(
+        gfApp(
+          Builder(
+            builder: (context) {
+              page = context;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      showModalBottomSheet<void>(
+        context: page,
+        builder: (context) => TextButton(
+          onPressed: () {
+            showGfToast(context, 'Saved');
+            Navigator.pop(context);
+          },
+          child: const Text('Save'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.text('Saved'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('Saved')).dy, lessThan(120));
+      showGfToast(page, 'Detailed error reason', error: true);
+      await tester.pumpAndSettle();
+      expect(find.text('Saved'), findsNothing);
+      expect(find.text('Detailed error reason'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      expect(find.text('Detailed error reason'), findsOneWidget);
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pump();
+      expect(find.text('Detailed error reason'), findsNothing);
+      showGfToast(page, 'Timed');
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 4));
+      expect(find.text('Timed'), findsNothing);
+      showGfToast(page, 'Unmount');
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 8));
+      expect(tester.takeException(), isNull);
     });
   });
 

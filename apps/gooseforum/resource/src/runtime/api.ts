@@ -1,7 +1,7 @@
 // CourseSummaryPayload 以别名导入：本文件 1663 行另有一个同名但形状不同的
 // CourseSummaryPayload（AI 总结：consensus/keywords/pros/cons），二者同名异物。
 // 这里导入的是课程卡片（id/name/ratingAvg/...），故别名为 CourseCatalogItem 避免混淆。
-import type { CourseSummaryPayload as CourseCatalogItem, ModerationDeletedContentView, ModerationLogListResponse, ModerationReportListResponse, NotificationFilter, NotificationListResponse, PostPayload, PostWindowPayload, UserCardPayload } from '@gooseforum/client'
+import type { CourseSummaryPayload as CourseCatalogItem, ModerationDeletedContentView, ModerationLogListResponse, ModerationReportListResponse, NotificationFilter, NotificationListResponse, PostPayload, PostWindowPayload, UserCardPayload, UserSearchPayload } from '@gooseforum/client'
 import { i18n } from './i18n'
 import { resolveApiMessage } from './api-message'
 
@@ -261,21 +261,6 @@ export async function purgeDeletedContent(contentType: DeletedContentType, conte
   return readApiResponse<boolean>(response, t('api.contentPurgeFailed'))
 }
 
-/** 隐私紧急删除（PRD R8）：跳过 30 天恢复窗口，全渠道立即彻底删除。 */
-export async function privacyEraseContent(contentType: DeletedContentType, contentId: number): Promise<boolean> {
-  const response = await fetch('/api/forum/user/content-privacy-erase', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contentType,
-      contentId,
-    }),
-  })
-  return readApiResponse<boolean>(response, t('api.contentPurgeFailed'))
-}
-
 /** 删除生命周期埋点（PRD R14）：前端点击/确认类事件上报。 */
 export async function reportContentEvent(eventType: 'content_delete_clicked' | 'content_delete_confirmed', contentType: DeletedContentType, contentId: number): Promise<boolean> {
   const response = await fetch('/api/forum/user/content-event', {
@@ -388,6 +373,19 @@ export async function getPostWindow(input: PostWindowInput): Promise<PostWindowP
     },
   })
   return readApiResponse<PostWindowPayload>(response, t('api.repliesLoadFailed'))
+}
+
+/** 用户搜索（@mention 候选，issue #564）：复用公开聚合搜索 users scope，支持 AbortSignal 丢弃过期请求。 */
+export async function searchForumUsers(query: string, signal?: AbortSignal): Promise<UserSearchPayload[]> {
+  const params = new URLSearchParams({ q: query, scope: 'users', page: '1' })
+  const response = await fetch(`/api/forum/search?${params.toString()}`, {
+    headers: {
+      Accept: 'application/json',
+    },
+    signal,
+  })
+  const result = await readApiResponse<{ users?: UserSearchPayload[] }>(response, t('api.searchUsersFailed'))
+  return result.users ?? []
 }
 
 export async function likeTopic(id: number, action: 1 | 2): Promise<boolean> {
@@ -658,13 +656,18 @@ export interface SubmitTopicInput {
 }
 
 export async function submitTopic(topic: SubmitTopicInput): Promise<number> {
-  const response = await fetch('/api/forum/topics/write', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(topic),
-  })
+  let response: Response
+  try {
+    response = await fetch('/api/forum/topics/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(topic),
+    })
+  } catch {
+    throw new Error(t('api.topicSaveFailed'))
+  }
   if (response.status === 429) {
     return readApiResponse<number>(response, t('api.topicSaveFailed'))
   }
@@ -987,6 +990,20 @@ export async function changePassword(oldPassword: string, newPassword: string): 
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ oldPassword, newPassword }),
+  })
+  await readApiResponse<unknown>(response, t('api.passwordChangeFailed'))
+  return true
+}
+
+// setPassword 为无邮箱 OAuth 绑定账号首次设置密码（issue #530，免旧密码）。
+// 成功即全端会话吊销，调用方必须引导重新登录。
+export async function setPassword(newPassword: string): Promise<boolean> {
+  const response = await fetch('/api/set-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ newPassword }),
   })
   await readApiResponse<unknown>(response, t('api.passwordChangeFailed'))
   return true

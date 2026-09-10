@@ -52,6 +52,7 @@ export interface LoginPageProps {
   termsOfServiceEnabled: boolean
   privacyPolicyEnabled: boolean
   allowedDomains: string[]
+  oauthNotice: boolean
 }
 
 export interface ResetPasswordPageProps {
@@ -65,8 +66,13 @@ export interface LayoutPayload {
   sidebar: SidebarPayload
   footer: FooterPayload
   unread: UnreadStatusPayload
+  posting: PostingPayload
   theme: ThemePayload
   insightFlareEnabled: boolean
+}
+
+export interface PostingPayload {
+  maxTitleLength: number
 }
 
 export interface ThemePayload {
@@ -450,6 +456,9 @@ export interface TopicPayload {
   activityText: string
   lastUpdateTime: string
   unseen?: boolean
+  /** Absent when authenticated interaction state is unavailable. */
+  liked?: boolean
+  bookmarked?: boolean
   contentType: 0 | 1 | 2 | 3
 }
 
@@ -858,6 +867,8 @@ export interface ChatItemPayload {
 export interface SettingsPageProps {
   user: SettingsUserPayload
   googleOAuthReady: boolean
+  /** issue #530：无邮箱 OAuth 绑定账号可走 set-password 首次设密（服务端门禁）。 */
+  canSetPassword: boolean
   stats: {
     topicCount: number
     replyCount: number
