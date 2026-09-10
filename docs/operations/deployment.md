@@ -291,6 +291,7 @@ Deploy/apply/drift workflows 的 job 声明对应 `environment:`，自动获得�
 | `SIGNING_KEY` | both | `[app].signingKey`（**必须与现网一致**；轮换即全线登出 + TOTP/重置链接失效） |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | both（可选） | `[webpush]` VAPID 密钥对（生成：`yourtj-hub webpush-keys`，见下方 Config & run）；为空 = Web Push 通道关闭；**dev 保持空**（快照同步的订阅/任务行绝不外发推送） |
 | `APNS_KEY_PATH` / `APNS_KEY_ID` / `APNS_TEAM_ID` / `APNS_BUNDLE_ID` / `APNS_ENVIRONMENT` | both（可选） | `[push.apns]` iOS 原生推送凭据（.p8 token 认证）；为空 = APNs 通道关闭；**dev 保持空**（快照同步的 push_device/任务行绝不外发） |
+| `JPUSH_APP_KEY` / `JPUSH_MASTER_SECRET` | production（可选） | Android 极光及厂商聚合通道；服务端私钥绝不打包到 APK；见 [移动端推送配置](mobile-releases.md#native-push-activation-and-verification) |
 | `FCM_CREDENTIALS_PATH` / `FCM_PROJECT_ID` | both（可选） | `[push.fcm]` Android 原生推送凭据（service-account JSON 路径 + Firebase 项目 id）；为空 = FCM 通道关闭；**dev 保持空** |
 | `MEILI_MASTER_KEY` | both | `[meilisearch].masterkey` |
 | `WIKI_WEBHOOK_SECRET` | both | `[wiki.git].webhook_secret` |
@@ -342,7 +343,7 @@ make build     # cd apps/gooseforum/resource && pnpm build → cd apps/gooseforu
 - Container-internal port is always `5234`; host mapping via `MAIN_PORT` (5234) / `DEV_PORT` (5235).
 - Health probe: `GET /health` returns 200 when service + main db ping succeed, else 503.
 - Web Push（`[webpush]` 段，可选增强通道）：`vapid_public_key`/`vapid_private_key` 为空 = 通道关闭（dev 保持空）；密钥已配置但格式非法（base64url 解码后公钥非 65B / 私钥非 32B）时 `serve` 启动输出告警并禁用通道（fail-closed，绝不外发）。生成密钥对：`cd apps/gooseforum && go run . webpush-keys`
-- 原生推送（`[push.apns]` / `[push.fcm]` 段，可选增强通道）：各凭据为空 = 对应通道关闭（dev 保持空，快照同步的 push_device 注册与任务行绝不外发）。APNs 走 token-based `.p8` 认证：`key_path` 指向 `.p8` 文件、`key_id`/`team_id` 取自 Apple Developer 后台、`bundle_id` 为 App Bundle ID、`environment` 为 `sandbox`（开发构建）或 `production`（App Store/TestFlight）。FCM 走 HTTP v1：`credentials_path` 指向 Firebase 项目 service-account JSON、`project_id` 为 Firebase 项目 id（OAuth2 换取 access token 后调用 `messages:send`）。密钥文件在容器内挂载（`APNS_KEY_PATH`/`FCM_CREDENTIALS_PATH` 为容器内路径）；仅填了部分字段时通道按未配置处理（fail-closed，绝不外发）。`GET /api/forum/push/config` 的 `native.apnsEnabled`/`native.fcmEnabled` 反映通道状态。
+- 原生推送（`[push.apns]` / `[push.fcm]` / `[push.jpush]` 段，可选增强通道）：各凭据为空 = 对应通道关闭（dev 保持空，快照同步的 push_device 注册与任务行绝不外发）。APNs 走 token-based `.p8` 认证：`key_path` 指向 `.p8` 文件、`key_id`/`team_id` 取自 Apple Developer 后台、`bundle_id` 为 App Bundle ID、`environment` 为 `sandbox`（开发构建）或 `production`（App Store/TestFlight）。FCM 走 HTTP v1：`credentials_path` 指向 Firebase 项目 service-account JSON、`project_id` 为 Firebase 项目 id（OAuth2 换取 access token 后调用 `messages:send`）。密钥文件在容器内挂载（`APNS_KEY_PATH`/`FCM_CREDENTIALS_PATH` 为容器内路径）；仅填了部分字段时通道按未配置处理（fail-closed，绝不外发）。`GET /api/forum/push/config` 的 `native.apnsEnabled`/`native.fcmEnabled`/`native.jpushEnabled` 反映通道状态。
 
 ## DB migration execution and rollback
 
@@ -596,6 +597,17 @@ instance:
 > 未配置任何 Cookie 来源（管理端设置/`ONESYSTEM_COOKIE` 环境变量）时入口会拒绝触发。
 > 同一学期同步中的并发仍受 fetchlog 1 小时 running 窗口保护（见下）。
 
+**后台物化入口（Current）**：管理端 → 设置 → 一系统同步 →「物化课评目录」，
+选择已同步学期后执行。该入口调用 `POST /api/admin/pk/materialize-calendar`，仅需
+SiteManager 权限，不需要一系统 Cookie；单学期事务提交后展示课程卡/教学班新增和更新数量。
+正在同步或尚未完整抓取的学期会被拒绝；完整抓取后仅物化失败的学期可以独立补跑。
+请求取消或两分钟执行期限到达会回滚未提交的物化事务，可重新执行；该端点将 HTTP
+写期限延长至 130 秒，为事务超时响应留出余量。
+
+管理端「立即同步」自动包含时间片重建与课评物化；这些步骤全部完成后才显示同步成功。
+物化失败会显示失败原因，重试可从完整抓取游标直接补跑，无需重抓已提交页面。
+CLI 的 `--materialize` 仍为显式选项。
+
 CLI 同步（运维 cron 等自动化场景）：
 
 ```bash
@@ -616,8 +628,14 @@ CLI 同步（运维 cron 等自动化场景）：
 写入课程目录 offering 行（幂等 upsert，按 `teaching_class_id` 定位），并落库
 `course_instructor.teacher_code`；学期自动创建（`term` 按 calendar_id_i18n 幂等 upsert）。
 物化/导入链路**均不写 `offering.status`**（管理端隐藏的教学班不会被物化复活）。
+物化在同一个数据库快照内读取教学班与教师。教师换班保留 offering ID 及评价，
+同步修正本物化链维护的班号别名（人工别名及历史开课仍在使用的班号不抢占），旧/新课程
+的搜索更新与评分统计重建随事务入队。多人授课优先保留仍在教师名单中的原身份教师；
+新班按工号、姓名稳定选择，完整教师名单保留在 offering，不自动改变 `review_scope`。
+管理端和公开目录按班号检索时也查询可见 offering 的 `class_code`，无需依赖别名存在。
+
 历史课评数据包导入（见 `docs/operations/course-import-e2e.md`）保持兼容且从属：
-导入器生成的 offering 行同样携带 `teaching_class_id`，两源共享同一 (term, teaching_class_id)
+导入器生成的 offering 行同样携带 `teaching_class_id`，两源共享同一 teaching_class_id
 唯一索引——先物化后导入时导入器复用已有行（不重复建卡）。
 
 **纯本地物化补跑（course-materialize，不依赖一系统 cookie）**：学期已同步到 PK 域但
