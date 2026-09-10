@@ -2302,6 +2302,7 @@ export default {
   },
   adminOptLog: {
     optType: {
+      materializePk: '物化课评目录',
       editUser: '操作用户',
       editTopic: '编辑内容',
       editCategory: '编辑分类',
@@ -2320,6 +2321,7 @@ export default {
       post: '楼层',
     },
     messages: {
+      pkMaterialized: '物化课评目录：课程新增 {coursesInserted}、更新 {coursesUpdated}；教学班新增 {offeringsInserted}、更新 {offeringsUpdated}',
       userUpdated: '更新用户 {userId}：{changedFields}',
       topicStatusChanged: '内容「{title}」状态调整为{status}',
       topicPinWeightChanged: '内容「{title}」置顶权重 {oldPinWeight} -> {pinWeight}',
