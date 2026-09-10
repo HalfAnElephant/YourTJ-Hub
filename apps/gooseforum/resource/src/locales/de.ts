@@ -1391,6 +1391,7 @@ export default {
     },
     modal: {
       quickPublish: 'Schnell veröffentlichen',
+      draftRestored: 'Nicht gespeicherter Entwurf wiederhergestellt',
       questionTitlePlaceholder: 'Stelle deine Frage klar und deutlich...',
       thoughtTitlePlaceholder: 'Titel des Moments (optional, wird bei Leerheit automatisch extrahiert)...',
       contentPlaceholder: 'Inhalt hinzufügen',
