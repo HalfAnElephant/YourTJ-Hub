@@ -134,7 +134,7 @@ describe('QuickPublishModal 草稿与离开保护（issue #583）', () => {
   })
 
   test('不保存离开关闭弹层并清除本地暂存', async () => {
-    writeQuickPublishDraft(2, { title: '旧标题', content: '旧正文', categoryIds: [101], images: [] })
+    writeQuickPublishDraft(1, 2, { title: '旧标题', content: '旧正文', categoryIds: [101], images: [] })
     const { wrapper, vm, quickPublishOpen } = await mountModal(2)
     try {
       expect(vm.title).toBe('旧标题')
@@ -147,7 +147,7 @@ describe('QuickPublishModal 草稿与离开保护（issue #583）', () => {
       buttonByText(i18n.global.t('publish.leaveWithoutSaving'))?.click()
       await nextTick()
       expect(quickPublishOpen.value).toBe(false)
-      expect(readQuickPublishDraft(2)).toBeNull()
+      expect(readQuickPublishDraft(1, 2)).toBeNull()
     } finally {
       wrapper.unmount()
     }
@@ -170,7 +170,7 @@ describe('QuickPublishModal 草稿与离开保护（issue #583）', () => {
       await nextTick()
       await vi.advanceTimersByTimeAsync(600)
 
-      const stash = readQuickPublishDraft(2)
+      const stash = readQuickPublishDraft(1, 2)
       expect(stash?.title).toBe('自动暂存标题')
       expect(stash?.content).toBe('自动暂存正文')
 
@@ -205,7 +205,7 @@ describe('QuickPublishModal 草稿与离开保护（issue #583）', () => {
 
       expect(submit).toHaveBeenCalledWith(expect.objectContaining({ topicStatus: 0, contentType: 2 }))
       expect(quickPublishOpen.value).toBe(false)
-      expect(readQuickPublishDraft(2)).toBeNull()
+      expect(readQuickPublishDraft(1, 2)).toBeNull()
     } finally {
       wrapper.unmount()
     }
@@ -213,7 +213,7 @@ describe('QuickPublishModal 草稿与离开保护（issue #583）', () => {
 
   test('发布成功清除本地暂存', async () => {
     const submit = vi.spyOn(api, 'submitTopic').mockResolvedValue(55)
-    writeQuickPublishDraft(2, { title: '旧标题', content: '旧正文', categoryIds: [101], images: [] })
+    writeQuickPublishDraft(1, 2, { title: '旧标题', content: '旧正文', categoryIds: [101], images: [] })
     const { wrapper, vm, quickPublishOpen } = await mountModal(2)
     try {
       vm.title = '发布标题'
@@ -225,7 +225,7 @@ describe('QuickPublishModal 草稿与离开保护（issue #583）', () => {
 
       expect(submit).toHaveBeenCalled()
       expect(quickPublishOpen.value).toBe(false)
-      expect(readQuickPublishDraft(2)).toBeNull()
+      expect(readQuickPublishDraft(1, 2)).toBeNull()
     } finally {
       wrapper.unmount()
     }
@@ -286,4 +286,81 @@ describe('QuickPublishModal 草稿与离开保护（issue #583）', () => {
       wrapper.unmount()
     }
   })
+})
+
+describe('draft isolation and flush regressions', () => {
+  test('another account never restores the previous account draft', async () => {
+    writeQuickPublishDraft(1, 2, { title: 'private account A', content: 'private', categoryIds: [101], images: [] })
+    const previous = mockLayout.viewer
+    mockLayout.viewer = { ...previous, id: 2 } as any
+    const { wrapper, vm } = await mountModal()
+    try { expect(vm.title).toBe('') } finally { wrapper.unmount(); mockLayout.viewer = previous }
+  })
+
+  test('refresh flushes the latest input before the debounce fires', async () => {
+    vi.useFakeTimers()
+    const { wrapper, vm } = await mountModal()
+    try {
+      vm.title = 'last keystroke'
+      await nextTick()
+      window.dispatchEvent(new Event('beforeunload', { cancelable: true }))
+      expect(readQuickPublishDraft(1, 2)?.title).toBe('last keystroke')
+    } finally { wrapper.unmount() }
+  })
+
+  test('clearing all fields removes the old stash', async () => {
+    vi.useFakeTimers()
+    const { wrapper, vm } = await mountModal()
+    try {
+      vm.title = 'old draft'
+      await nextTick(); await vi.advanceTimersByTimeAsync(600)
+      vm.title = ''
+      await nextTick(); await vi.advanceTimersByTimeAsync(600)
+      expect(readQuickPublishDraft(1, 2)).toBeNull()
+    } finally { wrapper.unmount() }
+  })
+
+  test('restored unsaved text still needs a leave decision', async () => {
+    writeQuickPublishDraft(1, 2, { title: 'unsaved', content: '', categoryIds: [], images: [] })
+    const { wrapper, vm, quickPublishOpen } = await mountModal()
+    try {
+      vm.requestClose(); await nextTick()
+      expect(quickPublishOpen.value).toBe(true)
+      expect(vm.leavePromptOpen).toBe(true)
+      expect(document.activeElement?.textContent).toContain(i18n.global.t('publish.continueEditing'))
+    } finally { wrapper.unmount() }
+  })
+
+  test('upload-only edits cannot be closed without confirmation', async () => {
+    const { wrapper, vm, quickPublishOpen } = await mountModal()
+    try {
+      vm.uploading = true
+      vm.requestClose(); await nextTick()
+      expect(quickPublishOpen.value).toBe(true)
+      expect(vm.leavePromptOpen).toBe(true)
+    } finally { wrapper.unmount() }
+  })
+})
+
+
+test('expired and anonymous draft storage fails closed', () => {
+  const stash = { title: 'private', content: '', categoryIds: [], images: [] }
+  writeQuickPublishDraft(1, 2, stash)
+  const key = [...memoryStorage.keys()][0]
+  memoryStorage.set(key, JSON.stringify({ ...stash, updatedAt: Date.now() - 8 * 24 * 60 * 60 * 1000 }))
+  expect(readQuickPublishDraft(1, 2)).toBeNull()
+  writeQuickPublishDraft(0, 2, stash)
+  expect(readQuickPublishDraft(0, 2)).toBeNull()
+  expect(memoryStorage.size).toBe(0)
+})
+
+test('changing accounts closes an already open private draft', async () => {
+  const { wrapper, vm, quickPublishOpen } = await mountModal()
+  try {
+    vm.title = 'private session'
+    await wrapper.setProps({ layout: { ...mockLayout, viewer: { ...mockLayout.viewer, id: 2 } } as any })
+    await nextTick()
+    expect(quickPublishOpen.value).toBe(false)
+    expect(vm.title).toBe('')
+  } finally { wrapper.unmount() }
 })

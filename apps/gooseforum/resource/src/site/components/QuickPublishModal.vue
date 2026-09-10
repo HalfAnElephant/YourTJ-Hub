@@ -80,6 +80,10 @@ const savingDraft = ref(false)
 const draftRestored = ref(false)
 const forcedNav = ref(false)
 const baselineSnapshot = ref('')
+const draftUserId = ref(0)
+const continueEditingButton = ref<HTMLButtonElement | null>(null)
+let previousFocus: HTMLElement | null = null
+const viewerId = computed(() => props.layout.viewer.isAuthenticated ? props.layout.viewer.id : 0)
 let pendingNavResolve: ((allow: boolean) => void) | undefined
 let removeRouteGuard: (() => void) | undefined
 let stashTimer = 0
@@ -130,11 +134,11 @@ function editorSnapshot() {
 }
 
 const uploadedImageUrls = computed(() => uploadedImages.value.filter((i) => !i.uploading && i.url).map((i) => i.url))
-const dirty = computed(() => editorSnapshot() !== baselineSnapshot.value)
+const dirty = computed(() => uploading.value || editorSnapshot() !== baselineSnapshot.value)
 const hasContent = computed(() => Boolean(title.value.trim() || content.value.trim() || categoryIds.value.length > 0 || uploadedImageUrls.value.length > 0))
 // 服务端草稿需要标题/正文/分类（与 PublishPage draftRequirement 同规则）；编辑模式不提供
 // 保存草稿（把已发布话题降级为 topicStatus:0 草稿是错误语义）。
-const canSaveDraft = computed(() => !isEditing.value && Boolean(title.value.trim() && content.value.trim() && categoryIds.value.length > 0) && !submitting.value && !savingDraft.value)
+const canSaveDraft = computed(() => !isEditing.value && Boolean(title.value.trim() && content.value.trim() && categoryIds.value.length > 0) && !submitting.value && !savingDraft.value && !uploading.value)
 
 function stashHasContent(stash: QuickPublishDraftStash): boolean {
   return Boolean(stash.title.trim() || stash.content.trim() || stash.categoryIds.length > 0 || stash.images.length > 0)
@@ -174,7 +178,7 @@ function handleDialogOpenChange(val: boolean) {
 }
 
 function discardAndClose() {
-  clearQuickPublishDraft(quickPublishType.value, quickPublishEditPayload.value?.topicId)
+  clearQuickPublishDraft(draftUserId.value, quickPublishType.value, quickPublishEditPayload.value?.topicId)
   leavePromptOpen.value = false
   doClose()
   resolvePendingNav(true)
@@ -199,7 +203,7 @@ async function saveDraftAndClose() {
       captchaId: captchaRequired.value ? (captchaId.value || undefined) : undefined,
       captchaCode: captchaRequired.value ? (captchaCode.value || undefined) : undefined,
     })
-    clearQuickPublishDraft(quickPublishType.value, quickPublishEditPayload.value?.topicId)
+    clearQuickPublishDraft(draftUserId.value, quickPublishType.value, quickPublishEditPayload.value?.topicId)
     leavePromptOpen.value = false
     doClose()
     resolvePendingNav(true)
@@ -243,6 +247,7 @@ function saveDraftFromFooter() {
 
 function handleBeforeUnload(event: BeforeUnloadEvent) {
   if (!quickPublishOpen.value || !dirty.value || forcedNav.value) return
+  stashCurrentDraft()
   event.preventDefault()
   event.returnValue = ''
 }
@@ -251,6 +256,7 @@ onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
   removeRouteGuard = router.beforeEach(() => {
     if (!quickPublishOpen.value || !dirty.value || forcedNav.value) return true
+    resolvePendingNav(false)
     leavePromptOpen.value = true
     return new Promise<boolean>((resolve) => {
       pendingNavResolve = resolve
@@ -278,8 +284,9 @@ watch(
       savingDraft.value = false
       draftRestored.value = false
       clearCaptcha()
+      draftUserId.value = viewerId.value
 
-      const stash = readQuickPublishDraft(quickPublishType.value, quickPublishEditPayload.value?.topicId)
+      const stash = readQuickPublishDraft(draftUserId.value, quickPublishType.value, quickPublishEditPayload.value?.topicId)
       if (stash && stashHasContent(stash)) {
         // 本地暂存优先：恢复上次未保存的内容并提示
         title.value = stash.title
@@ -312,7 +319,9 @@ watch(
       }
 
       // 基线快照在字段填充完成后捕获：此后任何偏离都视为未保存改动
-      baselineSnapshot.value = editorSnapshot()
+      baselineSnapshot.value = stash && stashHasContent(stash)
+        ? JSON.stringify({ title: '', content: '', categoryIds: [], images: [] })
+        : editorSnapshot()
 
       void nextTick(() => {
         titleInput.value?.focus()
@@ -338,30 +347,55 @@ watch(
   { immediate: true },
 )
 
-// 自动暂存：弹层打开且有内容时，防抖 500ms 写入本地草稿；关闭或清空时不写（保留既有暂存）。
-watch(
-  [title, content, categoryIds, uploadedImages, quickPublishOpen],
-  () => {
-    if (!quickPublishOpen.value) return
-    if (stashTimer) window.clearTimeout(stashTimer)
-    if (!hasContent.value) return
-    stashTimer = window.setTimeout(() => {
-      stashTimer = 0
-      if (!quickPublishOpen.value || !hasContent.value) return
-      writeQuickPublishDraft(
-        quickPublishType.value,
-        {
-          title: title.value,
-          content: content.value,
-          categoryIds: [...categoryIds.value],
-          images: uploadedImageUrls.value,
-        },
-        quickPublishEditPayload.value?.topicId,
-      )
-    }, 500)
-  },
-  { deep: true },
-)
+// Flush on page exit as well as the debounce; clearing all fields must not
+// resurrect the last nonempty stash. Capture ownership when the modal opens.
+function stashCurrentDraft() {
+  if (!quickPublishOpen.value || viewerId.value !== draftUserId.value) return
+  if (stashTimer) window.clearTimeout(stashTimer)
+  stashTimer = 0
+  if (!hasContent.value) {
+    clearQuickPublishDraft(draftUserId.value, quickPublishType.value, quickPublishEditPayload.value?.topicId)
+    return
+  }
+  writeQuickPublishDraft(draftUserId.value, quickPublishType.value, {
+    title: title.value,
+    content: content.value,
+    categoryIds: [...categoryIds.value],
+    images: uploadedImageUrls.value,
+  }, quickPublishEditPayload.value?.topicId)
+}
+
+watch([title, content, categoryIds, uploadedImages, quickPublishOpen], () => {
+  if (!quickPublishOpen.value) return
+  if (stashTimer) window.clearTimeout(stashTimer)
+  stashTimer = window.setTimeout(stashCurrentDraft, 500)
+}, { deep: true })
+
+watch(viewerId, () => {
+  if (quickPublishOpen.value && viewerId.value !== draftUserId.value) {
+    resolvePendingNav(false)
+    doClose()
+  }
+}, { flush: 'sync' })
+
+watch(leavePromptOpen, async open => {
+  if (open) {
+    previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    await nextTick()
+    continueEditingButton.value?.focus()
+  } else if (quickPublishOpen.value) {
+    previousFocus?.focus()
+  }
+})
+
+function trapLeavePromptFocus(event: KeyboardEvent) {
+  if (event.key !== 'Tab') return
+  const buttons = Array.from((event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('button:not(:disabled)'))
+  if (!buttons.length) return
+  const index = buttons.indexOf(document.activeElement as HTMLButtonElement)
+  event.preventDefault()
+  buttons[(index + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length]?.focus()
+}
 
 function selectCategory(catId: number) {
   categoryIds.value = [catId]
@@ -506,7 +540,7 @@ async function handleSubmit() {
     return
   }
 
-  if (submitting.value || uploading.value) return
+  if (submitting.value || savingDraft.value || uploading.value) return
   submitting.value = true
   errorMessage.value = ''
   clearSensitiveHighlight()
@@ -526,7 +560,7 @@ async function handleSubmit() {
     })
 
     closeQuickPublish()
-    clearQuickPublishDraft(quickPublishType.value, quickPublishEditPayload.value?.topicId)
+    clearQuickPublishDraft(draftUserId.value, quickPublishType.value, quickPublishEditPayload.value?.topicId)
     if (targetTopicId > 0) {
       if (typeof window !== 'undefined') {
         if (window.location.pathname.includes(`/p/post/${targetTopicId}`)) {
@@ -896,7 +930,7 @@ async function handleSubmit() {
             <button
               type="button"
               class="gf-button gf-button-primary rounded-xl text-xs px-4 py-1.5 sm:px-5 sm:py-2 inline-flex items-center gap-1.5 shadow-sm hover:shadow-md hover:brightness-105 active:scale-[0.96] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-              :disabled="submitting || uploading"
+              :disabled="submitting || uploading || savingDraft"
               @click="handleSubmit"
             >
               <Loader2 v-if="submitting || uploading" class="h-3.5 w-3.5 animate-spin" />
@@ -909,6 +943,7 @@ async function handleSubmit() {
         <div
           v-if="leavePromptOpen"
           role="alertdialog"
+          @keydown="trapLeavePromptFocus"
           aria-modal="true"
           aria-labelledby="quick-publish-leave-title"
           class="absolute inset-0 z-20 bg-base-100/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in-0 duration-150"
@@ -933,7 +968,7 @@ async function handleSubmit() {
             </div>
 
             <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button type="button" class="gf-button gf-button-secondary rounded-xl text-xs px-3.5 py-2 transition-all duration-150 hover:bg-base-200/80 active:scale-[0.96]" @click="closeLeavePrompt">
+              <button ref="continueEditingButton" type="button" class="gf-button gf-button-secondary rounded-xl text-xs px-3.5 py-2 transition-all duration-150 hover:bg-base-200/80 active:scale-[0.96]" @click="closeLeavePrompt">
                 {{ t('publish.continueEditing') }}
               </button>
               <button

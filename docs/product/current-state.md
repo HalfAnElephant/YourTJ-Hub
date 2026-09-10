@@ -103,3 +103,5 @@ Before expanding features, close these baselines (avoid building on a wrong foun
 1. Decide MFA policy for built-in OIDC / GitHub OAuth login paths (forum TOTP reuse is a `Decision needed`).
 2. Expand OpenAPI and generated-client coverage before broad API rework, so uncovered routes do not
    become a new source of contract drift.
+
+快速发布本地草稿（`Current`）：按登录账号、内容类型和编辑话题隔离，保留七天；无法确定所有者的旧键不恢复。输入防抖暂存并在刷新离开前立即刷新存储；清空全部输入时清理旧暂存。恢复的未发布草稿和正在上传的图片仍触发离开确认，确认打开时焦点进入「继续编辑」，Tab 留在确认按钮内。
