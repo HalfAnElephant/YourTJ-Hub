@@ -10,21 +10,25 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/middleware"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/course"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/optRecord"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pageConfig"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/pk"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/rolePermissionRs"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/taskQueue"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/users"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/hotdataserve"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/permission"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/pkservice"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-// 本文件覆盖 SiteManager 权限组的排课数据同步管理端点（issue #248）的契约测试：
-// POST /api/admin/pk/sync-calendar 与 GET /api/admin/pk/sync-status。中间件链与
+// 本文件覆盖 SiteManager 权限组的排课数据同步管理端点（issue #248，issue #569
+// 定时同步配置）的契约测试：
+// POST /api/admin/pk/sync-calendar、GET /api/admin/pk/sync-status、
+// GET/POST /api/admin/pk/sync-schedule-settings。中间件链与
 // route4api.go 生产注册一致（JWTAuthCheck + CheckWritableAccount + CheckPermission(SiteManager)）。
 
-// setupPkAdminContractTest 注册两条 PK 管理路由，迁移并清空 PK 域表与操作审计表。
+// setupPkAdminContractTest 注册 PK 管理路由，迁移并清空 PK 域表与操作审计表。
 func setupPkAdminContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 	t.Helper()
 	conn, router := setupHTTPContractTest(t)
@@ -42,6 +46,8 @@ func setupPkAdminContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 	admin.POST("/pk/sync-calendar", UpButterReq(api.SyncPkCalendar))
 	admin.POST("/pk/materialize-calendar", UpButterReq(api.MaterializePkCalendar))
 	admin.GET("/pk/sync-status", UpButterReq(api.PkSyncStatus))
+	admin.GET("/pk/sync-schedule-settings", UpButterReq(api.GetPkSyncScheduleSettings))
+	admin.POST("/pk/sync-schedule-settings", UpButterReq(api.SavePkSyncScheduleSettings))
 	return conn, router
 }
 
@@ -217,4 +223,68 @@ func TestAdminMaterializePkCalendarHTTPContract(t *testing.T) {
 		rec := serveAuthSecurityJSON(router, http.MethodPost, path, `{}`, contractSessionToken(t, manager))
 		assertFixtureEnvelope(t, decodeContractEnvelope(t, rec), contractFixture(t, "invalid-params.json"))
 	})
+}
+
+// persistPkSyncScheduleConfig 直接落库一条排课定时同步配置行并清理热缓存，
+// 供契约测试的 GET 用例对账（保存路径由 TestAdminSavePkSyncScheduleSettingsHTTPContract 覆盖）。
+func persistPkSyncScheduleConfig(t *testing.T, conn *gorm.DB, configJSON string) {
+	t.Helper()
+	conn.Unscoped().Where("page_type = ?", pageConfig.PkSyncSchedule).Delete(&pageConfig.Entity{})
+	if err := conn.Create(&pageConfig.Entity{PageType: pageConfig.PkSyncSchedule, Config: configJSON}).Error; err != nil {
+		t.Fatalf("seed pk sync schedule config: %v", err)
+	}
+	hotdataserve.ClearPkSyncScheduleConfigCache()
+	t.Cleanup(hotdataserve.ClearPkSyncScheduleConfigCache)
+}
+
+func TestAdminGetPkSyncScheduleSettingsHTTPContract(t *testing.T) {
+	path := "/api/admin/pk/sync-schedule-settings"
+
+	t.Run("success echoes the persisted schedule config", func(t *testing.T) {
+		conn, router := setupPkAdminContractTest(t)
+		persistPkSyncScheduleConfig(t, conn, `{"enabled":true,"schedule":"30 2 * * *","term":"121","depth":1,"audience":"undergraduate"}`)
+		manager := createContractSiteManager(t, conn)
+		recorder := serveAuthSecurityJSON(router, http.MethodGet, path, "", contractSessionToken(t, manager))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "pk-sync-schedule-settings-get.json"))
+	})
+
+	adminPkGuardScenarios(t, http.MethodGet, path, "pk-sync-schedule-settings")
+}
+
+func TestAdminSavePkSyncScheduleSettingsHTTPContract(t *testing.T) {
+	path := "/api/admin/pk/sync-schedule-settings"
+
+	t.Run("success persists an enabled schedule config", func(t *testing.T) {
+		conn, router := setupPkAdminContractTest(t)
+		manager := createContractSiteManager(t, conn)
+		recorder := serveAuthSecurityJSON(router, http.MethodPost, path,
+			`{"enabled":true,"schedule":"0 3 * * *","term":"121","depth":2,"audience":"graduate"}`, contractSessionToken(t, manager))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "admin-agent-disable-success.json"))
+		var stored pageConfig.Entity
+		if err := conn.Where("page_type = ?", pageConfig.PkSyncSchedule).First(&stored).Error; err != nil {
+			t.Fatalf("stored schedule config not found: %v", err)
+		}
+		if stored.Config != `{"enabled":true,"schedule":"0 3 * * *","term":"121","depth":2,"audience":"graduate"}` {
+			t.Fatalf("stored config = %s", stored.Config)
+		}
+	})
+
+	t.Run("invalid cron expression fails business validation", func(t *testing.T) {
+		conn, router := setupPkAdminContractTest(t)
+		manager := createContractSiteManager(t, conn)
+		recorder := serveAuthSecurityJSON(router, http.MethodPost, path,
+			`{"enabled":true,"schedule":"not-a-cron"}`, contractSessionToken(t, manager))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "pk-sync-schedule-settings-invalid.json"))
+	})
+
+	adminPkGuardScenarios(t, http.MethodPost, path, "pk-sync-schedule-settings")
 }

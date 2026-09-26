@@ -620,6 +620,17 @@ instance:
 > `calendarId`、教学班或字典键可以在两个范围内同时存在。旧的单 Cookie 配置按本科生处理。
 > 同一范围、同一学期同步中的并发仍受 fetchlog 1 小时 running 窗口保护（见下）。
 
+> **定时同步（issue #569，替代外部 crontab）**：同一页面「定时同步」区块可开启
+> 进程内定时任务——配置 5 段标准 cron 表达式（默认 `30 2 * * *`，即每日 02:30，
+> 与下文外部 crontab 示例节奏一致），并可选目标学期（留空 = 最近已同步学期，
+> 新开学期自动跟随）、回溯学期数与数据来源。保存即热生效，无需重启进程：
+> `POST /api/admin/pk/sync-schedule-settings` 落库配置并热刷新
+> `console/job` 的 cron 注册。每次触发执行与「立即同步」完全相同的管线
+> （分页抓取、fetchlog 断点续跑、时间片重建、课评物化），并同样受 1 小时
+> running 租约窗口的重入保护（触发重叠时自动跳过），故已配置定时同步后
+> **不需要再在服务器上另配外部 crontab**；若同时保留外部 crontab 也不会互相
+> 破坏——同一学期并发触发会因租约窗口被拒绝。
+
 **后台物化入口（Current）**：管理端 → 设置 → 一系统同步 →「物化课评目录」，
 选择已同步学期后执行。该入口调用 `POST /api/admin/pk/materialize-calendar`，仅需
 SiteManager 权限，不需要一系统 Cookie；单学期事务提交后展示课程卡/教学班新增和更新数量。
@@ -697,17 +708,17 @@ CLI 同步（运维 cron 等自动化场景）：
 本科同步继续使用一系统 `manualArrange/page?profile` 接口和 Cookie header；研究生同步
 使用 `EnquiryOfCourses` 页面的 `allArrangementCourses` 接口，通过 `X-Token` 查询
 `trainingLevel=4`（硕士）与 `trainingLevel=6`（博士），合并结果并按教学班 ID 去重。
-- 运维 cron（每日，选课季加频；应用内不自造调度器）：
+- 运维 cron（每日，选课季加频；**推荐在管理端「定时同步」开启进程内 cron，无需外部 crontab**）：
 
   ```bash
-  # 每日 02:30 同步当前学期
+  # 每日 02:30 同步当前学期；仍保留外部 crontab 时与定时同步等价（同一租约防并发）
   30 2 * * * cd /srv/yourtj-hub && ONESYSTEM_UNDERGRADUATE_COOKIE='JWTUser=…; JSESSIONID=…' ./bin/yourtj-hub course-pk-sync 121 --audience undergraduate
   45 2 * * * cd /srv/yourtj-hub && ONESYSTEM_GRADUATE_X_TOKEN='sessionid…' ./bin/yourtj-hub course-pk-sync 121 --audience graduate
   ```
 
 应用内定时任务默认开启。若实例只运行持久化 worker、由外部 cron 触发维护命令，
-可在 `config.toml` 设置 `[cron].enabled = false`；该开关只停止应用内 scheduler，
-不会停用 task queue worker 或手动 CLI。
+可在 `config.toml` 设置 `[cron].enabled = false`；该开关会同时停用应用内 scheduler
+（含排课定时同步与 wiki 定时同步），不会停用 task queue worker 或手动 CLI。
 
 - 行为保证：同一受众、同一学期重复执行先清空再全量重写（幂等，不翻倍）；同步中断后重跑从失败批次
   续跑（`pk_fetch_log` 游标），不回滚已成功批次；Cookie 失效时报 HTTP 状态与提示并标记

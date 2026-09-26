@@ -6067,6 +6067,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/pk/sync-schedule-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the scheduled PK sync configuration
+         * @description Admin console operation gated by the `SiteManager` role permission
+         *     (Admin role is a superset); callers without it fail with HTTP 403 and
+         *     `permission.denied` (params permission=<localized permission name>,
+         *     `站点管理` in zh). Returns the scheduled sync configuration (issue #569):
+         *     the enable switch, the 5-field cron expression, the target term (empty
+         *     = latest synced term), the depth and the audience. None of these fields
+         *     are sensitive — the stored blob holds no credentials — so the current
+         *     values are echoed as-is (unlike the adjacent OneSystem Cookie settings,
+         *     which only report `configured` states). When nothing has been saved
+         *     yet the built-in default is returned (`enabled=false`,
+         *     `schedule="30 2 * * *"`, `term=""`, `depth=1`,
+         *     `audience="undergraduate"`). JSON binding is lenient: query string and
+         *     body are ignored.
+         */
+        get: operations["adminGetPkSyncScheduleSettings"];
+        put?: never;
+        /**
+         * Replace the scheduled PK sync configuration
+         * @description Admin console operation gated by the `SiteManager` role permission;
+         *     callers without it fail with HTTP 403 and `permission.denied`.
+         *     Replaces the whole scheduled-sync configuration with the submitted
+         *     value (issue #569), clears the settings cache and hot-refreshes the
+         *     in-process cron registration (`console/job.RefreshPkSyncCron`) so the
+         *     change takes effect without a restart. Validation happens before
+         *     anything is persisted:
+         *     1. when `enabled=true` the `schedule` must be present and parse with the
+         *        same 5-field standard cron parser the process scheduler uses;
+         *        otherwise the whole request fails with HTTP 200 `code: 1`
+         *        (params.error carries the parse error).
+         *     2. `audience`, when empty, defaults to `undergraduate`; any other value
+         *        must be one of `undergraduate`/`graduate` or the request fails.
+         *     `depth` is clamped into `[1, 8]` and `term` is trimmed (empty meaning
+         *     "latest now-synced term"). Disabling (`enabled=false`) only turns the
+         *     toggle off — the cron expression is not validated, no cron entry is
+         *     registered, and the in-process scheduler stops firing; the other fields
+         *     are stored as-is for when the operator re-enables. On success the whole
+         *     configuration is replaced and the operation reports `result: "success"`.
+         */
+        post: operations["adminSavePkSyncScheduleSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pk/calendars": {
         parameters: {
             query?: never;
@@ -12207,6 +12261,37 @@ export interface components {
         PkMaterializeResponse: (components["schemas"]["ApiSuccess"] & {
             result: components["schemas"]["PkMaterializeResult"];
         }) | components["schemas"]["ApiFailure"];
+        PkSyncScheduleSettings: {
+            /** @description 定时同步总开关；关闭时不注册 cron，也不执行。 */
+            enabled: boolean;
+            /** @description 5 段标准 cron 表达式（分 时 日 月 周），如 "30 2 * * *"（每日 02:30）。启用时后端用与进程内调度器相同的标准解析器校验。 */
+            schedule: string;
+            /** @description 目标学期：一系统数字 calendarId（如 121）或学期名（如 2025-2026-1）；留空表示同步该数据来源最近已同步的学期。 */
+            term: string;
+            /** @description 以目标学期为终点向前同步的连续学期数（管理端上限 8）。 */
+            depth: number;
+            /**
+             * @description 数据来源；未配置时按本科生处理。
+             * @enum {string}
+             */
+            audience: "undergraduate" | "graduate";
+        };
+        PkSyncScheduleSettingsSuccess: components["schemas"]["ApiSuccess"] & {
+            result: components["schemas"]["PkSyncScheduleSettings"];
+        };
+        PkSyncScheduleSettingsResponse: components["schemas"]["PkSyncScheduleSettingsSuccess"] | components["schemas"]["ApiFailure"];
+        SavePkSyncScheduleSettingsRequest: {
+            /** @description 定时同步总开关；false 时其余字段被忽略，仅关闭并注销 cron。 */
+            enabled: boolean;
+            /** @description 5 段标准 cron 表达式；启用时必须为可解析表达式，否则整个请求失败（HTTP 200 code:1）。 */
+            schedule?: string;
+            /** @description 目标学期（数字 calendarId / 学期名）；留空 = 最近已同步学期。 */
+            term?: string;
+            /** @description 回溯学期数，越界 clamp 到 [1, 8]。 */
+            depth?: number;
+            /** @description 数据来源（undergraduate / graduate）；空按本科处理。非法值整个请求失败。 */
+            audience?: string;
+        };
         PkReviewBriefClass: {
             /** @description 教学班课号，与 course_offering.class_code 对齐（如 11000101）。 */
             classCode: string;
@@ -22674,6 +22759,86 @@ export interface operations {
                 };
             };
             /** @description Frozen account, or caller lacks the SiteManager permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    adminGetPkSyncScheduleSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The scheduled sync configuration (stored configuration or the built-in default). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkSyncScheduleSettingsResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Frozen account, or caller lacks the SiteManager permission. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    adminSavePkSyncScheduleSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePkSyncScheduleSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Configuration saved (`result` is the string `success`), or a `code: 1` business failure (invalid/absent cron while enabling, invalid audience). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPageConfigSaveResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Frozen account, or caller lacks the SiteManager permission. A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie is not cleared (issue #406). */
             403: {
                 headers: {
                     [name: string]: unknown;
