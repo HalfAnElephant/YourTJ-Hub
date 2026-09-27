@@ -197,8 +197,12 @@ adminValidatePkCredential:
       latest synced calendar for that audience and performs **no database
       writes, no fetch-log rows, no configuration changes**. A blank
       `credential` resolves via the same priority as the sync CLI
-      (admin-stored securestore setting, then the audience-specific
-      `ONESYSTEM_*_COOKIE` env). A credential failure (HTTP 401/403, business
+      (environment variables first, then the admin-stored securestore setting).
+      Undergraduate environment priority is `ONESYSTEM_UNDERGRADUATE_COOKIE`,
+      then `ONESYSTEM_COOKIE`; graduate priority is `ONESYSTEM_GRADUATE_X_TOKEN`,
+      then `ONESYSTEM_X_TOKEN`, then the legacy `ONESYSTEM_GRADUATE_COOKIE`.
+      A non-blank request credential overrides both environment and saved settings.
+      A credential failure (HTTP 401/403, business
       code != 0, network error) is a **business result** — HTTP 200 with
       `result.valid=false` and a credential-redacted failure message — not an
       HTTP error. Only hard errors (unsupported audience, missing credential

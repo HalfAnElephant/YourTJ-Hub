@@ -59,7 +59,7 @@ func ValidateCredential(ctx context.Context, audience Audience, credential strin
 	client := validateClientBuilder(audience)
 	if _, err := client.fetchPage(ctx, effective, int(calendarID), 1, validationProbePageSize); err != nil {
 		// 客户端已对错误提示执行 AC2 脱敏（redactCredentials），可直接展示。
-		return CredentialValidation{Valid: false, Message: err.Error()}, nil
+		return CredentialValidation{Valid: false, Message: err.Error()}, nil //nolint:nilerr // Probe failure is a business result; only setup failures use the error envelope.
 	}
 	return CredentialValidation{Valid: true}, nil
 }

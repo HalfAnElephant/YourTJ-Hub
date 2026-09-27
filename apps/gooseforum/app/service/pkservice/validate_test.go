@@ -29,11 +29,11 @@ func overrideValidateClientBuilder(t *testing.T, srv *httptest.Server) func() {
 	return func() { validateClientBuilder = orig }
 }
 
-func seedValidationCalendar(t *testing.T, audience Audience, externalID uint64) {
+func seedValidationCalendar(t *testing.T, audience Audience) {
 	t.Helper()
 	conn := db.Connect()
 	if err := conn.Create(&pk.CalendarEntity{
-		CalendarId:     pk.ScopeID(audience, externalID),
+		CalendarId:     pk.ScopeID(audience, 121),
 		Audience:       string(audience),
 		CalendarIdI18n: "2025-2026-1",
 		SchemaVersion:  pk.PKDataSchemaVersion,
@@ -44,7 +44,7 @@ func seedValidationCalendar(t *testing.T, audience Audience, externalID uint64) 
 
 func TestValidateCredentialValid(t *testing.T) {
 	migratePkTables(t)
-	seedValidationCalendar(t, AudienceUndergraduate, 121)
+	seedValidationCalendar(t, AudienceUndergraduate)
 
 	var probePageSize int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +91,7 @@ func TestValidateCredentialValid(t *testing.T) {
 
 func TestValidateCredentialInvalidCredential(t *testing.T) {
 	migratePkTables(t)
-	seedValidationCalendar(t, AudienceUndergraduate, 121)
+	seedValidationCalendar(t, AudienceUndergraduate)
 
 	// 401 且错误体回带会话凭证：必现脱敏，防止把凭证片段带回提示。
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -121,7 +121,7 @@ func TestValidateCredentialInvalidCredential(t *testing.T) {
 
 func TestValidateCredentialBusinessFailureCode(t *testing.T) {
 	migratePkTables(t)
-	seedValidationCalendar(t, AudienceUndergraduate, 121)
+	seedValidationCalendar(t, AudienceUndergraduate)
 
 	// HTTP 200 但一系统业务/鉴权失败信封（code!=0）：同样判定凭证不可用。
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -172,7 +172,7 @@ func TestValidateCredentialNoSyncedCalendar(t *testing.T) {
 
 func TestValidateCredentialGraduatePath(t *testing.T) {
 	migratePkTables(t)
-	seedValidationCalendar(t, AudienceGraduate, 121)
+	seedValidationCalendar(t, AudienceGraduate)
 
 	var xTokens []string
 	calls := 0
@@ -220,7 +220,7 @@ func TestValidateCredentialGraduatePath(t *testing.T) {
 
 func TestValidateCredentialResolvesEnvCredential(t *testing.T) {
 	migratePkTables(t)
-	seedValidationCalendar(t, AudienceUndergraduate, 121)
+	seedValidationCalendar(t, AudienceUndergraduate)
 
 	t.Setenv("ONESYSTEM_UNDERGRADUATE_COOKIE", "JWTUser=env-cookie")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -250,7 +250,7 @@ func TestValidateCredentialRejectsInvalidAudience(t *testing.T) {
 
 func TestValidateCredentialMissingCredentialSource(t *testing.T) {
 	migratePkTables(t)
-	seedValidationCalendar(t, AudienceUndergraduate, 121)
+	seedValidationCalendar(t, AudienceUndergraduate)
 	t.Setenv("ONESYSTEM_UNDERGRADUATE_COOKIE", "")
 	t.Setenv("ONESYSTEM_COOKIE", "")
 
