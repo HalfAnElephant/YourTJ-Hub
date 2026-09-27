@@ -6002,6 +6002,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/pk/validate-credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Probe a OneSystem (一系统) credential before saving it
+         * @description Admin console operation gated by the `SiteManager` role permission
+         *     (Admin role is a superset); callers without it fail with HTTP 403 and
+         *     `permission.denied` (params permission=<localized permission name>,
+         *     `站点管理` in zh). Validates a 一系统 credential for the requested audience
+         *     (undergraduate Cookie / graduate X-Token) with a minimal probe before
+         *     saving it (issue #856): it fetches exactly one page (pageSize=1) of the
+         *     latest synced calendar for that audience and performs **no database
+         *     writes, no fetch-log rows, no configuration changes**. A blank
+         *     `credential` resolves via the same priority as the sync CLI
+         *     (admin-stored securestore setting, then the audience-specific
+         *     `ONESYSTEM_*_COOKIE` env). A credential failure (HTTP 401/403, business
+         *     code != 0, network error) is a **business result** — HTTP 200 with
+         *     `result.valid=false` and a credential-redacted failure message — not an
+         *     HTTP error. Only hard errors (unsupported audience, missing credential
+         *     source, database read failure) return the failure envelope. With no
+         *     synced calendar for the audience the result is `valid=false` with a
+         *     "sync a term first" message. The probe is bounded by a 45s timeout.
+         */
+        post: operations["adminValidatePkCredential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/pk/sync-calendar": {
         parameters: {
             query?: never;
@@ -12207,6 +12243,25 @@ export interface components {
         PkMaterializeResponse: (components["schemas"]["ApiSuccess"] & {
             result: components["schemas"]["PkMaterializeResult"];
         }) | components["schemas"]["ApiFailure"];
+        PkValidateCredentialRequest: {
+            /**
+             * @description 课程数据来源范围；省略时使用本科生数据。
+             * @default undergraduate
+             * @enum {string}
+             */
+            audience: "undergraduate" | "graduate";
+            /** @description 待校验的一系统凭证原文（本科 Cookie header / 研究生 X-Token）。留空时按 同步 CLI 同款优先级解析：环境变量 → 管理端已保存设置（securestore 密文解密）。 */
+            credential?: string;
+        };
+        PkValidateCredentialSuccess: components["schemas"]["ApiSuccess"] & {
+            result: {
+                /** @description 凭证是否可用：以最新已同步学期为真实目标最小抓取一页（pageSize=1） 探测成功。探测不写库、不写 fetchlog、不修改配置。 */
+                valid: boolean;
+                /** @description 校验说明：valid=true 时为空串；valid=false 时为脱敏后的失败原因 （凭证失效/一系统网络错误，或尚无已同步学期时的提示）。 */
+                message: string;
+            };
+        };
+        PkValidateCredentialResponse: components["schemas"]["PkValidateCredentialSuccess"] | components["schemas"]["ApiFailure"];
         PkReviewBriefClass: {
             /** @description 教学班课号，与 course_offering.class_code 对齐（如 11000101）。 */
             classCode: string;
@@ -22582,6 +22637,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PkMaterializeResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+            /** @description Frozen account, or caller lacks the SiteManager permission. A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie is not cleared (issue #406). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiFailure"];
+                };
+            };
+        };
+    };
+    adminValidatePkCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PkValidateCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description Probe result (valid=true / valid=false + sanitized message), or a business failure envelope for hard errors. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PkValidateCredentialResponse"];
                 };
             };
             /** @description Missing, invalid, expired, or revoked access token. */

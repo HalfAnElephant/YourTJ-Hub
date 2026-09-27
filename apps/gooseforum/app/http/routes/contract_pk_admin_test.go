@@ -42,6 +42,7 @@ func setupPkAdminContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 	admin.POST("/pk/sync-calendar", UpButterReq(api.SyncPkCalendar))
 	admin.POST("/pk/materialize-calendar", UpButterReq(api.MaterializePkCalendar))
 	admin.GET("/pk/sync-status", UpButterReq(api.PkSyncStatus))
+	admin.POST("/pk/validate-credential", UpButterReq(api.ValidatePkCredential))
 	return conn, router
 }
 
@@ -217,4 +218,49 @@ func TestAdminMaterializePkCalendarHTTPContract(t *testing.T) {
 		rec := serveAuthSecurityJSON(router, http.MethodPost, path, `{}`, contractSessionToken(t, manager))
 		assertFixtureEnvelope(t, decodeContractEnvelope(t, rec), contractFixture(t, "invalid-params.json"))
 	})
+}
+
+func TestAdminValidatePkCredentialHTTPContract(t *testing.T) {
+	path := "/api/admin/pk/validate-credential"
+
+	t.Run("valid credential returns valid=true", func(t *testing.T) {
+		t.Cleanup(api.SetValidatePkCredentialForTest(func(_ context.Context, _ pkservice.Audience, _ string) (pkservice.CredentialValidation, error) {
+			return pkservice.CredentialValidation{Valid: true}, nil
+		}))
+		conn, router := setupPkAdminContractTest(t)
+		manager := createContractSiteManager(t, conn)
+		recorder := serveAuthSecurityJSON(router, http.MethodPost, path, `{"audience":"undergraduate","credential":"JWTUser=abc"}`, contractSessionToken(t, manager))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "pk-credential-valid.json"))
+	})
+
+	t.Run("invalid credential is a business result with sanitized message", func(t *testing.T) {
+		t.Cleanup(api.SetValidatePkCredentialForTest(func(_ context.Context, _ pkservice.Audience, _ string) (pkservice.CredentialValidation, error) {
+			return pkservice.CredentialValidation{Valid: false, Message: `一系统请求失败: HTTP 401 {"message":"未登录或会话失效"}`}, nil
+		}))
+		conn, router := setupPkAdminContractTest(t)
+		manager := createContractSiteManager(t, conn)
+		recorder := serveAuthSecurityJSON(router, http.MethodPost, path, `{"audience":"undergraduate"}`, contractSessionToken(t, manager))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (business result): %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "pk-credential-invalid.json"))
+	})
+
+	t.Run("unsupported audience is a failure envelope", func(t *testing.T) {
+		conn, router := setupPkAdminContractTest(t)
+		manager := createContractSiteManager(t, conn)
+		recorder := serveAuthSecurityJSON(router, http.MethodPost, path, `{"audience":"bogus"}`, contractSessionToken(t, manager))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		envelope := decodeContractEnvelope(t, recorder)
+		if envelope.Code != 1 {
+			t.Fatalf("code = %d, want failure envelope: %s", envelope.Code, recorder.Body.String())
+		}
+	})
+
+	adminPkGuardScenarios(t, http.MethodPost, path, "pk-validate-credential")
 }

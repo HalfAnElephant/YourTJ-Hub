@@ -539,6 +539,7 @@ func apiRoute(ginApp *gin.Engine) {
 		POST("pk/sync-calendar", UpButterReq(api.SyncPkCalendar)).
 		POST("pk/materialize-calendar", UpButterReq(api.MaterializePkCalendar)).
 		GET("pk/sync-status", UpButterReq(api.PkSyncStatus)).
+		POST("pk/validate-credential", UpButterReq(api.ValidatePkCredential)).
 		GET("ai-summary-settings", UpButterReq(api.GetAiSummarySettings)).
 		POST("save-ai-summary-settings", UpButterReq(api.SaveAiSummarySettings)).
 		POST("ai-summary-models", UpButterReq(api.ListAiSummaryModels)).

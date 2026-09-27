@@ -35,6 +35,7 @@ import type {
   ScheduleSettings,
   PkSyncStatusItem,
   PkMaterializeResult,
+  PkValidateCredentialResult,
   RateLimitSettings,
   ReviewQueueItem,
   SecuritySettings,
@@ -440,6 +441,15 @@ export function syncPkCalendar(term: string, depth = 1, audience: 'undergraduate
 
 export function getPkSyncStatus() {
   return getJson<PkSyncStatusItem[]>('/api/admin/pk/sync-status', adminText('k00s3'))
+}
+
+export function validatePkCredential(audience: 'undergraduate' | 'graduate', credential?: string) {
+  // credential 留空时后端按环境变量/管理端已保存设置解析（JSON 序列化会丢弃 undefined）。
+  return postJson<PkValidateCredentialResult>(
+    '/api/admin/pk/validate-credential',
+    { audience, credential },
+    adminText('k00wh1'),
+  )
 }
 
 export function getScheduleSettings() {

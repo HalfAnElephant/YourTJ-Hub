@@ -713,6 +713,10 @@
   },
   {
     "method": "POST",
+    "path": "/api/admin/pk/validate-credential"
+  },
+  {
+    "method": "POST",
     "path": "/api/admin/posts/delete"
   },
   {

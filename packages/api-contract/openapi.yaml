@@ -542,6 +542,8 @@ paths:
       $ref: ./paths/wiki-sync.yaml#/saveWikiAssetCDN/post
   /api/admin/pk/materialize-calendar:
     $ref: ./paths/pk-admin.yaml#/adminMaterializePkCalendar
+  /api/admin/pk/validate-credential:
+    $ref: ./paths/pk-admin.yaml#/adminValidatePkCredential
   /api/admin/pk/sync-calendar:
     post:
       $ref: ./paths/pk-admin.yaml#/adminSyncPkCalendar/post
