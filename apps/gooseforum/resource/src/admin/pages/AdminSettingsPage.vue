@@ -70,6 +70,7 @@ import {
   testMailConnection,
   testStorageConnection,
   uploadAdminImage,
+  validatePkCredential,
 } from '@/admin/runtime/api'
 import { adminToast } from '@/admin/runtime/toast'
 import { resolveApiMessage } from '@/runtime/api-message'
@@ -161,6 +162,7 @@ const onesystemCredentialItems: Array<{ audience: OnesystemAudience, labelKey: s
   { audience: 'graduate', labelKey: 'k00tgrad' },
 ]
 const savingCookie = ref(false)
+const validatingCookie = ref(false)
 const syncForm = reactive<{ term: string, depth: number, audience: OnesystemAudience }>({ term: '', depth: 1, audience: 'undergraduate' })
 const syncingPk = ref(false)
 const syncStatusItems = ref<PkSyncStatusItem[]>([])
@@ -1131,6 +1133,25 @@ async function clearCredential(audience: OnesystemAudience) {
   }
 }
 
+/** 校验一系统凭证（issue #856 保存前探测）：输入框留空时后端按环境变量/已保存设置解析。 */
+async function validateCredential(audience: OnesystemAudience) {
+  validatingCookie.value = true
+  try {
+    const entered = onesystemCredentials[audience].value.trim()
+    const result = await validatePkCredential(audience, entered || undefined)
+    if (result.valid) {
+      adminToast.success(adminText('k00wh2'))
+    } else {
+      // 凭证失效 / 尚无已同步学期：后端返回脱敏后的失败说明，直接展示。
+      adminToast.error(new Error(result.message || adminText('k00wh1')), adminText('k00wh1'))
+    }
+  } catch (err) {
+    adminToast.error(err, adminText('k00wh1'))
+  } finally {
+    validatingCookie.value = false
+  }
+}
+
 async function startSync() {
   const term = syncForm.term.trim()
   if (!term) {
@@ -1880,13 +1901,18 @@ onUnmounted(stopSyncPolling)
               <span class="text-xs font-normal text-muted-foreground">{{ adminText(item.audience === 'graduate' ? 'k00vg5' : 'k00tc') }}</span>
             </div>
             <div class="flex flex-wrap gap-3">
-              <Button type="submit" :disabled="savingCookie">
+              <Button type="submit" :disabled="savingCookie || validatingCookie">
                 <Loader2 v-if="savingCookie" class="size-4 animate-spin" />
                 <Save v-else class="size-4" />
                 {{ adminText(item.audience === 'graduate' ? 'k00vg6' : 'k00td') }}
               </Button>
-              <Button type="button" variant="outline" :disabled="savingCookie || !onesystemCredentials[item.audience].configured" @click="clearCredential(item.audience)">
+              <Button type="button" variant="outline" :disabled="validatingCookie || !onesystemCredentials[item.audience].configured" @click="clearCredential(item.audience)">
                 {{ adminText(item.audience === 'graduate' ? 'k00vg7' : 'k00te') }}
+              </Button>
+              <Button type="button" variant="secondary" :disabled="validatingCookie || savingCookie" @click="validateCredential(item.audience)">
+                <Loader2 v-if="validatingCookie" class="size-4 animate-spin" />
+                <CheckCircle2 v-else class="size-4" />
+                {{ adminText('k00wh0') }}
               </Button>
             </div>
           </form>

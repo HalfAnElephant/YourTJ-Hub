@@ -20,6 +20,12 @@ describe('isValidCron5Field', () => {
     expect(isValidCron5Field('@hourly')).toBe(true)
     expect(isValidCron5Field('@every 30m')).toBe(true)
     expect(isValidCron5Field('@every 1h30m')).toBe(true)
+    expect(isValidCron5Field('@every 500ms')).toBe(true)
+    expect(isValidCron5Field('@every 1.5h')).toBe(true)
+  })
+
+  it.each(['0 0 0 * *', '0 0 * 0 *', '@every 1d', '*/1e1 * * * *', '*/2.5 * * * *'])('rejects server-invalid expression %s', (spec) => {
+    expect(isValidCron5Field(spec)).toBe(false)
   })
 
   it('rejects malformed and out-of-range specs', () => {

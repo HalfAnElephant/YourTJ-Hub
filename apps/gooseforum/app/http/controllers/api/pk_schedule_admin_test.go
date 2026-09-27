@@ -65,7 +65,7 @@ func TestSavePkSyncScheduleSettingsValid(t *testing.T) {
 
 func TestSavePkSyncScheduleSettingsRejectsInvalidCron(t *testing.T) {
 	setupPkScheduleAdminTest(t)
-	invalid := []string{"", "not-a-cron", "61 * * * *", "30 2 * *"}
+	invalid := []string{"", "not-a-cron", "61 * * * *", "30 2 * *", "0 0 0 * *", "0 0 * 0 *", "@every 1d", "*/1e1 * * * *", "*/2.5 * * * *"}
 	for _, spec := range invalid {
 		res := SavePkSyncScheduleSettings(component.BetterRequest[SavePkSyncScheduleSettingsReq]{
 			Params: SavePkSyncScheduleSettingsReq{Enabled: true, Schedule: spec},

@@ -348,6 +348,12 @@ export interface PkSyncScheduleSettings {
   audience: 'undergraduate' | 'graduate'
 }
 
+/** 一系统凭证校验结果（issue #856 管理端保存前探测）。 */
+export interface PkValidateCredentialResult {
+  valid: boolean
+  message: string
+}
+
 /** 排课器节次作息：单节开始/结束时间（HH:MM）。 */
 export interface ScheduleSectionTime {
   section: number

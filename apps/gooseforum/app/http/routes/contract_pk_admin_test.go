@@ -25,7 +25,7 @@ import (
 // 本文件覆盖 SiteManager 权限组的排课数据同步管理端点（issue #248，issue #569
 // 定时同步配置）的契约测试：
 // POST /api/admin/pk/sync-calendar、GET /api/admin/pk/sync-status、
-// GET/POST /api/admin/pk/sync-schedule-settings。中间件链与
+// GET/POST /api/admin/pk/sync-schedule-settings、POST /api/admin/pk/validate-credential。中间件链与
 // route4api.go 生产注册一致（JWTAuthCheck + CheckWritableAccount + CheckPermission(SiteManager)）。
 
 // setupPkAdminContractTest 注册 PK 管理路由，迁移并清空 PK 域表与操作审计表。
@@ -48,6 +48,7 @@ func setupPkAdminContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 	admin.GET("/pk/sync-status", UpButterReq(api.PkSyncStatus))
 	admin.GET("/pk/sync-schedule-settings", UpButterReq(api.GetPkSyncScheduleSettings))
 	admin.POST("/pk/sync-schedule-settings", UpButterReq(api.SavePkSyncScheduleSettings))
+	admin.POST("/pk/validate-credential", UpButterReq(api.ValidatePkCredential))
 	return conn, router
 }
 
@@ -287,4 +288,49 @@ func TestAdminSavePkSyncScheduleSettingsHTTPContract(t *testing.T) {
 	})
 
 	adminPkGuardScenarios(t, http.MethodPost, path, "pk-sync-schedule-settings")
+}
+
+func TestAdminValidatePkCredentialHTTPContract(t *testing.T) {
+	path := "/api/admin/pk/validate-credential"
+
+	t.Run("valid credential returns valid=true", func(t *testing.T) {
+		t.Cleanup(api.SetValidatePkCredentialForTest(func(_ context.Context, _ pkservice.Audience, _ string) (pkservice.CredentialValidation, error) {
+			return pkservice.CredentialValidation{Valid: true}, nil
+		}))
+		conn, router := setupPkAdminContractTest(t)
+		manager := createContractSiteManager(t, conn)
+		recorder := serveAuthSecurityJSON(router, http.MethodPost, path, `{"audience":"undergraduate","credential":"JWTUser=abc"}`, contractSessionToken(t, manager))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "pk-credential-valid.json"))
+	})
+
+	t.Run("invalid credential is a business result with sanitized message", func(t *testing.T) {
+		t.Cleanup(api.SetValidatePkCredentialForTest(func(_ context.Context, _ pkservice.Audience, _ string) (pkservice.CredentialValidation, error) {
+			return pkservice.CredentialValidation{Valid: false, Message: `一系统请求失败: HTTP 401 {"message":"未登录或会话失效"}`}, nil
+		}))
+		conn, router := setupPkAdminContractTest(t)
+		manager := createContractSiteManager(t, conn)
+		recorder := serveAuthSecurityJSON(router, http.MethodPost, path, `{"audience":"undergraduate"}`, contractSessionToken(t, manager))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (business result): %s", recorder.Code, recorder.Body.String())
+		}
+		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "pk-credential-invalid.json"))
+	})
+
+	t.Run("unsupported audience is a failure envelope", func(t *testing.T) {
+		conn, router := setupPkAdminContractTest(t)
+		manager := createContractSiteManager(t, conn)
+		recorder := serveAuthSecurityJSON(router, http.MethodPost, path, `{"audience":"bogus"}`, contractSessionToken(t, manager))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", recorder.Code, recorder.Body.String())
+		}
+		envelope := decodeContractEnvelope(t, recorder)
+		if envelope.Code != 1 {
+			t.Fatalf("code = %d, want failure envelope: %s", envelope.Code, recorder.Body.String())
+		}
+	})
+
+	adminPkGuardScenarios(t, http.MethodPost, path, "pk-validate-credential")
 }

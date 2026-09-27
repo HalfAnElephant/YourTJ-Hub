@@ -7,19 +7,20 @@
 
 const MONTH_NAMES = new Set(['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'])
 const DOW_NAMES = new Set(['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'])
-// 分钟/小时/日/月/周 各字段数值上限。
+// 分钟/小时/日/月/周 各字段数值范围；日和月从 1 开始。
 const FIELD_LIMITS: number[] = [59, 23, 31, 12, 6]
+const FIELD_MINIMUMS: number[] = [0, 0, 1, 1, 0]
 
 // atDescriptor 校验 robfig 的 @ 描述符（@yearly/@annually/@monthly/@weekly/
-// @daily/@midnight/@hourly/@every <dur>）。@every 的时长形如 1h30m / 30m / 1d。
+// @daily/@midnight/@hourly/@every <dur>）。@every 的时长形如 1h30m / 30m / 500ms；Go duration 不支持天（d）。
 function isAtDescriptor(spec: string): boolean {
   const trimmed = spec.trim()
   if (/^@(yearly|annually|monthly|weekly|daily|midnight|hourly)$/.test(trimmed)) return true
-  return /^@every\s+(?:\d+[smhd])+$/.test(trimmed)
+  return /^@every\s+(?:\d+(?:\.\d+)?(?:ns|us|µs|μs|ms|s|m|h))+$/.test(trimmed)
 }
 
 // isValidField 校验单个 cron 字段；names 非空时（月/周）额外接受全名与全名范围。
-function isValidField(field: string, limit: number, names: Set<string> | null): boolean {
+function isValidField(field: string, minimum: number, limit: number, names: Set<string> | null): boolean {
   for (const part of field.split(',')) {
     if (names && names.has(part.toUpperCase())) continue
     if (names) {
@@ -33,7 +34,7 @@ function isValidField(field: string, limit: number, names: Set<string> | null): 
         continue
       }
     }
-    if (part.startsWith('*/')) {
+    if (/^\*\/\d+$/.test(part)) {
       const step = Number(part.slice(2))
       if (!Number.isInteger(step) || step < 1) return false
       continue
@@ -43,7 +44,7 @@ function isValidField(field: string, limit: number, names: Set<string> | null): 
     const start = Number(m[1])
     const end = m[2] !== undefined ? Number(m[2]) : start
     const step = m[3] !== undefined ? Number(m[3].slice(1)) : 1
-    if (step < 1 || start > limit || end > limit || start > end) return false
+    if (step < 1 || start < minimum || start > limit || end > limit || start > end) return false
   }
   return true
 }
@@ -59,7 +60,7 @@ export function isValidCron5Field(spec: string): boolean {
     // 月/周 段允许名称（robfig ParseMonth/ParseDow）；周 7 等同周日但后端标准
     // 解析器不接收（对齐后端，不额外放行）。
     const names = i === 3 ? MONTH_NAMES : i === 4 ? DOW_NAMES : null
-    if (!isValidField(fields[i], FIELD_LIMITS[i], names)) return false
+    if (!isValidField(fields[i], FIELD_MINIMUMS[i], FIELD_LIMITS[i], names)) return false
   }
   return true
 }

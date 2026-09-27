@@ -4,11 +4,11 @@
 
 路由快照来自 `TestRoutesSnapshot`（`fixtures/routes-snapshot.json`，默认配置装配，不含 OIDC `/api/oauth/*` 端点——OIDC 另有专项）。
 
-- 快照路由总数：341
-- /api JSON 路由：275，已入契约：276（100%），已知未覆盖：0
+- 快照路由总数：342
+- /api JSON 路由：276，已入契约：277（100%），已知未覆盖：0
 - 非 API 排除路由：65
 
-## 已覆盖（276）
+## 已覆盖（277）
 
 | Method | Path | operationId |
 | --- | --- | --- |
@@ -131,6 +131,7 @@
 | POST | `/api/admin/pk/materialize-calendar` | `adminMaterializePkCalendar` |
 | POST | `/api/admin/pk/sync-calendar` | `adminSyncPkCalendar` |
 | POST | `/api/admin/pk/sync-schedule-settings` | `adminSavePkSyncScheduleSettings` |
+| POST | `/api/admin/pk/validate-credential` | `adminValidatePkCredential` |
 | POST | `/api/admin/posts/delete` | `adminDeletePost` |
 | POST | `/api/admin/publish-site-theme` | `adminPublishSiteTheme` |
 | POST | `/api/admin/review-action` | `adminReviewAction` |

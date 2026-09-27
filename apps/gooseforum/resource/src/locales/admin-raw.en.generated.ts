@@ -963,8 +963,12 @@ export default {
   "k00wf": "Enabled",
   "k00wg": "Disabled",
   "k00wl": "5-field standard cron (minute hour day month weekday), e.g. “30 2 * * *” (daily 02:30)",
-  "k00wm": "Leave empty to sync the most recently synced term of this audience; new terms are followed automatically.",
+  "k00wm": "Leave empty to use the most recently synced term for this audience. For a new term, sync it manually first or enter its term ID.",
   "k00wn": "Number of consecutive terms to sync, ending at the target term (1..8).",
   "k00wo": "Undergraduate uses the Cookie, graduate the X-Token; configure them in the fields above.",
   "k00wp": "Valid cron expression",
+
+  "k00wh0": "Validate credential",
+  "k00wh1": "Credential validation failed",
+  "k00wh2": "Credential valid, OneSystem is reachable",
 } as const

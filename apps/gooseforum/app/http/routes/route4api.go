@@ -542,6 +542,7 @@ func apiRoute(ginApp *gin.Engine) {
 		// 排课数据定时同步配置（issue #569）：读取/保存 cron 定时任务设置。
 		GET("pk/sync-schedule-settings", UpButterReq(api.GetPkSyncScheduleSettings)).
 		POST("pk/sync-schedule-settings", UpButterReq(api.SavePkSyncScheduleSettings)).
+		POST("pk/validate-credential", UpButterReq(api.ValidatePkCredential)).
 		GET("ai-summary-settings", UpButterReq(api.GetAiSummarySettings)).
 		POST("save-ai-summary-settings", UpButterReq(api.SaveAiSummarySettings)).
 		POST("ai-summary-models", UpButterReq(api.ListAiSummaryModels)).

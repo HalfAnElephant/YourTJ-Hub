@@ -963,8 +963,12 @@ export default {
   "k00wf": "Aktiviert",
   "k00wg": "Deaktiviert",
   "k00wl": "5-Feld-Standard-Cron (Minute Stunde Tag Monat Wochentag), z. B. „30 2 * * *“ (täglich 02:30)",
-  "k00wm": "Leer lassen, um das zuletzt synchronisierte Semester dieser Datenquelle zu synchronisieren; neue Semester werden automatisch verfolgt.",
+  "k00wm": "Leer lassen, um das zuletzt synchronisierte Semester dieser Datenquelle zu verwenden. Neue Semester zuerst manuell synchronisieren oder ihre Semester-ID eingeben.",
   "k00wn": "Anzahl der aufeinanderfolgenden Semester, die bis zum Zielsemester synchronisiert werden (1..8).",
   "k00wo": "Bachelor nutzt das Cookie, Master den X-Token; konfigurieren Sie sie in den Feldern oben.",
   "k00wp": "Gültiger Cron-Ausdruck",
+
+  "k00wh0": "Anmeldedaten prüfen",
+  "k00wh1": "Prüfung der Anmeldedaten fehlgeschlagen",
+  "k00wh2": "Anmeldedaten gültig, OneSystem erreichbar",
 } as const

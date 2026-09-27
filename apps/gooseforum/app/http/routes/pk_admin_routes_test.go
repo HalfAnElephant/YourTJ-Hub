@@ -37,4 +37,10 @@ func TestPkAdminRoutesRegistered(t *testing.T) {
 	if !registered[http.MethodPost+" /api/admin/pk/sync-schedule-settings"] {
 		t.Errorf("POST /api/admin/pk/sync-schedule-settings was not registered")
 	}
+	if !registered[http.MethodPost+" /api/admin/pk/validate-credential"] {
+		t.Errorf("POST /api/admin/pk/validate-credential was not registered")
+	}
+	if registered[http.MethodGet+" /api/admin/pk/validate-credential"] {
+		t.Errorf("GET /api/admin/pk/validate-credential should not be registered")
+	}
 }

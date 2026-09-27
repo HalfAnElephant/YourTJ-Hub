@@ -91,7 +91,7 @@ func RunScheduledSync(ctx context.Context) (err error) {
 // resolveScheduledSyncTerm 解析定时同步的目标学期：
 //   - Term 非空：走 ResolveSyncTermForAudience（数字 calendarId / 学期名 / 归一化反查）
 //   - Term 留空：取该数据来源最近已同步的学期（pk_calendar.calendar_id 最大者），
-//     使跨学期长期运行的定时任务自动跟随新开学期；尚无任何学期时报错。
+//     不会探测上游新学期；新学期须先手动同步或指定 ID。尚无任何学期时报错。
 func resolveScheduledSyncTerm(audience Audience, term string) (uint64, error) {
 	if strings.TrimSpace(term) != "" {
 		id, _, err := ResolveSyncTermForAudience(audience, term)

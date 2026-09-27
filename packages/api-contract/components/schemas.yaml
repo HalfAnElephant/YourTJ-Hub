@@ -9946,6 +9946,48 @@ PkMaterializeResponse:
               $ref: '#/PkMaterializeResult'
     - $ref: '#/ApiFailure'
 
+PkValidateCredentialRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    audience:
+      type: string
+      enum: [undergraduate, graduate]
+      default: undergraduate
+      description: 课程数据来源范围；省略时使用本科生数据。
+    credential:
+      type: string
+      description: >-
+        待校验的一系统凭证原文（本科 Cookie header / 研究生 X-Token）。留空时按
+        同步 CLI 同款优先级解析：环境变量 → 管理端已保存设置（securestore 密文解密）。
+
+PkValidateCredentialSuccess:
+  allOf:
+    - $ref: '#/ApiSuccess'
+    - type: object
+      required: [result]
+      properties:
+        result:
+          type: object
+          required: [valid, message]
+          additionalProperties: false
+          properties:
+            valid:
+              type: boolean
+              description: >-
+                凭证是否可用：以最新已同步学期为真实目标最小抓取一页（pageSize=1）
+                探测成功。探测不写库、不写 fetchlog、不修改配置。
+            message:
+              type: string
+              description: >-
+                校验说明：valid=true 时为空串；valid=false 时为脱敏后的失败原因
+                （凭证失效/一系统网络错误，或尚无已同步学期时的提示）。
+
+PkValidateCredentialResponse:
+  oneOf:
+    - $ref: '#/PkValidateCredentialSuccess'
+    - $ref: '#/ApiFailure'
+
 # ================= 表情包库（MADR 0030）=================
 
 StickerItem:
