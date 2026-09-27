@@ -550,6 +550,11 @@ paths:
   /api/admin/pk/sync-status:
     get:
       $ref: ./paths/pk-admin.yaml#/adminGetPkSyncStatus/get
+  /api/admin/pk/sync-schedule-settings:
+    get:
+      $ref: ./paths/pk-admin.yaml#/adminGetPkSyncScheduleSettings/get
+    post:
+      $ref: ./paths/pk-admin.yaml#/adminSavePkSyncScheduleSettings/post
   # PK 排课器 13 端点（Issue #187）。
   /api/pk/calendars:
     get:

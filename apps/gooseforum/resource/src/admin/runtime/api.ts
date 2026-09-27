@@ -34,6 +34,7 @@ import type {
   OnesystemSettings,
   ScheduleSettings,
   PkSyncStatusItem,
+  PkSyncScheduleSettings,
   PkMaterializeResult,
   PkValidateCredentialResult,
   RateLimitSettings,
@@ -441,6 +442,14 @@ export function syncPkCalendar(term: string, depth = 1, audience: 'undergraduate
 
 export function getPkSyncStatus() {
   return getJson<PkSyncStatusItem[]>('/api/admin/pk/sync-status', adminText('k00s3'))
+}
+
+export function getPkSyncScheduleSettings() {
+  return getJson<PkSyncScheduleSettings>('/api/admin/pk/sync-schedule-settings', adminText('k00wd'))
+}
+
+export function savePkSyncScheduleSettings(settings: PkSyncScheduleSettings) {
+  return postJson<unknown>('/api/admin/pk/sync-schedule-settings', settings, adminText('k00wc'))
 }
 
 export function validatePkCredential(audience: 'undergraduate' | 'graduate', credential?: string) {
