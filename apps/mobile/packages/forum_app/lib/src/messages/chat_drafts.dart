@@ -309,6 +309,26 @@ class ChatDrafts extends ChangeNotifier {
     unawaited(flush());
   }
 
+  /// Reinstalls the composer snapshot of a failed send. The revision guard
+  /// keeps a late failure from replacing text the user wrote while the message
+  /// was in flight; an emptied draft has nothing to protect, so the submitted
+  /// content returns instead of being lost with the request.
+  bool restoreFailed(
+    ChatItemPayload peer,
+    int? revision,
+    TextEditingValue? value,
+  ) {
+    if (!current || peer.peerId <= 0 || revision == null || value == null) {
+      return false;
+    }
+    final previous = _items[peer.peerId];
+    if (previous != null && previous.hasText && previous.revision != revision) {
+      return false;
+    }
+    update(peer, value);
+    return true;
+  }
+
   Future<bool> flush() {
     _debounce?.cancel();
     if (!current) return Future.value(false);

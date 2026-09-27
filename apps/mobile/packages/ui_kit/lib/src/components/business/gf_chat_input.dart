@@ -74,6 +74,12 @@ class _GfChatInputState extends State<GfChatInput> with WidgetsBindingObserver {
     '✨',
   ];
 
+  static const double _fieldFontSize = 16;
+  static const double _fieldLineHeight = 1.4;
+
+  /// Vertical content padding (11 top + 11 bottom) of the field decoration.
+  static const double _fieldVerticalPadding = 22;
+
   late TextEditingController _controller =
       widget.controller ?? TextEditingController();
   final FocusNode _inputFocus = FocusNode();
@@ -162,6 +168,14 @@ class _GfChatInputState extends State<GfChatInput> with WidgetsBindingObserver {
       _accessoryFocus.requestFocus();
     }
   }
+
+  /// The accessory panel may shrink the editor's rendered height, but never its
+  /// multiline input configuration: a single-line field silently drops newline
+  /// insertion, which must stay available while a sticker panel is open.
+  double _collapsedFieldHeight(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(_fieldFontSize) *
+          _fieldLineHeight +
+      _fieldVerticalPadding;
 
   void _insertEmoji(String emoji) {
     if (!widget.enabled) return;
@@ -282,49 +296,59 @@ class _GfChatInputState extends State<GfChatInput> with WidgetsBindingObserver {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Expanded(
-                                  child: TextField(
-                                    controller: _controller,
-                                    focusNode: _inputFocus,
-                                    enabled: widget.enabled,
-                                    textInputAction: TextInputAction.newline,
-                                    minLines: 1,
-                                    maxLines: _emojiOpen ? 1 : 4,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      height: 1.4,
-                                      color: widget.enabled
-                                          ? colors.baseContent
-                                          : colors.iconMuted,
+                                  child: ConstrainedBox(
+                                    constraints: _emojiOpen
+                                        ? BoxConstraints(
+                                            maxHeight: _collapsedFieldHeight(
+                                              context,
+                                            ),
+                                          )
+                                        : const BoxConstraints(),
+                                    child: TextField(
+                                      controller: _controller,
+                                      focusNode: _inputFocus,
+                                      enabled: widget.enabled,
+                                      textInputAction: TextInputAction.newline,
+                                      minLines: 1,
+                                      maxLines: 4,
+                                      style: TextStyle(
+                                        fontSize: _fieldFontSize,
+                                        height: _fieldLineHeight,
+                                        color: widget.enabled
+                                            ? colors.baseContent
+                                            : colors.iconMuted,
+                                      ),
+                                      cursorColor: colors.primary,
+                                      decoration: InputDecoration(
+                                        hintText: widget.hintText,
+                                        hintStyle: TextStyle(
+                                          color: colors.iconMuted,
+                                        ),
+                                        filled: false,
+                                        isDense: true,
+                                        constraints: const BoxConstraints(
+                                          minHeight: 44,
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.fromLTRB(
+                                              16,
+                                              11,
+                                              4,
+                                              11,
+                                            ),
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        disabledBorder: InputBorder.none,
+                                        errorBorder: InputBorder.none,
+                                        focusedErrorBorder: InputBorder.none,
+                                      ),
+                                      onTap: () {
+                                        if (_emojiOpen) {
+                                          setState(() => _emojiOpen = false);
+                                        }
+                                      },
                                     ),
-                                    cursorColor: colors.primary,
-                                    decoration: InputDecoration(
-                                      hintText: widget.hintText,
-                                      hintStyle: TextStyle(
-                                        color: colors.iconMuted,
-                                      ),
-                                      filled: false,
-                                      isDense: true,
-                                      constraints: const BoxConstraints(
-                                        minHeight: 44,
-                                      ),
-                                      contentPadding: const EdgeInsets.fromLTRB(
-                                        16,
-                                        11,
-                                        4,
-                                        11,
-                                      ),
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                      disabledBorder: InputBorder.none,
-                                      errorBorder: InputBorder.none,
-                                      focusedErrorBorder: InputBorder.none,
-                                    ),
-                                    onTap: () {
-                                      if (_emojiOpen) {
-                                        setState(() => _emojiOpen = false);
-                                      }
-                                    },
                                   ),
                                 ),
                                 IconButton(
