@@ -138,7 +138,7 @@ void main() {
         tester
             .widget<ExtendedImage>(find.byType(ExtendedImage).first)
             .enableSlideOutPage,
-        isTrue,
+        isFalse,
       );
     });
 
@@ -180,14 +180,113 @@ void main() {
       expect(find.byType(GfImageViewer), findsNothing);
     });
 
+    testWidgets(
+      'horizontal page swipe survives vertical wobble and upward flick dismisses',
+      (tester) async {
+        const first = 'https://example.com/swipe-first.png';
+        const second = 'https://example.com/swipe-second.png';
+        await cachePhoto(tester, first);
+        await cachePhoto(tester, second);
+        await tester.pumpWidget(gfApp(const SizedBox.shrink()));
+        tester
+            .state<NavigatorState>(find.byType(Navigator).first)
+            .push<void>(
+              MaterialPageRoute<void>(
+                builder: (_) => const GfImageViewer(images: [first, second]),
+              ),
+            );
+        await tester.pumpAndSettle();
+
+        var center = tester.getCenter(
+          find.byKey(const Key('gf-image-viewer-page-swipe-area')),
+        );
+        final TestGesture swipe = await tester.startGesture(center);
+        await swipe.moveBy(
+          const Offset(8, 12),
+          timeStamp: const Duration(milliseconds: 16),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        await swipe.moveBy(
+          const Offset(-32, -5),
+          timeStamp: const Duration(milliseconds: 32),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        await swipe.moveBy(
+          const Offset(-95, -6),
+          timeStamp: const Duration(milliseconds: 48),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        await swipe.moveBy(
+          const Offset(-90, -20),
+          timeStamp: const Duration(milliseconds: 64),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        await swipe.up(timeStamp: const Duration(milliseconds: 80));
+        await tester.pumpAndSettle();
+        expect(find.text('2 / 2'), findsOneWidget);
+
+        center = tester.getCenter(
+          find.byKey(const Key('gf-image-viewer-page-swipe-area')),
+        );
+        await tester.timedDragFrom(
+          center,
+          const Offset(0, -50),
+          const Duration(milliseconds: 80),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(GfImageViewer), findsNothing);
+      },
+    );
+
+    testWidgets('rapid horizontal swipes interrupt page settling', (
+      tester,
+    ) async {
+      const images = [
+        'https://example.com/rapid-first.png',
+        'https://example.com/rapid-second.png',
+        'https://example.com/rapid-third.png',
+        'https://example.com/rapid-fourth.png',
+      ];
+      for (final image in images) {
+        await cachePhoto(tester, image);
+      }
+      await tester.pumpWidget(gfApp(const GfImageViewer(images: images)));
+      await tester.pumpAndSettle();
+
+      final area = find.byKey(const Key('gf-image-viewer-page-swipe-area'));
+      var eventTime = Duration.zero;
+      for (var index = 1; index < images.length; index++) {
+        final gesture = await tester.createGesture();
+        await gesture.down(tester.getCenter(area), timeStamp: eventTime);
+        await gesture.moveBy(
+          const Offset(-32, 3),
+          timeStamp: eventTime + const Duration(milliseconds: 16),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        await gesture.moveBy(
+          const Offset(-420, 3),
+          timeStamp: eventTime + const Duration(milliseconds: 32),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        await gesture.up(
+          timeStamp: eventTime + const Duration(milliseconds: 48),
+        );
+        for (var frame = 0; frame < 5; frame++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        eventTime += const Duration(milliseconds: 128);
+      }
+
+      await tester.pumpAndSettle();
+      expect(find.text('4 / 4'), findsOneWidget);
+    });
+
     testWidgets('motion preference changes settle and restore drag return', (
       tester,
     ) async {
       const url = 'https://example.com/return-photo.png';
       await cachePhoto(tester, url);
-      await tester.pumpWidget(
-        gfApp(const GfImageViewer(images: [url])),
-      );
+      await tester.pumpWidget(gfApp(const GfImageViewer(images: [url])));
       await tester.pumpAndSettle();
       final slide = tester.state<ExtendedImageSlidePageState>(
         find.byType(ExtendedImageSlidePage),
