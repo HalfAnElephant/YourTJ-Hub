@@ -2935,6 +2935,8 @@ func BuildNotificationPayloads(notifications []*eventNotification.Entity) []Noti
 			if item.Actor.Username == "" {
 				item.Actor.Username = author.Username
 			}
+			// 昵称同样以当前用户行为准（备注名显示 note(display name) 需要）。
+			item.Actor.Nickname = author.Nickname
 		}
 		if notification.EventType == eventNotification.EventTypeLike && item.Content == "" && item.Payload.TemplateParams.Preview == "" {
 			post := replies[notification.Payload.PostId]

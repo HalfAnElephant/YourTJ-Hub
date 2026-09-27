@@ -24,6 +24,7 @@ mixin _$ChatItemPayload {
   int get id => throw _privateConstructorUsedError;
   int get peerId => throw _privateConstructorUsedError;
   String get peerUsername => throw _privateConstructorUsedError;
+  String? get peerNickname => throw _privateConstructorUsedError;
   String get peerAvatar => throw _privateConstructorUsedError;
   String get lastMsg => throw _privateConstructorUsedError;
   String get lastMsgTime => throw _privateConstructorUsedError;
@@ -52,6 +53,7 @@ abstract class $ChatItemPayloadCopyWith<$Res> {
     int id,
     int peerId,
     String peerUsername,
+    String? peerNickname,
     String peerAvatar,
     String lastMsg,
     String lastMsgTime,
@@ -79,6 +81,7 @@ class _$ChatItemPayloadCopyWithImpl<$Res, $Val extends ChatItemPayload>
     Object? id = null,
     Object? peerId = null,
     Object? peerUsername = null,
+    Object? peerNickname = freezed,
     Object? peerAvatar = null,
     Object? lastMsg = null,
     Object? lastMsgTime = null,
@@ -100,6 +103,10 @@ class _$ChatItemPayloadCopyWithImpl<$Res, $Val extends ChatItemPayload>
                 ? _value.peerUsername
                 : peerUsername // ignore: cast_nullable_to_non_nullable
                       as String,
+            peerNickname: freezed == peerNickname
+                ? _value.peerNickname
+                : peerNickname // ignore: cast_nullable_to_non_nullable
+                      as String?,
             peerAvatar: null == peerAvatar
                 ? _value.peerAvatar
                 : peerAvatar // ignore: cast_nullable_to_non_nullable
@@ -143,6 +150,7 @@ abstract class _$$ChatItemPayloadImplCopyWith<$Res>
     int id,
     int peerId,
     String peerUsername,
+    String? peerNickname,
     String peerAvatar,
     String lastMsg,
     String lastMsgTime,
@@ -169,6 +177,7 @@ class __$$ChatItemPayloadImplCopyWithImpl<$Res>
     Object? id = null,
     Object? peerId = null,
     Object? peerUsername = null,
+    Object? peerNickname = freezed,
     Object? peerAvatar = null,
     Object? lastMsg = null,
     Object? lastMsgTime = null,
@@ -190,6 +199,10 @@ class __$$ChatItemPayloadImplCopyWithImpl<$Res>
             ? _value.peerUsername
             : peerUsername // ignore: cast_nullable_to_non_nullable
                   as String,
+        peerNickname: freezed == peerNickname
+            ? _value.peerNickname
+            : peerNickname // ignore: cast_nullable_to_non_nullable
+                  as String?,
         peerAvatar: null == peerAvatar
             ? _value.peerAvatar
             : peerAvatar // ignore: cast_nullable_to_non_nullable
@@ -226,6 +239,7 @@ class _$ChatItemPayloadImpl implements _ChatItemPayload {
     required this.id,
     required this.peerId,
     required this.peerUsername,
+    this.peerNickname,
     required this.peerAvatar,
     required this.lastMsg,
     required this.lastMsgTime,
@@ -244,6 +258,8 @@ class _$ChatItemPayloadImpl implements _ChatItemPayload {
   @override
   final String peerUsername;
   @override
+  final String? peerNickname;
+  @override
   final String peerAvatar;
   @override
   final String lastMsg;
@@ -258,7 +274,7 @@ class _$ChatItemPayloadImpl implements _ChatItemPayload {
 
   @override
   String toString() {
-    return 'ChatItemPayload(id: $id, peerId: $peerId, peerUsername: $peerUsername, peerAvatar: $peerAvatar, lastMsg: $lastMsg, lastMsgTime: $lastMsgTime, unreadCount: $unreadCount, convId: $convId, peerUrl: $peerUrl)';
+    return 'ChatItemPayload(id: $id, peerId: $peerId, peerUsername: $peerUsername, peerNickname: $peerNickname, peerAvatar: $peerAvatar, lastMsg: $lastMsg, lastMsgTime: $lastMsgTime, unreadCount: $unreadCount, convId: $convId, peerUrl: $peerUrl)';
   }
 
   @override
@@ -270,6 +286,8 @@ class _$ChatItemPayloadImpl implements _ChatItemPayload {
             (identical(other.peerId, peerId) || other.peerId == peerId) &&
             (identical(other.peerUsername, peerUsername) ||
                 other.peerUsername == peerUsername) &&
+            (identical(other.peerNickname, peerNickname) ||
+                other.peerNickname == peerNickname) &&
             (identical(other.peerAvatar, peerAvatar) ||
                 other.peerAvatar == peerAvatar) &&
             (identical(other.lastMsg, lastMsg) || other.lastMsg == lastMsg) &&
@@ -288,6 +306,7 @@ class _$ChatItemPayloadImpl implements _ChatItemPayload {
     id,
     peerId,
     peerUsername,
+    peerNickname,
     peerAvatar,
     lastMsg,
     lastMsgTime,
@@ -318,6 +337,7 @@ abstract class _ChatItemPayload implements ChatItemPayload {
     required final int id,
     required final int peerId,
     required final String peerUsername,
+    final String? peerNickname,
     required final String peerAvatar,
     required final String lastMsg,
     required final String lastMsgTime,
@@ -335,6 +355,8 @@ abstract class _ChatItemPayload implements ChatItemPayload {
   int get peerId;
   @override
   String get peerUsername;
+  @override
+  String? get peerNickname;
   @override
   String get peerAvatar;
   @override
