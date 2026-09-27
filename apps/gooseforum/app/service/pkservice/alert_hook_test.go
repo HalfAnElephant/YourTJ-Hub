@@ -29,7 +29,7 @@ func TestMarkFailedTriggersSyncFailureAlert(t *testing.T) {
 	t.Cleanup(func() { notifySyncFailure = original })
 
 	syncErr := errors.New("未登录或会话失效")
-	if markErr := markFailed(log, syncErr); markErr != syncErr {
+	if markErr := markFailed(log, syncErr); !errors.Is(markErr, syncErr) {
 		t.Fatalf("markFailed returned %v, want original %v", markErr, syncErr)
 	}
 

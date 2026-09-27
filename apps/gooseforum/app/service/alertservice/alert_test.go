@@ -1,6 +1,11 @@
 package alertservice
 
 import (
+	"errors"
+	"fmt"
+	"sync"
+
+	"gorm.io/gorm"
 	"testing"
 	"time"
 
@@ -151,7 +156,7 @@ func TestNotifyPkSyncFailedDedupeWindowExpires(t *testing.T) {
 	}
 
 	// 模拟时间流逝：清掉本地缓存标记后（等价于 alertWindow 过期）再次失败应重新告警。
-	pkAlertCache.Delete(pkAlertKey("graduate"))
+	pkAlertCache.Delete(pkAlertKey("graduate", smUser))
 	NotifyPkSyncFailed("graduate", "third failure after window")
 	if got := systemNotificationCount(t, smUser); got != 2 {
 		t.Errorf("after window expiry notifications = %d, want 2", got)
@@ -180,9 +185,9 @@ func TestNotifyPkSyncFailedNowHookRecordsTime(t *testing.T) {
 	smUser := newTestUser(t, "alert-now-sm-user", smRole, false)
 	NotifyPkSyncFailed("undergraduate", "boom")
 
-	key := pkAlertKey("undergraduate")
+	key := pkAlertKey("undergraduate", smUser)
 	at, _ := pkAlertCache.GetOrLoadE(key, func() (time.Time, error) {
-		return time.Time{}, errNoAlertMarker
+		return time.Time{}, errors.New("missing alert marker")
 	}, alertWindow)
 	if !at.Equal(time.Unix(1_800_000_000, 0)) {
 		t.Errorf("recorded alert time = %v, want %v", at, time.Unix(1_800_000_000, 0))
@@ -214,5 +219,71 @@ func TestNotifyPkSyncFailedPayloadContent(t *testing.T) {
 	}
 	if want := "【本科】同步失败：401 Unauthorized"; n.Payload.Content != want {
 		t.Errorf("system notification content = %q, want %q", n.Payload.Content, want)
+	}
+}
+
+// A failed insert must remain retryable, without re-notifying recipients whose
+// notification was already committed during a partially successful attempt.
+func TestNotifyPkSyncFailedRetriesUndeliveredRecipients(t *testing.T) {
+	for _, partial := range []bool{false, true} {
+		t.Run(fmt.Sprintf("partial=%v", partial), func(t *testing.T) {
+			setupAlertTestDB(t)
+			roleID := newTestRole(t, "retry-role", permission.SiteManager)
+			failedUser := newTestUser(t, "retry-failed", roleID, false)
+			healthyUser := newTestUser(t, "retry-healthy", roleID, false)
+			callback := "test:notification-outage"
+			conn := db.Connect()
+			if err := conn.Callback().Create().Before("gorm:create").Register(callback, func(tx *gorm.DB) {
+				n, ok := tx.Statement.Dest.(*eventNotification.Entity)
+				if ok && (!partial || n.UserId == failedUser) {
+					_ = tx.AddError(errors.New("temporary notification write outage"))
+				}
+			}); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = conn.Callback().Create().Remove(callback) })
+			NotifyPkSyncFailed("undergraduate", "expired credential")
+			if got := systemNotificationCount(t, failedUser); got != 0 {
+				t.Fatalf("failed delivery count = %d", got)
+			}
+			if err := conn.Callback().Create().Remove(callback); err != nil {
+				t.Fatal(err)
+			}
+			NotifyPkSyncFailed("undergraduate", "delivery recovered")
+			for _, id := range []uint64{failedUser, healthyUser} {
+				if got := systemNotificationCount(t, id); got != 1 {
+					t.Errorf("recipient %d count = %d, want 1", id, got)
+				}
+			}
+		})
+	}
+}
+
+func TestNotifyPkSyncFailedConcurrentAttemptsSendOnce(t *testing.T) {
+	setupAlertTestDB(t)
+	roleID := newTestRole(t, "concurrent-role", permission.SiteManager)
+	userID := newTestUser(t, "concurrent-user", roleID, false)
+	var wg sync.WaitGroup
+	for range 12 {
+		wg.Go(func() { NotifyPkSyncFailed("graduate", "concurrent failure") })
+	}
+	wg.Wait()
+	if got := systemNotificationCount(t, userID); got != 1 {
+		t.Fatalf("concurrent notifications = %d, want 1", got)
+	}
+}
+
+func TestNotifyPkSyncFailedNewRecipientIsNotSuppressed(t *testing.T) {
+	setupAlertTestDB(t)
+	NotifyPkSyncFailed("undergraduate", "no recipients yet")
+	roleID := newTestRole(t, "new-role", permission.SiteManager)
+	first := newTestUser(t, "new-first", roleID, false)
+	NotifyPkSyncFailed("undergraduate", "first admin added")
+	second := newTestUser(t, "new-second", roleID, false)
+	NotifyPkSyncFailed("undergraduate", "second admin added")
+	for _, id := range []uint64{first, second} {
+		if got := systemNotificationCount(t, id); got != 1 {
+			t.Errorf("new recipient %d count = %d, want 1", id, got)
+		}
 	}
 }

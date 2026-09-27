@@ -5,7 +5,6 @@
 package alertservice
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -19,7 +18,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/permission"
 )
 
-// alertWindow 是同一来源（受众）告警的去重窗口：窗口内重复失败不再提醒，
+// alertWindow 是每位接收人同一来源（受众）告警的去重窗口：成功发送后不再重复提醒，
 // 避免凭证持续失效时 cron/手动重试高频刷屏。
 const alertWindow = 6 * time.Hour
 
@@ -30,13 +29,9 @@ var now = time.Now
 // 存活期内同 key 再次告警直接跳过。key 见 pkAlertKey。
 var pkAlertCache = localcache.Cache[time.Time]{MaxEntries: cacheconfig.Current().RolePermission}
 
-// errNoAlertMarker 表示缓存中没有该 key 的告警标记（本地缓存 loader 的
-// 哨兵错误：时间窗口外应重新告警）。
-var errNoAlertMarker = errors.New("alertservice: no alert marker")
-
-// pkAlertKey 是告警去重 key：按来源（受众字符串）隔离，本科生/研究生互不影响。
-func pkAlertKey(audience string) string {
-	return "pk_alert:" + audience
+// pkAlertKey 按受众和接收人隔离；发送失败者下次可重试，已成功者不重复打扰。
+func pkAlertKey(audience string, userID uint64) string {
+	return fmt.Sprintf("pk_alert:%s:%d", audience, userID)
 }
 
 // audienceLabel 把原始受众字符串转成中文标签；空/未知值回落「本科」
@@ -51,7 +46,7 @@ func audienceLabel(audience string) string {
 // NotifyPkSyncFailed 在排课同步失败（fetchlog 标记 failed）时向拥有
 // SiteManager 权限（含 Admin 超级集）的全部活跃用户发送站内系统通知。
 //
-//   - 去重：同一来源（受众）在 alertWindow（6h）窗口内只发送一次；
+//   - 去重：每位接收人同一来源（受众）在 alertWindow（6h）窗口内只成功发送一次；
 //   - best-effort：不 panic、不向调用方返回错误，单项失败仅 slog.Warn。
 //
 // 注意：message 来自同步错误文本（err.Error()），上游已脱敏，不包含凭证原文。
@@ -64,14 +59,6 @@ func NotifyPkSyncFailed(audience string, message string) {
 	}()
 
 	audience = string(pk.DefaultAudience(audience))
-	key := pkAlertKey(audience)
-	// 窗口内已告警过则跳过（本地缓存 TTL 实现时间窗）。
-	if _, err := pkAlertCache.GetOrLoadE(key, func() (time.Time, error) {
-		return time.Time{}, errNoAlertMarker
-	}, alertWindow); err == nil {
-		slog.Debug("alertservice: pk sync failure alert skipped (already notified in window)", "audience", audience)
-		return
-	}
 
 	// 认领接收人：具备 SiteManager 权限的角色（CheckRole 对 Admin 角色视为超集）。
 	roleIds := make([]uint64, 0, 4)
@@ -92,12 +79,16 @@ func NotifyPkSyncFailed(audience string, message string) {
 		if userID == 0 {
 			continue
 		}
-		if err := notificationservice.SendSystemAlert(userID, title, content); err != nil {
+		// GetOrLoadE 的 singleflight 将查询、发送和成功标记作为同一次操作；
+		// loader 失败不缓存，部分成功时只重试未送达者。缓存为进程内，重启后重置。
+		_, err := pkAlertCache.GetOrLoadE(pkAlertKey(audience, userID), func() (time.Time, error) {
+			if err := notificationservice.SendSystemAlert(userID, title, content); err != nil {
+				return time.Time{}, err
+			}
+			return now(), nil
+		}, alertWindow)
+		if err != nil {
 			slog.Warn("alertservice: send pk sync failure alert failed", "userId", userID, "err", err)
 		}
 	}
-
-	// 发送完成后记录标记，窗口内不再重复提醒。即便上面发送部分失败也记录，
-	// 避免凭证持续失效时 cron 每轮重复打扰（站内通知可随时补发）。
-	pkAlertCache.Set(key, now(), alertWindow)
 }
