@@ -620,6 +620,13 @@ instance:
 > `calendarId`、教学班或字典键可以在两个范围内同时存在。旧的单 Cookie 配置按本科生处理。
 > 同一范围、同一学期同步中的并发仍受 fetchlog 1 小时 running 窗口保护（见下）。
 
+**凭证校验（保存前探测，issue #856）**：管理端 → 设置 → 一系统同步 每行凭证的
+「校验凭证」按钮在保存前探测凭证可用性（`POST /api/admin/pk/validate-credential`）：
+以目标受众最新已同步学期为真实目标最小抓取一页（pageSize=1），**不写库、不写
+fetchlog、不修改任何配置**。非空输入优先；输入框留空时与同步 CLI 一致，先读取对应
+环境变量，再读取管理端已保存设置。凭证失效（Cookie 过期、X-Token 失效等）返回 `valid=false` 与
+脱敏后的失败原因，不触发同步；目标受众尚无已同步学期时提示先同步一个学期。
+
 **后台物化入口（Current）**：管理端 → 设置 → 一系统同步 →「物化课评目录」，
 选择已同步学期后执行。该入口调用 `POST /api/admin/pk/materialize-calendar`，仅需
 SiteManager 权限，不需要一系统 Cookie；单学期事务提交后展示课程卡/教学班新增和更新数量。

@@ -946,4 +946,7 @@ export default {
   "k00vh5": "Failed to import the sticker pack. Please retry.",
   "k00vh6": "The expanded archive exceeds the total size limit (64 MB).",
   "k00vh7": "Sticker sources and licenses",
+  "k00wh0": "Validate credential",
+  "k00wh1": "Credential validation failed",
+  "k00wh2": "Credential valid, OneSystem is reachable",
 } as const

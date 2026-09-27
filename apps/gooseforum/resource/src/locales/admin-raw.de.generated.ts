@@ -946,4 +946,7 @@ export default {
   "k00vh5": "Import des Sticker-Pakets fehlgeschlagen. Bitte erneut versuchen.",
   "k00vh6": "Das entpackte Archiv überschreitet die Gesamtgröße von 64 MB.",
   "k00vh7": "Sticker-Quellen und Lizenzen",
+  "k00wh0": "Anmeldedaten prüfen",
+  "k00wh1": "Prüfung der Anmeldedaten fehlgeschlagen",
+  "k00wh2": "Anmeldedaten gültig, OneSystem erreichbar",
 } as const

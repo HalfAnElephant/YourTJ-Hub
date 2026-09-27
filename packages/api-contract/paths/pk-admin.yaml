@@ -181,3 +181,80 @@ adminMaterializePkCalendar:
                 externalValue: ../fixtures/admin-ai-summary-settings-permission-denied.json
               csrfRejected:
                 externalValue: ../fixtures/csrf-rejected.json
+
+adminValidatePkCredential:
+  post:
+    tags: [Admin]
+    summary: Probe a OneSystem (一系统) credential before saving it
+    operationId: adminValidatePkCredential
+    description: |
+      Admin console operation gated by the `SiteManager` role permission
+      (Admin role is a superset); callers without it fail with HTTP 403 and
+      `permission.denied` (params permission=<localized permission name>,
+      `站点管理` in zh). Validates a 一系统 credential for the requested audience
+      (undergraduate Cookie / graduate X-Token) with a minimal probe before
+      saving it (issue #856): it fetches exactly one page (pageSize=1) of the
+      latest synced calendar for that audience and performs **no database
+      writes, no fetch-log rows, no configuration changes**. A blank
+      `credential` resolves via the same priority as the sync CLI
+      (environment variables first, then the admin-stored securestore setting).
+      Undergraduate environment priority is `ONESYSTEM_UNDERGRADUATE_COOKIE`,
+      then `ONESYSTEM_COOKIE`; graduate priority is `ONESYSTEM_GRADUATE_X_TOKEN`,
+      then `ONESYSTEM_X_TOKEN`, then the legacy `ONESYSTEM_GRADUATE_COOKIE`.
+      A non-blank request credential overrides both environment and saved settings.
+      A credential failure (HTTP 401/403, business
+      code != 0, network error) is a **business result** — HTTP 200 with
+      `result.valid=false` and a credential-redacted failure message — not an
+      HTTP error. Only hard errors (unsupported audience, missing credential
+      source, database read failure) return the failure envelope. With no
+      synced calendar for the audience the result is `valid=false` with a
+      "sync a term first" message. The probe is bounded by a 45s timeout.
+    security:
+      - bearerAuth: []
+      - accessTokenCookie: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas.yaml#/PkValidateCredentialRequest
+    responses:
+      '200':
+        description: Probe result (valid=true / valid=false + sanitized message), or a business failure envelope for hard errors.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/PkValidateCredentialResponse
+            examples:
+              valid:
+                externalValue: ../fixtures/pk-credential-valid.json
+              invalid:
+                externalValue: ../fixtures/pk-credential-invalid.json
+              invalidParams:
+                externalValue: ../fixtures/invalid-params.json
+      '401':
+        description: Missing, invalid, expired, or revoked access token.
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+            examples:
+              unauthenticated:
+                externalValue: ../fixtures/auth-required.json
+      '403':
+        description: >-
+          Frozen account, or caller lacks the SiteManager permission.
+          A cross-site cookie-authenticated request (missing or mismatched Origin/Referer) is rejected
+          by the CSRF gate before the handler with HTTP 403 `auth.csrf.rejected`; the session cookie
+          is not cleared (issue #406).
+        content:
+          application/json:
+            schema:
+              $ref: ../components/schemas.yaml#/ApiFailure
+            examples:
+              frozenAccount:
+                externalValue: ../fixtures/account-frozen.json
+              permissionDenied:
+                externalValue: ../fixtures/admin-ai-summary-settings-permission-denied.json
+              csrfRejected:
+                externalValue: ../fixtures/csrf-rejected.json
