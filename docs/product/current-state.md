@@ -103,6 +103,12 @@
 PK 改码处理（issue #475）：`newCourseCode` / `newCode` 是排课公开查询与课程目录物化的
 当前有效编号；一系统原始 `courseCode` / `code` 留作沿革证据及历史方案输入兼容。
 
+排课同步失败告警（`Current`，issue #855）：同步标记 `failed`（典型为凭证失效）时，
+向所有具备 SiteManager 权限（含 Admin 超级集角色）的活跃用户发送站内系统通知，
+标题「一系统排课同步失败」，正文含来源（本科/研究生）与已脱敏的错误信息；同一来源
+（受众）按接收人成功送达后 6 小时去重（进程内窗口，重启后重置）；未送达者在下次
+失败事件重试，已送达者不重复通知。Web 与移动端均按通知标题与正文原样渲染。
+
 ### Forum mention notifications
 
 `Current`: Public first posts and replies notify eligible users mentioned by exact, case-sensitive
