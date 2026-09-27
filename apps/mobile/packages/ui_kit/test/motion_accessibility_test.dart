@@ -1,5 +1,6 @@
 import 'dart:ui' show SemanticsRole;
 import 'package:flutter/material.dart';
+import 'package:extended_image/extended_image.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -342,14 +343,12 @@ void main() {
         reduced: true,
       ),
     );
-    await tester.tap(
-      find.byWidgetPredicate(
-        (widget) => widget is GfSymbol && widget.name == 'chevron-right',
-      ),
-    );
+    await tester.tap(find.byKey(const ValueKey('gf-image-viewer-thumbnail-1')));
     await tester.pump();
-    final pages = tester.widget<PageView>(find.byType(PageView));
-    expect(pages.controller!.page, 1);
+    final pages = tester.widget<ExtendedImageGesturePageView>(
+      find.byType(ExtendedImageGesturePageView),
+    );
+    expect(pages.controller.page, 1);
     expect(find.text('2 / 2'), findsOneWidget);
   });
 
