@@ -473,7 +473,7 @@ describe('ScheduleMajorSelector issue #795：首次上下文初始化不误清�
     document.body.innerHTML = ''
   })
 
-  test('新设备从零建立上下文：学期→年级→专业全程不清空云端同步的方案课程', async () => {
+  test.each(['连续完成', '选学期后刷新', '选年级后刷新'])('首次上下文 %s：全程保留云端方案课程', async (checkpoint) => {
     const store = useScheduleStore()
     // 设备 B：localStorage 无任何学期选择（首次登录排课页），
     // 但方案已通过 useScheduleSync.perform 从云端采用（含课程，内容非空）。
@@ -482,7 +482,7 @@ describe('ScheduleMajorSelector issue #795：首次上下文初始化不误清�
     store.state.activePlanId = 'plan_cloud_1'
 
     mounted = mount(ScheduleMajorSelector, { global: { plugins: [i18n] } })
-    const wrapper = mounted
+    let wrapper = mounted
     await flushPromises()
 
     // 挂载自动回填首个学期：向导第 1 步，方案课程必须原样保留
@@ -490,11 +490,23 @@ describe('ScheduleMajorSelector issue #795：首次上下文初始化不误清�
     expect(store.state.majorSelected.calendarId).toBe(121)
     expect(store.state.plans[0].stagedCourses).toHaveLength(1)
 
+    async function reloadSelector() {
+      mounted!.unmount()
+      document.body.innerHTML = ''
+      store.loadSolidify()
+      mounted = mount(ScheduleMajorSelector, { global: { plugins: [i18n] } })
+      wrapper = mounted
+      await flushPromises()
+    }
+    if (checkpoint === '选学期后刷新') await reloadSelector()
+
     // 向导第 2 步：选年级 2025。
     const gradeOptions = await openCombobox(wrapper, 1)
     await selectOption(wrapper, gradeOptions.find((o) => o.textContent === '2025')!)
     expect(store.state.majorSelected.grade).toBe(2025)
     expect(store.state.plans[0].stagedCourses).toHaveLength(1)
+
+    if (checkpoint === '选年级后刷新') await reloadSelector()
 
     // 向导第 3 步：选专业（含原位置关键词筛选），向导完成。
     const input = wrapper.get<HTMLInputElement>('[data-testid="schedule-major-combobox-input"]')
@@ -538,10 +550,10 @@ describe('ScheduleMajorSelector issue #795：首次上下文初始化不误清�
     expect(store.state.plans[0].selectedCourses).toEqual([])
   })
 
-  test('已存学期失效回退仍清空旧学期课程（与既有回退语义一致）', async () => {
+  test.each(['00301', undefined])('已存学期失效时，无论是否选过专业 %s 均清空旧学期课程', async (major) => {
     const store = useScheduleStore()
     // 设备已有学期 122 的选择（已失效），方案含课程 → 回退 121 时清空旧课程。
-    store.state.majorSelected = { calendarId: 122, grade: 2025, major: '00301' }
+    store.state.majorSelected = { calendarId: 122, grade: 2025, major }
     store.state.plans = [planWithCloudCourse()]
     store.state.activePlanId = 'plan_cloud_1'
 

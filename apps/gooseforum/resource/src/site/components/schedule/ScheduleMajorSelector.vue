@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 学期→年级→专业 选择器。任何一级变更都会清空已选/备选课程（防跨学期污染），
+// 学期→年级→专业选择器。完成初始化后的上下文变更清空课程（防跨学期污染），
 // 对齐上游 MajorInfo 交互语义。
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AlertCircle, Check, ChevronDown, ChevronUp, Compass, Copy, ExternalLink, HelpCircle, Info, Link2, RotateCcw, Sparkles, X } from '@lucide/vue'
@@ -51,9 +51,8 @@ const loading = ref(false)
 const error = ref('')
 /** 初始化恢复期：抑制 watch 触发清空（避免误清刷新恢复的已选课程）。 */
 let isRestoring = true
-/** 本挂载周期是否为「从零建立上下文」：restore 时设备从未存过学期选择
- *  （新设备/数据残留），首次选择属于上下文初始化向导而非上下文变更，
- *  用于在向导完成前豁免对跨设备同步方案课程的清空（issue #795）。 */
+/** 尚未选到专业的上下文仍属于初始化，即使中途退出或刷新。
+ *  初始化期间保留跨设备同步方案；已有完整上下文的变更仍清空课程。 */
 let firstSelectionWizard = false
 
 // 选择组件的 modelValue 为 string；选择值本地持有字符串，变更时写回 store。
@@ -143,7 +142,7 @@ async function loadMajors(grade: number, calendarId: number) {
 
 /**
  * 学期/年级/专业任一变更后的课程清理入口。
- * @param skipClear 跳过清空。设备从未存过学期选择（firstSelectionWizard）
+ * @param skipClear 跳过清空。设备尚未完成专业选择（firstSelectionWizard）
  *  且尚未选到专业（向导未完成）时，选择属于上下文初始化而非变更——清空语义
  *  隐含「课程内容属于本设备上下文」，而方案内容现跨设备同步（#714/#757），
  *  此时清空会把云端同步下来的全部方案清空并以合法 CAS 上传空方案扩散
@@ -165,9 +164,8 @@ async function restoreSelection() {
   isRestoring = true
   await loadCalendars()
   const restored = store.state.majorSelected
-  // issue #795：restore 时设备从未存过学期选择 → 本次为首次上下文初始化向导，
-  // 向导完成前任何选择（学期/年级/专业）都豁免清空已同步方案课程。
-  firstSelectionWizard = restored.calendarId === undefined
+  // 自动回填的学期不代表初始化已完成；刷新后继续未完成的向导。
+  firstSelectionWizard = !restored.major
   const calendarId = calendarValue.value ? Number(calendarValue.value) : undefined
   // 首次访问（无已存选择）或已存学期失效回退时，isRestoring 抑制 watch，
   // 必须把最终选中的学期写回 store；否则后续选年级时 calendarId 为
@@ -176,16 +174,16 @@ async function restoreSelection() {
   if (calendarChanged) {
     store.setMajorInfo({ calendarId, grade: undefined, major: undefined })
     // 已存学期失效：清掉其课程缓存，防跨学期污染（对齐学期变更 watch 语义）。
-    // 首次初始化（firstSelectionWizard）时跳过——没有任何「上一个上下文」可污染。
-    resetSelection(firstSelectionWizard)
+    // 只有从未保存过学期才豁免；失效学期即使尚未选专业也必须清理。
+    resetSelection(restored.calendarId === undefined)
   }
   if (calendarId !== undefined) {
     await loadGrades(calendarId)
-    // 仅当学期未变（有效恢复）且年级/专业均恢复成功时加载专业；
+    // 学期未变且年级已恢复时加载专业，包括中途退出的初始化向导；
     // 回退场景专业已清空，等用户重新选择（watch 使用已写回的 calendarId）。
-    if (gradeValue.value && restored.major && !calendarChanged) {
+    if (gradeValue.value && !calendarChanged) {
       await loadMajors(Number(gradeValue.value), calendarId)
-      if (!restored.majorName) {
+      if (restored.major && !restored.majorName) {
         const found = displayMajor(restored.major)
         if (found) {
           store.setMajorInfo({ ...restored, majorName: found })
