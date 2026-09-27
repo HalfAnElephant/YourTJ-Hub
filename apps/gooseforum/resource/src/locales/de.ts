@@ -836,6 +836,7 @@ export default {
   topicList: {
     newTopic: 'Neues Thema',
     pinned: 'Hervorgehoben',
+    pinnedTopics: 'Hervorgehobene Themen',
     announcement: 'Ankündigung',
     markAnnouncementRead: 'Als gelesen markieren',
     markAnnouncementUnread: 'Erinnerung wieder aufnehmen',

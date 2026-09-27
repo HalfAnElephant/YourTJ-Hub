@@ -837,6 +837,7 @@ export default {
   topicList: {
     newTopic: 'New topic',
     pinned: 'Pinned',
+    pinnedTopics: 'Pinned topics',
     announcement: 'Announcement',
     markAnnouncementRead: 'Mark as read',
     markAnnouncementUnread: 'Resume reminders',

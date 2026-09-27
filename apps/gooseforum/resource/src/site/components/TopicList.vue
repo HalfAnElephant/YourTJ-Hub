@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, shallowReactive, useSlots, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, shallowReactive, useId, useSlots, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { TopicPayload } from '@gooseforum/client'
 import { createTopicCardInteraction, type TopicCardInteraction } from '@/site/utils/topic-card-interactions'
@@ -25,6 +25,12 @@ const props = withDefaults(defineProps<{
 
 const { t } = useI18n()
 const slots = useSlots()
+const pinnedTopicsId = `gf-pinned-topics-${useId()}`
+const pinnedTopicsExpanded = ref(false)
+const pinnedTopics = computed(() => props.showPinned ? props.topics.filter(topic => topic.pinWeight > 0) : [])
+const regularTopics = computed(() => pinnedTopics.value.length
+  ? props.topics.filter(topic => topic.pinWeight <= 0)
+  : props.topics)
 
 const interactions = shallowReactive(new Map<number, TopicCardInteraction>())
 function clearInteractions() {
@@ -67,8 +73,39 @@ onBeforeUnmount(clearInteractions)
     </div>
 
     <div class="relative bg-base-100">
+      <section v-if="pinnedTopics.length" class="border-b border-line/70">
+        <button
+          type="button"
+          class="flex min-h-11 w-full min-w-0 items-center gap-2 px-3 text-left text-sm font-medium text-base-content/75 outline-none hover:bg-base-200/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 sm:px-4"
+          :aria-expanded="pinnedTopicsExpanded"
+          :aria-controls="pinnedTopicsId"
+          @click="pinnedTopicsExpanded = !pinnedTopicsExpanded"
+        >
+          <span class="truncate">{{ t('topicList.pinnedTopics') }}</span>
+          <span class="shrink-0 text-base-content/55">{{ pinnedTopics.length }}</span>
+          <span class="ml-auto shrink-0 text-base-content/55" aria-hidden="true">{{ pinnedTopicsExpanded ? '−' : '+' }}</span>
+        </button>
+        <div :id="pinnedTopicsId" v-show="pinnedTopicsExpanded">
+          <TopicRow
+            v-for="topic in pinnedTopics"
+            :key="topic.id"
+            :topic="topic"
+            :home="home"
+            :show-categories="showCategories"
+            :show-hot="showHot"
+            :show-pinned="showPinned"
+          >
+            <template v-if="slots.activity" #activity="{ topic: rowTopic }">
+              <slot name="activity" :topic="rowTopic" />
+            </template>
+            <template v-if="slots['mobile-action']" #mobile-action="{ topic: rowTopic }">
+              <slot name="mobile-action" :topic="rowTopic" />
+            </template>
+          </TopicRow>
+        </div>
+      </section>
       <TopicRow
-        v-for="topic in topics"
+        v-for="topic in regularTopics"
         :key="topic.id"
         :topic="topic"
         :home="home"
@@ -88,8 +125,32 @@ onBeforeUnmount(clearInteractions)
 
   <template v-else>
     <div class="relative space-y-4 p-4">
+      <section v-if="pinnedTopics.length" class="overflow-hidden rounded-lg border border-line bg-base-100">
+        <button
+          type="button"
+          class="flex min-h-11 w-full min-w-0 items-center gap-2 px-3 text-left text-sm font-medium text-base-content/75 outline-none hover:bg-base-200/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60 sm:px-4"
+          :aria-expanded="pinnedTopicsExpanded"
+          :aria-controls="pinnedTopicsId"
+          @click="pinnedTopicsExpanded = !pinnedTopicsExpanded"
+        >
+          <span class="truncate">{{ t('topicList.pinnedTopics') }}</span>
+          <span class="shrink-0 text-base-content/55">{{ pinnedTopics.length }}</span>
+          <span class="ml-auto shrink-0 text-base-content/55" aria-hidden="true">{{ pinnedTopicsExpanded ? '−' : '+' }}</span>
+        </button>
+        <div :id="pinnedTopicsId" v-show="pinnedTopicsExpanded" class="space-y-4 border-t border-line p-3 sm:p-4">
+          <div
+            v-for="topic in pinnedTopics"
+            :key="topic.id"
+            class="gf-card group relative overflow-hidden [&_a.gf-topic-chip]:pointer-events-auto [&_a.gf-topic-chip]:relative [&_a.gf-topic-chip]:z-10"
+          >
+            <TopicFeedPreview :topic="topic" :show-categories="showCategories" :show-hot="showHot" :show-pinned="showPinned" compact :show-stats="false" class="pointer-events-none" />
+            <a :href="topic.url" class="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/50" :aria-label="topic.title" />
+            <TopicCardActions :topic="topic" class="relative px-3.5 pb-3" :interaction="interactions.get(topic.id)" />
+          </div>
+        </div>
+      </section>
       <div
-        v-for="topic in topics"
+        v-for="topic in regularTopics"
         :key="topic.id"
         class="gf-card group relative overflow-hidden [&_a.gf-topic-chip]:pointer-events-auto [&_a.gf-topic-chip]:relative [&_a.gf-topic-chip]:z-10"
       >

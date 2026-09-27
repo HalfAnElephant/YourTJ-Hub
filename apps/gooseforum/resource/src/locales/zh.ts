@@ -837,6 +837,7 @@ export default {
   topicList: {
     newTopic: '新建内容',
     pinned: '置顶',
+    pinnedTopics: '置顶话题',
     announcement: '公告',
     markAnnouncementRead: '标记为已读',
     markAnnouncementUnread: '恢复提醒',

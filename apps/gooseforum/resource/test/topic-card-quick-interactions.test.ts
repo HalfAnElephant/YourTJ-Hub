@@ -268,4 +268,45 @@ describe('TopicCardActions 卡片快捷互动（issue #380）', () => {
     })
     expect(view.findComponent(TopicCardActions).exists()).toBe(false)
   })
+
+  it.each(['table', 'card'] as const)('首页 %s 视图折叠置顶话题且保留普通话题', async (feedMode) => {
+    const view = mount(TopicList, {
+      props: {
+        topics: [
+          baseTopic({ id: 1, title: '置顶一', pinWeight: 2 }),
+          baseTopic({ id: 2, title: '置顶二', pinWeight: 1 }),
+          baseTopic({ id: 3, title: '普通话题' }),
+        ],
+        feedMode,
+        showPinned: true,
+      },
+      global: {
+        plugins: [i18n],
+        stubs: {
+          TopicFeedPreview: { props: ['topic'], template: '<div>{{ topic.title }}</div>' },
+          TopicRow: { props: ['topic'], template: '<div class="test-topic-row">{{ topic.title }}</div>' },
+          TopicCardActions: true,
+        },
+      },
+    })
+
+    const toggle = view.get('button[aria-controls]')
+    const panel = view.get(`#${toggle.attributes('aria-controls')}`)
+    const visibleTitles = () => feedMode === 'table'
+      ? view.findAll('.test-topic-row').filter(row => row.isVisible()).map(row => row.text())
+      : view.findAll('a[aria-label]').filter(link => link.isVisible()).map(link => link.attributes('aria-label'))
+    expect(toggle.text()).toContain('置顶话题')
+    expect(toggle.text()).toContain('2')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(toggle.classes()).toContain('min-h-11') // 44px touch target; summary stays one line on narrow screens.
+    expect(toggle.find('.truncate').exists()).toBe(true)
+    expect(toggle.classes()).toContain('focus-visible:ring-2')
+    expect(visibleTitles()).toContain('普通话题')
+    expect(panel.attributes('style')).toContain('display: none')
+
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(panel.attributes('style')).toBeUndefined()
+    expect(visibleTitles()).toEqual(expect.arrayContaining(['置顶一', '置顶二', '普通话题']))
+  })
 })

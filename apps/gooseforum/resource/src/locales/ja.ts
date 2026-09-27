@@ -836,6 +836,7 @@ export default {
   topicList: {
     newTopic: '新規トピック',
     pinned: '固定',
+    pinnedTopics: '固定トピック',
     announcement: 'お知らせ',
     markAnnouncementRead: '既読にする',
     markAnnouncementUnread: '通知を再開',
