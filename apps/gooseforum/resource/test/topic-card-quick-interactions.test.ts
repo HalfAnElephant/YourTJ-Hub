@@ -6,6 +6,7 @@ import TopicCardActions from '../src/site/components/TopicCardActions.vue'
 import TopicList from '../src/site/components/TopicList.vue'
 import TopicFeedMeta from '../src/site/components/TopicFeedMeta.vue'
 import TopicFeedPreview from '../src/site/components/TopicFeedPreview.vue'
+import TopicRow from '../src/site/components/TopicRow.vue'
 import type { TopicPayload } from '@gooseforum/client'
 import zh from '../src/locales/zh'
 
@@ -267,5 +268,52 @@ describe('TopicCardActions 卡片快捷互动（issue #380）', () => {
       },
     })
     expect(view.findComponent(TopicCardActions).exists()).toBe(false)
+  })
+
+  it.each(['table', 'card'] as const)('首页 %s 模式独立折叠置顶帖，普通帖保持完整', async (feedMode) => {
+    const topics = [
+      baseTopic({ id: 1, title: 'Pinned one', url: '/p/1', pinWeight: 1 }),
+      baseTopic({ id: 2, title: 'Pinned two', url: '/p/2', pinWeight: 2 }),
+      baseTopic({ id: 3, title: 'Regular topic', url: '/p/3', description: 'Regular topic body' }),
+    ]
+    const view = mount(TopicList, {
+      props: { topics, home: true, showPinned: true, feedMode },
+      global: { plugins: [i18n] },
+      attachTo: document.body,
+    })
+
+    expect(view.findAll('.gf-pinned-topic-summary')).toHaveLength(2)
+    expect(view.findAll('button[aria-expanded="false"][aria-controls^="pinned-topic-"]')).toHaveLength(2)
+    expect(view.text()).toContain('Regular topic body')
+    if (feedMode === 'table') {
+      expect(view.findAllComponents(TopicRow).some(row => row.props('topic').id === 3)).toBe(true)
+    } else {
+      expect(view.findAllComponents(TopicFeedPreview).some(preview => preview.props('topic').id === 3)).toBe(true)
+    }
+    expect(view.get('#pinned-topic-1-details').exists()).toBe(true)
+    expect(view.get('#pinned-topic-1-details').attributes('style')).toContain('display: none')
+
+    const summary = view.get('a[href="/p/1"]')
+    const expand = view.get('button[aria-controls="pinned-topic-1-details"]')
+    expect(summary.element.closest('.gf-pinned-topic-summary')?.classList.contains('h-12')).toBe(true)
+    expect(summary.classes()).toContain('truncate')
+    expect(expand.classes()).toContain('h-11')
+    expect(expand.classes()).toContain('w-11')
+    expect(summary.element.closest('button')).toBeNull()
+    expect(expand.element.closest('a')).toBeNull()
+
+    const expandElement = expand.element as HTMLButtonElement
+    expandElement.focus()
+    expect(document.activeElement).toBe(expandElement)
+    expandElement.click()
+    await view.vm.$nextTick()
+    expect(view.get('button[aria-controls="pinned-topic-1-details"]').element).toBe(expandElement)
+    expect(document.activeElement).toBe(expandElement)
+    expect(view.get('#pinned-topic-1-details').exists()).toBe(true)
+    expect(view.get('button[aria-controls="pinned-topic-1-details"]').attributes('aria-expanded')).toBe('true')
+    expect(view.findAll('.gf-pinned-topic-summary')).toHaveLength(2)
+    expect(view.get('button[aria-controls="pinned-topic-2-details"]').attributes('aria-expanded')).toBe('false')
+    expect(view.text()).toContain('Regular topic body')
+    view.unmount()
   })
 })
