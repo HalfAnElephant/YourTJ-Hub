@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../theme/gf_theme.dart';
+import '../gf_motion.dart';
 import '../gf_symbol.dart';
 import 'gf_composer_panel.dart';
 
@@ -263,7 +264,11 @@ class _GfChatInputState extends State<GfChatInput> with WidgetsBindingObserver {
                         Expanded(
                           child: AnimatedContainer(
                             key: const Key('chat-input-surface'),
-                            duration: const Duration(milliseconds: 140),
+                            duration: GfMotion.duration(
+                              context,
+                              GfMotion.press,
+                            ),
+                            curve: GfMotion.enterCurve,
                             decoration: BoxDecoration(
                               color: colors.base200,
                               borderRadius: BorderRadius.circular(24),

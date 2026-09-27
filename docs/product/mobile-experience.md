@@ -102,7 +102,7 @@ ordered after the active route in the accessibility tree so iOS does not hide it
 - `Current`: pushed pages use platform-native transitions on iOS — the system
   Cupertino page transition with the interactive edge-swipe back gesture, so
   secondary pages (topic, course, Wiki, settings) can be swiped closed from the
-  left edge. Android keeps the web-mirrored fade/rise transition. Horizontal
+  left edge. Android keeps the shared mobile fade/rise transition. Horizontal
   scroll rails keep working; the back gesture only claims the narrow left-edge
   band.
 - `Current`: four persistent destinations — Home, Campus, Notifications and Messages — use icon-only
@@ -140,7 +140,7 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   filter the existing stream in place, with a highlighted selection and an All categories action.
   The display menu contains list/card preferences; unavailable categories take no space.
 - `Current`: root headers, filter rails and bottom navigation overlay the reading viewport. They
-  hide after 48 logical pixels downward and return after 12 pixels upward, with 200 ms transitions.
+  hide after 48 logical pixels downward and return after 12 pixels upward, with 220 ms transitions.
   Hidden headers are clipped at the system safe-area edge; the reading viewport stays stable.
   Reaching the top, changing destination or opening the account drawer restores the controls.
   Reduced motion removes the transition; keyboard/modal interaction keeps controls visible.
@@ -287,6 +287,35 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   delivery recovers. Account changes cancel the previous connection and discard stale unread responses.
   Background push delivery is not provided by this stream.
 
+## Motion and continuity
+
+`Current`: native mobile motion uses one semantic policy: 120 ms press feedback,
+160 ms selection, 180 ms content, 220 ms layout and 280 ms sheet/media transitions.
+Root headers, navigation and compose controls move together while the reading viewport stays
+stable. Tabs, announcement expansion, form focus, theme/logo changes and local disclosures
+consume that policy. Android pushed pages use a 220 ms fade with a six-logical-pixel rise and
+180 ms return; iOS retains Cupertino navigation and its cancellable edge-swipe gesture.
+Native drawers, scrolling, refresh and direct image gestures retain platform behavior.
+
+`Current`: feedback banners enter and leave softly; a replacement crossfades in the same overlay
+and cancels an older pending dismissal. A dismissed banner stops accepting input before removal.
+Feed and topic-dock toggles use the same single, at-most-six-percent icon pulse on explicit
+activation. Passive data updates do not replay it. Actions and network requests start immediately,
+and optimistic state and failure rollback remain owned by their existing feature state.
+
+`Current`: reduced motion removes custom transition durations, announcement expansion and rotation,
+icon pulses, programmatic image paging/zoom and reading-position movement. Shared indeterminate
+progress becomes a static glyph with loading semantics and no fabricated completion percentage; real upload
+progress remains determinate. Enabling reduced motion during a pulse or banner exit settles it;
+changing the preference keeps route-local drafts, focus and reading state mounted. Android push/pop
+durations become zero; lazy course-review deep links jump and wait for layout before locating the row.
+Short return-to-top movements animate; jumps beyond three viewport heights go directly to the target.
+Media wrap-around also jumps directly instead of sweeping through intervening images.
+
+`Partial`: widget coverage verifies cadence, bounded feedback, interruption, reduced motion and
+iOS back gestures. Physical-device frame timing and subjective motion acceptance remain runtime
+validation; simulator/debug execution does not establish production frame-rate guarantees.
+
 ## Language and presentation
 
 - `Current`: bottom sheets size to short content and constrain long, scrollable content to the
@@ -373,7 +402,8 @@ panels are mutually exclusive and preserve draft text and selection. Unsupported
 are not displayed. Chat bubbles use 20-pixel corners and are bounded by the conversation pane.
 
 `Current`: primary and secondary buttons use pill shapes with state-specific colors and a separate
-48-pixel hit target. Icon actions retain at least 44 pixels. Menus, segmented controls and choice
+48-pixel hit target. Icon actions retain at least 44 pixels, except the compact profile social links,
+whose touch areas are 24 pixels wide and 32 pixels high. Menus, segmented controls and choice
 labels grow with system text size; selected states expose semantics. Dialogs use one scrollable
 surface with 24-pixel corners, while inline alerts use a quiet 16-pixel surface. Avatars, loading,
 badges, dividers and selectors share the same semantic palette without third-party default skins.
@@ -699,7 +729,7 @@ identity survive this layout change. The header keeps a small outer margin for i
   and the six Web social providers. Saving preserves unedited fields and unknown social providers;
   website/social destinations accept HTTP(S), and social usernames expand to provider URLs.
   Public profiles display website/social links as icon-only controls and open them in the system
-  browser. Provider marks use compact, equally sized 24–32-pixel touch targets alongside profile dates,
+  browser. Provider marks use compact, equally sized 24-by-32-pixel touch targets alongside profile dates,
   with their names available to screen readers and long-press tooltips. Worn badges appear on the avatar independently of the badge list;
   administrator identity has a localized role label. Returning
   from settings refreshes profile identity and media immediately.
