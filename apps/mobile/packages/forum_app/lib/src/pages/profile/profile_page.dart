@@ -204,6 +204,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       final followRead = widget.userId == null || nextUrl != null
           ? null
           : ref.read(userFollowStateProvider(uid)).beginRead();
+      final relationshipRead = switch (key) {
+        'following' || 'followers' => nextUserFollowReadOrder(),
+        _ => null,
+      };
       final path = nextUrl ?? _streamPath(uid, key);
       final payload = await ref
           .read(pageRepositoryProvider)
@@ -217,6 +221,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ref
             .read(userFollowStateProvider(uid))
             .acceptServerValue(props.user.isFollowing, followRead);
+      }
+      if (relationshipRead != null) {
+        final connections = key == 'following'
+            ? props.following
+            : props.followers;
+        for (final connection in connections) {
+          final isFollowing = connection.isFollowing;
+          if (isFollowing != null) {
+            ref
+                .read(userFollowStateProvider(connection.id).notifier)
+                .acceptServerValue(isFollowing, relationshipRead);
+          }
+        }
       }
       void accept(_ContentKey? key, bool? liked, bool? bookmarked, int count) {
         if (key == null ||

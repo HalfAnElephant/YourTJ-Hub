@@ -236,7 +236,11 @@ final topicRepositoryProvider = Provider<TopicRepository>((ref) {
   return TopicRepository(ref.watch(apiClientProvider));
 });
 
-typedef UserFollowRead = ({int mutation, int request});
+typedef UserFollowRead = int;
+
+int _userFollowReadOrder = 0;
+
+int nextUserFollowReadOrder() => ++_userFollowReadOrder;
 
 final userFollowStateProvider = ChangeNotifierProvider.autoDispose
     .family<UserFollowState, int>((ref, _) {
@@ -252,18 +256,20 @@ class UserFollowState extends ChangeNotifier {
   bool? following;
   bool busy = false;
   int _mutation = 0;
-  int _request = 0;
+  int _lastAcceptedRead = 0;
+  int _lastMutationRead = 0;
   bool _disposed = false;
 
-  UserFollowRead beginRead() => (mutation: _mutation, request: ++_request);
+  UserFollowRead beginRead() => nextUserFollowReadOrder();
 
   void acceptServerValue(bool value, UserFollowRead read) {
     if (_disposed ||
         busy ||
-        read.mutation != _mutation ||
-        read.request != _request) {
+        read <= _lastMutationRead ||
+        read <= _lastAcceptedRead) {
       return;
     }
+    _lastAcceptedRead = read;
     following = value;
     notifyListeners();
   }
@@ -272,7 +278,7 @@ class UserFollowState extends ChangeNotifier {
     if (_disposed || busy) return;
     final previous = following ?? fallback;
     final mutation = ++_mutation;
-    _request++;
+    _lastMutationRead = nextUserFollowReadOrder();
     following = !previous;
     busy = true;
     notifyListeners();
@@ -285,7 +291,7 @@ class UserFollowState extends ChangeNotifier {
       if (!_disposed && mutation == _mutation) {
         busy = false;
         _mutation++;
-        _request++;
+        _lastMutationRead = nextUserFollowReadOrder();
         notifyListeners();
       }
     }
