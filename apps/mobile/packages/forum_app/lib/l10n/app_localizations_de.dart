@@ -242,6 +242,12 @@ class AppLocalizationsDe extends AppLocalizations {
   String get authGetCode => 'Code anfordern';
 
   @override
+  String get authRefreshCaptcha => 'Captcha erneuern';
+
+  @override
+  String get authCaptchaRequired => 'Bitte Captcha eingeben';
+
+  @override
   String get authOidcLogin => 'Mit YourTJ anmelden';
 
   @override

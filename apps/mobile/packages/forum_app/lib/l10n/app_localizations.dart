@@ -516,6 +516,18 @@ abstract class AppLocalizations {
   /// **'Get code'**
   String get authGetCode;
 
+  /// No description provided for @authRefreshCaptcha.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh captcha'**
+  String get authRefreshCaptcha;
+
+  /// No description provided for @authCaptchaRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter the captcha'**
+  String get authCaptchaRequired;
+
   /// No description provided for @authOidcLogin.
   ///
   /// In en, this message translates to:
