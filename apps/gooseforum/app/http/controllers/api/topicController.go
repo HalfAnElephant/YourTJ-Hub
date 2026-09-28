@@ -109,7 +109,7 @@ func GetSiteStatistics() component.Response {
 type WriteTopicReq struct {
 	TopicId     uint64   `json:"topicId"`
 	Content     string   `json:"content" validate:"required"`
-	Title       string   `json:"title" validate:"required"`
+	Title       string   `json:"title"` // 瞬间（contentType=2）可留空，其余类型由 writeTopic 强制非空
 	CategoryId  []uint64 `json:"categoryId" validate:"min=1,max=3"`
 	TopicStatus int8     `json:"topicStatus" validate:"oneof=0 1"`
 	Website     string   `json:"website,omitempty"` // 蜜罐字段，正常用户不可见
@@ -165,8 +165,19 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 		return component.FailResponseCode(component.MessageRequestInvalidParams, nil)
 	}
 
+	// 瞬间（thought）允许无标题：空白标题规范化为空串，不从正文自动提取；
+	// 其余类型仍必须携带标题，并保持原 validate:"required" 的线上失败形态
+	// （HTTP 200 + common.request.invalidParams，无 params）。
+	if req.Params.ContentType == posts.ContentTypeThought && strings.TrimSpace(req.Params.Title) == "" {
+		req.Params.Title = ""
+	}
+	if req.Params.Title == "" && req.Params.ContentType != posts.ContentTypeThought {
+		return component.FailResponseCode(component.MessageRequestInvalidParams, nil)
+	}
+
 	titleLength := utf8.RuneCountInString(req.Params.Title)
-	if titleLength < postingConfig.TextControl.MinTitleLength {
+	// 空标题仅瞬间合法，跳过最小长度校验；填写了标题的瞬间仍受最小/最大长度约束。
+	if titleLength > 0 && titleLength < postingConfig.TextControl.MinTitleLength {
 		minLength := postingConfig.TextControl.MinTitleLength
 		return component.FailResponseCode(
 			component.MessageTopicTitleTooShort,

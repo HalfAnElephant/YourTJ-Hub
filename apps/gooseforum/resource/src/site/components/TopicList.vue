@@ -6,6 +6,7 @@ import { createTopicCardInteraction, type TopicCardInteraction } from '@/site/ut
 import TopicCardActions from '@/site/components/TopicCardActions.vue'
 import TopicFeedPreview from '@/site/components/TopicFeedPreview.vue'
 import TopicRow from '@/site/components/TopicRow.vue'
+import { topicDescription } from '@/runtime/topic-description'
 const props = withDefaults(defineProps<{
   topics: TopicPayload[]
   viewerId?: number
@@ -98,7 +99,7 @@ onBeforeUnmount(clearInteractions)
         <a
           :href="topic.url"
           class="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          :aria-label="topic.title"
+          :aria-label="topic.title || topicDescription(topic)"
         />
         <TopicCardActions
           :topic="topic"

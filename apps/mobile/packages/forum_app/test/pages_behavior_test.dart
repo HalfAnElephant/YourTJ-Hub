@@ -2112,6 +2112,48 @@ void main() {
     },
   );
 
+  testWidgets(
+    'untitled moment hides the detail title and keeps a generic app bar label',
+    (tester) async {
+      final client = GfApiClient(
+        dio: Dio(),
+        tokenStorage: MemTokenStorage(),
+        baseUrl: 'http://fake.local',
+      );
+      final payload = redesignedTopicPayloadJson();
+      final topic = (payload['props'] as Map)['topic'] as Map<String, dynamic>;
+      topic
+        ..['title'] = ''
+        ..['contentType'] = 2;
+      final container = await makeContainer(
+        pageRepo: RedesignPageRepository(client, topicPayload: payload),
+      );
+      await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+      await tester.pumpAndSettle();
+
+      // 详情页大标题不渲染空标题。
+      expect(find.text('移动端测试话题'), findsNothing);
+      final l10n = AppLocalizations.of(tester.element(find.byType(GfAppBar)));
+      expect(
+        (tester.widget<GfAppBar>(find.byType(GfAppBar)).title as Text).data,
+        l10n.topicTitle,
+      );
+      // 滚动后仍不显示空标题，回退到通用「话题」标签。
+      await tester.drag(
+        find.byType(CustomScrollView).first,
+        const Offset(0, -500),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        (tester.widget<GfAppBar>(find.byType(GfAppBar)).title as Text).data,
+        l10n.topicTitle,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    },
+  );
+
   testWidgets('profile activity types have distinct semantic icons', (
     tester,
   ) async {

@@ -35,6 +35,9 @@ let headerScrollFrame = 0
 // 仅短文类型（提问 contentType: 1、瞬间 contentType: 2）使用前置图片轮播图窗；长文（讨论、文章）保持经典图文穿插
 const isShortForm = computed(() => page.props.topic.contentType === 1 || page.props.topic.contentType === 2)
 
+// 分享/删除确认等需要文案的场景：无标题瞬间回退到正文摘要，避免空标题。
+const topicDisplayTitle = computed(() => page.props.topic.title || page.props.topic.description)
+
 // 提取当前话题图片（仅短文类型提取，长文保持图文穿插）
 const topicImages = computed(() => {
   if (!isShortForm.value) {
@@ -180,7 +183,8 @@ function handleTopicState(nextLikeCount: number) {
 <template>
   <div class="min-w-0">
     <header ref="topicHeaderEl" class="relative z-10 border-b border-line/70 px-4 py-4 sm:mb-4 sm:px-0 sm:pb-4 sm:pt-0 xl:w-[calc(100%+292px)]">
-      <h1 ref="titleEl" class="break-words text-2xl font-bold leading-tight text-base-content [overflow-wrap:anywhere] sm:text-3xl">
+      <!-- 无标题瞬间不渲染大标题（未填写标题的瞬间标题恒为空） -->
+      <h1 v-if="page.props.topic.title" ref="titleEl" class="break-words text-2xl font-bold leading-tight text-base-content [overflow-wrap:anywhere] sm:text-3xl">
         {{ page.props.topic.title }}
       </h1>
       <!-- 桌面端元数据栏：完整横排平铺（sm 及以上屏幕） -->
@@ -299,7 +303,7 @@ function handleTopicState(nextLikeCount: number) {
     <PostStream
       ref="postStreamRef"
       :topic-id="page.props.topic.id"
-      :topic-title="page.props.topic.title"
+      :topic-title="topicDisplayTitle"
       :content-type="page.props.topic.contentType"
       :topic-images="topicImages"
       :categories="page.props.topic.categories"

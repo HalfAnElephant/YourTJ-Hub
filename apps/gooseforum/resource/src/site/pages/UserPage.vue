@@ -581,7 +581,7 @@ function safeProfileUrl(value?: string) {
                 >
                   <div class="min-w-0">
                     <div class="flex min-w-0 flex-wrap items-center gap-2">
-                      <span class="truncate text-[15px] font-semibold text-base-content">{{ topic.title }}</span>
+                      <span v-if="topic.title" class="truncate text-[15px] font-semibold text-base-content">{{ topic.title }}</span>
                       <span
                         v-for="category in topicCategories(topic)"
                         :key="category.id"
