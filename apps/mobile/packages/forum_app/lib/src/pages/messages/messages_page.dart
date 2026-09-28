@@ -341,9 +341,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage>
       ChatItemPayload(
         id: 0,
         peerId: selected.id,
-        peerUsername: selected.nickname.isEmpty
-            ? selected.username
-            : selected.nickname,
+        peerUsername: selected.username,
+        peerNickname: selected.nickname.isEmpty ? null : selected.nickname,
         peerAvatar: resolveApiAssetUrl(selected.avatarUrl),
         lastMsg: '',
         lastMsgTime: '',
@@ -1123,8 +1122,8 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                     privateDisplayName(
                       context,
                       widget.conv.peerId,
-                      '',
                       widget.conv.peerUsername,
+                      widget.conv.peerNickname,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1180,8 +1179,8 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                 privateDisplayName(
                                   context,
                                   widget.conv.peerId,
-                                  '',
                                   widget.conv.peerUsername,
+                                  widget.conv.peerNickname,
                                 ),
                               ),
                             )
@@ -1467,8 +1466,8 @@ class _ConversationList extends StatelessWidget {
           name: privateDisplayName(
             context,
             conversation.peerId,
-            '',
             conversation.peerUsername,
+            conversation.peerNickname,
           ),
           lastMessage: draft != null
               ? '${l10n.messagesDraftLabel} · ${stickerPreviewLabel(draft.value.text)}'

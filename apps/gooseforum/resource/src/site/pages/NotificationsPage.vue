@@ -249,7 +249,7 @@ function notificationTone(item: NotificationPayload) {
 
 function actorName(item: NotificationPayload) {
   if (item.eventType === 'badge') return notificationTemplateText(item) || item.title || t('notifications.actorFallback')
-  return userDisplayName(item.actor.id, item.actor.username || item.payload.actorName || item.payload.metadata?.followerName || t('notifications.actorFallback'))
+  return userDisplayName(item.actor.id, item.actor.username || item.payload.actorName || item.payload.metadata?.followerName || t('notifications.actorFallback'), item.actor.nickname)
 }
 
 function actorURL(item: NotificationPayload) {

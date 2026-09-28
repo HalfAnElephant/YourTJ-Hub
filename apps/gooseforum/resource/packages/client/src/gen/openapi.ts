@@ -9264,6 +9264,8 @@ export interface components {
         AdminTopicListItem: components["schemas"]["AdminTopicBase"] & {
             /** @description Author username; empty when the author account is gone. */
             username: string;
+            /** @description Author's current nickname; omitted when the user has none. */
+            nickname?: string;
             userAvatarUrl: string;
             /** Format: uint64 */
             viewCount: number;
@@ -9437,6 +9439,8 @@ export interface components {
             /** Format: uint64 */
             userId: number;
             username: string;
+            /** @description Current nickname; omitted when the user has none. */
+            nickname?: string;
             /** @description Web avatar URL; the banned avatar when the account is frozen, the default avatar when none is set. */
             avatarUrl: string;
             /** @description Account email (PII — admin-only surface). */
@@ -9625,6 +9629,8 @@ export interface components {
             userId: number;
             /** @description Empty when the user account is gone. */
             username: string;
+            /** @description Current nickname; omitted when the user has none (including gone accounts). */
+            nickname?: string;
             /** @description Empty when the user account is gone. */
             avatarUrl: string;
             /** @description 1 enabled, 0 disabled. */
@@ -10450,6 +10456,8 @@ export interface components {
             userId: number;
             /** @description Author username; empty when the user row is missing. */
             username: string;
+            /** @description Author's current nickname; omitted when the user has none. */
+            nickname?: string;
             /** @description Always 2 (pending review) in this queue. */
             processStatus: number;
             /**

@@ -60,3 +60,32 @@ it('resolves received personal tokens as inert images while preserving escaped t
   expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
   expect(window.location.pathname).toBe('/messages')
 })
+
+it('会话列表把 peerNickname 作为显示名传给备注渲染（note(display name)）', async () => {
+  messages.mockResolvedValue({ list: [], hasMoreBefore: false })
+  resolve.mockResolvedValue([])
+  window.history.replaceState({}, '', '/messages?userId=2')
+  wrapper = mount(MessagesPage, {
+    props: {
+      layout: { viewer: { id: 1, username: 'alice', avatarUrl: '' } } as LayoutPayload,
+      props: {
+        conversations: [{
+          id: 1,
+          convId: 1,
+          peerId: 2,
+          peerUsername: 'bob',
+          peerNickname: '鲍勃',
+          peerAvatar: '',
+          lastMsg: '',
+          lastMsgTime: '',
+          unreadCount: 0,
+          peerUrl: '/u/2',
+        }],
+        suggestedUsers: [],
+      },
+    },
+    global: { plugins: [i18n], stubs: { UserAvatar: true } },
+  })
+  await flushPromises()
+  expect(wrapper.text()).toContain('鲍勃')
+})

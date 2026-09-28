@@ -1484,8 +1484,8 @@ export interface ModerationCourseReviewReportItem {
   status: string
   resolution: string
   excerpt: string
-  reporter: { id: number; username: string; avatarUrl: string }
-  handler: { id: number; username: string; avatarUrl: string }
+  reporter: { id: number; username: string; nickname?: string; avatarUrl: string }
+  handler: { id: number; username: string; nickname?: string; avatarUrl: string }
   createdAt: string
   handledAt?: string
   reportCount: number
