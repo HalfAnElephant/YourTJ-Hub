@@ -1923,7 +1923,7 @@ export default {
     selectedCategories: '選択したカテゴリ',
     leaveTitle: '未保存の編集を保存しますか？',
     leaveDescription: '現在の内容はまだ保存されていません。離れる前に下書きとして保存すると後で続けられます。',
-    draftRequirement: '下書き保存にはタイトル、本文、少なくとも1つのカテゴリが必要です。',
+    draftRequirement: '下書き保存には本文と1つ以上のカテゴリが必要です。',
     continueEditing: '編集を続ける',
     leaveWithoutSaving: '保存せず離れる',
     fields: {

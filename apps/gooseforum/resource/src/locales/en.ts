@@ -1924,7 +1924,7 @@ export default {
     selectedCategories: 'Selected categories',
     leaveTitle: 'Save unfinished edits?',
     leaveDescription: 'Your current content has not been saved. Save it as a draft before leaving so you can continue later.',
-    draftRequirement: 'A draft needs a title, body, and at least one category before it can be saved.',
+    draftRequirement: 'A draft needs a body and at least one category before it can be saved.',
     continueEditing: 'Continue editing',
     leaveWithoutSaving: 'Leave without saving',
     fields: {

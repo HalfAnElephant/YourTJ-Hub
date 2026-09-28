@@ -304,6 +304,7 @@ function handleTopicState(nextLikeCount: number) {
       ref="postStreamRef"
       :topic-id="page.props.topic.id"
       :topic-title="topicDisplayTitle"
+      :topic-edit-title="page.props.topic.title"
       :content-type="page.props.topic.contentType"
       :topic-images="topicImages"
       :categories="page.props.topic.categories"

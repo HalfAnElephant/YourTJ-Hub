@@ -12,7 +12,7 @@
     <li class="gf-crawler-topic-row">
         <div class="gf-crawler-topic-main">
             <article>
-            <h2 class="gf-crawler-topic-title"><a href="{{.URL}}" rel="bookmark">{{if .Title}}{{.Title}}{{else}}{{.Description}}{{end}}</a></h2>
+            <h2 class="gf-crawler-topic-title"><a href="{{.URL}}" rel="bookmark">{{topicListLabel .Title .Description}}</a></h2>
             {{if or .Author.Username .Categories}}
             <p class="gf-crawler-topic-meta">
                 {{if .Author.Username}}<a href="/u/{{.Author.ID}}" rel="author">{{.Author.Username}}</a>{{end}}

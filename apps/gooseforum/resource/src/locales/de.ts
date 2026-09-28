@@ -1923,7 +1923,7 @@ export default {
     selectedCategories: 'Ausgewählte Kategorien',
     leaveTitle: 'Unfertige Änderungen speichern?',
     leaveDescription: 'Der aktuelle Inhalt wurde nicht gespeichert. Speichere ihn vor dem Verlassen als Entwurf, damit du später weitermachen kannst.',
-    draftRequirement: 'Ein Entwurf benötigt einen Titel, einen Inhalt und mindestens eine Kategorie, bevor er gespeichert werden kann.',
+    draftRequirement: 'Ein Entwurf benötigt einen Inhalt und mindestens eine Kategorie, bevor er gespeichert werden kann.',
     continueEditing: 'Weiter bearbeiten',
     leaveWithoutSaving: 'Ohne Speichern verlassen',
     fields: {

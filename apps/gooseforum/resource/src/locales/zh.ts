@@ -1926,7 +1926,7 @@ export default {
     selectedCategories: '已选分类',
     leaveTitle: '保存未完成的编辑？',
     leaveDescription: '当前内容还没有保存。离开前可以先存为草稿，之后在草稿箱继续编辑。',
-    draftRequirement: '草稿需要填写标题、正文和至少一个分类后才能保存。',
+    draftRequirement: '草稿需要填写正文并选择至少一个分类后才能保存。',
     continueEditing: '继续编辑',
     leaveWithoutSaving: '不保存离开',
     fields: {

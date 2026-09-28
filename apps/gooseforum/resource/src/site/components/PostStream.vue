@@ -52,7 +52,13 @@ import { useQuickPublish } from '@/site/composables/useQuickPublish'
 
 const props = withDefaults(defineProps<{
   topicId: number
+  /** 展示/分享用标题：无标题瞬间由页面传入正文摘要回退。 */
   topicTitle: string
+  /**
+   * 首楼编辑预填的原始标题（可为空串）。与 topicTitle 分开：topicTitle 允许带
+   * 摘要回退，预填绝不能把回退文案写回话题（issue #895）。
+   */
+  topicEditTitle?: string
   contentType?: 0 | 1 | 2 | 3
   topicImages?: string[]
   categories?: Array<{ id: number; name?: string }>
@@ -1449,7 +1455,7 @@ function startEditPost(post: PostPayload) {
       openQuickPublishEdit({
         topicId: props.topicId,
         contentType: props.contentType,
-        title: props.topicTitle,
+        title: props.topicEditTitle ?? props.topicTitle,
         content: post.content,
         categoryIds: props.categories?.map((c) => c.id) || [],
         images: props.topicImages,
