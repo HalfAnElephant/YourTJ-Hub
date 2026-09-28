@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../theme/gf_theme.dart';
 import '../gf_symbol.dart';
 
-/// Circular user avatar with the sizes used across the web app
-/// (UserAvatar.vue): 24 (sm stack) / 32 (md stack) / 40 (rows, chat) /
-/// 48 / 56 / 64 (profile, settings). Renders the image via [NetworkImage]
-/// with a muted fallback while loading.
+/// Circular user avatar matching the web app's avatar usage
+/// (UserAvatar.vue). Any logical [size] is valid: decoding snaps up to a
+/// shared ladder, so nearby display sizes reuse one decoded image (see
+/// [_decodeSizes]). Renders the image via [NetworkImage] with a muted
+/// fallback while loading.
 class GfAvatar extends StatelessWidget {
   const GfAvatar({
     super.key,

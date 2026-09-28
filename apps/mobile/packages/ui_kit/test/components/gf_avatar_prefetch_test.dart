@@ -54,6 +54,32 @@ void main() {
     expect(keys, hasLength(1));
   });
 
+  test('oversized avatars round the decode size up to a 16-pixel step', () {
+    final provider = GfAvatar.imageProviderFor(
+      'https://example.test/avatar.png',
+      size: 100,
+      devicePixelRatio: 3,
+    )!;
+    // Past the ladder the request rounds up (100 -> 112) instead of being
+    // downscaled to the 96 step.
+    expect((provider as ResizeImage).width, 336);
+    expect(provider.height, 336);
+  });
+
+  test('non-positive sizes snap to the smallest decode step', () {
+    for (final double size in <double>[0, -8]) {
+      final provider = GfAvatar.imageProviderFor(
+        'https://example.test/avatar.png',
+        size: size,
+        devicePixelRatio: 2,
+      )!;
+      // A degenerate size still lands on the shared 24 step instead of
+      // decoding a one-pixel image.
+      expect((provider as ResizeImage).width, 48);
+      expect(provider.height, 48);
+    }
+  });
+
   test('home prefetch seeds the entries the following pages display', () async {
     const String url = 'https://example.test/avatar.png';
     final ImageProvider<Object> prefetch = GfAvatar.imageProviderFor(
