@@ -124,8 +124,10 @@ class _TopicPageState extends ConsumerState<TopicPage>
 
   late final WritingStore _writingStore;
   late final OfflineCacheEpoch _writingSession;
-  late final int _writingEpoch;
-  late final Future<String?> _replyOwner;
+  // 页面存活期间的会话世代。会话边界在页面存活时推进(登录入口、401、
+  // 账号切换)时,页面先丢弃旧会话数据再按新世代重载,而不是永久置空。
+  late int _writingEpoch;
+  late Future<String?> _replyOwner;
   Timer? _replyAutosave;
   int _replyRevision = 0, _replySavedRevision = 0, _replyDraftGeneration = 0;
   bool _restoringReply = false;
@@ -157,12 +159,7 @@ class _TopicPageState extends ConsumerState<TopicPage>
     _writingStore = ref.read(writingStoreProvider);
     _writingSession = ref.read(offlineCacheEpochProvider.notifier);
     _writingEpoch = ref.read(offlineCacheEpochProvider);
-    _replyOwner = ref
-        .read(writingScopeProvider.future)
-        .then<String?>(
-          (scope) => scope.endsWith(':0') ? null : scope,
-          onError: (Object _) => null,
-        );
+    _replyOwner = _resolveReplyOwner();
     WidgetsBinding.instance.addObserver(this);
     _mentionSession = MentionSessionController(
       searchUsers: ref.read(mentionUserSearchProvider),
@@ -214,6 +211,15 @@ class _TopicPageState extends ConsumerState<TopicPage>
     _replyAutosave = Timer(const Duration(milliseconds: 700), _saveReplyDraft);
   }
 
+  /// 回复草稿的账号归属:每次会话世代推进后重新解析,新会话的编辑
+  /// 不会写进上一账号的草稿空间。游客(作用域 :0)没有可归属的草稿。
+  Future<String?> _resolveReplyOwner() => ref
+      .read(writingScopeProvider.future)
+      .then<String?>(
+        (scope) => scope.endsWith(':0') ? null : scope,
+        onError: (Object _) => null,
+      );
+
   Future<void> _restoreReplyDraft() async {
     final generation = _replyDraftGeneration;
     final topicId = widget.topicId;
@@ -255,6 +261,7 @@ class _TopicPageState extends ConsumerState<TopicPage>
     if (_discardReplyOnLeave) return true;
     if (!_writingCurrent) return false;
     if (!_replyDirty) return true;
+    final int sessionEpoch = _writingEpoch;
     final generation = _replyDraftGeneration;
     final revision = _replyRevision;
     final id = topicId ?? widget.topicId;
@@ -285,7 +292,12 @@ class _TopicPageState extends ConsumerState<TopicPage>
         await _writingStore.save(
           owner,
           draft,
-          isCurrent: () => _writingCurrent && !_discardReplyOnLeave,
+          // 会话世代在保存落盘前切换时丢弃:上一会话的文本不得写进新会话
+          // 的草稿空间。
+          isCurrent: () =>
+              _writingCurrent &&
+              _writingEpoch == sessionEpoch &&
+              !_discardReplyOnLeave,
         );
       }
       if (!mounted || !_writingCurrent || generation != _replyDraftGeneration) {
@@ -1234,10 +1246,64 @@ class _TopicPageState extends ConsumerState<TopicPage>
     }
   }
 
+  /// 会话世代失配的那一帧先展示加载态,恢复在帧后执行。
+  void _scheduleSessionRecovery(int epoch) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || epoch == _writingEpoch) return;
+      _adoptSessionEpoch(epoch);
+    });
+  }
+
+  /// 页面存活期间会话世代推进(登录入口、401、账号切换):旧会话的页面
+  /// 数据、互动状态与未提交回复都属于上一账号,先全部丢弃再按新世代重载,
+  /// 保证不渲染也不写回上一账号的数据。
+  void _adoptSessionEpoch(int epoch) {
+    if (!mounted || epoch == _writingEpoch) return;
+    final int floor = _currentFloor;
+    _replyAutosave?.cancel();
+    _replyDraftGeneration++;
+    _restoringReply = true;
+    _replyController.clear();
+    _replyImageUrl = null;
+    _replyToPostId = 0;
+    _replyTargetName = null;
+    _replyMentionPrefix = null;
+    _restoringReply = false;
+    _replyRevision = _replySavedRevision = 0;
+    _replySaveStatus = '';
+    _replySaveFailed = false;
+    _discardReplyOnLeave = false;
+    _mentionSession.close();
+    _writingEpoch = epoch;
+    _replyOwner = _resolveReplyOwner();
+    _viewerAuthenticated = false;
+    _viewerId = 0;
+    _liked = false;
+    _bookmarked = false;
+    _watched = false;
+    _likeCount = 0;
+    _loadingMore = false;
+    _jumping = false;
+    _opScanning = false;
+    _sort = CommentSort.asc;
+    setState(() {
+      _page = const AsyncValue.loading();
+      _posts.clear();
+      _replyTargets.clear();
+      _composerOpen = false;
+      _replyStickerOpen = false;
+      _railOpen = false;
+    });
+    _load(postNo: floor > 1 ? floor : null);
+    unawaited(_restoreReplyDraft());
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (ref.watch(offlineCacheEpochProvider) != _writingEpoch) {
-      return const SizedBox.shrink();
+    final int sessionEpoch = ref.watch(offlineCacheEpochProvider);
+    if (sessionEpoch != _writingEpoch) {
+      _scheduleSessionRecovery(sessionEpoch);
+      return const Scaffold(body: GfTopicDetailSkeleton());
     }
     final GfColors colors = GfTheme.colorsOf(context);
     final AppLocalizations l10n = AppLocalizations.of(context);

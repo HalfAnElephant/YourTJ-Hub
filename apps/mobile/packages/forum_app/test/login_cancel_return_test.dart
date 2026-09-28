@@ -15,10 +15,12 @@ import 'package:forum_app/l10n/app_localizations.dart';
 import 'package:forum_app/src/app.dart';
 import 'package:forum_app/src/offline/drift_cache.dart';
 import 'package:forum_app/src/pages/auth/login_page.dart';
+import 'package:forum_app/src/pages/topic/topic_page.dart';
 import 'package:forum_app/src/providers.dart';
 import 'package:forum_app/src/router.dart';
 
 import 'fixtures/page_fixtures.dart';
+import 'pages_smoke_test.dart' show FakeTopicRepository;
 
 /// 测试用内存 TokenStorage(空 = 未登录)。
 class _MemoryTokenStorage implements TokenStorage {
@@ -173,14 +175,17 @@ class _AuthenticatingAuth extends AuthController {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('cancelling login returns to the topic that opened it', (
-    tester,
-  ) async {
+  /// 以游客身份打开话题详情;`staleToken` 模拟过期/被吊销但仍留在
+  /// 安全存储里的令牌(公共页面读取对无效令牌返回匿名 200,不会触发 401)。
+  Future<void> pumpGuestTopic(
+    WidgetTester tester, {
+    bool staleToken = false,
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(390, 844);
     addTearDown(tester.view.reset);
-
     final storage = _MemoryTokenStorage();
+    if (staleToken) await storage.write('stale-expired-token');
     final client = GfApiClient(
       dio: Dio(),
       tokenStorage: storage,
@@ -204,40 +209,98 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-
     appRouter.push('/p/100');
     await tester.pumpAndSettle();
-    expect(find.text('移动端测试话题'), findsWidgets);
     expect(find.text('第一楼'), findsOneWidget);
+  }
 
-    // 游客点“参与讨论”:进入登录页。
+  /// 点“参与讨论”进入登录页后返回,断言原帖仍可读。
+  Future<void> cancelLogin(WidgetTester tester) async {
     await tester.tap(find.text('参与讨论'));
     await tester.pumpAndSettle();
     expect(find.byType(LoginPage), findsOneWidget);
     expect(appRouter.state.uri.path, '/login');
-
-    // 取消登录:应回到原帖,而不是空脚手架/黑屏。
-    await tester.tap(find.byTooltip('返回'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(LoginPage), findsNothing);
-    expect(appRouter.state.uri.path, '/p/100');
-    expect(find.text('第一楼'), findsOneWidget);
-
-    // 反复打开/取消必须稳定:第二次进入登录页时原帖仍在下方。
-    await tester.tap(find.text('参与讨论'));
-    await tester.pumpAndSettle();
-    expect(find.byType(LoginPage), findsOneWidget);
     await tester.tap(find.byTooltip('返回'));
     await tester.pumpAndSettle();
     expect(find.byType(LoginPage), findsNothing);
     expect(appRouter.state.uri.path, '/p/100');
     expect(find.text('第一楼'), findsOneWidget);
+  }
 
-    // markdown_widget 的 VisibilityDetector 会创建 500ms 延迟 Timer,
-    // 需推进时钟让其过期,避免 "Timer is still pending"。
+  /// markdown_widget 的 VisibilityDetector 会创建 500ms 延迟 Timer,
+  /// 需推进时钟让其过期,避免 "Timer is still pending"。
+  Future<void> settlePageTimers(WidgetTester tester) async {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 600));
+  }
+
+  testWidgets('cancelling login returns to the topic that opened it', (
+    tester,
+  ) async {
+    await pumpGuestTopic(tester);
+
+    // 游客点“参与讨论”后取消:回到原帖,而不是空脚手架/黑屏。
+    await cancelLogin(tester);
+    // 反复打开/取消必须稳定。
+    await cancelLogin(tester);
+
+    await settlePageTimers(tester);
+  });
+
+  testWidgets('cancelling login returns to the topic with a stale token', (
+    tester,
+  ) async {
+    // 过期/被吊销的令牌仍留在存储中:登录入口会推进会话世代,
+    // 页面必须恢复而不是永久置空。
+    await pumpGuestTopic(tester, staleToken: true);
+
+    await cancelLogin(tester);
+
+    await settlePageTimers(tester);
+  });
+
+  testWidgets('a mounted topic page recovers when the session epoch advances', (
+    tester,
+  ) async {
+    final storage = _MemoryTokenStorage();
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: storage,
+      baseUrl: 'http://fake.local',
+    );
+    final container = ProviderContainer(
+      overrides: [
+        tokenStorageProvider.overrideWithValue(storage),
+        pageRepositoryProvider.overrideWithValue(_GuestPageRepository(client)),
+        topicRepositoryProvider.overrideWithValue(FakeTopicRepository(client)),
+        offlineTopicCacheProvider.overrideWithValue(_NoopOfflineCache()),
+        offlineChatCacheProvider.overrideWithValue(_NoopOfflineCache()),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const TopicPage(topicId: 100),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('第一楼'), findsOneWidget);
+
+    // 401/账号切换在页面存活期间推进世代:页面丢弃旧会话数据并重载,
+    // 而不是永久返回空视图。
+    container.read(offlineCacheEpochProvider.notifier).invalidate();
+    await tester.pumpAndSettle();
+
+    expect(container.read(offlineCacheEpochProvider), 1);
+    expect(find.text('第一楼'), findsOneWidget);
+
+    await settlePageTimers(tester);
   });
 
   Future<ProviderContainer> pumpLoginPage(

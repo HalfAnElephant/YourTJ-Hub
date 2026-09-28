@@ -198,28 +198,41 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
   /// 进入登录页的会话边界:只在旧会话仍存在时推进世代(生成新的账号边界)。
   /// 游客入口不推进;若之后认证成功,[_finishAuthentication] 会补上这次账号
-  /// 切换的边界。缓存清理仍按原语义在入口执行,且晚于世代推进。
+  /// 切换的边界。
+  ///
+  /// 缓存清理与原语义一致:进入登录页即启动(上次登出/401 清理失败时每次
+  /// 进入都会重试),且不因 token 读取期间页面被返回而跳过;清理句柄在
+  /// await 前捕获,避免对已卸载页面的 ref 访问。
   Future<void> _beginLoginSessionBoundary() async {
-    final bool hasSession = await hasSessionToken(
-      ref.read(tokenStorageProvider),
-    );
-    if (!mounted) return;
+    final storage = ref.read(tokenStorageProvider);
+    final epochNotifier = ref.read(offlineCacheEpochProvider.notifier);
+    final topicCache = ref.read(offlineTopicCacheProvider);
+    final chatCache = ref.read(offlineChatCacheProvider);
+    final widgetBridge = ref.read(scheduleWidgetBridgeProvider);
+    final bool hasSession = await hasSessionToken(storage);
     if (hasSession && !_sessionBoundaryAdvanced) {
       _sessionBoundaryAdvanced = true;
-      ref.read(offlineCacheEpochProvider.notifier).invalidate();
+      epochNotifier.invalidate();
     }
+    final Future<bool> future = _runCacheClear(
+      () => clearOfflineCache(topicCache, chatCache, widgetBridge),
+    );
     // 认证提交若已抢先启动清库,复用它而不是替换。
-    _cacheClearFuture ??= _clearOfflineCacheOnce();
+    if (mounted) _cacheClearFuture ??= future;
   }
 
   /// 执行一次离线缓存清理;成功返回 true,失败返回 false(不抛出)。
-  Future<bool> _clearOfflineCacheOnce() async {
+  Future<bool> _clearOfflineCacheOnce() => _runCacheClear(
+    () => clearOfflineCache(
+      ref.read(offlineTopicCacheProvider),
+      ref.read(offlineChatCacheProvider),
+      ref.read(scheduleWidgetBridgeProvider),
+    ),
+  );
+
+  Future<bool> _runCacheClear(Future<void> Function() clear) async {
     try {
-      await clearOfflineCache(
-        ref.read(offlineTopicCacheProvider),
-        ref.read(offlineChatCacheProvider),
-        ref.read(scheduleWidgetBridgeProvider),
-      );
+      await clear();
       return true;
     } catch (_) {
       return false;
