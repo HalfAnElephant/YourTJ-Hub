@@ -86,6 +86,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
   final Object _authInputGroup = Object();
   final FocusNode _usernameFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _confirmPasswordFocusNode = FocusNode();
   final FocusNode _captchaFocusNode = FocusNode();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _captcha = TextEditingController();
@@ -232,6 +233,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     _captchaFocusNode.removeListener(_onCaptchaFocusChanged);
     _usernameFocusNode.dispose();
     _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     _captchaFocusNode.dispose();
     _confirmPassword.dispose();
     _username.dispose();
@@ -1004,7 +1006,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
                   textInputAction: TextInputAction.next,
                   onEditingComplete: _mode == _AuthMode.login
                       ? () => _completePasswordStage(focusCaptcha: true)
-                      : () => FocusScope.of(context).nextFocus(),
+                      // 显示开关也是可聚焦后缀控件,nextFocus 会先停在它上面;
+                      // 注册流程显式前进到确认密码。
+                      : _confirmPasswordFocusNode.requestFocus,
                   labelText: l10n.authPassword,
                   prefixIcon: const GfSymbol('key-round', size: 20),
                   suffixIcon: _PasswordVisibilityToggle(
@@ -1037,6 +1041,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
             _withAuthInputRegion(
               GfInput(
                 controller: _confirmPassword,
+                focusNode: _confirmPasswordFocusNode,
                 labelText: l10n.authConfirmPassword,
                 obscureText: !_confirmPasswordVisible,
                 autofillHints: const [AutofillHints.newPassword],
@@ -1339,19 +1344,16 @@ class _PasswordVisibilityToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     final String label = visible ? hideLabel : showLabel;
     // 与发布页工具栏同一模式:合并语义让读屏把标签、按钮身份和开关状态
-    // 读成一个控件。ExcludeFocus 让键盘“下一项”仍直接落在下一个输入框,
-    // 而不是停在这个后缀按钮上;点击与读屏激活不受影响。
+    // 读成一个控件;按钮保持可聚焦,键盘/D-pad 也能到达显示开关。
     return MergeSemantics(
       child: Semantics(
         toggled: visible,
-        child: ExcludeFocus(
-          child: GfIconButton(
-            symbol: visible ? 'eye-off' : 'eye',
-            tooltip: label,
-            size: 44,
-            iconSize: 20,
-            onPressed: onPressed,
-          ),
+        child: GfIconButton(
+          symbol: visible ? 'eye-off' : 'eye',
+          tooltip: label,
+          size: 44,
+          iconSize: 20,
+          onPressed: onPressed,
         ),
       ),
     );

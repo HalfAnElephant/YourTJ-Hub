@@ -119,6 +119,9 @@ void main() {
     (widget) => widget is TextField && widget.decoration?.labelText == label,
   );
 
+  Finder toggleSymbol(Key key) =>
+      find.descendant(of: find.byKey(key), matching: find.byType(GfSymbol));
+
   AppLocalizations l10nOf(WidgetTester tester) =>
       AppLocalizations.of(tester.element(find.byType(LoginPage)));
 
@@ -135,6 +138,10 @@ void main() {
 
       final toggle = find.byKey(passwordToggleKey);
       expect(toggle, findsOneWidget);
+      expect(
+        tester.widget<GfSymbol>(toggleSymbol(passwordToggleKey)).name,
+        'eye',
+      );
       final semantics = tester
           .getSemantics(find.byTooltip(l10n.authShowPassword))
           .getSemanticsData();
@@ -171,11 +178,36 @@ void main() {
     expect(controller.text, 'correct horse battery staple');
     expect(controller.selection, selection);
     expect(focusNode.hasFocus, isTrue);
+    expect(
+      tester.widget<GfSymbol>(toggleSymbol(passwordToggleKey)).name,
+      'eye-off',
+    );
     final semantics = tester
         .getSemantics(find.byTooltip(l10n.authHidePassword))
         .getSemanticsData();
     expect(semantics.label, l10n.authHidePassword);
     expect(semantics.flagsCollection.isToggled, Tristate.isTrue);
+    semanticsHandle.dispose();
+  });
+
+  testWidgets('reveal toggle stays reachable by keyboard traversal', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    await pumpLogin(tester);
+    final l10n = l10nOf(tester);
+
+    final password = fieldByLabel(l10n.authPassword);
+    await tester.enterText(password, 'secret');
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+
+    final semantics = tester
+        .getSemantics(find.byTooltip(l10n.authShowPassword))
+        .getSemanticsData();
+    expect(semantics.flagsCollection.isFocused, Tristate.isTrue);
     semanticsHandle.dispose();
   });
 
