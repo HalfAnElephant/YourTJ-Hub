@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:core/core.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -47,10 +49,41 @@ Finder _dateSeparators() => find.byWidgetPredicate(
       ),
 );
 
+/// 可挂起更早一页响应的仓库：在分页请求返回前断言锚点位置。
+class _GatedOlderRepository extends VisibleChatRepository {
+  _GatedOlderRepository(
+    super.client, {
+    required super.messages,
+    required super.hasMoreBefore,
+    required this.olderGate,
+  });
+
+  final Completer<void> olderGate;
+
+  @override
+  Future<ChatMessagesResponse> getMessages({
+    required int convId,
+    int beforeId = 0,
+    int afterId = 0,
+    int limit = 30,
+    Object? cancelToken,
+  }) async {
+    if (beforeId > 0) await olderGate.future;
+    return super.getMessages(
+      convId: convId,
+      beforeId: beforeId,
+      afterId: afterId,
+      limit: limit,
+      cancelToken: cancelToken,
+    );
+  }
+}
+
 Future<VisibleChatRepository> _pumpConversation(
   WidgetTester tester,
   List<ChatMessagePayload> messages, {
   List<ChatMessagePayload>? older,
+  Completer<void>? olderGate,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -60,11 +93,19 @@ Future<VisibleChatRepository> _pumpConversation(
     tokenStorage: storage,
     baseUrl: 'http://fake.local',
   );
-  final repo = VisibleChatRepository(
-    client,
-    hasMoreBefore: older != null,
-    messages: messages,
-  )..olderMessages = older ?? <ChatMessagePayload>[];
+  final VisibleChatRepository repo = olderGate == null
+      ? VisibleChatRepository(
+          client,
+          hasMoreBefore: older != null,
+          messages: messages,
+        )
+      : _GatedOlderRepository(
+          client,
+          hasMoreBefore: older != null,
+          messages: messages,
+          olderGate: olderGate,
+        );
+  repo.olderMessages = older ?? <ChatMessagePayload>[];
   final container = ProviderContainer(
     overrides: [
       tokenStorageProvider.overrideWithValue(storage),
@@ -90,7 +131,15 @@ Future<VisibleChatRepository> _pumpConversation(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (olderGate == null) {
+    await tester.pumpAndSettle();
+  } else {
+    // 分页请求挂起时不能 pumpAndSettle：加载指示器会持续调度帧。
+    // 用固定帧数推进初次历史加载与“滚到底部”动画。
+    for (int i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+  }
   return repo;
 }
 
@@ -166,9 +215,10 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('上翻加载更早一页后不重复日期分隔，边界气泡改为不显示时间', (tester) async {
+  testWidgets('上翻加载更早一页后保持滚动锚点，不重复日期分隔，边界气泡不再显示时间', (tester) async {
     final DateTime now = DateTime.now();
     final DateTime day = DateTime(now.year, now.month, now.day, 9, 57);
+    final Completer<void> gate = Completer<void>();
     final VisibleChatRepository repo = await _pumpConversation(
       tester,
       <ChatMessagePayload>[
@@ -180,20 +230,31 @@ void main() {
         _message(99, day, content: _body(99)),
         _message(100, day.add(const Duration(minutes: 1)), content: _body(100)),
       ],
+      olderGate: gate,
     );
 
+    // 初次“滚到底部”已经触发分页，但响应被挂起，尚未真正请求。
+    expect(repo.beforeCalls, 0);
+    final double anchoredDy = tester.getTopLeft(find.text(_body(101))).dy;
+
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(repo.beforeCalls, greaterThan(0));
+    // 锚点气泡在更早一页前置后保持视口位置。锚点补偿基于请求期间的布局
+    // （含顶部分页指示器），指示器在返回后消失，因此允许该高度（约 21px）
+    // 的偏移；没有锚点补偿时偏移会达到数百像素。
+    expect(
+      (anchoredDy - tester.getTopLeft(find.text(_body(101))).dy).abs(),
+      lessThanOrEqualTo(30),
+    );
+
+    // 回到顶部检查更早一页的渲染：分隔只有一个（不会在 100/101 上重复）。
     final ScrollController controller = tester
         .widget<ListView>(find.byType(ListView).last)
         .controller!;
     controller.jumpTo(0);
     await tester.pumpAndSettle();
-    expect(repo.beforeCalls, greaterThan(0));
-
-    // 分页锚点会把视口留在原处；再回到顶部检查更早一页的渲染。
-    controller.jumpTo(0);
-    await tester.pumpAndSettle();
-
-    // 更早一页成为列表首条：日期分隔随之移动，不重复。
+    expect(_dateSeparators(), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('chat-date-separator-99')),
       findsOneWidget,
@@ -206,6 +267,68 @@ void main() {
     expect(_bubbleTimeFor(tester, 99), '09:57');
     expect(_bubbleTimeFor(tester, 100), isNull);
     expect(_bubbleTimeFor(tester, 101), isNull);
+  });
+
+  testWidgets('前置跨日的一页后每天各一个分隔，旧的首条消息仍显示时间', (tester) async {
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day, 10, 0);
+    final DateTime yesterday = DateTime(
+      now.year,
+      now.month,
+      now.day - 1,
+      23,
+      58,
+    );
+    await _pumpConversation(
+      tester,
+      <ChatMessagePayload>[
+        _message(101, today, content: _body(101)),
+        _message(
+          102,
+          today.add(const Duration(minutes: 2)),
+          content: _body(102),
+        ),
+        _message(
+          103,
+          today.add(const Duration(minutes: 10)),
+          content: _body(103),
+        ),
+      ],
+      older: <ChatMessagePayload>[
+        _message(98, yesterday, content: _body(98)),
+        _message(
+          99,
+          yesterday.add(const Duration(minutes: 1)),
+          content: _body(99),
+        ),
+      ],
+    );
+
+    final ScrollController controller = tester
+        .widget<ListView>(find.byType(ListView).last)
+        .controller!;
+    controller.jumpTo(0);
+    await tester.pumpAndSettle();
+    controller.jumpTo(0);
+    await tester.pumpAndSettle();
+
+    // 跨日前置：两天各一个分隔，今天的分隔仍属于今天的第一条消息。
+    expect(_dateSeparators(), findsNWidgets(2));
+    expect(
+      find.byKey(const ValueKey<String>('chat-date-separator-98')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('chat-date-separator-101')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('chat-date-separator-99')),
+      findsNothing,
+    );
+    expect(_bubbleTimeFor(tester, 98), '23:58');
+    expect(_bubbleTimeFor(tester, 99), isNull);
+    expect(_bubbleTimeFor(tester, 101), '10:00');
   });
 
   testWidgets('没有消息时不显示日期分隔', (tester) async {
