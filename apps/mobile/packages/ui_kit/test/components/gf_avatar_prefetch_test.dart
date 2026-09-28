@@ -61,7 +61,9 @@ void main() {
       size: 36,
       devicePixelRatio: 3,
     )!;
-    final Object prefetchKey = await prefetch.obtainKey(ImageConfiguration.empty);
+    final Object prefetchKey = await prefetch.obtainKey(
+      ImageConfiguration.empty,
+    );
     for (final double size in <double>[32, 40]) {
       final ImageProvider<Object> display = GfAvatar.imageProviderFor(
         url,

@@ -19,7 +19,8 @@ class GfAvatar extends StatelessWidget {
   /// Image URL (may be empty; falls back to a placeholder).
   final String src;
 
-  /// Edge length; one of the web size steps (24/32/40/48/56/64).
+  /// Edge length in logical pixels; decode size snaps up to the step that
+  /// covers it, so every value is valid.
   final double size;
 
   /// Whether to draw a 2px base-100 ring around the avatar
@@ -30,14 +31,17 @@ class GfAvatar extends StatelessWidget {
   final Widget? badge;
 
   /// Decode sizes avatars snap up to before the device pixel ratio is
-  /// applied. The same author appears at 20-40 (quote chips, stacks, rows,
-  /// cards, headers) and at 48-96 (conversations, settings, user cards).
-  /// Keeping one entry per step means switching pages reuses the decoded
-  /// picture instead of downloading and decoding it again per pixel size.
+  /// applied. Small inline avatars share the 24/40 steps (quote chips,
+  /// stacks, mention, reply and conversation rows, chat bubbles, feed cards,
+  /// detail headers); 48-96 covers connection rows, the account drawer, the
+  /// settings avatar and user cards or profile editors. Keeping one entry per
+  /// step means switching pages reuses the decoded picture instead of
+  /// downloading and decoding it again per pixel size.
   static const List<double> _decodeSizes = <double>[24, 40, 48, 64, 96];
 
   /// Smallest decode step covering [size]; larger requests round up on a
-  /// 16-pixel grid so an oversized avatar is never downscaled.
+  /// 16-pixel grid (100 to 112, 113 to 128) so an oversized avatar is never
+  /// downscaled.
   static double _decodeSizeFor(double size) {
     for (final double candidate in _decodeSizes) {
       if (size <= candidate) return candidate;
@@ -46,6 +50,9 @@ class GfAvatar extends StatelessWidget {
   }
 
   /// Image key shared by visible avatars and their startup prefetch.
+  ///
+  /// A non-positive [size] snaps to the smallest decode step (24 logical
+  /// pixels), so a caller cannot force a one-pixel decode.
   static ImageProvider<Object>? imageProviderFor(
     String src, {
     required double size,
@@ -102,11 +109,7 @@ class GfAvatar extends StatelessWidget {
       clipBehavior: Clip.none,
       children: <Widget>[
         avatar,
-        Positioned(
-          right: -size * .06,
-          bottom: -size * .06,
-          child: badge!,
-        ),
+        Positioned(right: -size * .06, bottom: -size * .06, child: badge!),
       ],
     );
   }
