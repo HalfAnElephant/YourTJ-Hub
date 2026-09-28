@@ -106,6 +106,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
   bool _captchaFocusEligible = false;
   bool _suppressPasswordTapOutside = false;
   bool _captchaRefreshing = false;
+  bool _captchaCodeMissing = false;
   Future<void>? _captchaLoadFuture;
   final Stopwatch _authImeClock = Stopwatch()..start();
   late final AuthImeStabilizer<FocusNode> _authIme;
@@ -436,6 +437,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
       enableSuggestions: false,
       textInputAction: TextInputAction.done,
       onSubmitted: (_) => _submit(),
+      onChanged: (_) {
+        if (_captchaCodeMissing) setState(() => _captchaCodeMissing = false);
+      },
     );
     return _mode == _AuthMode.login
         ? _withAuthFocusIntent(_captchaFocusNode, input)
@@ -452,24 +456,35 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
-  /// 手动刷新验证码:清空已输入的旧验证码并请求新的一张。
+  /// 手动刷新验证码:请求新的一张,并在新挑战到达后清空旧输入。
   ///
-  /// 请求在途时忽略重复点击(与预取共享同一次请求);刷新失败时保留旧图,
-  /// 由错误条提示,用户可再次点击重试。
+  /// 单飞由 [_buildCaptchaChallenge] 保证:刷新在途时验证码图不可点击
+  /// (onTap 为 null),因此这里不会重入。刷新失败时保留旧图与仍有效的
+  /// 旧输入,由错误条提示,用户可再次点击重试。
   void _refreshCaptcha() {
-    if (_captchaRefreshing) return;
-    _captcha.clear();
+    final CaptchaPayload? previous = _authController.captcha;
     setState(() => _captchaRefreshing = true);
     unawaited(
       _loadCaptchaIfNeeded(
-        preservePhaseOnError: true,
-        silentOnError: false,
-        force: true,
-      ).then((_) => _captchaHandoff.captchaEligibilityChanged()).whenComplete(
-        () {
-          if (mounted) setState(() => _captchaRefreshing = false);
-        },
-      ),
+            preservePhaseOnError: true,
+            silentOnError: false,
+            force: true,
+          )
+          .then((_) {
+            if (!mounted) return;
+            // 只有新挑战真正到达才作废旧输入:失败时旧图与旧码在服务端
+            // 仍然有效,用户可以直接重试提交或再次点击刷新。
+            if (!identical(_authController.captcha, previous)) {
+              _captcha.clear();
+              if (_captchaCodeMissing) {
+                setState(() => _captchaCodeMissing = false);
+              }
+            }
+            _captchaHandoff.captchaEligibilityChanged();
+          })
+          .whenComplete(() {
+            if (mounted) setState(() => _captchaRefreshing = false);
+          }),
     );
   }
 
@@ -812,6 +827,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
       _loginCaptchaRevealed = false;
       _passwordInteractionStarted = false;
       _suppressPasswordTapOutside = false;
+      _captchaCodeMissing = false;
       _oidcError = '';
     });
   }
@@ -1190,12 +1206,15 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ),
             ),
           ],
-          if (_authController.error.isNotEmpty ||
+          if (_captchaCodeMissing ||
+              _authController.error.isNotEmpty ||
               _oidcError.isNotEmpty ||
               _cacheError.isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
             GfStatusMessage(
-              message: _cacheError.isNotEmpty
+              message: _captchaCodeMissing
+                  ? l10n.authCaptchaRequired
+                  : _cacheError.isNotEmpty
                   ? _cacheError
                   : _oidcError.isNotEmpty
                   ? _oidcError
@@ -1213,6 +1232,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 _authController.busy ||
                     _oidcBusy ||
                     _finishingAuthentication ||
+                    _captchaRefreshing ||
                     (_mode == _AuthMode.register &&
                         (_registration == null ||
                             _registrationLoading ||
@@ -1342,8 +1362,22 @@ class _LoginPageState extends ConsumerState<LoginPage>
     _AuthMode.forgotPassword => l10n.authSendResetEmail,
   };
 
+  /// 服务端已要求验证码,但输入框为空:此时提交必然被 `captchaRequired`
+  /// 拒绝并消耗一次登录限流额度,Web 端同样先做本地校验。
+  bool get _requiresCaptchaCode =>
+      _authController.phase == LoginPhase.needsCaptcha &&
+      _captcha.text.trim().isEmpty;
+
   Future<void> _submit() async {
     if (_authController.busy || _oidcBusy || _finishingAuthentication) return;
+    // 刷新在途:挑战与已输入内容都在更换中(按钮同样是禁用态,这里兜底
+    // 键盘提交路径),提交只会浪费一次登录尝试。
+    if (_captchaRefreshing) return;
+    if (_requiresCaptchaCode) {
+      setState(() => _captchaCodeMissing = true);
+      return;
+    }
+    if (_captchaCodeMissing) setState(() => _captchaCodeMissing = false);
     if (_authController.phase == LoginPhase.needsTotp) {
       await _authController.submitTotp(_totp.text.trim());
       if (mounted && _authController.phase == LoginPhase.authenticated) {

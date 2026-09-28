@@ -119,6 +119,7 @@
   "authVerify": "验证",
   "authGetCode": "获取验证码",
   "authRefreshCaptcha": "刷新验证码",
+  "authCaptchaRequired": "请输入验证码",
   "authOidcLogin": "使用 yourtj 统一登录",
   "authRegisterSuccess": "注册成功,请登录",
   "authResetEmailSent": "重置邮件已发送,请查收",

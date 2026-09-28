@@ -76,10 +76,12 @@ class _CaptchaAuth extends AuthController {
   }
 
   int captchaLoads = 0;
+  int loginCalls = 0;
   Completer<void>? gate;
   Object? loadError;
   String fakeError = '';
   CaptchaPayload? _payload;
+  LoginPhase _phase = LoginPhase.needsCaptcha;
 
   static CaptchaPayload _payloadFor(int generation) => CaptchaPayload(
     captchaId: 'captcha-$generation',
@@ -88,7 +90,7 @@ class _CaptchaAuth extends AuthController {
   );
 
   @override
-  LoginPhase get phase => LoginPhase.needsCaptcha;
+  LoginPhase get phase => _phase;
 
   @override
   String get error => fakeError;
@@ -105,12 +107,26 @@ class _CaptchaAuth extends AuthController {
     final Completer<void>? pending = gate;
     if (pending != null) await pending.future;
     if (loadError != null) {
+      // 与 AuthController 一致:不保留 phase 时刷新失败会把登录阶段打成
+      // failed,验证码行(重试入口)随之消失。
+      if (!preservePhaseOnError) _phase = LoginPhase.failed;
       if (!silentOnError) fakeError = 'Failed to load captcha';
       notifyListeners();
       return;
     }
     _payload = _payloadFor(captchaLoads);
     fakeError = '';
+    notifyListeners();
+  }
+
+  @override
+  Future<void> login({
+    required String username,
+    required String password,
+    String? captchaId,
+    String? captchaCode,
+  }) async {
+    loginCalls++;
     notifyListeners();
   }
 }
@@ -120,6 +136,9 @@ void main() {
     (widget) => widget is TextField && widget.decoration?.labelText == label,
   );
   Finder refreshTarget() => find.byKey(const Key('login-captcha-refresh'));
+  Finder submitButton() => find.byWidgetPredicate(
+    (widget) => widget is GfButton && widget.size == GfButtonSize.extraLarge,
+  );
   String shownImage(WidgetTester tester) =>
       tester.widget<GfCaptchaImage>(find.byType(GfCaptchaImage)).imageData;
 
@@ -182,37 +201,59 @@ void main() {
     },
   );
 
-  testWidgets('an in-flight refresh ignores further taps', (tester) async {
+  testWidgets('a second tap during a held refresh changes nothing', (
+    tester,
+  ) async {
     final h = await pumpLogin(tester);
     h.auth.gate = Completer<void>();
 
     await tester.tap(refreshTarget());
     await tester.pump();
-    await tester.tap(refreshTarget());
+    // 在途请求显示进度覆盖层,旧图仍在。
+    expect(find.byType(GfProgressIndicator), findsOneWidget);
+    expect(find.byType(GfCaptchaImage), findsOneWidget);
+    await tester.enterText(input('Captcha'), '5678');
     await tester.pump();
+
+    final Widget imageDuring = tester.widget(find.byType(GfCaptchaImage));
+    final TextEditingController controller = tester
+        .widget<TextField>(input('Captcha'))
+        .controller!;
+    // 刷新在途时验证码图本身不再接受点击(单飞的唯一守卫)。
+    expect(tester.widget<InkWell>(refreshTarget()).onTap, isNull);
+
     await tester.tap(refreshTarget());
     await tester.pump();
 
     expect(h.auth.captchaLoads, 1);
-    // 在途请求显示进度覆盖层,旧图仍在。
-    expect(find.byType(GfProgressIndicator), findsOneWidget);
-    expect(find.byType(GfCaptchaImage), findsOneWidget);
+    // 第二次点击不得重新进入刷新状态(否则这里会因 setState 重建而换实例)。
+    expect(
+      identical(tester.widget(find.byType(GfCaptchaImage)), imageDuring),
+      isTrue,
+      reason: '第二次点击不得重新进入刷新状态',
+    );
+    expect(controller.text, '5678');
 
-    final String before = shownImage(tester);
     h.auth.gate!.complete();
     await tester.pumpAndSettle();
 
     expect(h.auth.captchaLoads, 1);
     expect(h.auth.captcha?.captchaId, 'captcha-1');
-    expect(shownImage(tester), isNot(before));
+    expect(
+      shownImage(tester),
+      isNot((imageDuring as GfCaptchaImage).imageData),
+    );
     expect(find.byType(GfProgressIndicator), findsNothing);
+    // 新挑战到达后才作废旧输入。
+    expect(controller.text, isEmpty);
   });
 
   testWidgets(
-    'a failed refresh keeps the old image and surfaces a retryable error',
+    'a failed refresh keeps the old image, the valid code and the retry target',
     (tester) async {
       final h = await pumpLogin(tester);
       final String before = shownImage(tester);
+      await tester.enterText(input('Captcha'), '1234');
       h.auth.loadError = StateError('offline');
 
       await tester.tap(refreshTarget());
@@ -220,8 +261,14 @@ void main() {
 
       expect(h.auth.captchaLoads, 1);
       expect(find.text('Failed to load captcha'), findsOneWidget);
+      // preservePhaseOnError 为 true 时验证码行(重试入口)保留。
       expect(find.byType(GfCaptchaImage), findsOneWidget);
       expect(shownImage(tester), before);
+      // 旧图在服务端仍然有效,旧输入保留,可直接提交。
+      expect(
+        tester.widget<TextField>(input('Captcha')).controller!.text,
+        '1234',
+      );
 
       h.auth.loadError = null;
       await tester.tap(refreshTarget());
@@ -230,8 +277,48 @@ void main() {
       expect(h.auth.captchaLoads, 2);
       expect(find.text('Failed to load captcha'), findsNothing);
       expect(shownImage(tester), isNot(before));
+      expect(
+        tester.widget<TextField>(input('Captcha')).controller!.text,
+        isEmpty,
+      );
     },
   );
+
+  testWidgets('submit is inert while a refresh is in flight', (tester) async {
+    final h = await pumpLogin(tester);
+    final l10n = AppLocalizations.of(tester.element(find.byType(LoginPage)));
+    await tester.enterText(input('Captcha'), '1234');
+    await tester.tap(input('Captcha'));
+    await tester.pumpAndSettle();
+    h.auth.gate = Completer<void>();
+
+    await tester.tap(refreshTarget());
+    await tester.pump();
+    expect(tester.widget<GfButton>(submitButton()).onPressed, isNull);
+
+    // 按钮与键盘提交路径都不能在刷新在途时发起登录请求。
+    await tester.tap(submitButton());
+    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(h.auth.loginCalls, 0);
+    expect(find.byType(GfStatusMessage), findsNothing);
+
+    h.auth.gate!.complete();
+    await tester.pumpAndSettle();
+    expect(tester.widget<GfButton>(submitButton()).onPressed, isNotNull);
+    expect(
+      tester.widget<TextField>(input('Captcha')).controller!.text,
+      isEmpty,
+    );
+
+    // 服务端已要求验证码:空验证码只做本地校验,不发请求、不消耗限流额度。
+    await tester.tap(submitButton());
+    await tester.pumpAndSettle();
+    expect(h.auth.loginCalls, 0);
+    expect(find.text(l10n.authCaptchaRequired), findsOneWidget);
+  });
 
   testWidgets('refresh keeps the captcha field focused', (tester) async {
     final h = await pumpLogin(tester);

@@ -126,6 +126,7 @@
   "authVerify": "Verify",
   "authGetCode": "Get code",
   "authRefreshCaptcha": "Refresh captcha",
+  "authCaptchaRequired": "Please enter the captcha",
   "authOidcLogin": "Sign in with yourtj",
   "authRegisterSuccess": "Registered successfully, please sign in",
   "authResetEmailSent": "Reset email sent, please check your inbox",
