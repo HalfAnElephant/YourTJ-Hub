@@ -146,6 +146,7 @@ class GfUserCard extends StatelessWidget {
     required this.name,
     required this.username,
     this.nameBadges = const <Widget>[],
+    this.usernameAction,
     this.bio,
     this.signature,
     this.coverUrl,
@@ -158,6 +159,7 @@ class GfUserCard extends StatelessWidget {
     this.avatarBadge,
     this.showHeader = true,
     this.coverHeight,
+    this.compact = false,
   });
 
   /// The same image crop is used by the public header and its live editor.
@@ -169,6 +171,9 @@ class GfUserCard extends StatelessWidget {
   final String name;
   final String username;
   final List<Widget> nameBadges;
+
+  /// Compact action kept beside the handle, away from the name badges.
+  final Widget? usernameAction;
   final String? bio;
   final String? signature;
   final String? coverUrl;
@@ -176,6 +181,10 @@ class GfUserCard extends StatelessWidget {
   /// Omit the complete cover/avatar/action block when it is rendered elsewhere.
   final bool showHeader;
   final double? coverHeight;
+
+  /// Tightens text grouping for bounded profile previews without changing the
+  /// public profile header's established rhythm.
+  final bool compact;
 
   /// Supplemental badge labels below public details (e.g. Admin, online).
   final List<String> badges;
@@ -202,6 +211,7 @@ class GfUserCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
+    final sectionGap = compact ? 6.0 : 8.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,7 +230,7 @@ class GfUserCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Wrap(
-                spacing: 8,
+                spacing: compact ? 6 : 8,
                 runSpacing: 4,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
@@ -238,16 +248,35 @@ class GfUserCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 2),
-              Text(
-                '@$username',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: colors.baseContent.withValues(alpha: 0.55),
+              if (usernameAction == null)
+                Text(
+                  '@$username',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: colors.baseContent.withValues(alpha: 0.55),
+                  ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '@$username',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: colors.baseContent.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ),
+                    usernameAction!,
+                  ],
                 ),
-              ),
               if (bio != null && bio!.trim().isNotEmpty) ...<Widget>[
-                const SizedBox(height: 8),
+                SizedBox(height: sectionGap),
                 Text(
                   bio!.trim(),
                   style: TextStyle(
@@ -258,7 +287,7 @@ class GfUserCard extends StatelessWidget {
                 ),
               ],
               if (signature?.trim().isNotEmpty == true) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: sectionGap),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IntrinsicWidth(
@@ -282,7 +311,7 @@ class GfUserCard extends StatelessWidget {
                                 signature!.trim(),
                                 style: TextStyle(
                                   fontSize: 14,
-                                  height: 1.55,
+                                  height: compact ? 1.45 : 1.55,
                                   fontWeight: FontWeight.w500,
                                   color: colors.baseContent.withValues(
                                     alpha: .62,
@@ -308,7 +337,7 @@ class GfUserCard extends StatelessWidget {
                 ),
               ],
               if (details != null) ...<Widget>[
-                const SizedBox(height: 8),
+                SizedBox(height: sectionGap),
                 details!,
               ],
               if (badges.isNotEmpty || coloredBadges.isNotEmpty) ...[
@@ -319,7 +348,7 @@ class GfUserCard extends StatelessWidget {
                   child: Wrap(
                     alignment: WrapAlignment.start,
                     spacing: 2,
-                    runSpacing: 4,
+                    runSpacing: compact ? 2 : 4,
                     children: [
                       for (final badge in badges)
                         GfBadge(label: badge, variant: GfBadgeVariant.info),
@@ -373,7 +402,7 @@ class GfUserCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       for (int i = 0; i < stats.length; i++) ...[
-                        if (i > 0) const SizedBox(width: 8),
+                        if (i > 0) SizedBox(width: compact ? 6 : 8),
                         ConstrainedBox(
                           constraints: BoxConstraints(
                             minWidth: statActions[i] == null ? 0 : 48,

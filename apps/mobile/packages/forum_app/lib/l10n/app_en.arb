@@ -906,6 +906,9 @@
   "notificationSomeone": "Someone",
   "profileRoleAdmin": "Admin",
   "profileOnline": "Online",
+  "profileAccountClosedBadge": "Deactivated",
+  "profileAccountClosedTitle": "Account deactivated",
+  "profileAccountClosedDescription": "This account has been deactivated. Historical content stays visible, but the profile is no longer accessible.",
   "profileJoinedAt": "Joined {date}",
   "@profileJoinedAt": {
     "placeholders": {

@@ -27,6 +27,7 @@ import '../../widgets/markdown_view.dart';
 import '../../widgets/status_views.dart';
 import '../../widgets/skeletons.dart';
 import '../../widgets/user_badge.dart';
+import '../../widgets/user_profile_preview.dart';
 import 'post_actions.dart';
 import 'topic_actions.dart';
 import 'mention_panel.dart';
@@ -1738,7 +1739,14 @@ class _TopicHeader extends StatelessWidget {
             children: <Widget>[
               InkWell(
                 onTap: topic.author.id > 0
-                    ? () => context.push('/u/${topic.author.id}')
+                    ? () => showUserProfilePreview(
+                        context,
+                        userId: topic.author.id,
+                        username: topic.author.username,
+                        nickname: topic.author.nickname,
+                        avatarUrl: topic.author.avatarUrl,
+                        wornBadge: topic.author.wornBadge,
+                      )
                     : null,
                 borderRadius: BorderRadius.circular(40),
                 child: GfAvatar(
@@ -2014,8 +2022,15 @@ class _PostCard extends StatelessWidget {
           Row(
             children: <Widget>[
               InkWell(
-                onTap: post.author.id > 0
-                    ? () => context.push('/u/${post.author.id}')
+                onTap: post.author.id > 0 && !post.isAnonymous
+                    ? () => showUserProfilePreview(
+                        context,
+                        userId: post.author.id,
+                        username: post.author.username,
+                        nickname: post.author.nickname,
+                        avatarUrl: post.author.avatarUrl,
+                        wornBadge: post.author.wornBadge,
+                      )
                     : null,
                 borderRadius: BorderRadius.circular(24),
                 child: GfAvatar(

@@ -1708,6 +1708,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get profileOnline => 'オンライン';
 
   @override
+  String get profileAccountClosedBadge => '退会済み';
+
+  @override
+  String get profileAccountClosedTitle => '退会済みアカウント';
+
+  @override
+  String get profileAccountClosedDescription =>
+      'このアカウントは退会済みです。過去の投稿は表示されますが、プロフィールは利用できません。';
+
+  @override
   String profileJoinedAt(String date) {
     return '$date に参加';
   }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auth/auth.dart';
 import 'package:core/core.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'offline/drift_cache.dart';
@@ -234,6 +235,68 @@ final pageRepositoryProvider = Provider<PageRepository>((ref) {
 final topicRepositoryProvider = Provider<TopicRepository>((ref) {
   return TopicRepository(ref.watch(apiClientProvider));
 });
+
+typedef UserFollowRead = ({int mutation, int request});
+
+final userFollowStateProvider = ChangeNotifierProvider.autoDispose
+    .family<UserFollowState, int>((ref, _) {
+      ref.watch(offlineCacheEpochProvider);
+      return UserFollowState(ref.watch(topicRepositoryProvider));
+    });
+
+/// One optimistic follow value shared by profile pages, lists and previews.
+class UserFollowState extends ChangeNotifier {
+  UserFollowState(this._repository);
+
+  final TopicRepository _repository;
+  bool? following;
+  bool busy = false;
+  int _mutation = 0;
+  int _request = 0;
+  bool _disposed = false;
+
+  UserFollowRead beginRead() => (mutation: _mutation, request: ++_request);
+
+  void acceptServerValue(bool value, UserFollowRead read) {
+    if (_disposed ||
+        busy ||
+        read.mutation != _mutation ||
+        read.request != _request) {
+      return;
+    }
+    following = value;
+    notifyListeners();
+  }
+
+  Future<void> toggle({required int userId, required bool fallback}) async {
+    if (_disposed || busy) return;
+    final previous = following ?? fallback;
+    final mutation = ++_mutation;
+    _request++;
+    following = !previous;
+    busy = true;
+    notifyListeners();
+    try {
+      await _repository.followUser(userId: userId, isFollowing: previous);
+    } catch (_) {
+      if (!_disposed && mutation == _mutation) following = previous;
+      rethrow;
+    } finally {
+      if (!_disposed && mutation == _mutation) {
+        busy = false;
+        _mutation++;
+        _request++;
+        notifyListeners();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+}
 
 final postRepositoryProvider = Provider<PostRepository>((ref) {
   return PostRepository(ref.watch(apiClientProvider));

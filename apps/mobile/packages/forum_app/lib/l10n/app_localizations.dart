@@ -3270,6 +3270,24 @@ abstract class AppLocalizations {
   /// **'Online'**
   String get profileOnline;
 
+  /// No description provided for @profileAccountClosedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivated'**
+  String get profileAccountClosedBadge;
+
+  /// No description provided for @profileAccountClosedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account deactivated'**
+  String get profileAccountClosedTitle;
+
+  /// No description provided for @profileAccountClosedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This account has been deactivated. Historical content stays visible, but the profile is no longer accessible.'**
+  String get profileAccountClosedDescription;
+
   /// No description provided for @profileJoinedAt.
   ///
   /// In en, this message translates to:
