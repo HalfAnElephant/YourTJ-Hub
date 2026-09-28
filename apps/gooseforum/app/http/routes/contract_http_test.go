@@ -112,7 +112,7 @@ func setupHTTPContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 		"/topics/write",
 		middleware.CheckWritableAccount,
 		middleware.RateLimit(middleware.RateLimitTopicWrite),
-		UpButterReq(api.WriteTopic),
+		UpLimitedButterReq(maxContentWriteBodyBytes, api.WriteTopic),
 	)
 	return conn, router
 }
@@ -531,6 +531,116 @@ func TestWriteTopicHTTPContract(t *testing.T) {
 		response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token))
 		if response.MessageCode != "topic.content.tooLong" || response.Params["maxLength"] != float64(4) {
 			t.Fatalf("too-long content response = %#v, want topic.content.tooLong maxLength=4", response)
+		}
+	})
+
+	t.Run("visible text length ignores Markdown syntax", func(t *testing.T) {
+		conn, router := setupHTTPContractTest(t)
+		posting := defaultconfig.GetDefaultPostingSettingsConfig()
+		posting.TextControl.MinPostLength = 3
+		posting.TextControl.MaxPostLength = 4
+		persistHTTPContractConfig(t, conn, pageConfig.PostingSettings, posting)
+		hotdataserve.ClearPostingSettingsConfigCache()
+
+		user := createHTTPContractUser(t, conn, contractTestID())
+		categoryID := contractTestID()
+		if err := conn.Create(&category.Entity{Id: categoryID, Name: "Visible Text", Slug: fmt.Sprintf("visible-text-%d", categoryID)}).Error; err != nil {
+			t.Fatalf("create visible text category: %v", err)
+		}
+		token := contractSessionToken(t, user)
+
+		// 样例数超过写操作限流配额，逐条重置，避免 429 掩盖长度校验。
+		tooShort := []string{
+			"**a**",                           // 粗体标记：可见 1 码点
+			"[ab](https://example.com)",       // 链接：仅标签计入，可见 2
+			"![x](https://example.com/i.png)", // 图片：可见 0
+			"[:sticker:smile:]",               // 贴纸：可见 0
+			"https://example.com",             // 裸链接：可见 0
+			"**你好**",                          // 可见 2
+		}
+		for _, content := range tooShort {
+			ratelimit.Default().ResetAll()
+			body := fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, content, categoryID)
+			response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token))
+			if response.MessageCode != "topic.content.tooShort" || response.Params["minLength"] != float64(3) {
+				t.Fatalf("content %q response = %#v, want topic.content.tooShort minLength=3", content, response)
+			}
+		}
+
+		ratelimit.Default().ResetAll()
+		tooLong := "**你好世界**[ab](https://example.com)" // 可见 6 码点，超过上限 4
+		body := fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, tooLong, categoryID)
+		response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token))
+		if response.MessageCode != "topic.content.tooLong" || response.Params["maxLength"] != float64(4) {
+			t.Fatalf("content %q response = %#v, want topic.content.tooLong maxLength=4", tooLong, response)
+		}
+
+		ratelimit.Default().ResetAll()
+		accepted := "**你好世界**" // 可见 4 码点，正好达到下限与上限
+		body = fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, accepted, categoryID)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token)); response.Code != 0 {
+			t.Fatalf("content %q response = %#v, want success at 4 visible runes", accepted, response)
+		}
+
+		ratelimit.Default().ResetAll()
+		// 源文本远超上限、可见文字正好 4：链接目标不计入上限。
+		destinationOnly := "[你好世界](https://example.com/very/long/path/that/exceeds/the/limit)"
+		body = fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, destinationOnly, categoryID)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token)); response.Code != 0 {
+			t.Fatalf("content %q response = %#v, want success: link destination is not visible text", destinationOnly, response)
+		}
+	})
+
+	t.Run("oversized markdown source is rejected", func(t *testing.T) {
+		conn, router := setupHTTPContractTest(t)
+		posting := defaultconfig.GetDefaultPostingSettingsConfig()
+		posting.TextControl.MinPostLength = 3
+		posting.TextControl.MaxPostLength = 15
+		persistHTTPContractConfig(t, conn, pageConfig.PostingSettings, posting)
+		hotdataserve.ClearPostingSettingsConfigCache()
+
+		user := createHTTPContractUser(t, conn, contractTestID())
+		categoryID := contractTestID()
+		if err := conn.Create(&category.Entity{Id: categoryID, Name: "Oversized Source", Slug: fmt.Sprintf("oversized-source-%d", categoryID)}).Error; err != nil {
+			t.Fatalf("create oversized source category: %v", err)
+		}
+		token := contractSessionToken(t, user)
+
+		// 可见文字 5 个码点（满足下限与上限），但链接目标把源文本堆到 5000+ 码点：
+		// 源文本护栏拒绝，maxPostLength 不能变成无限存档 Markdown 的邀请。
+		source := "[aaaaa](" + strings.Repeat("x", 5000) + ")"
+		body := fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, source, categoryID)
+		response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token))
+		if response.MessageCode != "topic.content.tooLong" || response.Params["maxLength"] != float64(15) {
+			t.Fatalf("oversized source response = %#v, want topic.content.tooLong maxLength=15", response)
+		}
+
+		ratelimit.Default().ResetAll()
+		// 正常长度的链接不受护栏影响（源文本低于护栏下限）。
+		withinGuard := "[你好世界](https://example.com/a/b)"
+		body = fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, withinGuard, categoryID)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token)); response.Code != 0 {
+			t.Fatalf("within-guard source response = %#v, want success", response)
+		}
+	})
+
+	t.Run("oversized request body is rejected", func(t *testing.T) {
+		conn, router := setupHTTPContractTest(t)
+		user := createHTTPContractUser(t, conn, contractTestID())
+		categoryID := contractTestID()
+		if err := conn.Create(&category.Entity{Id: categoryID, Name: "Oversized Body", Slug: fmt.Sprintf("oversized-body-%d", categoryID)}).Error; err != nil {
+			t.Fatalf("create oversized body category: %v", err)
+		}
+
+		// 超过路由硬上限的请求体按解析失败 400 拒绝，不进入控制器；宽松绑定只对
+		// 上限内的解析错误保持 HTTP 200 业务失败语义。
+		body := fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, strings.Repeat("a", maxContentWriteBodyBytes), categoryID)
+		recorder := serveJSON(router, "/api/forum/topics/write", body, contractSessionToken(t, user))
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("oversized body status = %d, want 400: %s", recorder.Code, recorder.Body.String())
+		}
+		if response := decodeContractEnvelope(t, recorder); response.MessageCode != "common.request.parseFailed" {
+			t.Fatalf("oversized body response = %#v, want common.request.parseFailed", response)
 		}
 	})
 

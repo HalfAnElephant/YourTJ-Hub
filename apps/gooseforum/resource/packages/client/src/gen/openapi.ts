@@ -758,7 +758,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create or update a topic and its first post */
+        /**
+         * Create or update a topic and its first post
+         * @description Creates a topic and its first post, or updates an existing topic when `topicId`
+         *     is set. Length rules use rendered visible text (see `WriteTopicRequest.content`).
+         *     Request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`
+         *     before binding; JSON binding is otherwise lenient, so a malformed body within the
+         *     limit binds to zero values and fails as `common.request.invalidParams` (HTTP 200).
+         */
         post: operations["writeTopic"];
         delete?: never;
         options?: never;
@@ -919,7 +926,9 @@ export interface paths {
          *     `permission.emailRequired` (params action=写入, actionCode=write; see the 403
          *     response below).
          *     Content length violations fail with `comment.content.tooShort` /
-         *     `comment.content.tooLong` (params minLength/maxLength).
+         *     `comment.content.tooLong` (params minLength/maxLength); bounds count rendered
+         *     visible text and the raw Markdown source is capped relative to `maxPostLength`.
+         *     Request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`.
          */
         post: operations["createPost"];
         delete?: never;
@@ -945,7 +954,10 @@ export interface paths {
          *     wiki revision flow and is rejected with `topic.operationDenied`. JSON binding is
          *     lenient: a malformed body binds to zero values and fails as `post.notFound`
          *     (HTTP 200). Other business failures: `post.notFound`, `topic.operationDenied`,
-         *     `comment.content.tooShort` / `comment.content.tooLong` (params minLength/maxLength).
+         *     `comment.content.tooShort` / `comment.content.tooLong` (params minLength/maxLength);
+         *     bounds count rendered visible text and the raw Markdown source is capped relative
+         *     to `maxPostLength`. Request bodies over 2 MiB are rejected with HTTP 400
+         *     `common.request.parseFailed`.
          */
         post: operations["updatePost"];
         delete?: never;
@@ -2743,7 +2755,10 @@ export interface paths {
         /** List published topics */
         get: operations["agentTopicList"];
         put?: never;
-        /** Create a published topic as the Agent */
+        /**
+         * Create a published topic as the Agent
+         * @description Shares the human topic write core, so length rules count rendered visible text and the raw Markdown source is capped relative to `maxPostLength`. Request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`.
+         */
         post: operations["agentWriteTopic"];
         delete?: never;
         options?: never;
@@ -2761,7 +2776,10 @@ export interface paths {
         /** List posts in a topic window */
         get: operations["agentPostList"];
         put?: never;
-        /** Reply to a topic as the Agent */
+        /**
+         * Reply to a topic as the Agent
+         * @description Shares the human post write core, so length rules count rendered visible text and the raw Markdown source is capped relative to `maxPostLength`. Request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`.
+         */
         post: operations["agentCreatePost"];
         delete?: never;
         options?: never;
@@ -7524,7 +7542,7 @@ export interface components {
              * @description Existing topic ID when updating; omit or send 0 when creating.
              */
             topicId?: number;
-            /** @description Markdown content; configurable minimum and maximum lengths count Unicode code points. */
+            /** @description Markdown content; configurable minimum and maximum lengths count rendered visible text in Unicode code points, excluding Markdown marks, link destinations, bare/auto-linked URLs and e-mail addresses (their rendered text included), image syntax, sticker tokens and zero-width format characters. The raw Markdown source is additionally capped at four times maxPostLength (never below 4096 code points) to bound storage; request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`. */
             content: string;
             /** @description Title; configurable minimum and maximum lengths count Unicode code points. */
             title: string;
@@ -7618,7 +7636,7 @@ export interface components {
              * @description Target topic; unknown or not-viewable ids fail with `topic.notFound` (HTTP 200).
              */
             topicId: number;
-            /** @description Markdown reply content. The server trims whitespace and enforces configurable length bounds in Unicode code points (`comment.content.tooShort` / `comment.content.tooLong`, params minLength/maxLength). */
+            /** @description Markdown reply content. The server trims whitespace and enforces configurable length bounds on rendered visible text in Unicode code points (`comment.content.tooShort` / `comment.content.tooLong`, params minLength/maxLength); Markdown marks, link destinations, bare/auto-linked URLs and e-mail addresses (their rendered text included), image syntax, sticker tokens and zero-width format characters do not count. The raw Markdown source is additionally capped at four times maxPostLength (never below 4096 code points) to bound storage; request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`. */
             content: string;
             /**
              * Format: uint64
@@ -7657,7 +7675,7 @@ export interface components {
              * @description Post owned by the caller; someone else's post fails with `topic.operationDenied` (HTTP 200).
              */
             postId: number;
-            /** @description Replacement markdown content; trimmed and length-checked in Unicode code points like posts/create. */
+            /** @description Replacement markdown content; trimmed and length-checked on rendered visible text in Unicode code points like posts/create, with the same raw-source cap and 2 MiB body limit. */
             content: string;
         };
         UpdatePostResult: {
