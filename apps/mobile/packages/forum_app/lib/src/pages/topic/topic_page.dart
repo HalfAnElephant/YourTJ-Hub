@@ -6,6 +6,7 @@ import '../../private_notes.dart';
 import '../../local/writing_store.dart';
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +51,13 @@ enum CommentSort { asc, desc, onlyOp }
 
 class _TopicPageState extends ConsumerState<TopicPage>
     with WidgetsBindingObserver {
+  /// 回复完成后按新回复锚点取得的窗口大小(对齐 web revealCreatedPost)。
+  static const int _createdReplyWindowLimit = 20;
+
+  /// 揭示新回复时最多推进的帧数:新回复之后最多有 afterLimit(≤14)个
+  /// 楼层,逐屏检索足以覆盖;步数有界,不依赖定时器。
+  static const int _revealAttempts = 14;
+
   final GlobalKey _titleKey = GlobalKey();
   bool _showHeaderTitle = false;
   bool _titleCheckScheduled = false;
@@ -80,11 +88,16 @@ class _TopicPageState extends ConsumerState<TopicPage>
   bool _hasEarlierPosts = false;
   final _scrollToTop = GfScrollToTopController();
   final GlobalKey _discussionKey = GlobalKey();
+  final GlobalKey _revealPostKey = GlobalKey();
   final List<PostPayload> _posts = [];
+  // 回复成功后要滚入视野的楼层;0 表示没有待揭示的新回复。
+  int _revealPostId = 0;
   int? _afterPostNo;
   bool _hasMorePosts = false;
   CommentSort _sort = CommentSort.asc;
   bool _opScanning = false;
+  // 构建时的列表控制器,用于把新回复滚入视野。
+  ScrollController? _listScrollController;
 
   // 互动状态(乐观更新)。
   bool _liked = false;
@@ -1064,24 +1077,85 @@ class _TopicPageState extends ConsumerState<TopicPage>
     setState(() => _loadingMore = false);
     final topicId = widget.topicId;
     try {
-      // A one-post anchored window makes the acknowledgement visible even in a
-      // long topic. Earlier/later controls keep the rest of the thread reachable.
+      // A full anchored window keeps the acknowledgement in context. Web's
+      // revealCreatedPost merges whenever the new floor is within 20 floors of
+      // the loaded end; this list's single before/after cursor pair cannot
+      // represent the resulting hole, so it merges only when the window
+      // adjoins the loaded floors and replaces the list otherwise (see
+      // _canMergeCreatedWindow).
       final window = await ref
           .read(topicRepositoryProvider)
-          .getPostWindow(topicId: topicId, anchorPostId: result.id, limit: 1);
+          .getPostWindow(
+            topicId: topicId,
+            anchorPostId: result.id,
+            limit: _createdReplyWindowLimit,
+          );
       if (!mounted ||
           !_writingCurrent ||
           generation != _windowGeneration ||
           topicId != widget.topicId) {
         return;
       }
+      // 待审回复被服务端从非版主可见的窗口中过滤,窗口不含新回复本身
+      // (见 payload.go 的 pending 过滤);此时保留已加载列表与游标,
+      // 不能因为一条尚不可见的回复清空用户正在读的上下文。
+      final PostPayload? created = window.posts
+          .where((PostPayload post) => post.id == result.id)
+          .firstOrNull;
+      final bool merge = created != null && _canMergeCreatedWindow(window);
       setState(() {
         _sort = CommentSort.asc;
         final props = _page.valueOrNull;
-        if (props != null) {
+        if (merge) {
+          // 按 id 去重并入,已加载楼层不回退;游标只向外扩展。
+          final Set<int> ids = _posts.map((post) => post.id).toSet();
+          _posts.addAll(window.posts.where((post) => ids.add(post.id)));
+          _replyTargets.addEntries(
+            window.replyTargets.map(
+              (ReplyTargetPayload target) => MapEntry(target.id, target),
+            ),
+          );
+          _afterPostNo = window.afterPostNo ?? _afterPostNo;
+          _hasMorePosts = window.hasAfter;
+        } else if (created != null) {
+          final mainPost = _mainPost(_posts);
+          _posts
+            ..clear()
+            ..addAll(<PostPayload>[
+              if (mainPost != null &&
+                  !window.posts.any((post) => post.id == mainPost.id))
+                mainPost,
+              ...window.posts,
+            ]);
+          _replyTargets
+            ..clear()
+            ..addEntries(
+              window.replyTargets.map(
+                (ReplyTargetPayload target) => MapEntry(target.id, target),
+              ),
+            );
+          _beforePostNo = window.beforePostNo;
+          _afterPostNo = window.afterPostNo;
+          _hasEarlierPosts = window.hasBefore;
+          _hasMorePosts = window.hasAfter;
+        }
+        if (props != null && created != null) {
           _page = AsyncValue.data(
             props.copyWith(
-              postStream: window,
+              postStream: merge
+                  ? PostWindowPayload(
+                      posts: List<PostPayload>.of(_posts),
+                      replyTargets: _replyTargets.values.toList(
+                        growable: false,
+                      ),
+                      beforePostNo: _beforePostNo,
+                      afterPostNo: _afterPostNo,
+                      hasBefore: _hasEarlierPosts,
+                      hasAfter: _hasMorePosts,
+                      total: window.total,
+                      maxPostNo: window.maxPostNo,
+                    )
+                  : window,
               topic: props.topic.copyWith(
                 maxPostNo: window.maxPostNo,
                 replyCount: (window.total - 1).clamp(0, window.total),
@@ -1089,43 +1163,19 @@ class _TopicPageState extends ConsumerState<TopicPage>
             ),
           );
         }
-        final mainPost = _mainPost(_posts);
-        _posts
-          ..clear()
-          ..addAll([
-            if (mainPost != null &&
-                !window.posts.any((post) => post.id == mainPost.id))
-              mainPost,
-            ...window.posts,
-          ]);
-        _replyTargets
-          ..clear()
-          ..addEntries(window.replyTargets.map((t) => MapEntry(t.id, t)));
-        _beforePostNo = window.beforePostNo;
-        _afterPostNo = window.afterPostNo;
-        _hasEarlierPosts = window.hasBefore;
-        _hasMorePosts = window.hasAfter;
-        _currentFloor =
-            result.postNo ?? window.posts.firstOrNull?.postNo ?? _currentFloor;
+        _revealPostId = created?.id ?? 0;
+        if (created != null) {
+          _currentFloor =
+              result.postNo ??
+              window.posts.firstOrNull?.postNo ??
+              _currentFloor;
+        }
       });
       _recordReturnState();
       _syncMentionContext();
-      await _scrollToTop.scrollToTop();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_writingCurrent || generation != _windowGeneration) {
-          return;
-        }
-        final target = _discussionKey.currentContext;
-        if (target != null) {
-          unawaited(
-            Scrollable.ensureVisible(
-              target,
-              duration: GfMotion.duration(context, GfMotion.layout),
-              curve: GfMotion.enterCurve,
-            ),
-          );
-        }
-      });
+      if (created != null) {
+        unawaited(_revealCreatedReply(generation));
+      }
     } catch (error) {
       if (mounted && _writingCurrent && generation == _windowGeneration) {
         showGfToast(
@@ -1134,6 +1184,57 @@ class _TopicPageState extends ConsumerState<TopicPage>
           error: true,
         );
       }
+    }
+  }
+
+  /// 新回复窗口是否与已加载列表相接(无跳楼空洞):相接才合并,
+  /// 相距过远仍整窗替换,保证长话题中的新回复可见且游标语义不歧义。
+  bool _canMergeCreatedWindow(PostWindowPayload window) {
+    final PostPayload? first = window.posts.firstOrNull;
+    if (first == null) return false;
+    final int loadedLastPostNo = _posts.fold<int>(
+      0,
+      (int last, PostPayload post) => post.postNo > last ? post.postNo : last,
+    );
+    return loadedLastPostNo > 0 && first.postNo <= loadedLastPostNo + 1;
+  }
+
+  /// 把新回复本身滚入视野(合并与替换窗口共用,对齐 web revealCreatedPost):
+  /// 目标已构建就直接对齐;尚未构建时逐帧推进——懒构建列表的末尾长度会
+  /// 随布局增长,先追当前末尾直到估算稳定,再逐屏向上检索(新回复之后
+  /// 最多 afterLimit 个楼层),目标一旦构建即精确对齐。步数有界。
+  Future<void> _revealCreatedReply(int generation) async {
+    await WidgetsBinding.instance.endOfFrame;
+    final ScrollController? controller = _listScrollController;
+    if (controller == null || !controller.hasClients) return;
+    double? settledExtent;
+    for (int attempt = 0; attempt < _revealAttempts; attempt++) {
+      if (!mounted || !_writingCurrent || generation != _windowGeneration) {
+        return;
+      }
+      final BuildContext? target = _revealPostKey.currentContext;
+      if (target != null && target.mounted) {
+        await Scrollable.ensureVisible(
+          target,
+          duration: GfMotion.duration(context, GfMotion.layout),
+          curve: GfMotion.enterCurve,
+        );
+        return;
+      }
+      final ScrollPosition position = controller.position;
+      final bool chaseEnd =
+          settledExtent == null ||
+          (position.maxScrollExtent - settledExtent).abs() > 1;
+      settledExtent = position.maxScrollExtent;
+      controller.jumpTo(
+        chaseEnd
+            ? position.maxScrollExtent
+            : math.max(
+                position.minScrollExtent,
+                position.pixels - position.viewportDimension,
+              ),
+      );
+      await WidgetsBinding.instance.endOfFrame;
     }
   }
 
@@ -1287,6 +1388,7 @@ class _TopicPageState extends ConsumerState<TopicPage>
                     threshold: 360,
                     bottomInset: 84,
                     builder: (context, scrollController) {
+                      _listScrollController = scrollController;
                       return AppRefreshIndicator(
                         onRefresh: () => _load(silent: true),
                         child: CustomScrollView(
@@ -1350,7 +1452,10 @@ class _TopicPageState extends ConsumerState<TopicPage>
                                 itemBuilder: (BuildContext context, int index) {
                                   final PostPayload post = replyPosts[index];
                                   return RepaintBoundary(
-                                    key: ValueKey(post.id),
+                                    // 新回复用可定位的锚点 key,便于滚入视野。
+                                    key: post.id == _revealPostId
+                                        ? _revealPostKey
+                                        : ValueKey<int>(post.id),
                                     child: Column(
                                       children: <Widget>[
                                         _PostCard(
