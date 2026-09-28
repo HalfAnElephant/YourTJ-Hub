@@ -642,11 +642,15 @@ identity survive this layout change. The header keeps a small outer margin for i
 - `Current`: sign-in offers account/password, Google, GitHub and Tongji when the published options
   allow it. The provider buttons stay folded behind one labeled control below the password form; it
   opens a short draggable bottom sheet that lists every published provider with the same icon, label
-  and native flow as before, so a 390-by-844 phone shows the complete page without scrolling.
-  The Tongji notice and its policy links live with the Tongji entry, and unconfigured providers stay
-  hidden. Opening moves focus into the sheet; dismissing it by barrier, drag, back or Escape
-  returns focus to the control, while choosing a provider closes the sheet and starts that flow
-  on the page. Native credential
+  and native flow as before. The login tab shows the complete card without scrolling on a 390-by-844
+  phone with safe-area insets in all four languages, including the password captcha once it is
+  revealed. A short form area, such as a small phone or the space left by the keyboard, drops the
+  brand lockup and subtitle so the form and its sign-in methods fit instead. The register tab still
+  scrolls: before any captcha challenge its control row sits just below the fold (measured at 390 by
+  844: 39 px in English, 54 px in German, 5 px in Chinese and Japanese). The Tongji notice and its
+  policy links live with the Tongji entry, and unconfigured providers stay hidden. Opening moves
+  focus into the sheet; dismissing it by barrier, drag, back or Escape returns focus to the control,
+  while choosing a provider closes the sheet and starts that flow on the page. Native credential
   fields expose username/password/new-password autofill, email and one-time-code hints and explicit
   keyboard actions; password-manager saving is requested only after accepting the native session.
   Back, language and appearance controls stay outside the scrollable form, so long errors,

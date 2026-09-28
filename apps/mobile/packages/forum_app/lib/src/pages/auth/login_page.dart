@@ -772,7 +772,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               // Keep navigation outside the form's scroll/hit-test area, even
               // when an error, large text or the keyboard makes the form tall.
               SizedBox(
-                height: 52,
+                height: 48,
                 child: Stack(
                   children: <Widget>[
                     Positioned(
@@ -811,23 +811,37 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 ),
               ),
               Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: GfCard(
-                        showDivider: false,
-                        padding: const EdgeInsets.fromLTRB(4, 16, 4, 24),
-                        child: ListenableBuilder(
-                          listenable: _authController,
-                          builder: (BuildContext context, Widget? child) {
-                            return _buildCardContent(context, l10n, colors);
-                          },
+                child: LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints constraints) {
+                    // A short form area - a small phone, or the keyboard
+                    // covering it - drops the decorative header so the form
+                    // and its sign-in methods stay reachable (issue #888).
+                    final bool compactHeader =
+                        constraints.maxHeight < _compactHeaderHeight;
+                    return Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: GfCard(
+                            showDivider: false,
+                            padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),
+                            child: ListenableBuilder(
+                              listenable: _authController,
+                              builder: (BuildContext context, Widget? child) {
+                                return _buildCardContent(
+                                  context,
+                                  l10n,
+                                  colors,
+                                  compactHeader: compactHeader,
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -837,11 +851,15 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
+  /// Form areas shorter than this drop the brand lockup and subtitle.
+  static const double _compactHeaderHeight = 700;
+
   Widget _buildCardContent(
     BuildContext context,
     AppLocalizations l10n,
-    GfColors colors,
-  ) {
+    GfColors colors, {
+    required bool compactHeader,
+  }) {
     final bool showCaptcha =
         _authController.phase == LoginPhase.needsCaptcha ||
         (_mode == _AuthMode.login && _loginCaptchaRevealed);
@@ -862,33 +880,41 @@ class _LoginPageState extends ConsumerState<LoginPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Image.asset(
-              Theme.of(context).brightness == Brightness.dark
-                  ? 'assets/images/brand-default-dark.webp'
-                  : 'assets/images/brand-default.webp',
-              width: 176,
-              height: 40,
-              fit: BoxFit.contain,
-              semanticLabel: 'YourTJ',
+          // A short form area drops the decorative brand lockup and subtitle
+          // so the form and every sign-in method stay visible without scrolling.
+          if (!compactHeader) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Image.asset(
+                Theme.of(context).brightness == Brightness.dark
+                    ? 'assets/images/brand-default-dark.webp'
+                    : 'assets/images/brand-default.webp',
+                width: 176,
+                height: 32,
+                fit: BoxFit.contain,
+                semanticLabel: 'YourTJ',
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 12),
+          ],
           Text(
             _title(l10n),
-            style: GfTheme.typographyOf(context).display.copyWith(fontSize: 27),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _mode == _AuthMode.login && _returnTo != null && _returnTo != '/'
-                ? l10n.authContinueAfterLogin
-                : _subtitle(l10n),
             style: GfTheme.typographyOf(
               context,
-            ).small.copyWith(color: colors.baseContent.withValues(alpha: 0.55)),
+            ).display.copyWith(fontSize: 27, height: 1.15),
           ),
-          const SizedBox(height: 22),
+          if (!compactHeader) ...[
+            const SizedBox(height: 4),
+            Text(
+              _mode == _AuthMode.login && _returnTo != null && _returnTo != '/'
+                  ? l10n.authContinueAfterLogin
+                  : _subtitle(l10n),
+              style: GfTheme.typographyOf(context).small.copyWith(
+                color: colors.baseContent.withValues(alpha: 0.55),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
           if (_mode != _AuthMode.forgotPassword) ...<Widget>[
             GfSegmented<_AuthMode>(
               segments: <(String, _AuthMode)>[
@@ -898,7 +924,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               selected: _mode,
               onSelected: _switchMode,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
           ],
           if (_mode != _AuthMode.forgotPassword) ...<Widget>[
             _withAuthFocusIntent(
@@ -929,7 +955,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 prefixIcon: const GfSymbol('user-round', size: 20),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
           ],
           if (_mode != _AuthMode.login) ...<Widget>[
             _withAuthInputRegion(
@@ -1144,7 +1170,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                   : _authController.error,
             ),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           GfButton(
             label: _submitLabel(l10n),
             variant: GfButtonVariant.primary,
@@ -1197,7 +1223,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
         OutlinedButton.icon(
           key: const Key('login-more-methods'),
           focusNode: _moreMethodsFocusNode,
