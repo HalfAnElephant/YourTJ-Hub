@@ -250,8 +250,12 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   Unresolved new-peer rows remain visible but cannot open until the server conversation list succeeds;
   a resolved existing conversation still waits for its initial history before enabling send.
   Input remains editable during sending. A successful acknowledgement clears only the submitted
-  revision, while newer input and failed sends remain available. Retrying the unchanged failed draft
-  reuses its outbox bubble. Saving debounces for 500 ms and flushes on leaving or app inactivity;
+  revision, while newer input and failed sends remain available. A failed send rehydrates the
+  submitted composer snapshot (text, sticker tokens, newlines and caret) under its submitted revision
+  unless the user kept typing (whitespace included) while the request was in flight, or a newer
+  message was already acknowledged; the restored draft therefore still clears on acknowledgement and
+  a re-send reuses its outbox bubble and client message ID instead of delivering the content twice.
+  Saving debounces for 500 ms and flushes on leaving or app inactivity;
   failures keep the current text in session memory with visible retry. No message is sent by autosave.
   Signing out hides drafts and invalidates pending saves; the same account/site can restore them on
   its next session; accepting a same-site login recreates the draft registry for the new identity.
@@ -286,8 +290,11 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   selection and leaves the caret after insertion. Replacing the draft with text that has no valid
   selection resets insertion to the end. Opening it dismisses the software keyboard and keeps focus
   inside the composer for hardware shortcuts; the keyboard control restores
-  focus. Its bounded scrollable grid has touch-sized controls, localized labels and system-back/Escape
-  dismissal. Mobile return inserts a newline; hardware Ctrl/Cmd+Enter sends. Disabling the composer
+  focus. The accessory only moves focus and bounds the input's rendered height; the field stays
+  multiline, so mobile return keeps inserting newlines with the panel open, after a sticker is
+  inserted and after one is deleted, without leaving the page. Its bounded scrollable grid has
+  touch-sized controls, localized labels and system-back/Escape
+  dismissal. Hardware Ctrl/Cmd+Enter sends. Disabling the composer
   also disables emoji edits. Platform IME transitions still require physical-device verification.
 - `Current`: native conversations acknowledge only incoming, unread server message IDs whose actual
   bubbles are at least 50% visible for a stable 350 ms in the message viewport. For a bubble taller
@@ -1050,7 +1057,12 @@ moderation workspace; global/category moderators cannot obtain it. The
 retention, account cleanup and concurrency behavior.
 
 `Current`: each session-local outbox entry has a random client message ID that remains stable on
-retry. The server deduplicates the same sender/key and rejects a changed peer/body/type. Keys are
+retry, and binds the composer snapshot captured at submission to its draft revision. A failure
+reinstalls that snapshot under the same revision only while the draft is unchanged or was emptied by
+an unrelated user action; text typed in flight (including whitespace) and drafts a newer send already
+acknowledged are never replaced, and the reinstalled draft still matches its pending entry. An
+attempt a second callback already claimed is not treated as a failure. The server deduplicates the
+same sender/key and rejects a changed peer/body/type. Keys are
 retained with messages. Older clients without a key keep legacy send behavior. Restarting the app
 does not restore an outbox entry's key; a newly composed message is a new send intent.
 

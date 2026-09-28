@@ -999,6 +999,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     }
     _draftChanged();
     final revision = _drafts.forPeer(widget.conv.peerId)?.revision;
+    final submitted = _input.value;
     final failed = outbox.items
         .where(
           (item) =>
@@ -1008,7 +1009,15 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
         )
         .firstOrNull;
     final message =
-        failed ?? outbox.enqueue(text, _latestId, draftRevision: revision);
+        failed ??
+        outbox.enqueue(
+          text,
+          _latestId,
+          draftRevision: revision,
+          // Keep the whole pre-send composer state, not just the string, so a
+          // failure can restore sticker tokens, newlines and the caret.
+          draftValue: submitted,
+        );
     _scrollToBottom();
     await _sendPending(message);
   }
@@ -1023,6 +1032,18 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
         .send(message);
     if (convId != null) {
       drafts.acknowledge(peerId, message.draftRevision, convId);
+    } else if (message.state == DeliveryState.failed &&
+        mounted &&
+        epoch == ref.read(offlineCacheEpochProvider)) {
+      // Only a real failure rehydrates: a null return for an attempt another
+      // callback already claimed (same-frame double tap) must not restore.
+      // The pending bubble stays for retry with the same clientMessageId, and
+      // the submitted draft wins unless the user composed newer text.
+      drafts.restoreFailed(
+        widget.conv,
+        message.draftRevision,
+        message.draftValue,
+      );
     }
     if (!mounted ||
         epoch != ref.read(offlineCacheEpochProvider) ||
