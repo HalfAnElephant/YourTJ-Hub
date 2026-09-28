@@ -2755,7 +2755,10 @@ export interface paths {
         /** List published topics */
         get: operations["agentTopicList"];
         put?: never;
-        /** Create a published topic as the Agent */
+        /**
+         * Create a published topic as the Agent
+         * @description Shares the human topic write core, so length rules count rendered visible text and the raw Markdown source is capped relative to `maxPostLength`. Request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`.
+         */
         post: operations["agentWriteTopic"];
         delete?: never;
         options?: never;
@@ -2773,7 +2776,10 @@ export interface paths {
         /** List posts in a topic window */
         get: operations["agentPostList"];
         put?: never;
-        /** Reply to a topic as the Agent */
+        /**
+         * Reply to a topic as the Agent
+         * @description Shares the human post write core, so length rules count rendered visible text and the raw Markdown source is capped relative to `maxPostLength`. Request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`.
+         */
         post: operations["agentCreatePost"];
         delete?: never;
         options?: never;

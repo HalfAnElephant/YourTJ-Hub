@@ -67,6 +67,16 @@ func UpLimitedButterReq[T any](maxBytes int64, action func(ctx component.BetterR
 	}
 }
 
+// UpUriLimitedJsonReq binds URI path parameters then a size-limited strict JSON
+// body. Bodies over maxBytes fail as parse errors, like UpLimitedJsonReq.
+func UpUriLimitedJsonReq[T any](maxBytes int64, action func(ctx component.BetterRequest[T]) component.Response) func(c *gin.Context) {
+	handler := UpUriJsonReq(action)
+	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		handler(c)
+	}
+}
+
 // UpQueryReq binds query parameters.
 func UpQueryReq[T any](action func(ctx component.BetterRequest[T]) component.Response) func(c *gin.Context) {
 	return func(c *gin.Context) {
