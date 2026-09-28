@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:core/core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +11,52 @@ import 'package:ui_kit/ui_kit.dart';
 import 'chat_visible_read_test.dart' show pumpChat;
 import 'pages_behavior_test.dart' show makeChatMessage;
 
-/// Asserts the circular-avatar contract on every DM surface.
+/// Verifies the rendered clip geometry rather than one node's configuration:
+/// every clip path applied to the avatar — inside [GfAvatar] and from any
+/// ancestor wrapper — must accept 24 sample points on the avatar's inscribed
+/// circle (95% of the radius, in global coordinates). A circular clip accepts
+/// all of them; a polygon clip — for example the repo's historical six-point
+/// hexagon clipper — rejects the directions that fall outside its edges
+/// (issue #877 review).
+void expectCircularClipGeometry(WidgetTester tester, Finder avatarFinder) {
+  final RenderObject avatar = tester.renderObject(avatarFinder);
+  final Rect avatarRect = tester.getRect(avatarFinder);
+  final List<RenderClipPath> clips = <RenderClipPath>[];
+
+  void collect(RenderObject node) {
+    if (node is RenderClipPath && node.clipper != null) clips.add(node);
+    node.visitChildren(collect);
+  }
+
+  collect(avatar);
+  for (RenderObject? node = avatar.parent; node != null; node = node.parent) {
+    if (node is RenderClipPath && node.clipper != null) clips.add(node);
+  }
+
+  expect(clips, isNotEmpty, reason: 'the avatar must be clipped');
+  final double radius = avatarRect.size.shortestSide / 2 * 0.95;
+  for (final RenderClipPath clipNode in clips) {
+    final Path clip = clipNode.clipper!
+        .getClip(clipNode.size)
+        .transform(clipNode.getTransformTo(null).storage);
+    for (int step = 0; step < 24; step++) {
+      final double angle = step * math.pi / 12;
+      final Offset point =
+          avatarRect.center + Offset(math.cos(angle), math.sin(angle)) * radius;
+      expect(
+        clip.contains(point),
+        isTrue,
+        reason:
+            'every clip over the avatar must accept the inscribed circle; '
+            '${clipNode.runtimeType} rejects $point (${step * 15}°)',
+      );
+    }
+  }
+}
+
+/// Asserts the circular-avatar contract on every DM surface: the decoration is
+/// a circle, the child is clipped to it, neither size nor ring drifts, and the
+/// painted region really is circular.
 ///
 /// Regression guard for issue #877 (DM avatars reported as hexagons): the
 /// conversation list and both message directions must keep a circular
@@ -39,6 +87,13 @@ void expectCircularAvatar(
   );
   expect(decoration.border, ring ? isNotNull : isNull);
   expect(tester.getSize(avatarFinder), Size(size, size));
+  expect(
+    find.descendant(of: avatarFinder, matching: find.byType(CustomPaint)),
+    findsNothing,
+    reason:
+        'a custom painter inside the avatar could draw a non-circular shape',
+  );
+  expectCircularClipGeometry(tester, avatarFinder);
 }
 
 void main() {
@@ -92,24 +147,21 @@ void main() {
     expect(header, isNotNull);
     expectCircularAvatar(tester, header!, size: 36, ring: true);
 
-    // `ring` distinguishes the directions: only the outgoing avatar carries
-    // the base-100 ring (messages_page.dart `_MessageRow`).
+    // Direction comes from position, while `ring` is asserted explicitly per
+    // direction so the expectation cannot be derived from the widget under
+    // test: only the outgoing avatar carries the base-100 ring
+    // (messages_page.dart `_MessageRow`).
     expect(messageAvatars, hasLength(2));
-    for (final Finder finder in messageAvatars) {
-      final bool isSelf = tester.widget<GfAvatar>(finder).ring;
-      expectCircularAvatar(tester, finder, size: 32, ring: isSelf);
-    }
-
-    final Finder peerAvatar = messageAvatars.singleWhere(
-      (Finder finder) => !tester.widget<GfAvatar>(finder).ring,
-    );
-    final Finder selfAvatar = messageAvatars.singleWhere(
-      (Finder finder) => tester.widget<GfAvatar>(finder).ring,
-    );
     final double screenWidth = tester
         .getSize(find.byType(Scaffold).first)
         .width;
-    expect(tester.getCenter(peerAvatar).dx, lessThan(screenWidth / 2));
-    expect(tester.getCenter(selfAvatar).dx, greaterThan(screenWidth / 2));
+    final Finder peerAvatar = messageAvatars.singleWhere(
+      (Finder finder) => tester.getCenter(finder).dx < screenWidth / 2,
+    );
+    final Finder selfAvatar = messageAvatars.singleWhere(
+      (Finder finder) => tester.getCenter(finder).dx > screenWidth / 2,
+    );
+    expectCircularAvatar(tester, peerAvatar, size: 32, ring: false);
+    expectCircularAvatar(tester, selfAvatar, size: 32, ring: true);
   });
 }
