@@ -86,6 +86,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
   final Object _authInputGroup = Object();
   final FocusNode _usernameFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _confirmPasswordFocusNode = FocusNode();
   final FocusNode _captchaFocusNode = FocusNode();
   final TextEditingController _email = TextEditingController();
   final TextEditingController _captcha = TextEditingController();
@@ -101,6 +102,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
   bool _oidcBusy = false;
   bool _finishingAuthentication = false;
   bool _passwordInteractionStarted = false;
+  // 明文显示是逐字段的显式用户选择,默认保持遮蔽。
+  bool _passwordVisible = false;
+  bool _confirmPasswordVisible = false;
   bool _loginCaptchaRevealed = false;
   bool _captchaRevealFrameScheduled = false;
   bool _captchaFocusEligible = false;
@@ -231,6 +235,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     _captchaFocusNode.removeListener(_onCaptchaFocusChanged);
     _usernameFocusNode.dispose();
     _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     _captchaFocusNode.dispose();
     _confirmPassword.dispose();
     _username.dispose();
@@ -1070,7 +1075,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 GfInput(
                   controller: _password,
                   focusNode: _passwordFocusNode,
-                  obscureText: true,
+                  obscureText: !_passwordVisible,
                   autofillHints: [
                     _mode == _AuthMode.login
                         ? AutofillHints.password
@@ -1081,9 +1086,19 @@ class _LoginPageState extends ConsumerState<LoginPage>
                   textInputAction: TextInputAction.next,
                   onEditingComplete: _mode == _AuthMode.login
                       ? () => _completePasswordStage(focusCaptcha: true)
-                      : () => FocusScope.of(context).nextFocus(),
+                      // 显示开关也是可聚焦后缀控件,nextFocus 会先停在它上面;
+                      // 注册流程显式前进到确认密码。
+                      : _confirmPasswordFocusNode.requestFocus,
                   labelText: l10n.authPassword,
                   prefixIcon: const GfSymbol('key-round', size: 20),
+                  suffixIcon: _PasswordVisibilityToggle(
+                    key: const Key('login-password-visibility'),
+                    visible: _passwordVisible,
+                    showLabel: l10n.authShowPassword,
+                    hideLabel: l10n.authHidePassword,
+                    onPressed: () =>
+                        setState(() => _passwordVisible = !_passwordVisible),
+                  ),
                   onChanged: _onPasswordChanged,
                 ),
               ),
@@ -1106,13 +1121,23 @@ class _LoginPageState extends ConsumerState<LoginPage>
             _withAuthInputRegion(
               GfInput(
                 controller: _confirmPassword,
+                focusNode: _confirmPasswordFocusNode,
                 labelText: l10n.authConfirmPassword,
-                obscureText: true,
+                obscureText: !_confirmPasswordVisible,
                 autofillHints: const [AutofillHints.newPassword],
                 autocorrect: false,
                 enableSuggestions: false,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _submit(),
+                suffixIcon: _PasswordVisibilityToggle(
+                  key: const Key('register-confirm-password-visibility'),
+                  visible: _confirmPasswordVisible,
+                  showLabel: l10n.authShowPassword,
+                  hideLabel: l10n.authHidePassword,
+                  onPressed: () => setState(
+                    () => _confirmPasswordVisible = !_confirmPasswordVisible,
+                  ),
+                ),
               ),
             ),
             if (_registrationLoading) const LinearProgressIndicator(),
@@ -1390,5 +1415,42 @@ class _LoginPageState extends ConsumerState<LoginPage>
       _AuthMode.register => _register(),
       _AuthMode.forgotPassword => _forgotPassword(),
     };
+  }
+}
+
+/// 密码字段的明文/遮蔽切换。
+///
+/// 无状态:显示状态由所属页面持有,标签随状态变化以便读屏播报当前动作。
+class _PasswordVisibilityToggle extends StatelessWidget {
+  const _PasswordVisibilityToggle({
+    super.key,
+    required this.visible,
+    required this.showLabel,
+    required this.hideLabel,
+    required this.onPressed,
+  });
+
+  final bool visible;
+  final String showLabel;
+  final String hideLabel;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final String label = visible ? hideLabel : showLabel;
+    // 与发布页工具栏同一模式:合并语义让读屏把标签、按钮身份和开关状态
+    // 读成一个控件;按钮保持可聚焦,键盘/D-pad 也能到达显示开关。
+    return MergeSemantics(
+      child: Semantics(
+        toggled: visible,
+        child: GfIconButton(
+          symbol: visible ? 'eye-off' : 'eye',
+          tooltip: label,
+          size: 44,
+          iconSize: 20,
+          onPressed: onPressed,
+        ),
+      ),
+    );
   }
 }

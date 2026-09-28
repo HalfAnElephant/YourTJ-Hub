@@ -682,6 +682,9 @@ identity survive this layout change. The header keeps a small outer margin for i
   allow it, grouped below the password form. Unconfigured providers are hidden. Native credential
   fields expose username/password/new-password autofill, email and one-time-code hints and explicit
   keyboard actions; password-manager saving is requested only after accepting the native session.
+  Password fields stay obscured by default and each carries a state-labelled reveal toggle that
+  keyboard traversal can reach; showing or hiding leaves the text, caret and focus untouched, and
+  screen readers announce it as one labelled button.
   Back, language and appearance controls stay outside the scrollable form, so long errors,
   enlarged text and the keyboard cannot cover their touch targets.
   Narrow layouts and larger text stack the captcha image above its input. Password captcha and TOTP remain

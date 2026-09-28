@@ -116,6 +116,8 @@
   "authPassword": "Password",
   "authNewPassword": "New password",
   "authConfirmPassword": "Confirm password",
+  "authShowPassword": "Show password",
+  "authHidePassword": "Hide password",
   "authCaptcha": "Captcha",
   "authForgotPassword": "Forgot password?",
   "authCreateAccount": "Create account",

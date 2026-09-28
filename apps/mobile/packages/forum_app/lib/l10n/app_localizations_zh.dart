@@ -205,6 +205,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authConfirmPassword => '确认密码';
 
   @override
+  String get authShowPassword => '显示密码';
+
+  @override
+  String get authHidePassword => '隐藏密码';
+
+  @override
   String get authCaptcha => '验证码';
 
   @override

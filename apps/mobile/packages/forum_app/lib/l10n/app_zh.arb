@@ -109,6 +109,8 @@
   "authPassword": "密码",
   "authNewPassword": "新密码",
   "authConfirmPassword": "确认密码",
+  "authShowPassword": "显示密码",
+  "authHidePassword": "隐藏密码",
   "authCaptcha": "验证码",
   "authForgotPassword": "忘记密码？",
   "authCreateAccount": "创建账号",
