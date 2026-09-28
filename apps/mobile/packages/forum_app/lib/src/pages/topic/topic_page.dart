@@ -50,6 +50,9 @@ enum CommentSort { asc, desc, onlyOp }
 
 class _TopicPageState extends ConsumerState<TopicPage>
     with WidgetsBindingObserver {
+  /// 回复完成后按新回复锚点取得的窗口大小(对齐 web revealCreatedPost)。
+  static const int _createdReplyWindowLimit = 20;
+
   final GlobalKey _titleKey = GlobalKey();
   bool _showHeaderTitle = false;
   bool _titleCheckScheduled = false;
@@ -85,6 +88,8 @@ class _TopicPageState extends ConsumerState<TopicPage>
   bool _hasMorePosts = false;
   CommentSort _sort = CommentSort.asc;
   bool _opScanning = false;
+  // 构建时的列表控制器,用于把合并后的新回复滚入视野。
+  ScrollController? _listScrollController;
 
   // 互动状态(乐观更新)。
   bool _liked = false;
@@ -1064,24 +1069,76 @@ class _TopicPageState extends ConsumerState<TopicPage>
     setState(() => _loadingMore = false);
     final topicId = widget.topicId;
     try {
-      // A one-post anchored window makes the acknowledgement visible even in a
-      // long topic. Earlier/later controls keep the rest of the thread reachable.
+      // A full anchored window keeps the acknowledgement in context (web
+      // revealCreatedPost parity); the window is merged into the loaded list
+      // below instead of replacing it.
       final window = await ref
           .read(topicRepositoryProvider)
-          .getPostWindow(topicId: topicId, anchorPostId: result.id, limit: 1);
+          .getPostWindow(
+            topicId: topicId,
+            anchorPostId: result.id,
+            limit: _createdReplyWindowLimit,
+          );
       if (!mounted ||
           !_writingCurrent ||
           generation != _windowGeneration ||
           topicId != widget.topicId) {
         return;
       }
+      final bool merge = _canMergeCreatedWindow(window, result);
       setState(() {
         _sort = CommentSort.asc;
         final props = _page.valueOrNull;
+        if (merge) {
+          // 按 id 去重并入,已加载楼层不回退;游标只向外扩展。
+          final Set<int> ids = _posts.map((post) => post.id).toSet();
+          _posts.addAll(window.posts.where((post) => ids.add(post.id)));
+          _replyTargets.addEntries(
+            window.replyTargets.map(
+              (ReplyTargetPayload target) => MapEntry(target.id, target),
+            ),
+          );
+          _afterPostNo = window.afterPostNo ?? _afterPostNo;
+          _hasMorePosts = window.hasAfter;
+        } else {
+          final mainPost = _mainPost(_posts);
+          _posts
+            ..clear()
+            ..addAll(<PostPayload>[
+              if (mainPost != null &&
+                  !window.posts.any((post) => post.id == mainPost.id))
+                mainPost,
+              ...window.posts,
+            ]);
+          _replyTargets
+            ..clear()
+            ..addEntries(
+              window.replyTargets.map(
+                (ReplyTargetPayload target) => MapEntry(target.id, target),
+              ),
+            );
+          _beforePostNo = window.beforePostNo;
+          _afterPostNo = window.afterPostNo;
+          _hasEarlierPosts = window.hasBefore;
+          _hasMorePosts = window.hasAfter;
+        }
         if (props != null) {
           _page = AsyncValue.data(
             props.copyWith(
-              postStream: window,
+              postStream: merge
+                  ? PostWindowPayload(
+                      posts: List<PostPayload>.of(_posts),
+                      replyTargets: _replyTargets.values.toList(
+                        growable: false,
+                      ),
+                      beforePostNo: _beforePostNo,
+                      afterPostNo: _afterPostNo,
+                      hasBefore: _hasEarlierPosts,
+                      hasAfter: _hasMorePosts,
+                      total: window.total,
+                      maxPostNo: window.maxPostNo,
+                    )
+                  : window,
               topic: props.topic.copyWith(
                 maxPostNo: window.maxPostNo,
                 replyCount: (window.total - 1).clamp(0, window.total),
@@ -1089,43 +1146,17 @@ class _TopicPageState extends ConsumerState<TopicPage>
             ),
           );
         }
-        final mainPost = _mainPost(_posts);
-        _posts
-          ..clear()
-          ..addAll([
-            if (mainPost != null &&
-                !window.posts.any((post) => post.id == mainPost.id))
-              mainPost,
-            ...window.posts,
-          ]);
-        _replyTargets
-          ..clear()
-          ..addEntries(window.replyTargets.map((t) => MapEntry(t.id, t)));
-        _beforePostNo = window.beforePostNo;
-        _afterPostNo = window.afterPostNo;
-        _hasEarlierPosts = window.hasBefore;
-        _hasMorePosts = window.hasAfter;
         _currentFloor =
             result.postNo ?? window.posts.firstOrNull?.postNo ?? _currentFloor;
       });
       _recordReturnState();
       _syncMentionContext();
-      await _scrollToTop.scrollToTop();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_writingCurrent || generation != _windowGeneration) {
-          return;
-        }
-        final target = _discussionKey.currentContext;
-        if (target != null) {
-          unawaited(
-            Scrollable.ensureVisible(
-              target,
-              duration: GfMotion.duration(context, GfMotion.layout),
-              curve: GfMotion.enterCurve,
-            ),
-          );
-        }
-      });
+      if (merge) {
+        _revealMergedReply(generation);
+      } else {
+        await _scrollToTop.scrollToTop();
+        _revealDiscussionHeader(generation);
+      }
     } catch (error) {
       if (mounted && _writingCurrent && generation == _windowGeneration) {
         showGfToast(
@@ -1135,6 +1166,60 @@ class _TopicPageState extends ConsumerState<TopicPage>
         );
       }
     }
+  }
+
+  /// 新回复窗口是否与已加载列表相接(无跳楼空洞):相接才合并,
+  /// 相距过远仍整窗替换,保证长话题中的新回复可见且游标语义不歧义。
+  bool _canMergeCreatedWindow(
+    PostWindowPayload window,
+    CreatePostResult result,
+  ) {
+    final PostPayload? first = window.posts.firstOrNull;
+    if (first == null) return false;
+    final int loadedLastPostNo = _posts.fold<int>(
+      0,
+      (int last, PostPayload post) => post.postNo > last ? post.postNo : last,
+    );
+    return loadedLastPostNo > 0 &&
+        window.posts.any((PostPayload post) => post.id == result.id) &&
+        first.postNo <= loadedLastPostNo + 1;
+  }
+
+  /// 合并后新回复位于列表末尾,下一帧滚到底部露出确认位置。
+  void _revealMergedReply(int generation) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_writingCurrent || generation != _windowGeneration) {
+        return;
+      }
+      final ScrollController? controller = _listScrollController;
+      if (controller == null || !controller.hasClients) return;
+      unawaited(
+        GfMotion.scrollTo(
+          context,
+          controller,
+          controller.position.maxScrollExtent,
+        ),
+      );
+    });
+  }
+
+  /// 替换窗口时窗口顶部就是新回复,回到顶部并露出讨论区标题。
+  void _revealDiscussionHeader(int generation) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_writingCurrent || generation != _windowGeneration) {
+        return;
+      }
+      final target = _discussionKey.currentContext;
+      if (target != null) {
+        unawaited(
+          Scrollable.ensureVisible(
+            target,
+            duration: GfMotion.duration(context, GfMotion.layout),
+            curve: GfMotion.enterCurve,
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _reportPost(PostPayload post) async {
@@ -1287,6 +1372,7 @@ class _TopicPageState extends ConsumerState<TopicPage>
                     threshold: 360,
                     bottomInset: 84,
                     builder: (context, scrollController) {
+                      _listScrollController = scrollController;
                       return AppRefreshIndicator(
                         onRefresh: () => _load(silent: true),
                         child: CustomScrollView(

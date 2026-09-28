@@ -6,7 +6,7 @@
 >
 > Owner: Platform maintainers
 >
-> Last verified: 2026-09-26
+> Last verified: 2026-09-28
 
 The Flutter app combines the forum, course catalog, scheduler and Wiki. Ordinary browsing and
 writing use native pages. Management uses the same first-party workspaces and permission checks as
@@ -167,6 +167,12 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   shortcuts, reply links, and earlier/later pagination navigate the actual reply stream. Returning
   to the first post from a middle window reloads that window before offering refresh; stale
   pagination responses are discarded after a floor or session change.
+- `Current`: a submitted reply is acknowledged with a full window around its new floor. When that
+  window adjoins the loaded floors the reply is merged by server ID: loaded replies stay, the
+  earlier/later cursors keep the loaded window's bounds, and the new reply is scrolled into view.
+  A distant new floor replaces the window instead so the confirmation remains visible. Deep-link
+  windows — such as a notification pointing at one reply — keep both continuation controls on the
+  anchored floors.
 - `Current`: replies offer a compact sort capsule beside the reply count — oldest first, newest
   first, author only. Oldest and newest flip the loaded window locally without refetching; in
   newest-first order the list footer loads earlier floors and the top control loads newer ones.
