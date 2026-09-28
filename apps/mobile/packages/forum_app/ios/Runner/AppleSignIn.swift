@@ -94,23 +94,35 @@ private final class AppleButtonFactory: NSObject, FlutterPlatformViewFactory {
   func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol { FlutterStandardMessageCodec.sharedInstance() }
   func create(withFrame frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?) -> FlutterPlatformView {
     let params = args as? [String: Any]
-    return AppleButtonView(frame: frame, id: viewId, dark: params?["dark"] as? Bool ?? false, radius: params?["radius"] as? Double, messenger: messenger)
+    return AppleButtonView(
+      frame: frame,
+      id: viewId,
+      dark: params?["dark"] as? Bool ?? false,
+      radius: params?["radius"] as? Double,
+      height: params?["height"] as? Double,
+      messenger: messenger)
   }
 }
 private final class AppleButtonView: NSObject, FlutterPlatformView {
   let button: ASAuthorizationAppleIDButton
   let channel: FlutterMethodChannel
-  init(frame: CGRect, id: Int64, dark: Bool, radius: Double?, messenger: FlutterBinaryMessenger) {
+  init(frame: CGRect, id: Int64, dark: Bool, radius: Double?, height: Double?, messenger: FlutterBinaryMessenger) {
     button = ASAuthorizationAppleIDButton(type: .signIn, style: dark ? .white : .black)
     channel = FlutterMethodChannel(name: "yourtj/apple-button/\(id)", binaryMessenger: messenger)
     super.init()
     button.frame = frame
-    // The frame and the corner radius are the only adjustable properties of the
-    // official control; the Flutter side supplies its design system's pill
-    // radius, capped here at half the height so it can never overshoot.
-    let requested = CGFloat(radius ?? 6)
-    button.cornerRadius = max(0, min(requested, frame.height / 2))
+    button.cornerRadius = AppleButtonView.cornerRadius(radius: radius, height: height)
     button.addTarget(self, action: #selector(pressed), for: .touchUpInside)
+  }
+  /// The frame and the corner radius are the only adjustable properties of the
+  /// official control. The factory is called with a zero frame and the engine
+  /// only resizes the view afterwards through an autoresizing mask, so the pill
+  /// radius is capped against the row height Flutter renders instead of the
+  /// frame, which would collapse the button to a square.
+  static func cornerRadius(radius: Double?, height: Double?) -> CGFloat {
+    let requested = max(0, CGFloat(radius ?? 6))
+    guard let rowHeight = height, rowHeight > 0 else { return requested }
+    return min(requested, CGFloat(rowHeight) / 2)
   }
   func view() -> UIView { button }
   @objc private func pressed() { channel.invokeMethod("pressed", arguments: nil) }

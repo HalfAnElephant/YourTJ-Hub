@@ -55,6 +55,7 @@ void main() {
 
     expect(creations, hasLength(1));
     expect(creations.single['dark'], isTrue);
+    expect(creations.single['height'], AppleSignInButton.height);
     expect(creations.single['radius'], AppleSignInButton.radius);
     // The sibling login rows are stadium pills occupying the same row height,
     // so the Apple button draws the same pill (Apple allows cornerRadius only).
@@ -79,6 +80,7 @@ void main() {
 
     expect(creations, hasLength(2));
     expect(creations.last['dark'], isFalse);
+    expect(creations.last['height'], AppleSignInButton.height);
     expect(creations.last['radius'], AppleSignInButton.radius);
   });
 

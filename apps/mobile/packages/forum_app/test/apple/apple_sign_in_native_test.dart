@@ -35,14 +35,19 @@ void main() {
     expect(declared, contains('zh-Hans'));
   });
 
-  test('the native button applies the Flutter-provided pill radius', () {
+  test('the native button derives its radius from the Flutter row height', () {
     final source = read('ios/Runner/AppleSignIn.swift');
+    // Both geometry values travel in the creation params.
     expect(source, contains(RegExp(r'\["radius"\]')));
+    expect(source, contains(RegExp(r'\["height"\]')));
     expect(source, contains(RegExp(r'button\.cornerRadius = ')));
-    // Only the frame and the corner radius may be adjusted on the official
-    // control; the previous fixed 8pt rectangle is gone.
+    // The engine creates the platform view with CGRectZero and only resizes it
+    // later through an autoresizing mask, so clamping against the frame would
+    // collapse the pill to a square button.
+    expect(source, isNot(contains('frame.height')));
+    // The cap is expressed against the height Flutter renders the row at.
+    expect(source, contains('CGFloat(rowHeight) / 2'));
+    // The previous fixed 8pt rectangle is gone.
     expect(source, isNot(contains('cornerRadius = 8')));
-    // A radius can never exceed half the control height.
-    expect(source, contains('frame.height / 2'));
   });
 }

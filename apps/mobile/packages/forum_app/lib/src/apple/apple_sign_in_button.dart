@@ -45,9 +45,20 @@ class _AppleSignInButtonState extends State<AppleSignInButton> {
           child: UiKitView(
             // Creation params are read once by the native view, so a change
             // (here: the theme) has to recreate the platform view.
-            key: ValueKey((dark: dark, radius: AppleSignInButton.radius)),
+            key: ValueKey((
+              dark: dark,
+              height: AppleSignInButton.height,
+              radius: AppleSignInButton.radius,
+            )),
             viewType: 'yourtj/apple-sign-in-button',
-            creationParams: {'dark': dark, 'radius': AppleSignInButton.radius},
+            creationParams: {
+              'dark': dark,
+              // The engine calls the platform view factory with a zero frame
+              // and resizes the view later, so the native side caps the radius
+              // against this row height instead.
+              'height': AppleSignInButton.height,
+              'radius': AppleSignInButton.radius,
+            },
             creationParamsCodec: const StandardMessageCodec(),
             onPlatformViewCreated: (id) {
               _channel?.setMethodCallHandler(null);

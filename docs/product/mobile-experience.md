@@ -1045,9 +1045,14 @@ show a localized message without disclosing database errors.
 The entry keeps Apple's official `ASAuthorizationAppleIDButton`, whose frame and corner radius are the
 only adjustable properties, so it renders as the same pill-shaped row as the browser-based providers.
 Apple localizes that control and its authorization sheet from the languages the iOS bundle declares
-(`CFBundleLocalizations`: English, Simplified Chinese, Japanese, German), so they follow the device or
-per-app language rather than Flutter's in-app language switch — Apple exposes no locale override for
-the system control.
+(`CFBundleLocalizations`: English, Simplified Chinese, Japanese, German), not from Flutter's in-app
+language switch — Apple exposes no locale override for the system control. A device or per-app
+language among those four matches the app UI; outside them the bundle falls back to the development
+region (English) while the Flutter UI falls back to Simplified Chinese
+(`resolveAppLocale`), so the two disagree.
+`Decision needed`: the two ways to close that gap — writing the app's `AppleLanguages` default
+(which only applies after a relaunch) or changing the Flutter fallback language — are product
+decisions, and neither has an owner yet.
 An existing forum user connects Apple from account settings before using it to log in. Cancellation
 leaves the login form available. Account switching retains the cache-clearing boundary before committing
 the new session. Apple authorization revocation expires only the matching Apple-authenticated session.
