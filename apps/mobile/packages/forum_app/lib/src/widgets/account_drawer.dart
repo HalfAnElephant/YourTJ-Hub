@@ -326,6 +326,10 @@ final accountLayoutProvider = FutureProvider.autoDispose<LayoutPayload>((
   return (await ref.watch(pageRepositoryProvider).home()).layout;
 });
 
+/// Marks the decorative hairline separating the account group (sign-in or the
+/// signed-in entries) from the settings, about and appearance entries below.
+const Key drawerSectionDividerKey = ValueKey('drawer-section-divider');
+
 // Keyed by the server viewer ID; a session change discards cached identity.
 final accountCardProvider = FutureProvider.autoDispose
     .family<UserCardPayload, int>((ref, id) {
@@ -502,7 +506,10 @@ class AccountDrawer extends ConsumerWidget {
                 ),
               ],
             ],
-            const SizedBox(height: 12),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: GfDivider(key: drawerSectionDividerKey, inset: 24),
+            ),
             entry('settings', l10n.settingsTitle, '/settings'),
             entry('book-open', l10n.siteInfoTitle, '/about'),
             entry(
