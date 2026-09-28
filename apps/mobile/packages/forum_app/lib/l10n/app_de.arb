@@ -1003,6 +1003,7 @@
   "messageCopied": "Kopiert",
   "messageReply": "Antworten",
   "messageReplyCancel": "Antwort abbrechen",
+  "messageReplySelf": "Ich",
   "messageReport": "Nachricht melden",
   "messageReportPrivacy": "Mit dem Absenden können Website-Administratoren diese Nachricht und Ihre Erklärung prüfen. Der restliche Gesprächsverlauf wird nicht übermittelt.",
   "contentReport": "Inhalt melden",

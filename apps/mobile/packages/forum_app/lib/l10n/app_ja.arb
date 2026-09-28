@@ -1003,6 +1003,7 @@
   "messageCopied": "コピーしました",
   "messageReply": "返信",
   "messageReplyCancel": "返信をキャンセル",
+  "messageReplySelf": "自分",
   "messageReport": "メッセージを報告",
   "messageReportPrivacy": "送信すると、このメッセージと説明をサイト管理者が確認できます。会話全体は送信されません。",
   "contentReport": "コンテンツを報告",

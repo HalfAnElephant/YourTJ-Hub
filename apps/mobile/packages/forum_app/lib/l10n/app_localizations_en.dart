@@ -2883,6 +2883,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageReplyCancel => 'Cancel reply';
 
   @override
+  String get messageReplySelf => 'You';
+
+  @override
   String get messageReport => 'Report message';
 
   @override

@@ -1381,6 +1381,7 @@
   "messageCopied": "Copied",
   "messageReply": "Reply",
   "messageReplyCancel": "Cancel reply",
+  "messageReplySelf": "You",
   "messageReport": "Report message",
   "messageReportPrivacy": "Submitting shares this message and your explanation with site administrators for review. The rest of the conversation is not submitted.",
   "contentReport": "Report content",

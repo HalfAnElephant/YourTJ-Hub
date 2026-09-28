@@ -2914,6 +2914,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get messageReplyCancel => 'Antwort abbrechen';
 
   @override
+  String get messageReplySelf => 'Ich';
+
+  @override
   String get messageReport => 'Nachricht melden';
 
   @override

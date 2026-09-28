@@ -25,7 +25,7 @@ bool isStickerOnlyMessage(String content, Map<String, String> urlByName) {
 InlineSpan? buildStickerMessageSpan(
   String content,
   Map<String, String> urlByName, {
-  bool collectible = true,
+  bool deferLongPress = false,
 }) {
   if (!containsStickerToken(content)) return null;
   final List<StickerMessageSegment> segments = parseStickerSegments(
@@ -42,7 +42,11 @@ InlineSpan? buildStickerMessageSpan(
           StickerTextSegment(:final text) => TextSpan(text: text),
           StickerImageSegment(:final name, :final url) => WidgetSpan(
             alignment: PlaceholderAlignment.middle,
-            child: StickerImage(name: name, url: url, collectible: collectible),
+            child: StickerImage(
+              name: name,
+              url: url,
+              deferLongPress: deferLongPress,
+            ),
           ),
         },
     ],

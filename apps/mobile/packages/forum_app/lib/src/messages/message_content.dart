@@ -99,12 +99,13 @@ class _MessageContentState extends State<MessageContent> {
   Widget build(BuildContext context) {
     _disposeRecognizers();
     // The bubble's action menu owns the long press in chat, so inline stickers
-    // must not consume it for collection; the menu offers the same action.
+    // must not consume it for collection or for their failed-image retry; the
+    // menu offers the same collection action.
     final span =
         buildStickerMessageSpan(
           widget.text,
           widget.stickers,
-          collectible: false,
+          deferLongPress: true,
         ) ??
         TextSpan(text: widget.text);
     return Text.rich(_linkSpan(span));

@@ -1333,6 +1333,7 @@
   "messageCopied": "已复制",
   "messageReply": "回复",
   "messageReplyCancel": "取消回复",
+  "messageReplySelf": "我",
   "messageReport": "举报私信",
   "messageReportPrivacy": "提交后，站点管理员可以查看这条私信及你的说明，用于处理举报。不会提交整段会话。",
   "contentReport": "举报内容",

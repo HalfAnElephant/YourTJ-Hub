@@ -30,7 +30,6 @@ import 'package:dio/dio.dart';
 import 'package:core/core.dart';
 
 import '../../asset_url.dart';
-import '../../current_user.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
@@ -62,6 +61,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage>
   AsyncValue<List<ChatItemPayload>> _conversations = const AsyncValue.loading();
   List<UserConnectionPayload> _suggestedUsers = const [];
   String _viewerAvatar = '';
+  String _viewerUsername = '';
   final TextEditingController _conversationSearch = TextEditingController();
   Timer? _pollTimer;
   final GfScrollToTopController _scrollToTopController =
@@ -211,6 +211,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage>
           _serverConversationsResolved = true;
           _suggestedUsers = parsed?.suggestedUsers ?? const [];
           _viewerAvatar = resolveApiAssetUrl(props.layout.viewer.avatarUrl);
+          _viewerUsername = props.layout.viewer.username;
           _targetConversation = _targetConversationFor(items);
         });
       }
@@ -298,8 +299,11 @@ class _MessagesPageState extends ConsumerState<MessagesPage>
     if (conv.convId == 0 && !_serverConversationsResolved) return;
     await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            _ConversationPage(conv: conv, viewerAvatar: _viewerAvatar),
+        builder: (_) => _ConversationPage(
+          conv: conv,
+          viewerAvatar: _viewerAvatar,
+          viewerUsername: _viewerUsername,
+        ),
       ),
     );
     // 返回后刷新会话列表未读数。
@@ -435,6 +439,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage>
         _targetConversation = null;
         _suggestedUsers = [];
         _viewerAvatar = '';
+        _viewerUsername = '';
       });
     });
     if (_ownerEpoch != ref.read(offlineCacheEpochProvider)) {
@@ -461,6 +466,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage>
         key: ValueKey<int>(targetConversation.peerId),
         conv: targetConversation,
         viewerAvatar: _viewerAvatar,
+        viewerUsername: _viewerUsername,
       );
     }
     return RootSurface(
@@ -489,10 +495,12 @@ class _ConversationPage extends ConsumerStatefulWidget {
     super.key,
     required this.conv,
     required this.viewerAvatar,
+    required this.viewerUsername,
   });
 
   final ChatItemPayload conv;
   final String viewerAvatar;
+  final String viewerUsername;
 
   @override
   ConsumerState<_ConversationPage> createState() => _ConversationPageState();
@@ -1016,18 +1024,21 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
         .firstOrNull;
     final message =
         failed ?? outbox.enqueue(content, _latestId, draftRevision: revision);
-    // 引用随本次发送进入 outbox;失败重试沿用同一条已引用内容。
+    // 引用随本次发送进入 outbox;失败时由 _sendPending 挂回,重试沿用同一条内容。
     if (reply != null) setState(() => _replyTarget = null);
     _scrollToBottom();
-    await _sendPending(message);
+    await _sendPending(message, reply: reply);
   }
 
+  /// 引用头里的发送者标签:对方取会话对手的用户名,自己取页面布局的 viewer
+  /// 用户名(JWT 无 username 声明,currentUser 的用户名恒为空)。
   String _replySender(ChatMessagePayload message) {
     final String username = message.isSelf
-        ? ref.read(currentUserProvider).valueOrNull?.username ?? ''
+        ? widget.viewerUsername
         : widget.conv.peerUsername;
     final String trimmed = username.trim();
-    return trimmed.isEmpty ? '' : '@$trimmed';
+    if (trimmed.isNotEmpty) return '@$trimmed';
+    return message.isSelf ? AppLocalizations.of(context).messageReplySelf : '';
   }
 
   /// 消息内已解析的表情名(长按菜单的收藏入口)。
@@ -1118,7 +1129,10 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     }
   }
 
-  Future<void> _sendPending(PendingMessage message) async {
+  Future<void> _sendPending(
+    PendingMessage message, {
+    ChatReplyTarget? reply,
+  }) async {
     if (!_historyReady) return;
     final epoch = ref.read(offlineCacheEpochProvider);
     final peerId = widget.conv.peerId;
@@ -1129,9 +1143,13 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     if (convId != null) {
       drafts.acknowledge(peerId, message.draftRevision, convId);
     }
-    if (!mounted ||
-        epoch != ref.read(offlineCacheEpochProvider) ||
-        convId == null) {
+    if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
+    if (convId == null) {
+      // 失败:引用挂回输入框(用户刚选了别的引用时不覆盖),再按发送即重试
+      // 同一条 outbox 记录,不会产生一条无引用的重复消息。
+      if (reply != null && _replyTarget == null) {
+        setState(() => _replyTarget = reply);
+      }
       return;
     }
     if (_convId <= 0 && convId > 0) _convId = convId;

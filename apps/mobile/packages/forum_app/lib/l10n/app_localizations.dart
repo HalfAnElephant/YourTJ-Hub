@@ -5292,6 +5292,12 @@ abstract class AppLocalizations {
   /// **'Cancel reply'**
   String get messageReplyCancel;
 
+  /// No description provided for @messageReplySelf.
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get messageReplySelf;
+
   /// No description provided for @messageReport.
   ///
   /// In en, this message translates to:

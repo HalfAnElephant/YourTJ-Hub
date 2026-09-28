@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +16,8 @@ import 'package:forum_app/src/widgets/stickers/sticker_library_state.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 import 'chat_visible_read_test.dart' show pumpChat, VisibleChatRepository;
-import 'pages_behavior_test.dart' show makeChatMessage;
+import 'fixtures/page_fixtures.dart' show messagesPayloadJson, parsePayload;
+import 'pages_behavior_test.dart' show CountingPageRepository, makeChatMessage;
 
 class Tokens implements TokenStorage {
   @override
@@ -52,6 +54,7 @@ class RecordingSendsChatRepository extends VisibleChatRepository {
   RecordingSendsChatRepository(super.client, {required super.messages});
 
   final sent = <(int, String)>[];
+  int failures = 0;
 
   @override
   Future<int> sendMessage({
@@ -61,6 +64,10 @@ class RecordingSendsChatRepository extends VisibleChatRepository {
     String? clientMessageId,
   }) async {
     sent.add((peerId, content));
+    if (failures > 0) {
+      failures--;
+      throw StateError('offline');
+    }
     return 9;
   }
 }
@@ -131,6 +138,24 @@ class _ImageHttpResponse implements HttpClientResponse {
   );
 }
 
+/// Page payload whose layout viewer has no username (partial/legacy payloads),
+/// used to exercise the self-label fallback instead of a real handle.
+class _EmptyViewerPageRepository extends CountingPageRepository {
+  _EmptyViewerPageRepository(super.client);
+
+  @override
+  Future<PagePayload> fetch(String path, {Object? cancelToken}) {
+    if (path != '/messages') return super.fetch(path, cancelToken: cancelToken);
+    final json = messagesPayloadJson();
+    final layout = json['layout'] as Map<String, dynamic>;
+    layout['viewer'] = <String, dynamic>{
+      ...layout['viewer'] as Map<String, dynamic>,
+      'username': '',
+    };
+    return Future.value(parsePayload(json));
+  }
+}
+
 class _StickerRepository extends StickerRepository {
   _StickerRepository() : super(GfApiClient(dio: Dio(), tokenStorage: Tokens()));
 
@@ -162,17 +187,24 @@ Future<RecordingSendsChatRepository> pumpActions(
   Reports? reports,
   StickerLibrary? stickers,
   StickerCollection? stickerCollection,
+  RecordingSendsChatRepository Function(GfApiClient client)? repositoryBuilder,
+  List<Override> overrides = const <Override>[],
 }) async {
   late final RecordingSendsChatRepository repository;
   await pumpChat(
     tester,
-    buildRepository: (client) => repository = RecordingSendsChatRepository(
-      client,
-      messages: messages ?? <ChatMessagePayload>[makeChatMessage(1)],
-    ),
+    buildRepository: (client) => repository =
+        repositoryBuilder?.call(client) ??
+        RecordingSendsChatRepository(
+          client,
+          messages: messages ?? <ChatMessagePayload>[makeChatMessage(1)],
+        ),
     stickers: stickers,
     stickerCollection: stickerCollection,
-    overrides: [postRepositoryProvider.overrideWithValue(reports ?? Reports())],
+    overrides: [
+      postRepositoryProvider.overrideWithValue(reports ?? Reports()),
+      ...overrides,
+    ],
   );
   return repository;
 }
@@ -334,6 +366,108 @@ void main() {
     await dispose(tester);
   });
 
+  testWidgets('quoting own message labels the quote with the viewer username', (
+    tester,
+  ) async {
+    final repository = await pumpActions(
+      tester,
+      messages: [makeChatMessage(1).copyWith(isSelf: true)],
+    );
+    await openActions(tester, find.text('消息 1'));
+    await tester.tap(find.text('Reply'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: _preview, matching: find.text('@viewer')),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(GfChatInput),
+        matching: find.byType(TextField),
+      ),
+      '收到',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pumpAndSettle();
+    expect(repository.sent, [(2, '> @viewer: 消息 1\n\n收到')]);
+    await dispose(tester);
+  });
+
+  testWidgets('own-message quotes fall back to the localized self label', (
+    tester,
+  ) async {
+    final repository = await pumpActions(
+      tester,
+      messages: [makeChatMessage(1).copyWith(isSelf: true)],
+      overrides: [
+        pageRepositoryProvider.overrideWithValue(
+          _EmptyViewerPageRepository(_client()),
+        ),
+      ],
+    );
+    await openActions(tester, find.text('消息 1'));
+    await tester.tap(find.text('Reply'));
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: _preview, matching: find.text('You')),
+      findsOneWidget,
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(GfChatInput),
+        matching: find.byType(TextField),
+      ),
+      '收到',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pumpAndSettle();
+    expect(repository.sent, [(2, '> You: 消息 1\n\n收到')]);
+    await dispose(tester);
+  });
+
+  testWidgets('a failed reply keeps its quote and retries the same entry', (
+    tester,
+  ) async {
+    final repository = await pumpActions(
+      tester,
+      repositoryBuilder: (client) =>
+          RecordingSendsChatRepository(client, messages: [makeChatMessage(1)])
+            ..failures = 1,
+    );
+    await openActions(tester, find.text('消息 1'));
+    await tester.tap(find.text('Reply'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(GfChatInput),
+        matching: find.byType(TextField),
+      ),
+      '收到',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pumpAndSettle();
+    expect(repository.sent, [(2, '> @bob: 消息 1\n\n收到')]);
+    expect(
+      _preview,
+      findsOneWidget,
+      reason: 'a failed reply keeps its quote attached for the retry',
+    );
+
+    await tester.tap(find.byKey(const Key('chat-send')));
+    await tester.pumpAndSettle();
+    expect(repository.sent, [
+      (2, '> @bob: 消息 1\n\n收到'),
+      (2, '> @bob: 消息 1\n\n收到'),
+    ]);
+    expect(find.text('> @bob: 消息 1\n\n收到'), findsOneWidget);
+    expect(find.text('收到'), findsNothing, reason: 'no unquoted duplicate');
+    expect(_preview, findsNothing);
+    await dispose(tester);
+  });
+
   testWidgets('barrier and system back dismiss the menu without a reply', (
     tester,
   ) async {
@@ -443,6 +577,31 @@ void main() {
     } finally {
       debugNetworkImageHttpClientProvider = null;
     }
+    await dispose(tester);
+  });
+
+  testWidgets('a failed sticker image still opens the action menu', (
+    tester,
+  ) async {
+    final repository = _StickerRepository();
+    final library = StickerLibrary(repository);
+    addTearDown(library.dispose);
+    final collection = StickerCollection(repository, library);
+    // No debug image client: Image.network fails in the test binding, so the
+    // sticker renders its unavailable state. The dwell below delivers a read
+    // receipt and rebuilds the row, exactly like polls do in production.
+    await pumpActions(
+      tester,
+      stickers: library,
+      stickerCollection: collection,
+      messages: [makeChatMessage(1).copyWith(content: '[:sticker:smile:]')],
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    await openActions(tester, find.byType(StickerImage));
+    expect(find.text('Reply'), findsOneWidget);
+    expect(find.text('Report message'), findsOneWidget);
+    expect(find.text('Save to my stickers'), findsOneWidget);
     await dispose(tester);
   });
 

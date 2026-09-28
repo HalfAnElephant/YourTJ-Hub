@@ -2764,6 +2764,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageReplyCancel => '取消回复';
 
   @override
+  String get messageReplySelf => '我';
+
+  @override
   String get messageReport => '举报私信';
 
   @override

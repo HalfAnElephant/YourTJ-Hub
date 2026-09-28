@@ -2790,6 +2790,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get messageReplyCancel => '返信をキャンセル';
 
   @override
+  String get messageReplySelf => '自分';
+
+  @override
   String get messageReport => 'メッセージを報告';
 
   @override
