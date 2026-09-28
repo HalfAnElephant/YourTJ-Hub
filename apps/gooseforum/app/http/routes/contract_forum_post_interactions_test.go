@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,8 +50,8 @@ func setupForumInteractionContractTest(t *testing.T) (*gorm.DB, *gin.Engine) {
 	forumAPI.GET("/posts/revisions", middleware.JWTAuth, middleware.NoUpdateUserActivity, UpQueryReq(forum.PostRevisions))
 
 	loginAPI := forumAPI.Use(middleware.JWTAuthCheck)
-	loginAPI.POST("/posts/create", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPostCreate), UpButterReq(api.CreatePost))
-	loginAPI.POST("/posts/update", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPostUpdate), UpButterReq(api.UpdatePost))
+	loginAPI.POST("/posts/create", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPostCreate), UpLimitedButterReq(maxContentWriteBodyBytes, api.CreatePost))
+	loginAPI.POST("/posts/update", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPostUpdate), UpLimitedButterReq(maxContentWriteBodyBytes, api.UpdatePost))
 	loginAPI.POST("/posts/delete", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitPostDelete), UpButterReq(api.DeletePost))
 	loginAPI.POST("/posts/like", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.LikePost))
 	loginAPI.POST("/posts/bookmark", middleware.CheckWritableAccount, middleware.RateLimit(middleware.RateLimitInteract), UpButterReq(api.BookmarkPost))
@@ -322,6 +324,81 @@ func TestCreatePostHTTPContract(t *testing.T) {
 		}
 	})
 
+	t.Run("oversized markdown source is rejected", func(t *testing.T) {
+		conn, router := setupForumInteractionContractTest(t)
+		posting := defaultconfig.GetDefaultPostingSettingsConfig()
+		posting.TextControl.MinPostLength = 3
+		posting.TextControl.MaxPostLength = 15
+		persistHTTPContractConfig(t, conn, pageConfig.PostingSettings, posting)
+		hotdataserve.ClearPostingSettingsConfigCache()
+
+		user := createHTTPContractUser(t, conn, contractTestID())
+		base := contractTestID()
+		topicID, firstPostID := base, base+1
+		createContractPublishedTopic(t, conn, topicID, firstPostID, user.Id)
+		token := contractSessionToken(t, user)
+
+		// 可见文字 5 个码点（满足下限与上限），但链接目标把源文本堆到 5000+ 码点：
+		// 源文本护栏拒绝，maxPostLength 不能变成无限存档 Markdown 的邀请。
+		source := "[aaaaa](" + strings.Repeat("x", 5000) + ")"
+		body := fmt.Sprintf(`{"topicId":%d,"content":%q}`, topicID, source)
+		response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/create", body, token))
+		if response.MessageCode != "comment.content.tooLong" || response.Params["maxLength"] != float64(15) {
+			t.Fatalf("oversized source response = %#v, want comment.content.tooLong maxLength=15", response)
+		}
+
+		ratelimit.Default().ResetAll()
+		// 评审探针原形：200 KB 链接目标 + 5 个可见字，必须拒绝而不是入库。
+		probe := "[aaaaa](" + strings.Repeat("x", 200_000) + ")"
+		body = fmt.Sprintf(`{"topicId":%d,"content":%q}`, topicID, probe)
+		response = decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/create", body, token))
+		if response.MessageCode != "comment.content.tooLong" || response.Params["maxLength"] != float64(15) {
+			t.Fatalf("200KB source probe response = %#v, want comment.content.tooLong maxLength=15", response)
+		}
+
+		ratelimit.Default().ResetAll()
+		// 正常长度的链接不受护栏影响（源文本低于护栏下限）。
+		withinGuard := "[你好世界](https://example.com/a/b)"
+		body = fmt.Sprintf(`{"topicId":%d,"content":%q}`, topicID, withinGuard)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/create", body, token)); response.Code != 0 {
+			t.Fatalf("within-guard source response = %#v, want success", response)
+		}
+	})
+
+	t.Run("oversized request body is rejected", func(t *testing.T) {
+		conn, router := setupForumInteractionContractTest(t)
+		user := createHTTPContractUser(t, conn, contractTestID())
+		base := contractTestID()
+		topicID, firstPostID := base, base+1
+		createContractPublishedTopic(t, conn, topicID, firstPostID, user.Id)
+
+		// 超过路由硬上限的请求体按解析失败 400 拒绝，不进入控制器；宽松绑定只对
+		// 上限内的解析错误保持 HTTP 200 业务失败语义。
+		body := fmt.Sprintf(`{"topicId":%d,"content":%q}`, topicID, strings.Repeat("a", maxContentWriteBodyBytes))
+		recorder := serveJSON(router, "/api/forum/posts/create", body, contractSessionToken(t, user))
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("oversized body status = %d, want 400: %s", recorder.Code, recorder.Body.String())
+		}
+		if response := decodeContractEnvelope(t, recorder); response.MessageCode != "common.request.parseFailed" {
+			t.Fatalf("oversized body response = %#v, want common.request.parseFailed", response)
+		}
+
+		// 无 Content-Length（分块）的请求由 MaxBytesReader 兜底，同样不能降级
+		// 成零值业务错误。
+		request := httptest.NewRequest(http.MethodPost, "/api/forum/posts/create", strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Authorization", "Bearer "+contractSessionToken(t, user))
+		request.ContentLength = -1
+		chunkedRecorder := httptest.NewRecorder()
+		router.ServeHTTP(chunkedRecorder, request)
+		if chunkedRecorder.Code != http.StatusBadRequest {
+			t.Fatalf("chunked oversized body status = %d, want 400: %s", chunkedRecorder.Code, chunkedRecorder.Body.String())
+		}
+		if response := decodeContractEnvelope(t, chunkedRecorder); response.MessageCode != "common.request.parseFailed" {
+			t.Fatalf("chunked oversized body response = %#v, want common.request.parseFailed", response)
+		}
+	})
+
 	t.Run("missing session returns 401", func(t *testing.T) {
 		_, router := setupForumInteractionContractTest(t)
 		assertInteractionUnauthenticated(t, router, "/api/forum/posts/create", `{}`, "auth-required.json")
@@ -491,6 +568,54 @@ func TestUpdatePostHTTPContract(t *testing.T) {
 		body = fmt.Sprintf(`{"postId":%d,"content":%q}`, replyID, destinationOnly)
 		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/update", body, token)); response.Code != 0 {
 			t.Fatalf("content %q response = %#v, want success: link destination is not visible text", destinationOnly, response)
+		}
+	})
+
+	t.Run("oversized markdown source is rejected", func(t *testing.T) {
+		conn, router := setupForumInteractionContractTest(t)
+		posting := defaultconfig.GetDefaultPostingSettingsConfig()
+		posting.TextControl.MinPostLength = 3
+		posting.TextControl.MaxPostLength = 15
+		persistHTTPContractConfig(t, conn, pageConfig.PostingSettings, posting)
+		hotdataserve.ClearPostingSettingsConfigCache()
+
+		user := createHTTPContractUser(t, conn, contractTestID())
+		base := contractTestID()
+		topicID, firstPostID, replyID := base, base+1, base+2
+		createContractPublishedTopic(t, conn, topicID, firstPostID, user.Id)
+		createContractReplyPost(t, conn, replyID, topicID, user.Id)
+		token := contractSessionToken(t, user)
+
+		source := "[aaaaa](" + strings.Repeat("x", 5000) + ")"
+		body := fmt.Sprintf(`{"postId":%d,"content":%q}`, replyID, source)
+		response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/update", body, token))
+		if response.MessageCode != "comment.content.tooLong" || response.Params["maxLength"] != float64(15) {
+			t.Fatalf("oversized source response = %#v, want comment.content.tooLong maxLength=15", response)
+		}
+
+		ratelimit.Default().ResetAll()
+		withinGuard := "[你好世界](https://example.com/a/b)"
+		body = fmt.Sprintf(`{"postId":%d,"content":%q}`, replyID, withinGuard)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/update", body, token)); response.Code != 0 {
+			t.Fatalf("within-guard source response = %#v, want success", response)
+		}
+	})
+
+	t.Run("oversized request body is rejected", func(t *testing.T) {
+		conn, router := setupForumInteractionContractTest(t)
+		user := createHTTPContractUser(t, conn, contractTestID())
+		base := contractTestID()
+		topicID, firstPostID, replyID := base, base+1, base+2
+		createContractPublishedTopic(t, conn, topicID, firstPostID, user.Id)
+		createContractReplyPost(t, conn, replyID, topicID, user.Id)
+
+		body := fmt.Sprintf(`{"postId":%d,"content":%q}`, replyID, strings.Repeat("a", maxContentWriteBodyBytes))
+		recorder := serveJSON(router, "/api/forum/posts/update", body, contractSessionToken(t, user))
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("oversized body status = %d, want 400: %s", recorder.Code, recorder.Body.String())
+		}
+		if response := decodeContractEnvelope(t, recorder); response.MessageCode != "common.request.parseFailed" {
+			t.Fatalf("oversized body response = %#v, want common.request.parseFailed", response)
 		}
 	})
 

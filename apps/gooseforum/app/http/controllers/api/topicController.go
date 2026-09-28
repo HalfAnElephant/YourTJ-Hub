@@ -106,6 +106,25 @@ func GetSiteStatistics() component.Response {
 	return component.SuccessResponse(hotdataserve.GetSiteStatisticsData())
 }
 
+// Markdown 源文本护栏（issue #890 review）：可见文字是面向用户的长度口径，
+// 链接目标、图片、表格与贴纸等语法不受可见长度约束；只看可见文字会让
+// maxPostLength 变成「可存档无限 Markdown」的邀请（例如 200 KB 链接目标配
+// 5 个可见字）。因此源文本码点数还不得超过 maxPostLength 的
+// maxPostSourceRatio 倍；同时保留下限，避免 maxPostLength 配得很小时连一条
+// 正常的长链接都发不出去。标题是纯文本，仍按自身上限计数。
+const (
+	maxPostSourceRatio = 4
+	minPostSourceLimit = 4096
+)
+
+// postSourceLimit 返回正文/回复 Markdown 源文本的码点数护栏。
+func postSourceLimit(maxPostLength int) int {
+	if limit := maxPostLength * maxPostSourceRatio; limit > minPostSourceLimit {
+		return limit
+	}
+	return minPostSourceLimit
+}
+
 type WriteTopicReq struct {
 	TopicId     uint64   `json:"topicId"`
 	Content     string   `json:"content" validate:"required"`
@@ -196,8 +215,8 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 
 	}
 
-	if visibleLength > postingConfig.TextControl.MaxPostLength {
-		maxLength := postingConfig.TextControl.MaxPostLength
+	maxLength := postingConfig.TextControl.MaxPostLength
+	if visibleLength > maxLength || utf8.RuneCountInString(req.Params.Content) > postSourceLimit(maxLength) {
 		return component.FailResponseCode(
 			component.MessageTopicContentTooLong,
 
@@ -524,8 +543,8 @@ func createPost(req component.BetterRequest[CreatePostReq], agent bool) componen
 
 	}
 
-	if visibleLength > postingConfig.TextControl.MaxPostLength {
-		maxLength := postingConfig.TextControl.MaxPostLength
+	maxLength := postingConfig.TextControl.MaxPostLength
+	if visibleLength > maxLength || utf8.RuneCountInString(content) > postSourceLimit(maxLength) {
 		return component.FailResponseCode(
 			component.MessageCommentContentTooLong,
 
@@ -689,8 +708,8 @@ func UpdatePost(req component.BetterRequest[UpdatePostReq]) component.Response {
 
 	}
 
-	if visibleLength > postingConfig.TextControl.MaxPostLength {
-		maxLength := postingConfig.TextControl.MaxPostLength
+	maxLength := postingConfig.TextControl.MaxPostLength
+	if visibleLength > maxLength || utf8.RuneCountInString(content) > postSourceLimit(maxLength) {
 		return component.FailResponseCode(
 			component.MessageCommentContentTooLong,
 

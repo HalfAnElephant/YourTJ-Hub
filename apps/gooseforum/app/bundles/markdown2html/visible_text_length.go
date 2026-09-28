@@ -34,6 +34,10 @@ import (
 //
 // 首尾空白不计。与渲染共用同一 goldmark 配置（GetParser），因此
 // 代码块/链接/贴纸的边界判定与 RenderWithStickerTokens 保持一致。
+//
+// 已知差距（有意维持，非缺陷）：非 Cf 的空白渲染字符（U+2800 盲文空白、
+// U+3164 Hangul Filler）与组合附加符号仍各计 1 个码点——本仓库的统一口径是
+// 「Unicode 码点」而非字素簇，收紧到字素/空白字形需要单独的产品规则。
 func VisibleTextLength(markdown string) int {
 	source := []byte(stripStickerTokens(markdown))
 	doc := GetParser().Parser().Parse(text.NewReader(source))
