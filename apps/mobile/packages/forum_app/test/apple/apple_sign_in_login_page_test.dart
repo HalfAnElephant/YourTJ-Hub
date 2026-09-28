@@ -131,13 +131,23 @@ Future<void> _expectLoginRowGeometry(
   );
   await tester.pumpAndSettle();
 
+  // Providers are created only after opening the more-methods sheet.
+  expect(creations, isEmpty);
+  await tester.tap(find.byKey(const Key('login-more-methods')));
+  await tester.pumpAndSettle();
+
   expect(creations, hasLength(1));
   expect(creations.single['dark'], isTrue);
   expect(creations.single['height'], AppleSignInButton.height);
   expect(creations.single['radius'], AppleSignInButton.radius);
   // The native button occupies the same row as the other providers, whose
   // stadium silhouette is what the radius has to match.
-  final sibling = tester.getSize(find.byType(OutlinedButton).first);
+  final sibling = tester.getSize(
+    find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.byType(OutlinedButton),
+    ).first,
+  );
   expect(sibling.height, creations.single['height']);
   expect(creations.single['radius'], sibling.height / 2);
 }

@@ -180,6 +180,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get authSignInMethods => 'その他のログイン方法';
 
   @override
+  String get authMoreSignInMethods => 'ログイン方法をさらに表示';
+
+  @override
   String get authLoginSubtitle => 'おかえりなさい。議論と投稿を続けましょう。';
 
   @override
@@ -207,6 +210,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get authConfirmPassword => 'パスワード確認';
 
   @override
+  String get authShowPassword => 'パスワードを表示';
+
+  @override
+  String get authHidePassword => 'パスワードを隠す';
+
+  @override
   String get authCaptcha => '認証コード';
 
   @override
@@ -232,6 +241,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get authGetCode => 'コードを取得';
+
+  @override
+  String get authRefreshCaptcha => '認証コードを更新';
+
+  @override
+  String get authCaptchaRequired => '認証コードを入力してください';
 
   @override
   String get authOidcLogin => 'YourTJでログイン';
