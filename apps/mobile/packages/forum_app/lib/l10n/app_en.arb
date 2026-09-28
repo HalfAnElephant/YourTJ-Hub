@@ -498,6 +498,33 @@
     }
   },
   "settingsImageDecodeFailed": "Failed to decode image",
+  "dateToday": "Today",
+  "dateYesterday": "Yesterday",
+  "dateMonthDay": "{month}/{day}",
+  "@dateMonthDay": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "dateYearMonthDay": "{year}/{month}/{day}",
+  "@dateYearMonthDay": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      },
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
   "dateMonthDayTime": "{month}/{day} {time}",
   "@dateMonthDayTime": {
     "placeholders": {

@@ -1881,7 +1881,6 @@ export default {
     emptyConversationsTitle: '暂无会话',
     emptyConversationsDescription: '开始一次私信聊天。',
     conversation: '私信对话',
-    today: '今天',
     loading: '消息加载中...',
     startChat: '开始聊天',
     firstMessageTo: '给 {user} 发第一条消息。',
@@ -3047,6 +3046,10 @@ export default {
     checkNow: '【请查看】',
   },
   date: {
+    today: '今天',
+    yesterday: '昨天',
+    monthDay: '{month}月{day}日',
+    yearMonthDay: '{year}年{month}月{day}日',
     monthDayTime: '{month}月{day}日 {time}',
     yearMonthDayTime: '{year}年{month}月{day}日 {time}',
   },
