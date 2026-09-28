@@ -29,6 +29,22 @@ class GfAvatar extends StatelessWidget {
   /// Optional corner badge.
   final Widget? badge;
 
+  /// Decode sizes avatars snap up to before the device pixel ratio is
+  /// applied. The same author appears at 20-40 (quote chips, stacks, rows,
+  /// cards, headers) and at 48-96 (conversations, settings, user cards).
+  /// Keeping one entry per step means switching pages reuses the decoded
+  /// picture instead of downloading and decoding it again per pixel size.
+  static const List<double> _decodeSizes = <double>[24, 40, 48, 64, 96];
+
+  /// Smallest decode step covering [size]; larger requests round up on a
+  /// 16-pixel grid so an oversized avatar is never downscaled.
+  static double _decodeSizeFor(double size) {
+    for (final double candidate in _decodeSizes) {
+      if (size <= candidate) return candidate;
+    }
+    return (size / 16).ceilToDouble() * 16;
+  }
+
   /// Image key shared by visible avatars and their startup prefetch.
   static ImageProvider<Object>? imageProviderFor(
     String src, {
@@ -36,7 +52,7 @@ class GfAvatar extends StatelessWidget {
     required double devicePixelRatio,
   }) {
     if (src.isEmpty) return null;
-    final pixels = (size * devicePixelRatio).round();
+    final pixels = (_decodeSizeFor(size) * devicePixelRatio).round();
     return ResizeImage(
       NetworkImage(src),
       policy: ResizeImagePolicy.fit,
