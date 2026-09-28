@@ -25,7 +25,7 @@ import { followUser } from '@/runtime/api'
 import { broadcastFollowChange, onFollowChange } from '@/runtime/follow-state'
 import { formatDate, formatDateTime, formatNumber, timeAgo } from '@/runtime/format'
 import { fetchPage } from '@/runtime/router'
-import { topicDescription } from '@/runtime/topic-description'
+import { topicDescription, topicDisplayLabel } from '@/runtime/topic-description'
 import EmptyState from '@/site/components/EmptyState.vue'
 import TopicList from '@/site/components/TopicList.vue'
 import TopicListFooter from '@/site/components/TopicListFooter.vue'
@@ -730,7 +730,7 @@ function safeProfileUrl(value?: string) {
                 </span>
                 <span class="min-w-0">
                   <span class="block text-xs font-medium text-base-content/55">{{ t('user.activity.like') }}</span>
-                  <span class="mt-0.5 block truncate text-sm font-semibold text-base-content">{{ like.title }}</span>
+                  <span class="mt-0.5 block truncate text-sm font-semibold text-base-content">{{ topicDisplayLabel(like.id, like.title, like.excerpt) }}</span>
                   <time class="mt-1 block text-xs text-base-content/55">{{ formatDateTime(like.likedAt) }}</time>
                 </span>
               </a>
@@ -763,7 +763,7 @@ function safeProfileUrl(value?: string) {
                     <span v-if="bookmark.type === 'post'" class="gf-badge gf-badge-muted h-4 gap-0.5 px-1.5 text-[10px] font-bold tabular-nums">#{{ bookmark.postNo }}</span>
                     {{ t('user.tabs.bookmarks') }}
                   </span>
-                  <span class="mt-0.5 block truncate text-sm font-semibold text-base-content">{{ bookmark.title }}</span>
+                  <span class="mt-0.5 block truncate text-sm font-semibold text-base-content">{{ topicDisplayLabel(bookmark.id, bookmark.title, bookmark.excerpt) }}</span>
                   <span
                     v-if="bookmark.type === 'post' && bookmark.excerpt"
                     class="mt-0.5 line-clamp-2 block text-xs leading-5 text-base-content/55"

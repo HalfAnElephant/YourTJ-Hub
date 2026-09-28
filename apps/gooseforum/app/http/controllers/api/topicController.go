@@ -131,6 +131,16 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 	// 获取发布设置
 	postingConfig := hotdataserve.GetPostingSettingsConfigCache()
 
+	// 瞬间（thought）允许无标题：空白标题规范化为空串，不从正文自动提取。
+	// 非瞬间类型必须携带标题；该检查必须排在验证码/蜜罐/权限之前，与原先
+	// bind-time validate:"required" 的语义一致——无效请求不消耗验证码等一次性凭据。
+	if req.Params.ContentType == posts.ContentTypeThought && strings.TrimSpace(req.Params.Title) == "" {
+		req.Params.Title = ""
+	}
+	if req.Params.Title == "" && req.Params.ContentType != posts.ContentTypeThought {
+		return component.FailResponseCode(component.MessageRequestInvalidParams, nil)
+	}
+
 	userEntity, err := req.GetUser()
 	if err != nil || userEntity.Id == 0 {
 		return component.FailResponseCode(component.MessageUserFetchFailed, nil)
@@ -162,16 +172,6 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 	// 图集数量上限：与快捷发布选择器/契约描述一致（服务端单一事实源）。
 	// 超限按参数错误拒绝，防止单请求撑爆 image_urls 列与 usage 行。
 	if len(req.Params.Images) > fileusageservice.MaxGalleryImagesPerTopicWrite {
-		return component.FailResponseCode(component.MessageRequestInvalidParams, nil)
-	}
-
-	// 瞬间（thought）允许无标题：空白标题规范化为空串，不从正文自动提取；
-	// 其余类型仍必须携带标题，并保持原 validate:"required" 的线上失败形态
-	// （HTTP 200 + common.request.invalidParams，无 params）。
-	if req.Params.ContentType == posts.ContentTypeThought && strings.TrimSpace(req.Params.Title) == "" {
-		req.Params.Title = ""
-	}
-	if req.Params.Title == "" && req.Params.ContentType != posts.ContentTypeThought {
 		return component.FailResponseCode(component.MessageRequestInvalidParams, nil)
 	}
 

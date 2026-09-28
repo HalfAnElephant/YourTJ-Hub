@@ -261,7 +261,8 @@ function saveDraftFromFooter() {
     void nextTick(() => categoryPickerTrigger.value?.focus())
     return
   }
-  if (!title.value.trim() || !content.value.trim()) {
+  // 与 canSaveDraft 同规则：瞬间允许空标题草稿，其余类型标题必填。
+  if ((!title.value.trim() && quickPublishType.value !== 2) || !content.value.trim()) {
     errorMessage.value = t('publish.validation.requiredFields')
     return
   }

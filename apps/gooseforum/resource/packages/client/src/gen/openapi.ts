@@ -7527,12 +7527,13 @@ export interface components {
             /** @description Markdown content; configurable minimum and maximum lengths count Unicode code points. */
             content: string;
             /**
-             * @description Title. Required and non-empty for content types 0/1/3; moments (contentType=2)
-             *     may send an empty string to publish without a title — it is never derived from
-             *     the body, and clients render no title for such topics. When provided,
-             *     configurable minimum and maximum lengths count Unicode code points.
+             * @description Title. Required and non-empty for content types 0/1/3 (see the `if`/`else`
+             *     constraint); moments (contentType=2) may omit it or send an empty string to
+             *     publish without a title — it is never derived from the body, and clients render
+             *     no title for such topics. When provided, configurable minimum and maximum
+             *     lengths count Unicode code points.
              */
-            title: string;
+            title?: string;
             categoryId: number[];
             /**
              * @description Existing draft/published status value; omitted values use the legacy draft default (0).

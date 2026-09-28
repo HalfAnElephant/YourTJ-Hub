@@ -87,6 +87,12 @@ func TestTopicMetaJSONLDHeadlineFallsBackForUntitledMoment(t *testing.T) {
 	if jsonLD.Headline != "只有正文的瞬间摘要" {
 		t.Fatalf("headline = %q, want the description fallback for an untitled moment", jsonLD.Headline)
 	}
+	if meta.OpenGraph == nil || meta.OpenGraph.Title != "只有正文的瞬间摘要" {
+		t.Fatalf("og title = %#v, want the description fallback", meta.OpenGraph)
+	}
+	if meta.Twitter == nil || meta.Twitter.Title != "只有正文的瞬间摘要" {
+		t.Fatalf("twitter title = %#v, want the description fallback", meta.Twitter)
+	}
 }
 
 func TestTopicMetaJSONLDIncludesImageForImageOnlyTopic(t *testing.T) {

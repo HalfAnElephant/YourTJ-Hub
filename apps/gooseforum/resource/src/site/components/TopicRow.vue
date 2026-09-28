@@ -9,7 +9,7 @@ import {
   registerTopicPreview,
   unregisterTopicPreview,
 } from '@/runtime/topic-hover-preview'
-import { topicDescription } from '@/runtime/topic-description'
+import { topicDescription, topicDisplayLabel } from '@/runtime/topic-description'
 import AvatarStack from '@/site/components/AvatarStack.vue'
 import TopicFeedPreview from '@/site/components/TopicFeedPreview.vue'
 import type { TopicPayload } from '@gooseforum/client'
@@ -160,7 +160,7 @@ onBeforeUnmount(() => {
             class="h-3.5 w-3.5 shrink-0 rotate-45 text-error"
             :aria-label="t('topicList.pinned')"
           />
-          <!-- 无标题瞬间（标题为空）不渲染标题；链接文案回退为正文摘要，保留整行可点击 -->
+          <!-- 无标题瞬间（标题为空）不渲染标题；链接文案回退为正文摘要/稳定颜文字，保留整行可点击 -->
           <a
             v-if="topic.title"
             :href="topic.url"
@@ -175,7 +175,7 @@ onBeforeUnmount(() => {
             class="min-w-0 truncate text-[15px] leading-6 text-base-content/70 group-hover:text-primary sm:text-base"
             @click="closePreview"
           >
-            {{ topicDescription(topic) }}
+            {{ topicDisplayLabel(topic.id, topic.title, topic.description) }}
           </a>
           <span
             v-if="topic.unseen"

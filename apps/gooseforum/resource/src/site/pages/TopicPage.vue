@@ -5,6 +5,7 @@ import { BookOpen, Clock, Eye, FileText, Heart, HelpCircle, MessageSquare, Spark
 import { formatDateTime, formatNumber } from '@/runtime/format'
 import { useShellState } from '@/runtime/shell-state'
 import { showUserCard } from '@/runtime/user-card-events'
+import { topicDisplayLabel } from '@/runtime/topic-description'
 import PostStream from '@/site/components/PostStream.vue'
 import UserAvatar from '@/site/components/UserAvatar.vue'
 import type { TopicDetailProps, LayoutPayload } from '@gooseforum/client'
@@ -35,8 +36,8 @@ let headerScrollFrame = 0
 // 仅短文类型（提问 contentType: 1、瞬间 contentType: 2）使用前置图片轮播图窗；长文（讨论、文章）保持经典图文穿插
 const isShortForm = computed(() => page.props.topic.contentType === 1 || page.props.topic.contentType === 2)
 
-// 分享/删除确认等需要文案的场景：无标题瞬间回退到正文摘要，避免空标题。
-const topicDisplayTitle = computed(() => page.props.topic.title || page.props.topic.description)
+// 分享/删除确认等需要文案的场景：无标题瞬间回退到正文摘要，再回退到稳定颜文字，避免空文案。
+const topicDisplayTitle = computed(() => topicDisplayLabel(page.props.topic.id, page.props.topic.title, page.props.topic.description))
 
 // 提取当前话题图片（仅短文类型提取，长文保持图文穿插）
 const topicImages = computed(() => {

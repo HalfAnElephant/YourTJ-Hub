@@ -1767,7 +1767,7 @@ func buildTopicMeta(c *gin.Context, topic TopicDetailPayload, postStream ...[]Po
 		Description: description,
 		Canonical:   canonical,
 		OpenGraph: &OpenGraphMeta{
-			Title:         topic.Title,
+			Title:         headline,
 			Description:   description,
 			Type:          "article",
 			URL:           canonical,
@@ -1781,7 +1781,7 @@ func buildTopicMeta(c *gin.Context, topic TopicDetailPayload, postStream ...[]Po
 		},
 		Twitter: &TwitterMeta{
 			Card:        "summary",
-			Title:       topic.Title,
+			Title:       headline,
 			Description: description,
 			Image:       firstString(inlineImages),
 		},
