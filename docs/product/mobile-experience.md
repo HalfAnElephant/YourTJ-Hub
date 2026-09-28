@@ -132,8 +132,9 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   hand a provisional dismiss drag back to paging. A new touch can interrupt a slide-return animation; clear
   horizontal intent returns any partial vertical offset to rest and pages immediately. Dismissal
   accepts a light drag (one tenth of the viewport height) or a quick vertical flick (420 logical
-  pixels per second); zoomed images keep
-  gestures for image navigation and panning.
+  pixels per second) on release. A cancelled drag or a second finger joining the gesture returns
+  the image to rest without dismissing the viewer, even beyond that distance threshold. Zoomed
+  images keep gestures for image navigation and panning.
   Paging and dismiss gestures stay out of the way while an image is zoomed. Changing reduced motion
   while viewing keeps the current image and settles active zoom or return animations. Home feed
   previews use the same viewer and image actions.
@@ -771,8 +772,9 @@ identity survive this layout change. The header keeps a small outer margin for i
   scroll within the safe area. On tabbed root pages, opening drags track the finger across the leading
   55% only while the first tab is selected. On later tabs, horizontal drags stay with tab navigation
   and never open the drawer. Pages without swipe tabs retain the leading-side drawer gesture. Once
-  open, a drag toward the trailing edge closes it. Vertical scrolling and nested horizontal controls
-  keep their gestures.
+  open, a drag toward the leading edge closes it. An accepted drawer drag keeps following the finger
+  when it reverses past its starting point. The outside shade exposes a localized close action to
+  screen readers. Vertical scrolling and nested horizontal controls keep their gestures.
   Following/follower counts open the matching native connection lists. Unavailable
   counts show a placeholder with retry instead of zero. Opening the drawer refreshes the card, and
   account changes discard previous identity data. Profile, bookmarks, drafts, my content, recycle bin,

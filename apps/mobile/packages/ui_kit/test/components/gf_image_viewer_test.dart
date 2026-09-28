@@ -36,6 +36,69 @@ Future<void> cachePhoto(WidgetTester tester, String url) async {
 
 void main() {
   group('GfImageViewer', () {
+    for (final cancelPointer in [false, true]) {
+      testWidgets(
+        'vertical drag resets when ${cancelPointer ? 'cancelled' : 'a second finger joins'}',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = const Size(390, 844);
+          addTearDown(tester.view.reset);
+          const url = 'https://example.com/cancel-drag.png';
+          await cachePhoto(tester, url);
+          await tester.pumpWidget(gfApp(const SizedBox.shrink()));
+          tester
+              .state<NavigatorState>(find.byType(Navigator))
+              .push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const GfImageViewer(images: [url]),
+                ),
+              );
+          await tester.pumpAndSettle();
+          final first = await tester.startGesture(
+            const Offset(190, 400),
+            pointer: 1,
+          );
+          await first.moveBy(
+            const Offset(0, 100),
+            timeStamp: const Duration(milliseconds: 600),
+          );
+          await tester.pump(const Duration(milliseconds: 600));
+          final slide = tester.state<ExtendedImageSlidePageState>(
+            find.byType(ExtendedImageSlidePage),
+          );
+          expect(slide.offset.dy, greaterThan(slide.pageSize.height / 10));
+          if (cancelPointer) {
+            await first.cancel();
+          } else {
+            final second = await tester.startGesture(
+              const Offset(290, 600),
+              pointer: 2,
+            );
+            await tester.pumpAndSettle();
+            expect(find.byType(GfImageViewer), findsOneWidget);
+            await second.up();
+            await first.up();
+          }
+          await tester.pumpAndSettle();
+          expect(find.byType(GfImageViewer), findsOneWidget);
+          expect(slide.offset, Offset.zero);
+          expect(slide.isSliding, isFalse);
+          // Cancellation must not disable a subsequent intentional dismissal.
+          await tester.timedDragFrom(
+            const Offset(190, 400),
+            const Offset(0, 200),
+            const Duration(milliseconds: 600),
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(GfImageViewer), findsNothing);
+        },
+        variant: TargetPlatformVariant({
+          TargetPlatform.android,
+          TargetPlatform.iOS,
+        }),
+      );
+    }
+
     testWidgets('single image builds viewer chrome in both themes', (
       tester,
     ) async {

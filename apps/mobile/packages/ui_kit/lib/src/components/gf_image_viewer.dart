@@ -126,6 +126,7 @@ class _GfImageViewerState extends State<GfImageViewer>
   _ImageDragAxis _imageDragAxis = _ImageDragAxis.undecided;
   bool _trackDismissGesture = false;
   bool _slideResetInterrupted = false;
+  bool _cancelingSlide = false;
   Offset? _lastTapPosition;
   Duration? _lastTapTime;
 
@@ -531,7 +532,18 @@ class _GfImageViewerState extends State<GfImageViewer>
   void _finishInterruptedSlideReset() {
     if (!_slideResetInterrupted) return;
     _slideResetInterrupted = false;
-    _slidePageKey.currentState?.endSlide(ScaleEndDetails());
+    _cancelSlide();
+  }
+
+  void _cancelSlide() {
+    // extended_image evaluates slideEndHandler synchronously. A cancelled drag
+    // must take its return-animation path even beyond the dismissal threshold.
+    _cancelingSlide = true;
+    try {
+      _slidePageKey.currentState?.endSlide(ScaleEndDetails());
+    } finally {
+      _cancelingSlide = false;
+    }
   }
 
   void _lockHorizontalSwipe() {
@@ -602,7 +614,7 @@ class _GfImageViewerState extends State<GfImageViewer>
       _multiTouch = true;
       _trackDismissGesture = false;
       if (_imageDragAxis == _ImageDragAxis.vertical) {
-        _slidePageKey.currentState?.endSlide(ScaleEndDetails());
+        _cancelSlide();
       } else {
         _finishInterruptedSlideReset();
       }
@@ -711,7 +723,7 @@ class _GfImageViewerState extends State<GfImageViewer>
 
   void _pointerCancel(PointerCancelEvent event) {
     if (_imageDragAxis == _ImageDragAxis.vertical) {
-      _slidePageKey.currentState?.endSlide(ScaleEndDetails());
+      _cancelSlide();
     }
     _activePointers.remove(event.pointer);
     if (_activePointers.isEmpty) {
@@ -747,6 +759,7 @@ class _GfImageViewerState extends State<GfImageViewer>
               ExtendedImageSlidePageState? state,
               ScaleEndDetails? details,
             }) {
+              if (_cancelingSlide) return false;
               final double pageHeight =
                   state?.pageSize.height ?? MediaQuery.sizeOf(context).height;
               final double velocity =

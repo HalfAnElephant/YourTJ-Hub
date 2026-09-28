@@ -199,9 +199,14 @@ class AccountDrawerLayerState extends State<AccountDrawerLayer>
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: close,
-                      child: ColoredBox(
-                        color: Colors.black.withValues(
-                          alpha: .54 * _progress.value,
+                      child: Semantics(
+                        label: MaterialLocalizations.of(
+                          context,
+                        ).modalBarrierDismissLabel,
+                        child: ColoredBox(
+                          color: Colors.black.withValues(
+                            alpha: .54 * _progress.value,
+                          ),
                         ),
                       ),
                     ),
@@ -241,6 +246,7 @@ class _DirectionalDrawerGestureRecognizer
   bool Function(int) canOpen = (_) => true;
   final Map<int, Offset> _origins = {};
   final Map<int, int> _directions = {};
+  final Set<int> _acceptedPointers = {};
 
   @override
   bool isPointerAllowed(PointerEvent event) {
@@ -265,7 +271,11 @@ class _DirectionalDrawerGestureRecognizer
   @override
   void handleEvent(PointerEvent event) {
     final origin = _origins[event.pointer];
-    if (origin != null && event is PointerMoveEvent) {
+    // Arena rejection cannot undo an accepted drag. Keep all subsequent moves
+    // flowing, including reversals past the origin and diagonal adjustments.
+    if (origin != null &&
+        event is PointerMoveEvent &&
+        !_acceptedPointers.contains(event.pointer)) {
       if (!isOpen() && !canOpen(event.pointer)) {
         resolve(GestureDisposition.rejected);
         return;
@@ -281,14 +291,22 @@ class _DirectionalDrawerGestureRecognizer
     if (event is PointerUpEvent || event is PointerCancelEvent) {
       _origins.remove(event.pointer);
       _directions.remove(event.pointer);
+      _acceptedPointers.remove(event.pointer);
     }
     super.handleEvent(event);
+  }
+
+  @override
+  void acceptGesture(int pointer) {
+    _acceptedPointers.add(pointer);
+    super.acceptGesture(pointer);
   }
 
   @override
   void rejectGesture(int pointer) {
     _origins.remove(pointer);
     _directions.remove(pointer);
+    _acceptedPointers.remove(pointer);
     super.rejectGesture(pointer);
   }
 
@@ -296,6 +314,7 @@ class _DirectionalDrawerGestureRecognizer
   void dispose() {
     _origins.clear();
     _directions.clear();
+    _acceptedPointers.clear();
     super.dispose();
   }
 }

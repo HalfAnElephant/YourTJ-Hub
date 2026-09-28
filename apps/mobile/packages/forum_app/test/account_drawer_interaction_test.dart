@@ -2,6 +2,7 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:core/core.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -169,10 +170,10 @@ Future<ProviderContainer> _mount(
           routerConfig: router,
           theme: gfThemeData(
             Brightness.light,
-          ).copyWith(platform: TargetPlatform.android),
+          ).copyWith(platform: defaultTargetPlatform),
           darkTheme: gfThemeData(
             Brightness.dark,
-          ).copyWith(platform: TargetPlatform.android),
+          ).copyWith(platform: defaultTargetPlatform),
           themeMode: ref.watch(themeModeProvider),
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -207,6 +208,56 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     shellDrawerOpen.value = false;
   });
+
+  testWidgets(
+    'iOS drawer exposes a labelled semantic close action',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        await _mount(tester);
+        _openDrawer();
+        await tester.pumpAndSettle();
+        tester.semantics.tap(find.semantics.byLabel('Dismiss'));
+        await tester.pumpAndSettle();
+        expect(_isDrawerOpen(), isFalse);
+        expect(find.byType(Drawer), findsNothing);
+      } finally {
+        semantics.dispose();
+      }
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
+  for (final direction in TextDirection.values) {
+    testWidgets(
+      'drawer keeps tracking a reversal past the drag origin ($direction)',
+      (tester) async {
+        await _mount(tester, textDirection: direction);
+        final sign = direction == TextDirection.ltr ? 1.0 : -1.0;
+        final gesture = await tester.startGesture(
+          Offset(sign > 0 ? 100 : 290, 420),
+        );
+        await gesture.moveBy(Offset(100 * sign, 0));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.byType(Drawer), findsOneWidget);
+        await gesture.moveBy(Offset(-130 * sign, 0));
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(find.byType(Drawer), findsNothing);
+        // The same accepted drag can open the panel again after returning to 0.
+        await gesture.moveBy(Offset(260 * sign, 0));
+        await tester.pump(const Duration(milliseconds: 100));
+        await gesture.up();
+        await tester.pumpAndSettle();
+        expect(_isDrawerOpen(), isTrue);
+        _closeDrawer();
+        await tester.pumpAndSettle();
+      },
+      variant: TargetPlatformVariant({
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+      }),
+    );
+  }
 
   for (final mode in [ThemeMode.light, ThemeMode.dark]) {
     testWidgets(
