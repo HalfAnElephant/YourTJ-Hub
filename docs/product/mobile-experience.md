@@ -381,8 +381,12 @@ validation; simulator/debug execution does not establish production frame-rate g
   share one bottom dock. The AppBar shows a generic topic label until the body title scrolls out of
   view, then shows that title. Actions use Web's semantic tints and localized accessible labels;
   the like action includes its count. The reply heading has no decorative discussion icon.
-  Topic subscriptions use topic-specific labels; reply commands have no toggle semantics. The dock switches to an accessible icon-only reply action when
-  its label cannot fit, including long translations and enlarged text. SVG icons inherit their enclosing button foreground
+  Topic subscriptions use topic-specific labels; reply commands have no toggle semantics. The dock
+  keeps the floor number at its natural width and switches to an accessible icon-only reply action
+  when that action's label cannot fit, including long translations and enlarged text, reserving no
+  room for that action when a locked topic or restricted category omits it; the number itself only
+  ellipsizes when it no longer fits beside the dock's remaining controls. SVG icons inherit their
+  enclosing button foreground
   unless a semantic or provider color is explicitly set. Comment timestamps occupy a separate line;
   their action strip uses the full body width and starts at its leading edge. Actions retain 44-pixel
   targets, 20-pixel glyphs and aligned counts, wrapping together when enlarged text needs space.
