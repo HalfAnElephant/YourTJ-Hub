@@ -109,9 +109,14 @@ class _TabSwipeSurfaceState extends State<TabSwipeSurface> {
                     ..onUpdate = (details) {
                       _distance += details.primaryDelta ?? 0;
                       final int next =
-                          widget.index + (_distance.isNegative ? 1 : -1);
+                          widget.index +
+                          (_distance * recognizer.drawerOpenDirection < 0
+                              ? 1
+                              : -1);
                       final double offset = next >= 0 && next < widget.length
-                          ? (-_distance / recognizer.screenWidth)
+                          ? (-_distance *
+                                    recognizer.drawerOpenDirection /
+                                    recognizer.screenWidth)
                                 .clamp(-.95, .95)
                                 .toDouble()
                           : 0;
@@ -135,7 +140,10 @@ class _TabSwipeSurfaceState extends State<TabSwipeSurface> {
                         return;
                       }
                       final int next =
-                          widget.index + (distance.isNegative ? 1 : -1);
+                          widget.index +
+                          (distance * recognizer.drawerOpenDirection < 0
+                              ? 1
+                              : -1);
                       if (next < 0 || next >= widget.length) {
                         _publishProgress(widget.index, 0);
                         return;
@@ -168,6 +176,7 @@ class _TabSwipeGestureRecognizer extends HorizontalDragGestureRecognizer {
   int drawerOpenDirection = 1;
   bool drawerSwipeEnabled = true;
   final Map<int, Offset> _origins = {};
+  final Set<int> _acceptedPointers = {};
 
   @override
   void addAllowedPointer(PointerDownEvent event) {
@@ -187,19 +196,30 @@ class _TabSwipeGestureRecognizer extends HorizontalDragGestureRecognizer {
       if (drawerSwipeEnabled &&
           inDrawerZone &&
           delta.dx * drawerOpenDirection > slop) {
-        resolve(GestureDisposition.rejected);
-        return;
+        // Once this recognizer won, rejecting is a no-op; keep its moves flowing.
+        if (!_acceptedPointers.contains(event.pointer)) {
+          resolve(GestureDisposition.rejected);
+          return;
+        }
       }
     }
     if (event is PointerUpEvent || event is PointerCancelEvent) {
       _origins.remove(event.pointer);
+      _acceptedPointers.remove(event.pointer);
     }
     super.handleEvent(event);
   }
 
   @override
+  void acceptGesture(int pointer) {
+    _acceptedPointers.add(pointer);
+    super.acceptGesture(pointer);
+  }
+
+  @override
   void rejectGesture(int pointer) {
     _origins.remove(pointer);
+    _acceptedPointers.remove(pointer);
     super.rejectGesture(pointer);
   }
 }

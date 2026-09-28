@@ -60,14 +60,16 @@ class _GesturePageState extends State<_GesturePage> {
 }
 
 class _SwipeTabsPage extends StatefulWidget {
-  const _SwipeTabsPage();
+  const _SwipeTabsPage({this.initialIndex = 1});
+
+  final int initialIndex;
 
   @override
   State<_SwipeTabsPage> createState() => _SwipeTabsPageState();
 }
 
 class _SwipeTabsPageState extends State<_SwipeTabsPage> {
-  int index = 1;
+  late int index = widget.initialIndex;
   final scroll = ScrollController();
 
   @override
@@ -127,6 +129,7 @@ Future<ProviderContainer> _mount(
   double scale = 1,
   Size size = const Size(390, 844),
   EdgeInsets padding = EdgeInsets.zero,
+  TextDirection textDirection = TextDirection.ltr,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -174,13 +177,16 @@ Future<ProviderContainer> _mount(
           locale: const Locale('en'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(
-              textScaler: TextScaler.linear(scale),
-              padding: padding,
-              disableAnimations: true,
+          builder: (context, child) => Directionality(
+            textDirection: textDirection,
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(scale),
+                padding: padding,
+                disableAnimations: true,
+              ),
+              child: child!,
             ),
-            child: child!,
           ),
         ),
       ),
@@ -337,6 +343,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Tab 2'), findsOneWidget);
     expect(_isDrawerOpen(), isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('edge tab drag keeps processing moves after drawer yield', (
+    tester,
+  ) async {
+    await _mount(tester, home: const _SwipeTabsPage(initialIndex: 0));
+    final gesture = await tester.startGesture(const Offset(100, 420));
+    await gesture.moveBy(const Offset(-36, 0));
+    await tester.pump(const Duration(milliseconds: 40));
+    await gesture.moveBy(const Offset(100, 0));
+    await tester.pump(const Duration(milliseconds: 40));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tab 0'), findsOneWidget);
+    expect(_isDrawerOpen(), isFalse);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('RTL tab swipes follow reading order', (tester) async {
+    await _mount(
+      tester,
+      home: const _SwipeTabsPage(initialIndex: 0),
+      textDirection: TextDirection.rtl,
+    );
+    await tester.dragFrom(const Offset(200, 420), const Offset(100, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Tab 1'), findsOneWidget);
+    expect(_isDrawerOpen(), isFalse);
+
+    await tester.dragFrom(const Offset(200, 420), const Offset(-100, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Tab 0'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });
