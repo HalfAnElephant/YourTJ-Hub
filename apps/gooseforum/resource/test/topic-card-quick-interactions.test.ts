@@ -269,14 +269,15 @@ describe('TopicCardActions 卡片快捷互动（issue #380）', () => {
     expect(view.findComponent(TopicCardActions).exists()).toBe(false)
   })
 
-  it.each(['table', 'card'] as const)('首页 %s 视图折叠置顶话题且保留普通话题', async (feedMode) => {
-    const view = mount(TopicList, {
+  it.each(['table', 'card'] as const)('首页 %s 置顶标题可直达，展开状态跨视图保留', async (feedMode) => {
+    wrapper = mount(TopicList, {
+      attachTo: document.body,
       props: {
         topics: [
-          baseTopic({ id: 1, title: '置顶一', pinWeight: 2 }),
-          baseTopic({ id: 2, title: '置顶二', pinWeight: 1 }),
-          baseTopic({ id: 3, title: '普通话题' }),
+          ...[1, 2, 3, 4].map(id => baseTopic({ id, url: `/p/${id}`, title: `置顶${id}`, pinWeight: 5 - id })),
+          baseTopic({ id: 5, title: '普通话题' }),
         ],
+        home: true,
         feedMode,
         showPinned: true,
       },
@@ -289,24 +290,47 @@ describe('TopicCardActions 卡片快捷互动（issue #380）', () => {
         },
       },
     })
+    const view = wrapper
+    const visiblePinned = () => view.findAll('section a').filter(link => link.isVisible())
+    const toggle = () => view.get('button[aria-controls]')
+    expect(visiblePinned().map(link => link.attributes('href'))).toEqual(['/p/1'])
+    expect(toggle().text()).toContain('共 4 条')
+    expect(toggle().attributes('aria-expanded')).toBe('false')
+    expect(view.get(`#${toggle().attributes('aria-controls')}`).exists()).toBe(true)
+    expect(view.text()).toContain('普通话题')
+    // Pinned items are always compact links, not full feed cards or rows.
+    expect(view.findAllComponents(TopicFeedPreview)).toHaveLength(feedMode === 'card' ? 1 : 0)
+    expect(view.findAll('.test-topic-row')).toHaveLength(feedMode === 'table' ? 1 : 0)
 
-    const toggle = view.get('button[aria-controls]')
-    const panel = view.get(`#${toggle.attributes('aria-controls')}`)
-    const visibleTitles = () => feedMode === 'table'
-      ? view.findAll('.test-topic-row').filter(row => row.isVisible()).map(row => row.text())
-      : view.findAll('a[aria-label]').filter(link => link.isVisible()).map(link => link.attributes('aria-label'))
-    expect(toggle.text()).toContain('置顶话题')
-    expect(toggle.text()).toContain('2')
-    expect(toggle.attributes('aria-expanded')).toBe('false')
-    expect(toggle.classes()).toContain('min-h-11') // 44px touch target; summary stays one line on narrow screens.
-    expect(toggle.find('.truncate').exists()).toBe(true)
-    expect(toggle.classes()).toContain('focus-visible:ring-2')
-    expect(visibleTitles()).toContain('普通话题')
-    expect(panel.attributes('style')).toContain('display: none')
+    await toggle().trigger('click')
+    expect(visiblePinned()).toHaveLength(4)
+    await view.setProps({ feedMode: feedMode === 'table' ? 'card' : 'table' })
+    expect(toggle().attributes('aria-expanded')).toBe('true')
+    expect(visiblePinned()).toHaveLength(4)
+    await toggle().trigger('click')
+    expect(visiblePinned()).toHaveLength(1)
 
-    await toggle.trigger('click')
-    expect(toggle.attributes('aria-expanded')).toBe('true')
-    expect(panel.attributes('style')).toBeUndefined()
-    expect(visibleTitles()).toEqual(expect.arrayContaining(['置顶一', '置顶二', '普通话题']))
+    // Refresh can remove pins: update the count and remove an unnecessary toggle.
+    await view.setProps({ topics: [baseTopic({ id: 1, pinWeight: 2 }), baseTopic({ id: 2, pinWeight: 1 })] })
+    expect(visiblePinned()).toHaveLength(1)
+    expect(toggle().text()).toContain('共 2 条')
+    await view.setProps({ topics: [baseTopic({ id: 1, title: '唯一置顶', pinWeight: 1 })] })
+    expect(visiblePinned()).toHaveLength(1)
+    expect(view.find('section').text()).toContain('共 1 条')
+    expect(view.find('button[aria-controls]').exists()).toBe(false)
+    await view.setProps({ topics: [] })
+    expect(view.find('section').exists()).toBe(false)
+  })
+
+  it.each([
+    { home: true, showPinned: false },
+    { home: false, showPinned: true },
+  ])('只在首页最新排序收纳置顶：%j', (props) => {
+    wrapper = mount(TopicList, {
+      props: { ...props, topics: [baseTopic({ pinWeight: 1 })] },
+      global: { plugins: [i18n], stubs: { TopicRow: true } },
+    })
+    expect(wrapper.find('section').exists()).toBe(false)
+    expect(wrapper.findAllComponents({ name: 'TopicRow' })).toHaveLength(1)
   })
 })
