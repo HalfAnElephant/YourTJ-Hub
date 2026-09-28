@@ -1103,7 +1103,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
               ring: true,
               alignment: Alignment.centerLeft,
             ),
-            // 44 命中区已含头像两侧留白,补 2 保持标题与旧版 10 的视觉间距。
+            // 44 命中区右侧的留白即是间距,补 2 保持标题与旧版 10 的视觉间距。
             const SizedBox(width: 2),
             Expanded(
               child: Column(
@@ -1935,7 +1935,8 @@ class _MessageRow extends ConsumerWidget {
             : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // 命中区自带与气泡的间距,不再单列 SizedBox。
+          // 44 命中区自带与气泡的间距:视觉间距 12,气泡比旧版(32 头像 + 8 间距)
+          // 右移 4,可用宽度相应减少 4。
           if (!message.isSelf)
             _PeerAvatarButton(
               key: Key('chat-peer-avatar-${message.id}'),

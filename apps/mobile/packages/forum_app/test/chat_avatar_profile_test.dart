@@ -29,10 +29,12 @@ Finder _appBarAvatar() => find.byKey(const Key('chat-peer-avatar-appbar'));
 Finder _rowAvatar(int messageId) =>
     find.byKey(Key('chat-peer-avatar-$messageId'));
 
-/// 打开 /messages?userId=2 目标会话,并注册真实的 /u/:userId 路由。
+/// 打开私信页并注册真实的 /u/:userId 路由。[targetUserId] 非空时进入目标会话,
+/// 为空时停在会话列表(进入会话走应用真实的 Navigator.push 路径)。
 Future<GoRouter> pumpConversation(
   WidgetTester tester, {
   required List<ChatMessagePayload> messages,
+  int? targetUserId = 2,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -58,7 +60,9 @@ Future<GoRouter> pumpConversation(
   );
   addTearDown(container.dispose);
   final router = GoRouter(
-    initialLocation: '/messages?userId=2&username=Bob',
+    initialLocation: targetUserId == null
+        ? '/messages'
+        : '/messages?userId=$targetUserId&username=Bob',
     observers: <NavigatorObserver>[VisibilityRouteObserver()],
     routes: <RouteBase>[
       GoRoute(
@@ -105,12 +109,13 @@ void main() {
     );
     expect(_appBarAvatar(), findsOneWidget);
     expect(tester.getSize(_appBarAvatar()), const Size(44, 44));
-    expect(
-      tester.getSize(
-        find.descendant(of: _appBarAvatar(), matching: find.byType(GfAvatar)),
-      ),
-      const Size(36, 36),
+    final Rect artwork = tester.getRect(
+      find.descendant(of: _appBarAvatar(), matching: find.byType(GfAvatar)),
     );
+    expect(artwork.size, const Size(36, 36));
+    // 标题与旧版保持 10 的视觉间距(44 命中区右侧留白 + 2)。
+    final Rect title = tester.getRect(find.text('bob'));
+    expect(title.left - artwork.right, 10);
 
     await tester.tap(_appBarAvatar());
     await tester.pumpAndSettle();
@@ -132,18 +137,48 @@ void main() {
     final rowAvatar = _rowAvatar(1);
     expect(rowAvatar, findsOneWidget);
     expect(tester.getSize(rowAvatar), const Size(44, 44));
-    expect(
-      tester.getSize(
-        find.descendant(of: rowAvatar, matching: find.byType(GfAvatar)),
-      ),
-      const Size(32, 32),
+    final Rect artwork = tester.getRect(
+      find.descendant(of: rowAvatar, matching: find.byType(GfAvatar)),
     );
+    expect(artwork.size, const Size(32, 32));
+    final GfMessageBubble bubble = tester.widget<GfMessageBubble>(
+      find.byType(GfMessageBubble),
+    );
+    final Rect bubbleRect = tester.getRect(find.byKey(bubble.bubbleKey!));
+    // 头像贴命中区左上角:与气泡顶部对齐,44 命中区直接接上气泡左边缘。
+    expect(artwork.top, bubbleRect.top);
+    expect(artwork.left + 44, bubbleRect.left);
 
     await tester.tap(rowAvatar);
     await tester.pumpAndSettle();
 
     expect(router.state.uri.path, '/u/2');
     expect(find.byType(ProfilePage), findsOneWidget);
+  });
+
+  testWidgets('从会话列表进入的会话同样能从头像打开对方主页', (tester) async {
+    final router = await pumpConversation(
+      tester,
+      messages: [makeChatMessage(1)],
+      targetUserId: null,
+    );
+    // 会话列表 → 会话走应用真实入口:rootNavigator.push(MaterialPageRoute),
+    // 此处必须验证主页真的可见,而不只是路由地址变化。
+    await tester.tap(find.text('bob'));
+    await tester.pumpAndSettle();
+    expect(find.text('消息 1').hitTestable(), findsOneWidget);
+
+    await tester.tap(_appBarAvatar());
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.path, '/u/2');
+    expect(find.byType(ProfilePage).hitTestable(), findsOneWidget);
+    expect(find.text('消息 1', skipOffstage: false).hitTestable(), findsNothing);
+
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, '/messages');
+    expect(find.text('消息 1').hitTestable(), findsOneWidget);
   });
 
   testWidgets('自己的头像保持展示态,不跳转', (tester) async {
