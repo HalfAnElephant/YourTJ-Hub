@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowReactive, useId, useSlots, watch } from 'vue'
-import { ChevronDown, ChevronRight } from '@lucide/vue'
+import { ChevronDown } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import type { TopicPayload } from '@gooseforum/client'
 import { createTopicCardInteraction, type TopicCardInteraction } from '@/site/utils/topic-card-interactions'
@@ -98,10 +98,8 @@ onBeforeUnmount(clearInteractions)
             :title="topic.title"
             class="group flex min-h-11 items-center gap-2.5 rounded-md border-t border-primary/5 px-1 py-2 text-sm outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary motion-reduce:transition-none"
           >
-            <span class="size-1 shrink-0 rounded-full bg-primary/45" aria-hidden="true" />
+            <span class="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">{{ t('topicList.pinned') }}</span>
             <span class="min-w-0 flex-1 line-clamp-2 break-words font-medium leading-5 text-base-content/90 group-hover:text-primary">{{ topic.title }}</span>
-            <span v-if="showCategories && topic.categories[0]" class="hidden max-w-24 shrink-0 truncate text-xs text-base-content/50 sm:block">{{ topic.categories[0].name }}</span>
-            <ChevronRight class="size-3.5 shrink-0 text-base-content/30 group-hover:text-primary" aria-hidden="true" />
           </a>
         </div>
       </li>

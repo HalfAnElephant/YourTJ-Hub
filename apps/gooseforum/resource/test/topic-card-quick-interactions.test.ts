@@ -274,7 +274,10 @@ describe('TopicCardActions 卡片快捷互动（issue #380）', () => {
       attachTo: document.body,
       props: {
         topics: [
-          ...[1, 2, 3, 4].map(id => baseTopic({ id, url: `/p/${id}`, title: `置顶${id}`, pinWeight: 5 - id })),
+          ...[1, 2, 3, 4].map(id => baseTopic({
+            id, url: `/p/${id}`, title: `置顶${id}`, pinWeight: 5 - id,
+            categories: [{ id: 1, name: 'YourTJHub', url: '/c/1', color: '' }],
+          })),
           baseTopic({ id: 5, title: '普通话题' }),
         ],
         home: true,
@@ -304,6 +307,9 @@ describe('TopicCardActions 卡片快捷互动（issue #380）', () => {
 
     await toggle().trigger('click')
     expect(visiblePinned()).toHaveLength(4)
+    expect(view.findAll('section li .text-primary')).toHaveLength(3)
+    expect(view.find('section').text()).not.toContain('YourTJHub')
+    expect(view.find('section li svg').exists()).toBe(false)
     await view.setProps({ feedMode: feedMode === 'table' ? 'card' : 'table' })
     expect(toggle().attributes('aria-expanded')).toBe('true')
     expect(visiblePinned()).toHaveLength(4)
