@@ -27,6 +27,7 @@ import '../../widgets/status_views.dart';
 import '../../widgets/skeletons.dart';
 import '../../widgets/topic_list.dart';
 import '../../widgets/user_badge.dart';
+import '../../widgets/user_profile_preview.dart';
 
 typedef _ContentKey = (bool, int); // isReply, content ID
 const _profileBlockAction = '__user_block__';
@@ -88,18 +89,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   bool get _loadingMore => _active.loadingMore;
   bool get _streamLoading => _active.loading && _active.props == null;
   Object? get _streamError => _active.error;
-  int _followRevision = 0;
   UserProfileProps? _headerProps;
   double _minimumScrollOffset = 0;
   String _stream = 'timeline';
-  bool _following = false;
-  bool _followBusy = false;
-  final _connectionFollowing = <int, bool>{};
-  final _connectionBusy = <int>{};
-  int _connectionEpoch = 0;
-  int _connectionRead = 0;
-  final _connectionRevisions = <int, int>{};
-  final _connectionAcceptedReads = <int, int>{};
+  int _profileGeneration = 0;
   final _seenTopicReturns = <int, TopicReturnState>{};
   final _seenPostReturns = <int, PostReturnState>{};
   int _interactionRevision = 0;
@@ -148,19 +141,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     _seenTopicReturns.clear();
     _seenPostReturns.clear();
     _interactionRevision++;
-    _connectionFollowing.clear();
-    _connectionBusy.clear();
-    _connectionRevisions.clear();
-    _connectionAcceptedReads.clear();
-    _connectionEpoch++;
+    _profileGeneration++;
     _headerProps = null;
     _minimumScrollOffset = 0;
-    _followBusy = false;
-    _following = false;
     _canAccessAdmin = false;
     _canModerate = false;
     _canManageCourses = false;
-    _followRevision++;
   }
 
   void _cancelStreamRead(_ProfileStreamState state) {
@@ -189,10 +175,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     state.cancelToken = cancelToken;
     final request = ++state.request;
     final epoch = ref.read(offlineCacheEpochProvider);
-    final followRevision = _followRevision;
     final interactionRevision = _interactionRevision;
-    final connectionRevisions = Map<int, int>.of(_connectionRevisions);
-    final connectionRead = ++_connectionRead;
     final previous = state.props;
     bool current() =>
         mounted &&
@@ -218,6 +201,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         });
         return;
       }
+      final followRead = widget.userId == null || nextUrl != null
+          ? null
+          : ref.read(userFollowStateProvider(uid)).beginRead();
+      final relationshipRead = switch (key) {
+        'following' || 'followers' => nextUserFollowReadOrder(),
+        _ => null,
+      };
       final path = nextUrl ?? _streamPath(uid, key);
       final payload = await ref
           .read(pageRepositoryProvider)
@@ -226,6 +216,24 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       var props = parsePageProps<UserProfileProps>(payload);
       if (props == null) {
         throw FormatException(AppLocalizations.of(context).commonParseFailed);
+      }
+      if (followRead != null && props.user.userId == uid) {
+        ref
+            .read(userFollowStateProvider(uid))
+            .acceptServerValue(props.user.isFollowing, followRead);
+      }
+      if (relationshipRead != null) {
+        final connections = key == 'following'
+            ? props.following
+            : props.followers;
+        for (final connection in connections) {
+          final isFollowing = connection.isFollowing;
+          if (isFollowing != null) {
+            ref
+                .read(userFollowStateProvider(connection.id).notifier)
+                .acceptServerValue(isFollowing, relationshipRead);
+          }
+        }
       }
       void accept(_ContentKey? key, bool? liked, bool? bookmarked, int count) {
         if (key == null ||
@@ -260,24 +268,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           activity.likeCount ?? 0,
         );
       }
-      // Accept only rows actually returned by this read, not retained pages.
-      // Reads started before/during a mutation cannot undo it; a later refresh
-      // can reconcile changes made elsewhere, shared across both retained tabs.
-      final connections = switch (key) {
-        'following' => props.following,
-        'followers' => props.followers,
-        _ => const <UserConnectionPayload>[],
-      };
-      for (final user in connections) {
-        if (user.isFollowing != null &&
-            !_connectionBusy.contains(user.id) &&
-            (connectionRevisions[user.id] ?? 0) ==
-                (_connectionRevisions[user.id] ?? 0) &&
-            connectionRead > (_connectionAcceptedReads[user.id] ?? 0)) {
-          _connectionFollowing[user.id] = user.isFollowing!;
-          _connectionAcceptedReads[user.id] = connectionRead;
-        }
-      }
       if (nextUrl != null && previous != null) {
         props = props.copyWith(
           topics: _merge(previous.topics, props.topics, (item) => item.id),
@@ -307,13 +297,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       final loaded = _mergeInteractionState(props, interactionRevision);
       setState(() {
         state.props = loaded;
-        // Keep the visible identity stable while tabs load, and never undo a
-        // follow action started after this read.
+        // Keep the visible identity stable while tabs load.
         if (key == _stream && nextUrl == null && !streamChange) {
           _headerProps = loaded;
-          if (!_followBusy && followRevision == _followRevision) {
-            _following = loaded.user.isFollowing;
-          }
           _canAccessAdmin = payload.layout.viewer.canAccessAdmin;
           _canModerate = payload.layout.viewer.isModerator;
           _canManageCourses = payload.layout.viewer.canManageCourses;
@@ -410,84 +396,45 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Future<void> _toggleFollow(UserCardPayload user) async {
-    if (user.isSelf || _followBusy) return;
-    final revision = ++_followRevision;
-    final epoch = ref.read(offlineCacheEpochProvider);
-    bool current() =>
-        mounted &&
-        revision == _followRevision &&
-        ref.read(offlineCacheEpochProvider) == epoch;
-    final bool wasFollowing = _following;
-    final bool target = !wasFollowing;
-    setState(() {
-      _following = target;
-      _followBusy = true;
-    });
+    if (user.isSelf) return;
     try {
       await ref
-          .read(topicRepositoryProvider)
-          .followUser(userId: user.userId, isFollowing: wasFollowing);
+          .read(userFollowStateProvider(user.userId).notifier)
+          .toggle(userId: user.userId, fallback: user.isFollowing);
+      invalidateUserProfilePreview(user.userId);
     } catch (error) {
-      if (mounted && current()) {
-        setState(() => _following = wasFollowing);
+      if (mounted) {
         showGfToast(
           context,
           resolveErrorMessage(AppLocalizations.of(context), error),
           error: true,
         );
       }
-    } finally {
-      if (current()) {
-        setState(() {
-          // Reads begun during the mutation also precede its settled truth.
-          _followRevision++;
-          _followBusy = false;
-        });
-      }
     }
   }
 
   Future<void> _toggleConnection(UserConnectionPayload user) async {
-    if (user.isSelf || _connectionBusy.contains(user.id)) return;
+    if (user.isSelf) return;
     if (ref.read(currentUserProvider).valueOrNull == null) {
       await context.push(
         authLoginLocation(returnTo: GoRouterState.of(context).uri.toString()),
       );
       return;
     }
-    final previous = _connectionFollowing[user.id] ?? user.isFollowing;
-    if (previous == null) return;
-    final epoch = _connectionEpoch;
-    final session = ref.read(offlineCacheEpochProvider);
-    bool current() =>
-        mounted &&
-        epoch == _connectionEpoch &&
-        session == ref.read(offlineCacheEpochProvider);
-    setState(() {
-      _connectionFollowing[user.id] = !previous;
-      _connectionBusy.add(user.id);
-      _connectionRevisions[user.id] = (_connectionRevisions[user.id] ?? 0) + 1;
-    });
+    final fallback = user.isFollowing;
+    if (fallback == null) return;
     try {
       await ref
-          .read(topicRepositoryProvider)
-          .followUser(userId: user.id, isFollowing: previous);
+          .read(userFollowStateProvider(user.id).notifier)
+          .toggle(userId: user.id, fallback: fallback);
+      invalidateUserProfilePreview(user.id);
     } catch (error) {
-      if (mounted && current()) {
-        setState(() => _connectionFollowing[user.id] = previous);
+      if (mounted) {
         showGfToast(
           context,
           resolveErrorMessage(AppLocalizations.of(context), error),
           error: true,
         );
-      }
-    } finally {
-      if (current()) {
-        setState(() {
-          _connectionBusy.remove(user.id);
-          _connectionRevisions[user.id] =
-              (_connectionRevisions[user.id] ?? 0) + 1;
-        });
       }
     }
   }
@@ -583,10 +530,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (!_interactionBusy.add(key)) return false;
     final failedMessage = AppLocalizations.of(context).commonLoadFailed;
     final epoch = ref.read(offlineCacheEpochProvider);
-    final generation = _connectionEpoch;
+    final generation = _profileGeneration;
     bool current() =>
         mounted &&
-        generation == _connectionEpoch &&
+        generation == _profileGeneration &&
         epoch == ref.read(offlineCacheEpochProvider);
     final next = (
       liked: bookmark ? previous.liked : target,
@@ -904,11 +851,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       }
       if (props.canFollow) {
         actions.add(
-          GfFollowButton(
-            following: _following,
-            label: _following ? l10n.profileFollowing : l10n.profileFollow,
-            busy: _followBusy,
-            onPressed: () => _toggleFollow(user),
+          Consumer(
+            builder: (context, ref, _) {
+              final follow = ref.watch(userFollowStateProvider(user.userId));
+              final following = follow.following ?? user.isFollowing;
+              return GfFollowButton(
+                following: following,
+                label: following ? l10n.profileFollowing : l10n.profileFollow,
+                busy: follow.busy,
+                onPressed: () => _toggleFollow(user),
+              );
+            },
           ),
         );
       }
@@ -1054,7 +1007,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (props.canFollow) {
       buttons.add(
         measure(
-          _following ? l10n.profileFollowing : l10n.profileFollow,
+          l10n.profileFollowing,
           textStyle: labelStyle.copyWith(
             fontSize: 14,
             fontWeight: FontWeight.w700,
@@ -1062,7 +1015,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           minimumSize: const Size(96, 44),
           themeStyle: OutlinedButtonTheme.of(context).style,
-          extraWidth: _followBusy ? 24 : 0,
+          extraWidth: 24,
         ),
       );
     }
@@ -1366,8 +1319,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               key: ValueKey(_stream),
                               props: props,
                               selectedKey: _stream,
-                              following: _connectionFollowing,
-                              busy: _connectionBusy,
                               onFollow: _toggleConnection,
                               onReturn: _syncReturnedInteractions,
                               onInteraction: _toggleInteraction,
@@ -2170,8 +2121,6 @@ class _ProfileBody extends StatelessWidget {
     super.key,
     required this.props,
     required this.selectedKey,
-    required this.following,
-    required this.busy,
     required this.onFollow,
     required this.onReturn,
     required this.onInteraction,
@@ -2180,8 +2129,6 @@ class _ProfileBody extends StatelessWidget {
 
   final UserProfileProps props;
   final String selectedKey;
-  final Map<int, bool> following;
-  final Set<int> busy;
   final ValueChanged<UserConnectionPayload> onFollow;
   final VoidCallback onReturn;
   final Set<_ContentKey> interactionBusy;
@@ -2475,31 +2422,35 @@ class _ProfileBody extends StatelessWidget {
     if (users.isEmpty) return _empty('users-round', emptyMessage);
     return SliverList.builder(
       itemCount: users.length,
-      itemBuilder: (BuildContext context, int index) {
-        final UserConnectionPayload user = users[index];
-        return GfConnectionRow(
-          avatarUrl: resolveApiAssetUrl(user.avatarUrl),
-          name: privateDisplayName(
-            context,
-            user.id,
-            user.username,
-            user.nickname,
-          ),
-          username: user.username,
-          bio: user.bio,
-          action: user.isSelf || user.isFollowing == null
-              ? null
-              : GfFollowButton(
-                  following: following[user.id] ?? user.isFollowing!,
-                  label: (following[user.id] ?? user.isFollowing!)
-                      ? AppLocalizations.of(context).profileFollowing
-                      : AppLocalizations.of(context).profileFollow,
-                  busy: busy.contains(user.id),
-                  onPressed: () => onFollow(user),
-                ),
-          onTap: () => context.push('/u/${user.id}'),
-        );
-      },
+      itemBuilder: (BuildContext context, int index) => Consumer(
+        builder: (context, ref, _) {
+          final UserConnectionPayload user = users[index];
+          final follow = ref.watch(userFollowStateProvider(user.id));
+          final isFollowing = follow.following ?? (user.isFollowing ?? false);
+          return GfConnectionRow(
+            avatarUrl: resolveApiAssetUrl(user.avatarUrl),
+            name: privateDisplayName(
+              context,
+              user.id,
+              user.username,
+              user.nickname,
+            ),
+            username: user.username,
+            bio: user.bio,
+            action: user.isSelf || user.isFollowing == null
+                ? null
+                : GfFollowButton(
+                    following: isFollowing,
+                    label: isFollowing
+                        ? AppLocalizations.of(context).profileFollowing
+                        : AppLocalizations.of(context).profileFollow,
+                    busy: follow.busy,
+                    onPressed: () => onFollow(user),
+                  ),
+            onTap: () => context.push('/u/${user.id}'),
+          );
+        },
+      ),
     );
   }
 

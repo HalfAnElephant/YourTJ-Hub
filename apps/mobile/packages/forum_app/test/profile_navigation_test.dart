@@ -1809,6 +1809,8 @@ void main() {
       );
       expect(find.text('Bob'), findsOneWidget);
       expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
     });
   }
   for (final nextUrl in [

@@ -1798,6 +1798,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get profileOnline => 'Online';
 
   @override
+  String get profileAccountClosedBadge => 'Deaktiviert';
+
+  @override
+  String get profileAccountClosedTitle => 'Konto deaktiviert';
+
+  @override
+  String get profileAccountClosedDescription =>
+      'Dieses Konto wurde deaktiviert. Historische Inhalte bleiben sichtbar, aber das Profil ist nicht mehr zugänglich.';
+
+  @override
   String profileJoinedAt(String date) {
     return 'Beigetreten $date';
   }

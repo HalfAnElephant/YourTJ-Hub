@@ -204,6 +204,32 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   loading; it only reports no author replies once both directions are exhausted. Switching back
   restores every loaded floor. Sort controls wrap with narrow screens and enlarged text.
 
+- `Current`: tapping a topic-author or non-anonymous reply avatar opens a top-docked profile
+  preview; tapping the name still opens the public profile directly. The preview matches Web's
+  identity, status, bio, signature, up to five badges, four statistics, up to eight public links,
+  join date and follow/profile/message actions. The message action opens that user's conversation;
+  block/unblock stays synchronized with the shared block list. The compact card stays near the
+  previous full-height layout, slightly inset from the available safe area; overflowing content
+  scrolls internally with a visible scrollbar. The action controls, badge, statistics, date and
+  social-link rows stay single-line on narrow screens, with a horizontal scroll cue when needed.
+  The nickname sits directly below the overlapping avatar. Signature stays
+  directly below the bio with the profile's feather and wave treatment; social links use compact
+  44-pixel targets. The private-note edit action sits beside the handle, clear of status badges;
+  the trailing more menu switches between block and unblock from the shared block list, and a
+  successful change refreshes that state for all consumers. Profile and more actions share a
+  theme-derived, translucent outline; the more action uses a circular 44-pixel target. The full
+  5:1 cover stays sharp as a horizontal banner and softly fades at its
+  lower edge into a full-card, cover-derived blurred color field. A theme-tinted veil keeps text
+  legible without flattening the lower card to a solid fill; light-mode admin and online badges
+  use darker semantic foregrounds on a translucent, lightly rimmed base surface for contrast across
+  the blur boundary.
+  The ReIcon close control honors reduced motion. Profile data is cached for 60 seconds
+  within the active session, then
+  refreshed in the background.
+  Late reads cannot replace a newer read or follow action. Closed accounts show the closure notice,
+  and anonymous reply avatars do not open a profile. Profile pages, relationship lists and previews
+  share one optimistic follow state per user; failure restores it and the next profile-card read
+  refreshes follower counts.
 - `Current`: topic and reply authors open their public profiles. Owners can edit/delete their
   content; replies support likes, bookmarks, sharing and paginated revision history. Moderation
   actions follow server capabilities. Removed content has an explicit placeholder; posting

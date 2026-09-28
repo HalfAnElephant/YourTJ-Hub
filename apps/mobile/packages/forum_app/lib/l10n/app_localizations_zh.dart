@@ -1741,6 +1741,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get profileOnline => '在线';
 
   @override
+  String get profileAccountClosedBadge => '已注销';
+
+  @override
+  String get profileAccountClosedTitle => '已注销用户';
+
+  @override
+  String get profileAccountClosedDescription => '该账号已注销，历史内容保留展示，主页不再开放。';
+
+  @override
   String profileJoinedAt(String date) {
     return '加入于 $date';
   }
