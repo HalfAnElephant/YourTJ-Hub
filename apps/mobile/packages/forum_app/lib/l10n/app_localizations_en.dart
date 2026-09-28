@@ -214,6 +214,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authConfirmPassword => 'Confirm password';
 
   @override
+  String get authShowPassword => 'Show password';
+
+  @override
+  String get authHidePassword => 'Hide password';
+
+  @override
   String get authCaptcha => 'Captcha';
 
   @override

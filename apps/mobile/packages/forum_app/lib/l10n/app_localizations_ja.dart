@@ -207,6 +207,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get authConfirmPassword => 'パスワード確認';
 
   @override
+  String get authShowPassword => 'パスワードを表示';
+
+  @override
+  String get authHidePassword => 'パスワードを隠す';
+
+  @override
   String get authCaptcha => '認証コード';
 
   @override

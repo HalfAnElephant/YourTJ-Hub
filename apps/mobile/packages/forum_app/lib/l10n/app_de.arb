@@ -67,6 +67,8 @@
   "authPassword": "Passwort",
   "authNewPassword": "Neues Passwort",
   "authConfirmPassword": "Passwort bestätigen",
+  "authShowPassword": "Passwort anzeigen",
+  "authHidePassword": "Passwort verbergen",
   "authCaptcha": "Captcha",
   "authForgotPassword": "Passwort vergessen?",
   "authCreateAccount": "Konto erstellen",

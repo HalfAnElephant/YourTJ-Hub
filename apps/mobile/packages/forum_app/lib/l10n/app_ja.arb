@@ -67,6 +67,8 @@
   "authPassword": "パスワード",
   "authNewPassword": "新しいパスワード",
   "authConfirmPassword": "パスワード確認",
+  "authShowPassword": "パスワードを表示",
+  "authHidePassword": "パスワードを隠す",
   "authCaptcha": "認証コード",
   "authForgotPassword": "パスワードを忘れましたか？",
   "authCreateAccount": "アカウント作成",
