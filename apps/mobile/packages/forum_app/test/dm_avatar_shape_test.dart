@@ -11,34 +11,67 @@ import 'package:ui_kit/ui_kit.dart';
 import 'chat_visible_read_test.dart' show pumpChat;
 import 'pages_behavior_test.dart' show makeChatMessage;
 
+/// Effective clip path of [node] in its own coordinates, or null when the
+/// render object does not clip its child.
+Path? effectiveClipPath(RenderObject node) {
+  if (node is RenderClipPath) {
+    return node.clipper?.getClip(node.size) ??
+        (Path()..addRect(Offset.zero & node.size));
+  }
+  if (node is RenderPhysicalShape) {
+    return node.clipper?.getClip(node.size) ??
+        (Path()..addRect(Offset.zero & node.size));
+  }
+  if (node is RenderClipOval) {
+    final Rect oval =
+        node.clipper?.getClip(node.size) ?? (Offset.zero & node.size);
+    return Path()..addOval(oval);
+  }
+  if (node is RenderClipRRect) {
+    return Path()..addRRect(
+      node.clipper?.getClip(node.size) ??
+          node.borderRadius
+              .resolve(node.textDirection)
+              .toRRect(Offset.zero & node.size),
+    );
+  }
+  if (node is RenderClipRect) {
+    return Path()..addRect(Offset.zero & node.size);
+  }
+  return null;
+}
+
 /// Verifies the rendered clip geometry rather than one node's configuration:
-/// every clip path applied to the avatar — inside [GfAvatar] and from any
-/// ancestor wrapper — must accept 24 sample points on the avatar's inscribed
-/// circle (95% of the radius, in global coordinates). A circular clip accepts
-/// all of them; a polygon clip — for example the repo's historical six-point
-/// hexagon clipper — rejects the directions that fall outside its edges
-/// (issue #877 review).
+/// every clip applied to the avatar — inside [GfAvatar] and from any ancestor
+/// wrapper, whether [ClipPath], [PhysicalShape] or the oval/rect clips — must
+/// accept 24 sample points on the avatar's inscribed circle (95% of the
+/// radius, in global coordinates). A circular clip accepts all of them; a
+/// polygon clip — for example the repo's historical six-point hexagon clipper
+/// — rejects the directions that fall outside its edges (issue #877 review).
 void expectCircularClipGeometry(WidgetTester tester, Finder avatarFinder) {
   final RenderObject avatar = tester.renderObject(avatarFinder);
   final Rect avatarRect = tester.getRect(avatarFinder);
-  final List<RenderClipPath> clips = <RenderClipPath>[];
+  final List<Path> clips = <Path>[];
 
   void collect(RenderObject node) {
-    if (node is RenderClipPath && node.clipper != null) clips.add(node);
+    final Path? path = effectiveClipPath(node);
+    if (path != null) {
+      clips.add(path.transform(node.getTransformTo(null).storage));
+    }
     node.visitChildren(collect);
   }
 
   collect(avatar);
   for (RenderObject? node = avatar.parent; node != null; node = node.parent) {
-    if (node is RenderClipPath && node.clipper != null) clips.add(node);
+    final Path? path = effectiveClipPath(node);
+    if (path != null) {
+      clips.add(path.transform(node.getTransformTo(null).storage));
+    }
   }
 
   expect(clips, isNotEmpty, reason: 'the avatar must be clipped');
   final double radius = avatarRect.size.shortestSide / 2 * 0.95;
-  for (final RenderClipPath clipNode in clips) {
-    final Path clip = clipNode.clipper!
-        .getClip(clipNode.size)
-        .transform(clipNode.getTransformTo(null).storage);
+  for (final Path clip in clips) {
     for (int step = 0; step < 24; step++) {
       final double angle = step * math.pi / 12;
       final Offset point =
@@ -47,8 +80,8 @@ void expectCircularClipGeometry(WidgetTester tester, Finder avatarFinder) {
         clip.contains(point),
         isTrue,
         reason:
-            'every clip over the avatar must accept the inscribed circle; '
-            '${clipNode.runtimeType} rejects $point (${step * 15}°)',
+            'every clip over the avatar must accept the inscribed circle; a '
+            'clip rejects $point (${step * 15}°)',
       );
     }
   }
