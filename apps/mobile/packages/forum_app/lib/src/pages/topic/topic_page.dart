@@ -83,12 +83,15 @@ class _TopicPageState extends ConsumerState<TopicPage>
   bool _hasEarlierPosts = false;
   final _scrollToTop = GfScrollToTopController();
   final GlobalKey _discussionKey = GlobalKey();
+  final GlobalKey _revealPostKey = GlobalKey();
   final List<PostPayload> _posts = [];
+  // 回复成功后要滚入视野的楼层;0 表示没有待揭示的新回复。
+  int _revealPostId = 0;
   int? _afterPostNo;
   bool _hasMorePosts = false;
   CommentSort _sort = CommentSort.asc;
   bool _opScanning = false;
-  // 构建时的列表控制器,用于把合并后的新回复滚入视野。
+  // 构建时的列表控制器,用于把新回复滚入视野。
   ScrollController? _listScrollController;
 
   // 互动状态(乐观更新)。
@@ -1085,7 +1088,13 @@ class _TopicPageState extends ConsumerState<TopicPage>
           topicId != widget.topicId) {
         return;
       }
-      final bool merge = _canMergeCreatedWindow(window, result);
+      // 待审回复被服务端从非版主可见的窗口中过滤,窗口不含新回复本身
+      // (见 payload.go 的 pending 过滤);此时保留已加载列表与游标,
+      // 不能因为一条尚不可见的回复清空用户正在读的上下文。
+      final PostPayload? created = window.posts
+          .where((PostPayload post) => post.id == result.id)
+          .firstOrNull;
+      final bool merge = created != null && _canMergeCreatedWindow(window);
       setState(() {
         _sort = CommentSort.asc;
         final props = _page.valueOrNull;
@@ -1100,7 +1109,7 @@ class _TopicPageState extends ConsumerState<TopicPage>
           );
           _afterPostNo = window.afterPostNo ?? _afterPostNo;
           _hasMorePosts = window.hasAfter;
-        } else {
+        } else if (created != null) {
           final mainPost = _mainPost(_posts);
           _posts
             ..clear()
@@ -1122,7 +1131,7 @@ class _TopicPageState extends ConsumerState<TopicPage>
           _hasEarlierPosts = window.hasBefore;
           _hasMorePosts = window.hasAfter;
         }
-        if (props != null) {
+        if (props != null && created != null) {
           _page = AsyncValue.data(
             props.copyWith(
               postStream: merge
@@ -1146,16 +1155,18 @@ class _TopicPageState extends ConsumerState<TopicPage>
             ),
           );
         }
-        _currentFloor =
-            result.postNo ?? window.posts.firstOrNull?.postNo ?? _currentFloor;
+        _revealPostId = created?.id ?? 0;
+        if (created != null) {
+          _currentFloor =
+              result.postNo ??
+              window.posts.firstOrNull?.postNo ??
+              _currentFloor;
+        }
       });
       _recordReturnState();
       _syncMentionContext();
-      if (merge) {
-        _revealMergedReply(generation);
-      } else {
-        await _scrollToTop.scrollToTop();
-        _revealDiscussionHeader(generation);
+      if (created != null) {
+        unawaited(_revealCreatedReply(generation));
       }
     } catch (error) {
       if (mounted && _writingCurrent && generation == _windowGeneration) {
@@ -1170,56 +1181,47 @@ class _TopicPageState extends ConsumerState<TopicPage>
 
   /// 新回复窗口是否与已加载列表相接(无跳楼空洞):相接才合并,
   /// 相距过远仍整窗替换,保证长话题中的新回复可见且游标语义不歧义。
-  bool _canMergeCreatedWindow(
-    PostWindowPayload window,
-    CreatePostResult result,
-  ) {
+  bool _canMergeCreatedWindow(PostWindowPayload window) {
     final PostPayload? first = window.posts.firstOrNull;
     if (first == null) return false;
     final int loadedLastPostNo = _posts.fold<int>(
       0,
       (int last, PostPayload post) => post.postNo > last ? post.postNo : last,
     );
-    return loadedLastPostNo > 0 &&
-        window.posts.any((PostPayload post) => post.id == result.id) &&
-        first.postNo <= loadedLastPostNo + 1;
+    return loadedLastPostNo > 0 && first.postNo <= loadedLastPostNo + 1;
   }
 
-  /// 合并后新回复位于列表末尾,下一帧滚到底部露出确认位置。
-  void _revealMergedReply(int generation) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_writingCurrent || generation != _windowGeneration) {
-        return;
-      }
-      final ScrollController? controller = _listScrollController;
-      if (controller == null || !controller.hasClients) return;
-      unawaited(
-        GfMotion.scrollTo(
-          context,
-          controller,
-          controller.position.maxScrollExtent,
-        ),
+  /// 把新回复本身滚入视野(合并与替换窗口共用,对齐 web revealCreatedPost):
+  /// 等新窗口布局后目标已构建就直接对齐;目标位于列表末尾尚未构建时,
+  /// 先滚到列表末尾再在下一帧对齐,不依赖「新回复正好是最后一条」。
+  Future<void> _revealCreatedReply(int generation) async {
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !_writingCurrent || generation != _windowGeneration) {
+      return;
+    }
+    final ScrollController? controller = _listScrollController;
+    if (controller == null || !controller.hasClients) return;
+    if (_revealPostKey.currentContext == null) {
+      await GfMotion.scrollTo(
+        context,
+        controller,
+        controller.position.maxScrollExtent,
       );
-    });
-  }
-
-  /// 替换窗口时窗口顶部就是新回复,回到顶部并露出讨论区标题。
-  void _revealDiscussionHeader(int generation) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_writingCurrent || generation != _windowGeneration) {
         return;
       }
-      final target = _discussionKey.currentContext;
-      if (target != null) {
-        unawaited(
-          Scrollable.ensureVisible(
-            target,
-            duration: GfMotion.duration(context, GfMotion.layout),
-            curve: GfMotion.enterCurve,
-          ),
-        );
-      }
-    });
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    final BuildContext? target = _revealPostKey.currentContext;
+    if (target == null || !target.mounted) return;
+    if (!mounted || !_writingCurrent || generation != _windowGeneration) {
+      return;
+    }
+    await Scrollable.ensureVisible(
+      target,
+      duration: GfMotion.duration(context, GfMotion.layout),
+      curve: GfMotion.enterCurve,
+    );
   }
 
   Future<void> _reportPost(PostPayload post) async {
@@ -1436,7 +1438,10 @@ class _TopicPageState extends ConsumerState<TopicPage>
                                 itemBuilder: (BuildContext context, int index) {
                                   final PostPayload post = replyPosts[index];
                                   return RepaintBoundary(
-                                    key: ValueKey(post.id),
+                                    // 新回复用可定位的锚点 key,便于滚入视野。
+                                    key: post.id == _revealPostId
+                                        ? _revealPostKey
+                                        : ValueKey<int>(post.id),
                                     child: Column(
                                       children: <Widget>[
                                         _PostCard(

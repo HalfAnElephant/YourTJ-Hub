@@ -167,12 +167,14 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   shortcuts, reply links, and earlier/later pagination navigate the actual reply stream. Returning
   to the first post from a middle window reloads that window before offering refresh; stale
   pagination responses are discarded after a floor or session change.
-- `Current`: a submitted reply is acknowledged with a full window around its new floor. When that
-  window adjoins the loaded floors the reply is merged by server ID: loaded replies stay, the
-  earlier/later cursors keep the loaded window's bounds, and the new reply is scrolled into view.
-  A distant new floor replaces the window instead so the confirmation remains visible. Deep-link
-  windows — such as a notification pointing at one reply — keep both continuation controls on the
-  anchored floors.
+- `Current`: a submitted reply is acknowledged with a full window around its new floor, and the
+  created reply itself is scrolled into view. When that window adjoins the loaded floors the reply
+  is merged by server ID: loaded replies stay, the earlier/later cursors keep the loaded window's
+  bounds, and no floor is duplicated. A distant new floor replaces the window (web
+  `revealCreatedPost` parity) and still reveals the reply. A reply held for review is filtered out
+  of every window for non-moderators, so the app keeps the loaded floors and cursors instead of
+  clearing them; the reply appears once approved. Deep-link windows — such as a notification
+  pointing at one reply — keep both continuation controls on the anchored floors.
 - `Current`: replies offer a compact sort capsule beside the reply count — oldest first, newest
   first, author only. Oldest and newest flip the loaded window locally without refetching; in
   newest-first order the list footer loads earlier floors and the top control loads newer ones.

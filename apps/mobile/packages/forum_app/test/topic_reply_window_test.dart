@@ -103,6 +103,9 @@ class TopicWindowServer extends TopicRepository {
 
   /// 服务端楼层(按 postNo 升序)。
   final List<PostPayload> posts = <PostPayload>[];
+
+  /// 非版主视角下被服务端过滤的楼层(如待审回复,payload.go 的 pending 过滤)。
+  final Set<int> hiddenPostIds = <int>{};
   final List<String> calls = <String>[];
 
   PostWindowPayload _payload(
@@ -111,12 +114,16 @@ class TopicWindowServer extends TopicRepository {
     required bool hasAfter,
     int? anchorPostId,
   }) {
+    // 与服务端一致:先过滤不可见楼层,再由剩余楼层推导前后游标。
+    final List<PostPayload> visible = window
+        .where((PostPayload post) => !hiddenPostIds.contains(post.id))
+        .toList(growable: false);
     return PostWindowPayload(
-      posts: window,
+      posts: visible,
       replyTargets: const <ReplyTargetPayload>[],
       anchorPostId: anchorPostId,
-      beforePostNo: window.isEmpty ? null : window.first.postNo,
-      afterPostNo: window.isEmpty ? null : window.last.postNo,
+      beforePostNo: visible.isEmpty ? null : visible.first.postNo,
+      afterPostNo: visible.isEmpty ? null : visible.last.postNo,
       hasBefore: hasBefore,
       hasAfter: hasAfter,
       total: posts.length,
@@ -201,7 +208,8 @@ class _CreatedReplyPostRepository extends PostRepository {
 
   final void Function(String content) onCreated;
 
-  static const int _postNo = 16;
+  static const int postNo = 16;
+  static const int postId = 9000 + postNo;
 
   @override
   Future<CreatePostResult> createPost({
@@ -213,8 +221,8 @@ class _CreatedReplyPostRepository extends PostRepository {
   }) async {
     onCreated(content);
     return const CreatePostResult(
-      id: 9000 + _postNo,
-      postNo: _postNo,
+      id: postId,
+      postNo: postNo,
       renderedContent: '',
     );
   }
@@ -231,6 +239,7 @@ void main() {
     required Map<String, dynamic> page,
     int floors = 15,
     int? postNo,
+    bool pendingReply = false,
   }) async {
     final GfApiClient client = GfApiClient(
       dio: Dio(),
@@ -251,8 +260,15 @@ void main() {
         postRepositoryProvider.overrideWithValue(
           _CreatedReplyPostRepository(
             client,
-            onCreated: (String content) =>
-                server.posts.add(floorPost(16, content: content)),
+            onCreated: (String content) {
+              server.posts.add(
+                floorPost(_CreatedReplyPostRepository.postNo, content: content),
+              );
+              // 待审回复对非版主不可见:服务端窗口会过滤掉它。
+              if (pendingReply) {
+                server.hiddenPostIds.add(_CreatedReplyPostRepository.postId);
+              }
+            },
           ),
         ),
         currentUserProvider.overrideWith(
@@ -410,6 +426,49 @@ void main() {
     await expandViewport(tester);
     expect(find.text('被引用楼层预览'), findsOneWidget);
     expect(find.text(l10nOf(tester).topicReplyTargetUnavailable), findsNothing);
+    await disposePage(tester);
+  });
+
+  testWidgets('回复较远楼层时替换窗口并把新回复滚入视野', (tester) async {
+    // 通知锚定窗口 [2..5];回复第 2 楼后新回复落在第 16 楼,与已加载窗口不相接。
+    final Map<String, dynamic> page = anchoredPageJson(
+      posts: <PostPayload>[
+        for (int floor = 2; floor <= 5; floor++) floorPost(floor),
+      ],
+      hasBefore: true,
+      hasAfter: true,
+    );
+    await pumpTopic(tester, page: page, postNo: 2);
+    expect(find.text('2楼内容'), findsOneWidget);
+    await replyToFloor(tester, 2, '刚发出的回复');
+
+    // 整窗替换为 [11..16]:窗口顶部不是新回复,必须把新回复本身滚入视野。
+    expect(server.calls.last, 'anchor=9016 before=0 after=0 limit=20');
+    expect(find.text('刚发出的回复').hitTestable(), findsOneWidget);
+    await disposePage(tester);
+  });
+
+  testWidgets('回复待审时保留已加载窗口与游标', (tester) async {
+    final Map<String, dynamic> page = anchoredPageJson(
+      posts: <PostPayload>[
+        for (int floor = 8; floor <= 15; floor++) floorPost(floor),
+      ],
+      hasBefore: true,
+      hasAfter: false,
+    );
+    await pumpTopic(tester, page: page, postNo: 8, pendingReply: true);
+    expect(find.text('8楼内容'), findsOneWidget);
+    await replyToFloor(tester, 8, '待审核的回复');
+
+    // 服务端不把待审楼层放进任何窗口:不能因此清空已加载评论与游标。
+    expect(server.calls.last, 'anchor=9016 before=0 after=0 limit=20');
+    expect(find.text('待审核的回复'), findsNothing);
+    await expandViewport(tester);
+    expect(find.text('8楼内容'), findsOneWidget);
+    expect(find.text('15楼内容'), findsOneWidget);
+    await tester.tap(find.text(l10nOf(tester).topicEarlierReplies));
+    await tester.pumpAndSettle();
+    expect(server.calls.last, 'anchor=0 before=8 after=0 limit=0');
     await disposePage(tester);
   });
 
