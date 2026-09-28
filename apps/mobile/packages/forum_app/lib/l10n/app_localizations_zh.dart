@@ -916,6 +916,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsImageDecodeFailed => '图片解码失败';
 
   @override
+  String get dateToday => '今天';
+
+  @override
+  String get dateYesterday => '昨天';
+
+  @override
+  String dateMonthDay(int month, int day) {
+    return '$month月$day日';
+  }
+
+  @override
+  String dateYearMonthDay(int year, int month, int day) {
+    return '$year年$month月$day日';
+  }
+
+  @override
   String dateMonthDayTime(int month, int day, String time) {
     return '$month月$day日 $time';
   }

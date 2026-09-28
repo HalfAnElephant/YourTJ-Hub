@@ -1874,7 +1874,6 @@ export default {
     emptyConversationsTitle: '会話はありません',
     emptyConversationsDescription: 'プライベートメッセージを始めましょう。',
     conversation: 'プライベート会話',
-    today: '今日',
     loading: 'メッセージを読み込み中...',
     startChat: 'チャットを開始',
     firstMessageTo: '{user} さんに最初のメッセージを送ります。',
@@ -3040,6 +3039,10 @@ export default {
     checkNow: '【確認してください】',
   },
   date: {
+    today: '今日',
+    yesterday: '昨日',
+    monthDay: '{month}月{day}日',
+    yearMonthDay: '{year}年{month}月{day}日',
     monthDayTime: '{month}月{day}日 {time}',
     yearMonthDayTime: '{year}年{month}月{day}日 {time}',
   },

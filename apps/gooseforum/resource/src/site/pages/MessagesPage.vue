@@ -4,7 +4,8 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ArrowLeft, MessageSquare, MessageSquarePlus, MoreVertical, Search, Send, Smile, X } from '@lucide/vue'
 import { getChatMessages, markChatRead, sendChatMessage, sensitiveWordsFromError, type ChatMessagePayload } from '@/runtime/api'
 import { containsSensitiveText } from '@/site/utils/sensitive-highlight'
-import { formatChatTime } from '@/runtime/format'
+import { formatChatClock, formatChatDayLabel, formatChatTime } from '@/runtime/format'
+import { buildChatTimeline } from '@/runtime/chat-timeline'
 import { parseStickerSegments, stickerPreviewLabel } from '@/site/utils/sticker-token'
 import { useResolvedStickers } from '@/site/composables/useResolvedStickers'
 import { useUnreadStatus } from '@/runtime/unread-status'
@@ -55,6 +56,9 @@ function messageSegments(content: string) {
 }
 const messagePageLimit = 30
 const emojis = ['😀', '😂', '😍', '😊', '😭', '👍', '🙏', '🔥', '✨', '🎉', '🤔', '👀', '❤️', '🙌', '👏', '✅']
+
+/** 当前会话的时间分块：按本地日历日插入分隔，并按 5 分钟间隔决定气泡时刻。 */
+const messageTimeline = computed(() => buildChatTimeline(active.value?.messages ?? []))
 
 const filteredConversations = computed(() => {
   const keyword = search.value.trim().toLowerCase()
@@ -343,43 +347,42 @@ async function startChat(user: Pick<UserConnectionPayload, 'id' | 'username' | '
             </header>
 
             <div ref="messagesEl" class="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3 md:space-y-4 md:px-4 md:py-4" @scroll.passive="handleMessagesScroll">
-              <div class="flex justify-center">
-                <span class="bg-base-200 px-2 py-1 text-xs font-medium text-base-content/55 [border-radius:var(--gf-radius-selector)]">{{ t('messages.today') }}</span>
-              </div>
-
               <div v-if="active.loading" class="py-12 text-center text-sm text-base-content/55">{{ t('messages.loading') }}</div>
               <template v-else-if="active.messages.length">
                 <div v-if="active.loadingOlder" class="py-1 text-center text-xs text-base-content/45">{{ t('messages.loading') }}</div>
-                <div
-                  v-for="message in active.messages"
-                  :key="message.id"
-                  class="flex max-w-[88%] items-start gap-2 md:max-w-[82%]"
-                  :class="message.isSelf ? 'ml-auto flex-row-reverse' : ''"
-                >
-                  <UserAvatar
-                    :src="message.isSelf ? page.layout.viewer.avatarUrl : active.peerAvatar"
-                    :alt="message.isSelf ? page.layout.viewer.username : active.peerUsername"
-                    class="h-8 w-8 rounded-full object-cover ring-1 ring-line"
-                  />
-                  <div class="group relative min-w-0">
-                    <div
-                      class="whitespace-pre-wrap break-words px-3 py-2 text-sm leading-relaxed shadow-sm [border-radius:var(--gf-radius-box)] md:px-4"
-                      :class="message.isSelf ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content'"
-                    >
-                      <template v-for="(segment, index) in messageSegments(message.content)" :key="index">
-                        <img
-                          v-if="segment.type === 'sticker'"
-                          :src="segment.url"
-                          :alt="`[:sticker:${segment.name}:]`"
-                          class="inline-block h-14 w-14 max-w-full align-middle object-contain"
-                          loading="lazy"
-                        />
-                        <template v-else>{{ segment.text }}</template>
-                      </template>
-                    </div>
-                    <time class="mt-1 block text-[11px] text-base-content/55" :class="message.isSelf ? 'text-right' : ''">{{ formatChatTime(message.createdAt) }}</time>
+                <template v-for="item in messageTimeline" :key="item.message.id">
+                  <div v-if="item.day && item.showDaySeparator" class="flex justify-center" role="separator" :aria-label="formatChatDayLabel(item.day)">
+                    <span aria-hidden="true" class="bg-base-200 px-2 py-1 text-xs font-medium text-base-content/55 [border-radius:var(--gf-radius-selector)]">{{ formatChatDayLabel(item.day) }}</span>
                   </div>
-                </div>
+                  <div
+                    class="flex max-w-[88%] items-start gap-2 md:max-w-[82%]"
+                    :class="item.message.isSelf ? 'ml-auto flex-row-reverse' : ''"
+                  >
+                    <UserAvatar
+                      :src="item.message.isSelf ? page.layout.viewer.avatarUrl : active.peerAvatar"
+                      :alt="item.message.isSelf ? page.layout.viewer.username : active.peerUsername"
+                      class="h-8 w-8 rounded-full object-cover ring-1 ring-line"
+                    />
+                    <div class="group relative min-w-0">
+                      <div
+                        class="whitespace-pre-wrap break-words px-3 py-2 text-sm leading-relaxed shadow-sm [border-radius:var(--gf-radius-box)] md:px-4"
+                        :class="item.message.isSelf ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content'"
+                      >
+                        <template v-for="(segment, index) in messageSegments(item.message.content)" :key="index">
+                          <img
+                            v-if="segment.type === 'sticker'"
+                            :src="segment.url"
+                            :alt="`[:sticker:${segment.name}:]`"
+                            class="inline-block h-14 w-14 max-w-full align-middle object-contain"
+                            loading="lazy"
+                          />
+                          <template v-else>{{ segment.text }}</template>
+                        </template>
+                      </div>
+                      <time v-if="item.showTimestamp" class="mt-1 block text-[11px] text-base-content/55" :class="item.message.isSelf ? 'text-right' : ''">{{ formatChatClock(item.message.createdAt) }}</time>
+                    </div>
+                  </div>
+                </template>
               </template>
               <div v-else class="flex h-full flex-col items-center justify-center text-center">
                 <MessageSquare class="h-10 w-10 text-base-content/35" />

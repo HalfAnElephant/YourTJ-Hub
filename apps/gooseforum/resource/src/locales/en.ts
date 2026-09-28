@@ -1875,7 +1875,6 @@ export default {
     emptyConversationsTitle: 'No conversations',
     emptyConversationsDescription: 'Start a private message chat.',
     conversation: 'Private conversation',
-    today: 'Today',
     loading: 'Loading messages...',
     startChat: 'Start chat',
     firstMessageTo: 'Send the first message to {user}.',
@@ -3041,6 +3040,10 @@ export default {
     checkNow: '[Please check]',
   },
   date: {
+    today: 'Today',
+    yesterday: 'Yesterday',
+    monthDay: '{month}/{day}',
+    yearMonthDay: '{year}/{month}/{day}',
     monthDayTime: '{month}/{day} {time}',
     yearMonthDayTime: '{year}/{month}/{day} {time}',
   },

@@ -44,11 +44,12 @@ String timeAgo(String isoTime, {DateTime? now, AppLocalizations? l10n}) {
 
 /// ISO instants are displayed in the device timezone, like the Web client.
 /// Date-only and legacy timestamps without an offset remain local calendar values.
-DateTime? _displayTime(String value) =>
+/// Returns null when [value] cannot be parsed.
+DateTime? parseChatTimestamp(String value) =>
     DateTime.tryParse(value.replaceFirst(' ', 'T'))?.toLocal();
 
 String? _dateField(String value) {
-  final parsed = _displayTime(value);
+  final parsed = parseChatTimestamp(value);
   if (parsed == null) return null;
   final year = parsed.year.toString().padLeft(4, '0');
   final month = parsed.month.toString().padLeft(2, '0');
@@ -58,7 +59,7 @@ String? _dateField(String value) {
 
 String? _timeField(String value) {
   if (!value.replaceFirst(' ', 'T').contains('T')) return null;
-  final parsed = _displayTime(value);
+  final parsed = parseChatTimestamp(value);
   if (parsed == null) return null;
   return '${parsed.hour.toString().padLeft(2, '0')}:${parsed.minute.toString().padLeft(2, '0')}';
 }
@@ -99,6 +100,35 @@ String formatChatTime(String value, {AppLocalizations? l10n, DateTime? now}) {
   if (year == current.year) return loc.dateMonthDayTime(month, day, time);
   return loc.dateYearMonthDayTime(year, month, day, time);
 }
+
+/// 聊天气泡内的时刻(仅设备本地 `HH:mm`)。
+///
+/// 私信按日期分隔与时间分组渲染(见 `pages/messages/chat_timeline.dart`),
+/// 日期已由分隔标签表达,气泡内只保留时刻;无法解析时返回原值。
+String formatChatClock(String value) => _timeField(value) ?? value;
+
+/// 私信日期分隔标签:今天/昨天/同年 `M月D日`/跨年 `YYYY年M月D日`。
+/// [day] 为设备本地时刻,与 [formatChatTime] 使用同一时区基准。
+String formatChatDayLabel(
+  DateTime day, {
+  AppLocalizations? l10n,
+  DateTime? now,
+}) {
+  final AppLocalizations loc = l10n ?? _fallbackL10n;
+  final DateTime current = (now ?? DateTime.now()).toLocal();
+  if (_sameLocalDay(day, current)) return loc.dateToday;
+  final DateTime yesterday = DateTime(
+    current.year,
+    current.month,
+    current.day - 1,
+  );
+  if (_sameLocalDay(day, yesterday)) return loc.dateYesterday;
+  if (day.year == current.year) return loc.dateMonthDay(day.month, day.day);
+  return loc.dateYearMonthDay(day.year, day.month, day.day);
+}
+
+bool _sameLocalDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
 
 // 无 context 场景(如纯工具调用)回退中文;页面内请传入 l10n。
 final AppLocalizations _fallbackL10n = AppLocalizationsZh();

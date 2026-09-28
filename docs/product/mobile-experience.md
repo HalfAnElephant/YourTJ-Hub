@@ -1029,6 +1029,15 @@ retry. The server deduplicates the same sender/key and rejects a changed peer/bo
 retained with messages. Older clients without a key keep legacy send behavior. Restarting the app
 does not restore an outbox entry's key; a newly composed message is a new send intent.
 
+`Current`: private-message bubbles no longer show a timestamp under every message. A localized date separator
+(今天 / 昨天 / `M月D日` / `YYYY年M月D日`) opens each device-local calendar day, and a bubble shows its
+local `HH:mm` only when it is the first message of its day or its gap from the previous message
+exceeds five minutes. Own and peer messages follow the same rule. Web renders the same separators and
+visibility rule in place of its former static 今日 label. Grouping is recomputed from the loaded
+list, so prepending an older `beforeId` page or appending a live message updates the boundary
+message without duplicate separators. Invalid legacy timestamps keep their original text and start a
+new group instead of guessing a date.
+
 `Current`: message timestamps, conversation-list times and message date separators convert
 offset-bearing server timestamps to the device timezone. Date-only calendar values stay calendar
 dates; legacy timestamps without an offset are interpreted locally. UTC and explicit-offset

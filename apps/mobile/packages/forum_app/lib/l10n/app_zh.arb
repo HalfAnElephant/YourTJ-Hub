@@ -476,6 +476,33 @@
     }
   },
   "settingsImageDecodeFailed": "图片解码失败",
+  "dateToday": "今天",
+  "dateYesterday": "昨天",
+  "dateMonthDay": "{month}月{day}日",
+  "@dateMonthDay": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "dateYearMonthDay": "{year}年{month}月{day}日",
+  "@dateYearMonthDay": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      },
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
   "dateMonthDayTime": "{month}月{day}日 {time}",
   "@dateMonthDayTime": {
     "placeholders": {

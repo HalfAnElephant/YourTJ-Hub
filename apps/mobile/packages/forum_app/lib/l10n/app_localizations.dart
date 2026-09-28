@@ -1782,6 +1782,30 @@ abstract class AppLocalizations {
   /// **'Failed to decode image'**
   String get settingsImageDecodeFailed;
 
+  /// No description provided for @dateToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get dateToday;
+
+  /// No description provided for @dateYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get dateYesterday;
+
+  /// No description provided for @dateMonthDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{month}/{day}'**
+  String dateMonthDay(int month, int day);
+
+  /// No description provided for @dateYearMonthDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{year}/{month}/{day}'**
+  String dateYearMonthDay(int year, int month, int day);
+
   /// No description provided for @dateMonthDayTime.
   ///
   /// In en, this message translates to:

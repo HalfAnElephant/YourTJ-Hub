@@ -939,6 +939,22 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settingsImageDecodeFailed => 'Bild konnte nicht gelesen werden';
 
   @override
+  String get dateToday => 'Heute';
+
+  @override
+  String get dateYesterday => 'Gestern';
+
+  @override
+  String dateMonthDay(int month, int day) {
+    return '$day.$month.';
+  }
+
+  @override
+  String dateYearMonthDay(int year, int month, int day) {
+    return '$day.$month.$year';
+  }
+
+  @override
   String dateMonthDayTime(int month, int day, String time) {
     return '$day.$month $time';
   }

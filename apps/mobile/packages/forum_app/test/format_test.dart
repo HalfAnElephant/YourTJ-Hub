@@ -123,6 +123,77 @@ void main() {
     });
   });
 
+  group('formatChatClock', () {
+    test('仅返回本地 HH:mm', () {
+      final String iso = DateTime(2026, 9, 27, 23, 5).toIso8601String();
+      expect(formatChatClock(iso), '23:05');
+    });
+
+    test('带偏移的 RFC3339 还原设备本地墙钟', () {
+      final DateTime local = DateTime(2026, 1, 1, 0, 15);
+      final String utc = local.toUtc().toIso8601String();
+      final String offset =
+          '${local.toUtc().subtract(const Duration(hours: 7)).toIso8601String().replaceFirst('Z', '')}-07:00';
+      expect(formatChatClock(utc), '00:15');
+      expect(formatChatClock(offset), '00:15');
+    });
+
+    test('无效输入返回原值', () {
+      expect(formatChatClock('garbage'), 'garbage');
+    });
+  });
+
+  group('formatChatDayLabel', () {
+    final DateTime now = DateTime(2026, 9, 28, 10, 0);
+
+    test('今天返回 dateToday', () {
+      expect(
+        formatChatDayLabel(DateTime(2026, 9, 28, 0, 5), l10n: zh, now: now),
+        '今天',
+      );
+    });
+
+    test('昨天返回 dateYesterday', () {
+      expect(
+        formatChatDayLabel(DateTime(2026, 9, 27, 23, 59), l10n: zh, now: now),
+        '昨天',
+      );
+    });
+
+    test('同年更早返回 dateMonthDay', () {
+      expect(
+        formatChatDayLabel(DateTime(2026, 1, 15, 9, 30), l10n: zh, now: now),
+        '1月15日',
+      );
+    });
+
+    test('跨年返回 dateYearMonthDay', () {
+      expect(
+        formatChatDayLabel(DateTime(2025, 12, 31, 23, 59), l10n: zh, now: now),
+        '2025年12月31日',
+      );
+    });
+
+    test('昨天按本地日历日计算，跨月/跨年边界正确', () {
+      expect(
+        formatChatDayLabel(
+          DateTime(2025, 12, 31, 12),
+          l10n: zh,
+          now: DateTime(2026, 1, 1, 8),
+        ),
+        '昨天',
+      );
+      expect(
+        formatChatDayLabel(
+          DateTime(2026, 2, 28, 23),
+          l10n: zh,
+          now: DateTime(2026, 3, 1, 1),
+        ),
+        '昨天',
+      );
+    });
+  });
+
   group('formatNumber', () {
     test('<1k 原样', () {
       expect(formatNumber(999), '999');

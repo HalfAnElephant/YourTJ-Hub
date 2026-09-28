@@ -9,6 +9,7 @@ import '../../private_notes.dart';
 import '../../widgets/root_surface.dart';
 import '../../messages/chat_outbox.dart';
 import '../../messages/chat_drafts.dart';
+import '../../messages/chat_timeline.dart';
 import '../../messages/chat_viewport_scroll_physics.dart';
 import '../../messages/visible_chat_reads.dart';
 import '../../messages/message_content.dart';
@@ -1081,6 +1082,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     });
     if (!_drafts.current) return const SizedBox.shrink();
     _visibleReads.changed();
+    final List<ChatTimelineItem> timeline = buildChatTimeline(_messages);
 
     return Scaffold(
       appBar: GfAppBar(
@@ -1174,7 +1176,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                 18,
                               ),
                               itemCount:
-                                  _messages.length +
+                                  timeline.length +
                                   outbox.items.length +
                                   (_loadingOlder ? 1 : 0),
                               itemBuilder: (BuildContext context, int index) {
@@ -1186,9 +1188,9 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                 }
                                 final int messageIndex =
                                     index - (_loadingOlder ? 1 : 0);
-                                if (messageIndex >= _messages.length) {
+                                if (messageIndex >= timeline.length) {
                                   final pending = outbox
-                                      .items[messageIndex - _messages.length];
+                                      .items[messageIndex - timeline.length];
                                   final reason = pending.error is ApiException
                                       ? resolveErrorMessage(
                                           l10n,
@@ -1258,19 +1260,21 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                     ),
                                   );
                                 }
-                                final ChatMessagePayload message =
-                                    _messages[messageIndex];
-                                final bool startsDay =
-                                    messageIndex == 0 ||
-                                    formatDate(
-                                          _messages[messageIndex - 1].createdAt,
-                                        ) !=
-                                        formatDate(message.createdAt);
+                                final ChatTimelineItem item =
+                                    timeline[messageIndex];
+                                final ChatMessagePayload message = item.message;
+                                final DateTime? day = item.day;
                                 return Column(
                                   children: <Widget>[
-                                    if (startsDay)
+                                    if (item.showDaySeparator && day != null)
                                       _DatePill(
-                                        date: formatDate(message.createdAt),
+                                        key: ValueKey<String>(
+                                          'chat-date-separator-${message.id}',
+                                        ),
+                                        label: formatChatDayLabel(
+                                          day,
+                                          l10n: l10n,
+                                        ),
                                       ),
                                     _MessageRow(
                                       bubbleKey: _bubbleKeys.putIfAbsent(
@@ -1280,6 +1284,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                       message: message,
                                       peerAvatar: widget.conv.peerAvatar,
                                       viewerAvatar: widget.viewerAvatar,
+                                      showTime: item.showTimestamp,
                                     ),
                                     if (!message.isSelf)
                                       Align(
@@ -1772,27 +1777,32 @@ class _ChatEmptyState extends StatelessWidget {
 }
 
 class _DatePill extends StatelessWidget {
-  const _DatePill({required this.date});
+  const _DatePill({super.key, required this.label});
 
-  final String date;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: colors.base300,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          date,
-          style: TextStyle(
-            color: colors.baseContent.withValues(alpha: 0.55),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+    // 暴露为标题语义,读屏不会把日期分隔当作一条消息。
+    return Semantics(
+      container: true,
+      header: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: colors.base300,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: colors.baseContent.withValues(alpha: 0.55),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -1861,12 +1871,16 @@ class _MessageRow extends ConsumerWidget {
     required this.message,
     required this.peerAvatar,
     required this.viewerAvatar,
+    this.showTime = true,
   });
 
   final GlobalKey? bubbleKey;
   final ChatMessagePayload message;
   final String peerAvatar;
   final String viewerAvatar;
+
+  /// 由 [buildChatTimeline] 决定:只有分组首条消息显示时刻。
+  final bool showTime;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1887,10 +1901,7 @@ class _MessageRow extends ConsumerWidget {
               bubbleKey: bubbleKey,
               text: message.content,
               mine: message.isSelf,
-              time: formatChatTime(
-                message.createdAt,
-                l10n: AppLocalizations.of(context),
-              ),
+              time: showTime ? formatChatClock(message.createdAt) : null,
               maxWidthFactor: 0.74,
             ),
           ),
