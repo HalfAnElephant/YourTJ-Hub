@@ -757,6 +757,8 @@ identity survive this layout change. The header keeps a small outer margin for i
   counts show a placeholder with retry instead of zero. Opening the drawer refreshes the card, and
   account changes discard previous identity data. Profile, bookmarks, drafts, my content, recycle bin,
   course reviews, settings, community information and permission-gated workspaces remain available.
+  A hairline separator aligned with the entry icons groups the account entries above the settings,
+  community information and appearance entries, in both guest and signed-in states.
   The appearance shortcut opens System/Light/Dark choices; the open sheet follows theme changes
   immediately. The profile overflow retains its infrequent entries.
   Account controls are outside the public profile.
