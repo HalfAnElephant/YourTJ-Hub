@@ -259,6 +259,15 @@
   "messagesEmptyDescription": "Start a conversation with someone from the community.",
   "messagesSearchConversations": "Search conversations",
   "messagesConversation": "Private conversation",
+  "messagesViewProfile": "View the profile of {name}",
+  "@messagesViewProfile": {
+    "description": "Screen-reader label for the peer avatar control that opens a user profile from a private conversation.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "messagesStartChat": "Start a conversation",
   "messagesFirstMessageTo": "Send the first message to {user}.",
   "@messagesFirstMessageTo": {

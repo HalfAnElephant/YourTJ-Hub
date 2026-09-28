@@ -308,6 +308,18 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   touch-sized controls, localized labels and system-back/Escape
   dismissal. Hardware Ctrl/Cmd+Enter sends. Disabling the composer
   also disables emoji edits. Platform IME transitions still require physical-device verification.
+- `Current`: the private-conversation header avatar and each incoming message avatar open the peer's
+  profile (`/u/{peerId}`). Both keep their 36/32-pixel artwork and its top-left anchor and reserve a
+  44 × 44 hit area around it. The header title keeps its exact position; an incoming message bubble
+  starts 4 logical pixels further right with 4 fewer logical pixels of available width, while the
+  outgoing side stays unchanged, so scrolling, text selection, link taps and the report action are
+  unaffected. Each avatar is its own
+  screen-reader node, labeled with the localized "view profile" action and the peer's display name;
+  the message text stays a separate node and is not announced as a button. The outgoing (own) avatar
+  stays display-only, and the conversation-list avatar keeps opening its conversation rather than a
+  profile. The web conversation exposes the same peer entry point on the header name instead and
+  keeps every avatar display-only.
+  `Partial`: physical-device tap feel and screen-reader verbosity on device still need validation.
 - `Current`: native conversations acknowledge only incoming, unread server message IDs whose actual
   bubbles are at least 50% visible for a stable 350 ms in the message viewport. For a bubble taller
   than the viewport, visibility uses the viewport height. The keyboard-clipped viewport, current

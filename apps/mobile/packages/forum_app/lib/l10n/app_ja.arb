@@ -161,6 +161,7 @@
   "messagesEmptyDescription": "コミュニティのメンバーと会話を始めましょう。",
   "messagesSearchConversations": "会話を検索",
   "messagesConversation": "プライベート会話",
+  "messagesViewProfile": "{name} さんのプロフィールを見る",
   "messagesStartChat": "チャットを開始",
   "messagesFirstMessageTo": "{user} さんに最初のメッセージを送ります。",
   "messagesNoMessagesYet": "まだメッセージはありません",
