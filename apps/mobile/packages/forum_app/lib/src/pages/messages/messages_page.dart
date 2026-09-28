@@ -1032,10 +1032,13 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
         .send(message);
     if (convId != null) {
       drafts.acknowledge(peerId, message.draftRevision, convId);
-    } else if (mounted && epoch == ref.read(offlineCacheEpochProvider)) {
-      // A failed send leaves the pending bubble for retry (same
-      // clientMessageId) and rehydrates the submitted draft unless the user
-      // already composed newer text in the meantime.
+    } else if (message.state == DeliveryState.failed &&
+        mounted &&
+        epoch == ref.read(offlineCacheEpochProvider)) {
+      // Only a real failure rehydrates: a null return for an attempt another
+      // callback already claimed (same-frame double tap) must not restore.
+      // The pending bubble stays for retry with the same clientMessageId, and
+      // the submitted draft wins unless the user composed newer text.
       drafts.restoreFailed(
         widget.conv,
         message.draftRevision,

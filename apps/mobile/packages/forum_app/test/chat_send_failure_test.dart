@@ -158,4 +158,98 @@ void main() {
     expect(controller.text, isEmpty, reason: 'acknowledged drafts clear');
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets('a rehydrated draft stays bound to its pending message', (
+    tester,
+  ) async {
+    final h = await pumpSendChat(tester);
+    final controller = composerOf(tester);
+    await send(tester, 'hello');
+    final submittedId = h.repo.clientMessageIds.single;
+    controller.clear();
+    await tester.pump();
+    await failLastSend(tester, h.repo);
+    expect(controller.text, 'hello', reason: 'the failed draft is rehydrated');
+
+    await tester.tap(find.text('Retry sending'));
+    await tester.pump();
+    expect(h.repo.clientMessageIds, hasLength(2));
+    expect(h.repo.clientMessageIds.last, submittedId);
+    h.repo.pending.last.complete(5);
+    await tester.pumpAndSettle();
+
+    expect(
+      controller.text,
+      isEmpty,
+      reason: 'the acknowledged retry clears the rehydrated draft',
+    );
+    expect(
+      h.container.read(chatOutboxProvider(2)).items,
+      hasLength(1),
+      reason: 'the retry must not enqueue a duplicate',
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('an older failed bubble never refills an acknowledged composer', (
+    tester,
+  ) async {
+    final h = await pumpSendChat(tester);
+    final controller = composerOf(tester);
+    await send(tester, 'hello');
+    await failLastSend(tester, h.repo);
+    expect(controller.text, 'hello');
+
+    // A newer send is acknowledged and empties the composer.
+    await send(tester, 'world');
+    h.repo.pending.last.complete(6);
+    await tester.pumpAndSettle();
+    expect(controller.text, isEmpty);
+
+    // Retrying the older bubble must not inject its text back.
+    await tester.tap(find.text('Retry sending'));
+    await tester.pump();
+    await failLastSend(tester, h.repo);
+    expect(controller.text, isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('whitespace typed while sending is never replaced', (
+    tester,
+  ) async {
+    final h = await pumpSendChat(tester);
+    final controller = composerOf(tester);
+    await send(tester, 'hello');
+    await tester.enterText(find.byType(TextField), ' ');
+    await tester.pump();
+    await failLastSend(tester, h.repo);
+
+    expect(controller.text, ' ');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('a double retry never rehydrates the in-flight attempt', (
+    tester,
+  ) async {
+    final h = await pumpSendChat(tester);
+    final controller = composerOf(tester);
+    await send(tester, 'hello');
+    await failLastSend(tester, h.repo);
+    controller.clear();
+    await tester.pump();
+
+    // Both callbacks run in one frame, before the pending rebuild disables the
+    // button; only the first may claim the failed message.
+    final retry = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, 'Retry sending'),
+    );
+    retry.onPressed!();
+    retry.onPressed!();
+    await tester.pump();
+    expect(h.repo.contents, ['hello', 'hello']);
+    h.repo.pending.last.complete(5);
+    await tester.pumpAndSettle();
+    expect(controller.text, isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }

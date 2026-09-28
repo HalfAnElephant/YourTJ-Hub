@@ -234,10 +234,12 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   Unresolved new-peer rows remain visible but cannot open until the server conversation list succeeds;
   a resolved existing conversation still waits for its initial history before enabling send.
   Input remains editable during sending. A successful acknowledgement clears only the submitted
-  revision, while newer input and failed sends remain available. A failed send explicitly rehydrates
-  the submitted composer snapshot (text, sticker tokens, newlines and caret) unless the user composed
-  newer text while the request was in flight; retrying the unchanged failed draft reuses its outbox
-  bubble and client message ID. Saving debounces for 500 ms and flushes on leaving or app inactivity;
+  revision, while newer input and failed sends remain available. A failed send rehydrates the
+  submitted composer snapshot (text, sticker tokens, newlines and caret) under its submitted revision
+  unless the user kept typing (whitespace included) while the request was in flight, or a newer
+  message was already acknowledged; the restored draft therefore still clears on acknowledgement and
+  a re-send reuses its outbox bubble and client message ID instead of delivering the content twice.
+  Saving debounces for 500 ms and flushes on leaving or app inactivity;
   failures keep the current text in session memory with visible retry. No message is sent by autosave.
   Signing out hides drafts and invalidates pending saves; the same account/site can restore them on
   its next session; accepting a same-site login recreates the draft registry for the new identity.
@@ -1030,9 +1032,12 @@ moderation workspace; global/category moderators cannot obtain it. The
 retention, account cleanup and concurrency behavior.
 
 `Current`: each session-local outbox entry has a random client message ID that remains stable on
-retry. An entry also binds the composer snapshot captured at submission; a failed send reinstalls it
-only while the peer's draft revision is unchanged or emptied, so in-flight edits are never replaced.
-The server deduplicates the same sender/key and rejects a changed peer/body/type. Keys are
+retry, and binds the composer snapshot captured at submission to its draft revision. A failure
+reinstalls that snapshot under the same revision only while the draft is unchanged or was emptied by
+an unrelated user action; text typed in flight (including whitespace) and drafts a newer send already
+acknowledged are never replaced, and the reinstalled draft still matches its pending entry. An
+attempt a second callback already claimed is not treated as a failure. The server deduplicates the
+same sender/key and rejects a changed peer/body/type. Keys are
 retained with messages. Older clients without a key keep legacy send behavior. Restarting the app
 does not restore an outbox entry's key; a newly composed message is a new send intent.
 
