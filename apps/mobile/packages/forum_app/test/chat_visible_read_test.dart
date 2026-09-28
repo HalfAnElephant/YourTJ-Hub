@@ -101,6 +101,7 @@ pumpChat(
   List<ChatMessagePayload>? older,
   StickerLibrary? stickers,
   StickerCollection? stickerCollection,
+  int? targetUserId = 2,
   VisibleChatRepository Function(GfApiClient client)? repository,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 700));
@@ -142,8 +143,10 @@ pumpChat(
   addTearDown(active.dispose);
   Widget page() => ValueListenableBuilder<bool>(
     valueListenable: active,
-    builder: (_, value, _) =>
-        TickerMode(enabled: value, child: const MessagesPage(targetUserId: 2)),
+    builder: (_, value, _) => TickerMode(
+      enabled: value,
+      child: MessagesPage(targetUserId: targetUserId),
+    ),
   );
   await tester.pumpWidget(
     UncontrolledProviderScope(
