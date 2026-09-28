@@ -342,8 +342,10 @@ class ChatDrafts extends ChangeNotifier {
     final previous = _items[peer.peerId];
     if (previous != null && previous.revision != revision) {
       // hasText trims, so whitespace-only input still counts as user content.
+      // Any newer acknowledgement keeps the composer protected: emptying it by
+      // hand afterwards must not make a stale failure look restorable again.
       if (previous.value.text.isNotEmpty ||
-          _clearedBySend[peer.peerId] == previous.revision) {
+          _clearedBySend.containsKey(peer.peerId)) {
         return false;
       }
     }
