@@ -15,6 +15,7 @@ ChatMessagePayload _message(int id, String createdAt, {bool isSelf = false}) {
   );
 }
 
+/// 设备本地墙钟对应的绝对时刻（带 Z 的 RFC3339），与设备时区无关。
 String _local(
   int year,
   int month,
@@ -22,7 +23,8 @@ String _local(
   int hour,
   int minute, [
   int second = 0,
-]) => DateTime(year, month, day, hour, minute, second).toIso8601String();
+]) =>
+    DateTime(year, month, day, hour, minute, second).toUtc().toIso8601String();
 
 int _separatorCount(List<ChatTimelineItem> items) =>
     items.where((ChatTimelineItem item) => item.showDaySeparator).length;
@@ -195,6 +197,34 @@ void main() {
       // 无法比较前后间隔时按新分组处理，避免把时间戳藏到无法证明相邻的消息上。
       expect(items[1].showDaySeparator, isTrue);
       expect(items[1].showTimestamp, isTrue);
+    });
+
+    test('无时区历史时间戳与等价的 UTC 表示分成同一天/同一组', () {
+      final List<ChatTimelineItem> bare = buildChatTimeline(
+        <ChatMessagePayload>[
+          _message(1, '2026-09-27 09:30:00'),
+          _message(2, '2026-09-27 09:40:00'),
+        ],
+      );
+      final List<ChatTimelineItem> zoned = buildChatTimeline(
+        <ChatMessagePayload>[
+          _message(1, '2026-09-27T09:30:00Z'),
+          _message(2, '2026-09-27T09:40:00Z'),
+        ],
+      );
+
+      expect(
+        bare.map((ChatTimelineItem item) => item.day),
+        zoned.map((ChatTimelineItem item) => item.day),
+      );
+      expect(
+        bare.map((ChatTimelineItem item) => item.showTimestamp),
+        zoned.map((ChatTimelineItem item) => item.showTimestamp),
+      );
+      expect(
+        bare.map((ChatTimelineItem item) => item.showDaySeparator),
+        zoned.map((ChatTimelineItem item) => item.showDaySeparator),
+      );
     });
 
     test('乱序的相邻时间戳按新分组处理', () {

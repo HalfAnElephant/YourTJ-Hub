@@ -3,7 +3,14 @@ import {
   buildChatTimeline,
   CHAT_TIMESTAMP_GROUP_GAP_MS,
 } from '../src/runtime/chat-timeline'
-import { formatChatClock, formatChatDayLabel } from '../src/runtime/format'
+import {
+  formatChatClock,
+  formatChatDayLabel,
+  formatChatTime,
+  formatDate,
+  formatDateTime,
+  parseDate,
+} from '../src/runtime/format'
 import { i18n } from '../src/runtime/i18n'
 
 interface TestMessage {
@@ -172,6 +179,39 @@ describe('chat timestamp labels', () => {
   test('formatChatClock 只输出浏览器本地 HH:mm', () => {
     expect(formatChatClock(local(2026, 9, 27, 23, 5))).toBe('23:05')
     expect(formatChatClock('garbage')).toBe('garbage')
+  })
+
+  test('无时区历史日期时间按 UTC 墙钟解析（issue #221，与移动端一致）', () => {
+    const expected = Date.UTC(2026, 8, 27, 9, 30)
+    expect(parseDate('2026-09-27 09:30:00').getTime()).toBe(expected)
+    expect(parseDate('2026-09-27T09:30:00').getTime()).toBe(expected)
+    expect(formatChatClock('2026-09-27 09:30:00')).toBe(
+      formatChatClock(new Date(expected).toISOString()),
+    )
+  })
+
+  test('无时区日期时间与等价的 UTC 表示分成同一天/同一组', () => {
+    const bare = buildChatTimeline([
+      { id: 1, createdAt: '2026-09-27 09:30:00', isSelf: false },
+      { id: 2, createdAt: '2026-09-27 09:40:00', isSelf: false },
+    ])
+    const zoned = buildChatTimeline([
+      { id: 1, createdAt: '2026-09-27T09:30:00Z', isSelf: false },
+      { id: 2, createdAt: '2026-09-27T09:40:00Z', isSelf: false },
+    ])
+    expect(bare.map((item) => item.day?.getTime())).toEqual(zoned.map((item) => item.day?.getTime()))
+    expect(bare.map((item) => item.showTimestamp)).toEqual(zoned.map((item) => item.showTimestamp))
+    expect(bare.map((item) => item.showDaySeparator)).toEqual(
+      zoned.map((item) => item.showDaySeparator),
+    )
+  })
+
+  test('纯日期日历值保持日期且不编造时刻（与移动端一致）', () => {
+    expect(parseDate('2026-09-27').getTime()).toBe(new Date(2026, 8, 27).getTime())
+    expect(formatDate('2026-09-27')).toBe('2026-09-27')
+    expect(formatDateTime('2026-09-27')).toBe('2026-09-27')
+    expect(formatChatTime('2026-09-27')).toBe('2026-09-27')
+    expect(formatChatClock('2026-09-27')).toBe('2026-09-27')
   })
 
   test('formatChatDayLabel 区分今天/昨天/同年/跨年', () => {

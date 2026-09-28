@@ -33,7 +33,8 @@ ChatMessagePayload _message(
     content: content ?? '消息 $id',
     msgType: 1,
     isRead: 1,
-    createdAt: at.toIso8601String(),
+    // 设备本地墙钟对应的绝对时刻，与设备时区无关。
+    createdAt: at.toUtc().toIso8601String(),
     isSelf: isSelf,
   );
 }

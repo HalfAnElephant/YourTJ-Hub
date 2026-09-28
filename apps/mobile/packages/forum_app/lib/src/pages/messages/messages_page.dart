@@ -1784,7 +1784,7 @@ class _DatePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
-    // 暴露为标题语义,读屏不会把日期分隔当作一条消息。
+    // 日期分隔按标题语义暴露(Web 用 <h2>),读屏不会把它当作一条消息。
     return Semantics(
       container: true,
       header: true,

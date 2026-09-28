@@ -1030,18 +1030,21 @@ retained with messages. Older clients without a key keep legacy send behavior. R
 does not restore an outbox entry's key; a newly composed message is a new send intent.
 
 `Current`: private-message bubbles no longer show a timestamp under every message. A localized date separator
-(今天 / 昨天 / `M月D日` / `YYYY年M月D日`) opens each device-local calendar day, and a bubble shows its
-local `HH:mm` only when it is the first message of its day or its gap from the previous message
-exceeds five minutes. Own and peer messages follow the same rule. Web renders the same separators and
-visibility rule in place of its former static 今日 label. Grouping is recomputed from the loaded
-list, so prepending an older `beforeId` page or appending a live message updates the boundary
-message without duplicate separators. Invalid legacy timestamps keep their original text and start a
-new group instead of guessing a date.
+(today, yesterday, month/day within the current year, full year/month/day otherwise) opens each
+device-local calendar day, and a bubble shows its local `HH:mm` only when it is the first message of
+its day or its gap from the previous message exceeds five minutes. Own and peer messages follow the
+same rule. Web renders the same separators and visibility rule in place of its former static
+today-only label; the separator is exposed as a heading on both surfaces. Grouping is recomputed from
+the loaded list, so prepending an older `beforeId` page or appending a live message updates the
+boundary message without duplicate separators. Invalid legacy timestamps keep their original text
+and start a new group instead of guessing a date.
 
 `Current`: message timestamps, conversation-list times and message date separators convert
 offset-bearing server timestamps to the device timezone. Date-only calendar values stay calendar
-dates; legacy timestamps without an offset are interpreted locally. UTC and explicit-offset
-representations of one instant display identically, including day/year boundaries.
+dates; legacy timestamps without an offset and with a time of day are interpreted as UTC wall-clock,
+matching Web and the historical server format (issue #221), so both surfaces derive the same day
+boundary and clock. UTC and explicit-offset representations of one instant display identically,
+including day/year boundaries.
 
 `Current`: private-message bodies retain their complete text and sticker tokens. Conversation-list
 summaries are limited to 255 Unicode characters, including a truncation marker; a truncated summary

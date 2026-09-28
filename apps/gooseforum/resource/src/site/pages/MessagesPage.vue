@@ -57,8 +57,16 @@ function messageSegments(content: string) {
 const messagePageLimit = 30
 const emojis = ['😀', '😂', '😍', '😊', '😭', '👍', '🙏', '🔥', '✨', '🎉', '🤔', '👀', '❤️', '🙌', '👏', '✅']
 
-/** 当前会话的时间分块：按本地日历日插入分隔，并按 5 分钟间隔决定气泡时刻。 */
-const messageTimeline = computed(() => buildChatTimeline(active.value?.messages ?? []))
+/**
+ * 当前会话的时间分块：按本地日历日插入分隔，并按 5 分钟间隔决定气泡时刻。
+ * 分隔标签在这里只计算一次，避免午夜边界上两次绑定给出不一致的日期。
+ */
+const messageTimeline = computed(() =>
+  buildChatTimeline(active.value?.messages ?? []).map((item) => ({
+    ...item,
+    dayLabel: item.day && item.showDaySeparator ? formatChatDayLabel(item.day) : '',
+  })),
+)
 
 const filteredConversations = computed(() => {
   const keyword = search.value.trim().toLowerCase()
@@ -346,14 +354,14 @@ async function startChat(user: Pick<UserConnectionPayload, 'id' | 'username' | '
               </button>
             </header>
 
-            <div ref="messagesEl" class="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3 md:space-y-4 md:px-4 md:py-4" @scroll.passive="handleMessagesScroll">
+            <div ref="messagesEl" data-test="chat-message-list" class="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3 md:space-y-4 md:px-4 md:py-4" @scroll.passive="handleMessagesScroll">
               <div v-if="active.loading" class="py-12 text-center text-sm text-base-content/55">{{ t('messages.loading') }}</div>
               <template v-else-if="active.messages.length">
                 <div v-if="active.loadingOlder" class="py-1 text-center text-xs text-base-content/45">{{ t('messages.loading') }}</div>
                 <template v-for="item in messageTimeline" :key="item.message.id">
-                  <div v-if="item.day && item.showDaySeparator" class="flex justify-center" role="separator" :aria-label="formatChatDayLabel(item.day)">
-                    <span aria-hidden="true" class="bg-base-200 px-2 py-1 text-xs font-medium text-base-content/55 [border-radius:var(--gf-radius-selector)]">{{ formatChatDayLabel(item.day) }}</span>
-                  </div>
+                  <h2 v-if="item.dayLabel" class="flex justify-center">
+                    <span class="bg-base-200 px-2 py-1 text-xs font-medium text-base-content/55 [border-radius:var(--gf-radius-selector)]">{{ item.dayLabel }}</span>
+                  </h2>
                   <div
                     class="flex max-w-[88%] items-start gap-2 md:max-w-[82%]"
                     :class="item.message.isSelf ? 'ml-auto flex-row-reverse' : ''"
