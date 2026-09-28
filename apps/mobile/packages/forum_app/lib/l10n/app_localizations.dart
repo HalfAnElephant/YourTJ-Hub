@@ -408,6 +408,12 @@ abstract class AppLocalizations {
   /// **'Other sign-in options'**
   String get authSignInMethods;
 
+  /// No description provided for @authMoreSignInMethods.
+  ///
+  /// In en, this message translates to:
+  /// **'More sign-in options'**
+  String get authMoreSignInMethods;
+
   /// No description provided for @authLoginSubtitle.
   ///
   /// In en, this message translates to:

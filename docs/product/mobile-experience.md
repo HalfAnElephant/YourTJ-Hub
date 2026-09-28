@@ -6,7 +6,7 @@
 >
 > Owner: Platform maintainers
 >
-> Last verified: 2026-09-26
+> Last verified: 2026-09-28
 
 The Flutter app combines the forum, course catalog, scheduler and Wiki. Ordinary browsing and
 writing use native pages. Management uses the same first-party workspaces and permission checks as
@@ -640,7 +640,13 @@ identity survive this layout change. The header keeps a small outer margin for i
   reading page and shows a localized error. Encoded page/file paths, query strings and fragments are
   preserved, while page-local anchors continue scrolling inside the document.
 - `Current`: sign-in offers account/password, Google, GitHub and Tongji when the published options
-  allow it, grouped below the password form. Unconfigured providers are hidden. Native credential
+  allow it. The provider buttons stay folded behind one labeled control below the password form; it
+  opens a short draggable bottom sheet that lists every published provider with the same icon, label
+  and native flow as before, so a 390-by-844 phone shows the complete page without scrolling.
+  The Tongji notice and its policy links live with the Tongji entry, and unconfigured providers stay
+  hidden. Opening moves focus into the sheet; dismissing it by barrier, drag, back or Escape
+  returns focus to the control, while choosing a provider closes the sheet and starts that flow
+  on the page. Native credential
   fields expose username/password/new-password autofill, email and one-time-code hints and explicit
   keyboard actions; password-manager saving is requested only after accepting the native session.
   Back, language and appearance controls stay outside the scrollable form, so long errors,
@@ -898,9 +904,10 @@ local widget tests do not imply those gates passed.
 
 ## Tongji sign-in
 
-`Current`: native login and registration show “Tongji SSO” when the public login options declare
-campus configuration ready. The entry explains automatic activated registration and links published
-policies. The backend handles the school callback and resumes the same manual PKCE/nonce exchange
+`Current`: native login and registration show “Tongji SSO” in the more-methods sheet when the public
+login options declare campus configuration ready. The entry explains automatic activated registration
+and links published policies. The backend handles the school callback and resumes the same manual
+PKCE/nonce exchange
 used by the Android external-browser path; the App stores only its forum session, never a school
 access/refresh token. Existing bindings sign in to the same forum account; new users receive a
 private student-ID@tongji.edu.cn email without a separate activation step. All four UI languages are
@@ -1041,9 +1048,10 @@ show a localized message without disclosing database errors.
 
 ### Apple login on iOS
 
-`Current`: configured iOS builds offer Apple's system sign-in button alongside existing login options.
-An existing forum user connects Apple from account settings before using it to log in. Cancellation
-leaves the login form available. Account switching retains the cache-clearing boundary before committing
+`Current`: configured iOS builds list Apple's system sign-in button in the more-methods sheet next to
+the other providers, and only for login. An existing forum user connects Apple from account settings
+before using it to log in. Cancellation leaves the login form available. Account switching retains
+the cache-clearing boundary before committing
 the new session. Apple authorization revocation expires only the matching Apple-authenticated session.
 Unlink and account deletion revoke the server grant. See [identity semantics](identity-and-access.md#native-apple-sign-in).
 `Partial`: a candidate still requires physical iPhone authorization/return, revocation and account-deletion
