@@ -515,7 +515,11 @@ account in the same transaction as marking the user closed. Private reads obtain
 usernames from the users domain and exclude closed targets. Public user models/caches do not carry
 viewer notes; Web and native renderers apply a private in-memory overlay without changing saved
 content or identity values. A noted display name uses the current nickname, falling back to the
-canonical username. The authenticated `/api/user-notes` and `/api/user-note` operations are
+canonical username. Actor-shaped payloads that feed user-name surfaces — notification actors,
+moderation reports/logs, conversation peers and the admin user/topic/category-moderator/review-queue
+lists — expose the current nickname as an optional field (absent without one), so renderers resolve
+`note(display name)` from batch-loaded users instead of a per-row lookup. The authenticated
+`/api/user-notes` and `/api/user-note` operations are
 covered by OpenAPI, generated TS, Dart mirrors and route/fixture tests.
 
 ## Native post mentions

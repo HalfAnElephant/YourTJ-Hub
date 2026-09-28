@@ -166,6 +166,37 @@ func TestNotificationListHTTPContract(t *testing.T) {
 		assertFixtureEnvelope(t, decodeContractEnvelope(t, recorder), contractFixture(t, "notifications-like-preview-success.json"))
 	})
 
+	t.Run("hydrates current actor nickname for note display", func(t *testing.T) {
+		conn, router := setupNotificationChatContractTest(t)
+		user := createHTTPContractUser(t, conn, contractTestID())
+		actor := users.EntityComplete{Id: 978611, Username: "nickname_actor", Nickname: "昵称演员"}
+		if err := conn.Create(&actor).Error; err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { conn.Unscoped().Delete(&actor) })
+		createContractNotification(t, conn, 978612, user.Id, eventNotification.EventTypePostReply, false,
+			eventNotification.NotificationPayload{ActorId: actor.Id, ActorName: actor.Username},
+			time.Date(2026, 8, 15, 10, 20, 30, 0, time.UTC))
+		recorder := serveAuthSecurityJSON(router, http.MethodGet, "/api/forum/notifications", "", contractSessionToken(t, user))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("notifications status = %d: %s", recorder.Code, recorder.Body.String())
+		}
+		var result struct {
+			Items []struct {
+				Actor struct {
+					Username string `json:"username"`
+					Nickname string `json:"nickname"`
+				} `json:"actor"`
+			} `json:"items"`
+		}
+		if err := json.Unmarshal(decodeContractEnvelope(t, recorder).Result, &result); err != nil {
+			t.Fatalf("decode notifications: %v", err)
+		}
+		if len(result.Items) != 1 || result.Items[0].Actor.Nickname != "昵称演员" {
+			t.Fatalf("notification actor = %#v, want hydrated nickname", result.Items)
+		}
+	})
+
 	t.Run("success", func(t *testing.T) {
 		conn, router := setupNotificationChatContractTest(t)
 		user := createHTTPContractUser(t, conn, contractTestID())

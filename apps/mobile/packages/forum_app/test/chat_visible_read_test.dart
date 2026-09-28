@@ -102,6 +102,7 @@ pumpChat(
   StickerLibrary? stickers,
   StickerCollection? stickerCollection,
   int? targetUserId = 2,
+  VisibleChatRepository Function(GfApiClient client)? repository,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -111,12 +112,15 @@ pumpChat(
     tokenStorage: storage,
     baseUrl: 'http://fake.local',
   );
-  final repo = VisibleChatRepository(
-    client,
-    hasMoreBefore: older != null,
-    messages:
-        messages ?? List.generate(40, (index) => makeChatMessage(index + 1)),
-  );
+  final repo =
+      repository?.call(client) ??
+      VisibleChatRepository(
+        client,
+        hasMoreBefore: older != null,
+        messages:
+            messages ??
+            List.generate(40, (index) => makeChatMessage(index + 1)),
+      );
   repo.olderMessages = older ?? [];
   final container = ProviderContainer(
     overrides: [
