@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/markdown2html"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/bundles/ratelimit"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/api"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/controllers/forum"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/http/middleware"
@@ -265,6 +266,62 @@ func TestCreatePostHTTPContract(t *testing.T) {
 		}
 	})
 
+	t.Run("visible text length ignores Markdown syntax", func(t *testing.T) {
+		conn, router := setupForumInteractionContractTest(t)
+		posting := defaultconfig.GetDefaultPostingSettingsConfig()
+		posting.TextControl.MinPostLength = 3
+		posting.TextControl.MaxPostLength = 4
+		persistHTTPContractConfig(t, conn, pageConfig.PostingSettings, posting)
+		hotdataserve.ClearPostingSettingsConfigCache()
+
+		user := createHTTPContractUser(t, conn, contractTestID())
+		base := contractTestID()
+		topicID, firstPostID := base, base+1
+		createContractPublishedTopic(t, conn, topicID, firstPostID, user.Id)
+		token := contractSessionToken(t, user)
+
+		// 样例数超过写操作限流配额，逐条重置，避免 429 掩盖长度校验。
+		tooShort := []string{
+			"**a**",                           // 粗体标记：可见 1 码点
+			"[ab](https://example.com)",       // 链接：仅标签计入，可见 2
+			"![x](https://example.com/i.png)", // 图片：可见 0
+			"[:sticker:smile:]",               // 贴纸：可见 0
+			"https://example.com",             // 裸链接：可见 0
+			"**你好**",                          // 可见 2
+		}
+		for _, content := range tooShort {
+			ratelimit.Default().ResetAll()
+			body := fmt.Sprintf(`{"topicId":%d,"content":%q}`, topicID, content)
+			response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/create", body, token))
+			if response.MessageCode != "comment.content.tooShort" || response.Params["minLength"] != float64(3) {
+				t.Fatalf("content %q response = %#v, want comment.content.tooShort minLength=3", content, response)
+			}
+		}
+
+		ratelimit.Default().ResetAll()
+		tooLong := "**你好世界**[ab](https://example.com)" // 可见 6 码点，超过上限 4
+		body := fmt.Sprintf(`{"topicId":%d,"content":%q}`, topicID, tooLong)
+		response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/create", body, token))
+		if response.MessageCode != "comment.content.tooLong" || response.Params["maxLength"] != float64(4) {
+			t.Fatalf("content %q response = %#v, want comment.content.tooLong maxLength=4", tooLong, response)
+		}
+
+		ratelimit.Default().ResetAll()
+		accepted := "**你好世界**" // 可见 4 码点，正好达到下限与上限
+		body = fmt.Sprintf(`{"topicId":%d,"content":%q}`, topicID, accepted)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/create", body, token)); response.Code != 0 {
+			t.Fatalf("content %q response = %#v, want success at 4 visible runes", accepted, response)
+		}
+
+		ratelimit.Default().ResetAll()
+		// 源文本远超上限、可见文字正好 4：链接目标不计入上限。
+		destinationOnly := "[你好世界](https://example.com/very/long/path/that/exceeds/the/limit)"
+		body = fmt.Sprintf(`{"topicId":%d,"content":%q}`, topicID, destinationOnly)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/create", body, token)); response.Code != 0 {
+			t.Fatalf("content %q response = %#v, want success: link destination is not visible text", destinationOnly, response)
+		}
+	})
+
 	t.Run("missing session returns 401", func(t *testing.T) {
 		_, router := setupForumInteractionContractTest(t)
 		assertInteractionUnauthenticated(t, router, "/api/forum/posts/create", `{}`, "auth-required.json")
@@ -377,6 +434,63 @@ func TestUpdatePostHTTPContract(t *testing.T) {
 		response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/update", body, token))
 		if response.MessageCode != "comment.content.tooLong" || response.Params["maxLength"] != float64(4) {
 			t.Fatalf("too-long updated comment response = %#v, want comment.content.tooLong maxLength=4", response)
+		}
+	})
+
+	t.Run("visible text length ignores Markdown syntax", func(t *testing.T) {
+		conn, router := setupForumInteractionContractTest(t)
+		posting := defaultconfig.GetDefaultPostingSettingsConfig()
+		posting.TextControl.MinPostLength = 3
+		posting.TextControl.MaxPostLength = 4
+		persistHTTPContractConfig(t, conn, pageConfig.PostingSettings, posting)
+		hotdataserve.ClearPostingSettingsConfigCache()
+
+		user := createHTTPContractUser(t, conn, contractTestID())
+		base := contractTestID()
+		topicID, firstPostID, replyID := base, base+1, base+2
+		createContractPublishedTopic(t, conn, topicID, firstPostID, user.Id)
+		createContractReplyPost(t, conn, replyID, topicID, user.Id)
+		token := contractSessionToken(t, user)
+
+		// 样例数超过写操作限流配额，逐条重置，避免 429 掩盖长度校验。
+		tooShort := []string{
+			"**a**",                           // 粗体标记：可见 1 码点
+			"[ab](https://example.com)",       // 链接：仅标签计入，可见 2
+			"![x](https://example.com/i.png)", // 图片：可见 0
+			"[:sticker:smile:]",               // 贴纸：可见 0
+			"https://example.com",             // 裸链接：可见 0
+			"**你好**",                          // 可见 2
+		}
+		for _, content := range tooShort {
+			ratelimit.Default().ResetAll()
+			body := fmt.Sprintf(`{"postId":%d,"content":%q}`, replyID, content)
+			response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/update", body, token))
+			if response.MessageCode != "comment.content.tooShort" || response.Params["minLength"] != float64(3) {
+				t.Fatalf("content %q response = %#v, want comment.content.tooShort minLength=3", content, response)
+			}
+		}
+
+		ratelimit.Default().ResetAll()
+		tooLong := "**你好世界**[ab](https://example.com)" // 可见 6 码点，超过上限 4
+		body := fmt.Sprintf(`{"postId":%d,"content":%q}`, replyID, tooLong)
+		response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/update", body, token))
+		if response.MessageCode != "comment.content.tooLong" || response.Params["maxLength"] != float64(4) {
+			t.Fatalf("content %q response = %#v, want comment.content.tooLong maxLength=4", tooLong, response)
+		}
+
+		ratelimit.Default().ResetAll()
+		accepted := "**你好世界**" // 可见 4 码点，正好达到下限与上限
+		body = fmt.Sprintf(`{"postId":%d,"content":%q}`, replyID, accepted)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/update", body, token)); response.Code != 0 {
+			t.Fatalf("content %q response = %#v, want success at 4 visible runes", accepted, response)
+		}
+
+		ratelimit.Default().ResetAll()
+		// 源文本远超上限、可见文字正好 4：链接目标不计入上限。
+		destinationOnly := "[你好世界](https://example.com/very/long/path/that/exceeds/the/limit)"
+		body = fmt.Sprintf(`{"postId":%d,"content":%q}`, replyID, destinationOnly)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/posts/update", body, token)); response.Code != 0 {
+			t.Fatalf("content %q response = %#v, want success: link destination is not visible text", destinationOnly, response)
 		}
 	})
 

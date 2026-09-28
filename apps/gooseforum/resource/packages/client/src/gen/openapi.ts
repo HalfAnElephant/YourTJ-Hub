@@ -7524,7 +7524,7 @@ export interface components {
              * @description Existing topic ID when updating; omit or send 0 when creating.
              */
             topicId?: number;
-            /** @description Markdown content; configurable minimum and maximum lengths count Unicode code points. */
+            /** @description Markdown content; configurable minimum and maximum lengths count rendered visible text in Unicode code points, excluding Markdown marks, link destinations, image syntax and sticker tokens. */
             content: string;
             /** @description Title; configurable minimum and maximum lengths count Unicode code points. */
             title: string;
@@ -7618,7 +7618,7 @@ export interface components {
              * @description Target topic; unknown or not-viewable ids fail with `topic.notFound` (HTTP 200).
              */
             topicId: number;
-            /** @description Markdown reply content. The server trims whitespace and enforces configurable length bounds in Unicode code points (`comment.content.tooShort` / `comment.content.tooLong`, params minLength/maxLength). */
+            /** @description Markdown reply content. The server trims whitespace and enforces configurable length bounds on rendered visible text in Unicode code points (`comment.content.tooShort` / `comment.content.tooLong`, params minLength/maxLength); Markdown marks, link destinations, image syntax and sticker tokens do not count. */
             content: string;
             /**
              * Format: uint64
@@ -7657,7 +7657,7 @@ export interface components {
              * @description Post owned by the caller; someone else's post fails with `topic.operationDenied` (HTTP 200).
              */
             postId: number;
-            /** @description Replacement markdown content; trimmed and length-checked in Unicode code points like posts/create. */
+            /** @description Replacement markdown content; trimmed and length-checked on rendered visible text in Unicode code points like posts/create. */
             content: string;
         };
         UpdatePostResult: {

@@ -534,6 +534,63 @@ func TestWriteTopicHTTPContract(t *testing.T) {
 		}
 	})
 
+	t.Run("visible text length ignores Markdown syntax", func(t *testing.T) {
+		conn, router := setupHTTPContractTest(t)
+		posting := defaultconfig.GetDefaultPostingSettingsConfig()
+		posting.TextControl.MinPostLength = 3
+		posting.TextControl.MaxPostLength = 4
+		persistHTTPContractConfig(t, conn, pageConfig.PostingSettings, posting)
+		hotdataserve.ClearPostingSettingsConfigCache()
+
+		user := createHTTPContractUser(t, conn, contractTestID())
+		categoryID := contractTestID()
+		if err := conn.Create(&category.Entity{Id: categoryID, Name: "Visible Text", Slug: fmt.Sprintf("visible-text-%d", categoryID)}).Error; err != nil {
+			t.Fatalf("create visible text category: %v", err)
+		}
+		token := contractSessionToken(t, user)
+
+		// 样例数超过写操作限流配额，逐条重置，避免 429 掩盖长度校验。
+		tooShort := []string{
+			"**a**",                           // 粗体标记：可见 1 码点
+			"[ab](https://example.com)",       // 链接：仅标签计入，可见 2
+			"![x](https://example.com/i.png)", // 图片：可见 0
+			"[:sticker:smile:]",               // 贴纸：可见 0
+			"https://example.com",             // 裸链接：可见 0
+			"**你好**",                          // 可见 2
+		}
+		for _, content := range tooShort {
+			ratelimit.Default().ResetAll()
+			body := fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, content, categoryID)
+			response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token))
+			if response.MessageCode != "topic.content.tooShort" || response.Params["minLength"] != float64(3) {
+				t.Fatalf("content %q response = %#v, want topic.content.tooShort minLength=3", content, response)
+			}
+		}
+
+		ratelimit.Default().ResetAll()
+		tooLong := "**你好世界**[ab](https://example.com)" // 可见 6 码点，超过上限 4
+		body := fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, tooLong, categoryID)
+		response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token))
+		if response.MessageCode != "topic.content.tooLong" || response.Params["maxLength"] != float64(4) {
+			t.Fatalf("content %q response = %#v, want topic.content.tooLong maxLength=4", tooLong, response)
+		}
+
+		ratelimit.Default().ResetAll()
+		accepted := "**你好世界**" // 可见 4 码点，正好达到下限与上限
+		body = fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, accepted, categoryID)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token)); response.Code != 0 {
+			t.Fatalf("content %q response = %#v, want success at 4 visible runes", accepted, response)
+		}
+
+		ratelimit.Default().ResetAll()
+		// 源文本远超上限、可见文字正好 4：链接目标不计入上限。
+		destinationOnly := "[你好世界](https://example.com/very/long/path/that/exceeds/the/limit)"
+		body = fmt.Sprintf(`{"title":"Valid title","content":%q,"categoryId":[%d],"topicStatus":1}`, destinationOnly, categoryID)
+		if response := decodeContractEnvelope(t, serveJSON(router, "/api/forum/topics/write", body, token)); response.Code != 0 {
+			t.Fatalf("content %q response = %#v, want success: link destination is not visible text", destinationOnly, response)
+		}
+	})
+
 	t.Run("missing session returns 401", func(t *testing.T) {
 		_, router := setupHTTPContractTest(t)
 		recorder := serveJSON(router, "/api/forum/topics/write", `{}`, "")

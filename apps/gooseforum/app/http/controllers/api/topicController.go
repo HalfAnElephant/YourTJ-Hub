@@ -184,8 +184,10 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 
 	}
 
-	contentLength := utf8.RuneCountInString(req.Params.Content)
-	if contentLength < postingConfig.TextControl.MinPostLength {
+	// 正文长度按渲染后可见文字统计（issue #890）：Markdown 标记、链接目标、
+	// 图片与贴纸 token 不计入，纯图片/纯链接内容不能绕过下限。
+	visibleLength := markdown2html.VisibleTextLength(req.Params.Content)
+	if visibleLength < postingConfig.TextControl.MinPostLength {
 		minLength := postingConfig.TextControl.MinPostLength
 		return component.FailResponseCode(
 			component.MessageTopicContentTooShort,
@@ -194,7 +196,7 @@ func writeTopic(req component.BetterRequest[WriteTopicReq], agent bool) componen
 
 	}
 
-	if contentLength > postingConfig.TextControl.MaxPostLength {
+	if visibleLength > postingConfig.TextControl.MaxPostLength {
 		maxLength := postingConfig.TextControl.MaxPostLength
 		return component.FailResponseCode(
 			component.MessageTopicContentTooLong,
@@ -511,8 +513,9 @@ func createPost(req component.BetterRequest[CreatePostReq], agent bool) componen
 	}
 
 	content := strings.TrimSpace(req.Params.Content)
-	contentLength := utf8.RuneCountInString(content)
-	if contentLength < postingConfig.TextControl.MinPostLength {
+	// 长度按渲染后可见文字统计（issue #890），与正文校验同一口径。
+	visibleLength := markdown2html.VisibleTextLength(content)
+	if visibleLength < postingConfig.TextControl.MinPostLength {
 		minLength := postingConfig.TextControl.MinPostLength
 		return component.FailResponseCode(
 			component.MessageCommentContentTooShort,
@@ -521,7 +524,7 @@ func createPost(req component.BetterRequest[CreatePostReq], agent bool) componen
 
 	}
 
-	if contentLength > postingConfig.TextControl.MaxPostLength {
+	if visibleLength > postingConfig.TextControl.MaxPostLength {
 		maxLength := postingConfig.TextControl.MaxPostLength
 		return component.FailResponseCode(
 			component.MessageCommentContentTooLong,
@@ -675,8 +678,9 @@ func UpdatePost(req component.BetterRequest[UpdatePostReq]) component.Response {
 	}
 
 	content := strings.TrimSpace(req.Params.Content)
-	contentLength := utf8.RuneCountInString(content)
-	if contentLength < postingConfig.TextControl.MinPostLength {
+	// 长度按渲染后可见文字统计（issue #890），与正文校验同一口径。
+	visibleLength := markdown2html.VisibleTextLength(content)
+	if visibleLength < postingConfig.TextControl.MinPostLength {
 		minLength := postingConfig.TextControl.MinPostLength
 		return component.FailResponseCode(
 			component.MessageCommentContentTooShort,
@@ -685,7 +689,7 @@ func UpdatePost(req component.BetterRequest[UpdatePostReq]) component.Response {
 
 	}
 
-	if contentLength > postingConfig.TextControl.MaxPostLength {
+	if visibleLength > postingConfig.TextControl.MaxPostLength {
 		maxLength := postingConfig.TextControl.MaxPostLength
 		return component.FailResponseCode(
 			component.MessageCommentContentTooLong,
