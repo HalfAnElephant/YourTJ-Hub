@@ -101,6 +101,8 @@ pumpChat(
   List<ChatMessagePayload>? older,
   StickerLibrary? stickers,
   StickerCollection? stickerCollection,
+  VisibleChatRepository Function(GfApiClient client)? buildRepository,
+  List<Override> overrides = const <Override>[],
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -110,13 +112,16 @@ pumpChat(
     tokenStorage: storage,
     baseUrl: 'http://fake.local',
   );
-  final repo = VisibleChatRepository(
-    client,
-    hasMoreBefore: older != null,
-    messages:
-        messages ?? List.generate(40, (index) => makeChatMessage(index + 1)),
-  );
-  repo.olderMessages = older ?? [];
+  final repo =
+      buildRepository?.call(client) ??
+      VisibleChatRepository(
+        client,
+        hasMoreBefore: older != null,
+        messages:
+            messages ??
+            List.generate(40, (index) => makeChatMessage(index + 1)),
+      );
+  if (buildRepository == null) repo.olderMessages = older ?? [];
   final container = ProviderContainer(
     overrides: [
       tokenStorageProvider.overrideWithValue(storage),
@@ -130,6 +135,7 @@ pumpChat(
       if (stickers != null) stickerLibraryProvider.overrideWithValue(stickers),
       if (stickerCollection != null)
         stickerCollectionProvider.overrideWith((ref) => stickerCollection),
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);

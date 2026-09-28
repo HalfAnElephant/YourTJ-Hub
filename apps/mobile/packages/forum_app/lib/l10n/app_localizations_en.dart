@@ -2874,6 +2874,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get userBlocksEmpty => 'No blocked users';
 
   @override
+  String get messageCopied => 'Copied';
+
+  @override
+  String get messageReply => 'Reply';
+
+  @override
+  String get messageReplyCancel => 'Cancel reply';
+
+  @override
   String get messageReport => 'Report message';
 
   @override

@@ -2905,6 +2905,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get userBlocksEmpty => 'Keine blockierten Nutzer';
 
   @override
+  String get messageCopied => 'Kopiert';
+
+  @override
+  String get messageReply => 'Antworten';
+
+  @override
+  String get messageReplyCancel => 'Antwort abbrechen';
+
+  @override
   String get messageReport => 'Nachricht melden';
 
   @override

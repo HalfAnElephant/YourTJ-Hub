@@ -4,11 +4,13 @@ import '../../widgets/stickers/sticker_draft_preview.dart';
 import '../../widgets/stickers/sticker_picker.dart';
 import '../../widgets/stickers/sticker_strings.dart';
 import '../../widgets/stickers/sticker_library_page.dart';
+import '../../widgets/stickers/sticker_library_state.dart';
 import '../../widgets/stickers/resolved_sticker_content.dart';
 import '../../private_notes.dart';
 import '../../widgets/root_surface.dart';
 import '../../messages/chat_outbox.dart';
 import '../../messages/chat_drafts.dart';
+import '../../messages/chat_reply.dart';
 import '../../messages/chat_viewport_scroll_physics.dart';
 import '../../messages/visible_chat_reads.dart';
 import '../../messages/message_content.dart';
@@ -20,6 +22,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ui_kit/ui_kit.dart';
 import 'package:dio/dio.dart';
@@ -27,6 +30,7 @@ import 'package:dio/dio.dart';
 import 'package:core/core.dart';
 
 import '../../asset_url.dart';
+import '../../current_user.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../providers.dart';
@@ -525,6 +529,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
   int _scrollAdjustmentGeneration = 0;
   bool _adjustingScroll = false;
   double? _messageViewportHeight;
+  ChatReplyTarget? _replyTarget;
 
   bool get _sessionCurrent =>
       mounted && _sessionEpoch == ref.read(offlineCacheEpochProvider);
@@ -998,19 +1003,119 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
       return;
     }
     _draftChanged();
+    final reply = _replyTarget;
+    final content = reply == null ? text : reply.compose(text);
     final revision = _drafts.forPeer(widget.conv.peerId)?.revision;
     final failed = outbox.items
         .where(
           (item) =>
               item.state == DeliveryState.failed &&
               item.draftRevision == revision &&
-              item.content == text,
+              item.content == content,
         )
         .firstOrNull;
     final message =
-        failed ?? outbox.enqueue(text, _latestId, draftRevision: revision);
+        failed ?? outbox.enqueue(content, _latestId, draftRevision: revision);
+    // 引用随本次发送进入 outbox;失败重试沿用同一条已引用内容。
+    if (reply != null) setState(() => _replyTarget = null);
     _scrollToBottom();
     await _sendPending(message);
+  }
+
+  String _replySender(ChatMessagePayload message) {
+    final String username = message.isSelf
+        ? ref.read(currentUserProvider).valueOrNull?.username ?? ''
+        : widget.conv.peerUsername;
+    final String trimmed = username.trim();
+    return trimmed.isEmpty ? '' : '@$trimmed';
+  }
+
+  /// 消息内已解析的表情名(长按菜单的收藏入口)。
+  List<String> _resolvedStickerNames(String content) {
+    final Map<String, String> resolved = ref
+        .read(stickerLibraryProvider)
+        .urlByName;
+    return parseStickerSegments(content, resolved)
+        .whereType<StickerImageSegment>()
+        .map((segment) => segment.name)
+        .toList(growable: false);
+  }
+
+  /// 长按消息呼出操作菜单:回复/复制/收藏表情;举报仅对方消息,沿用
+  /// chat_message 链路。
+  Future<void> _showMessageActions(ChatMessagePayload message) async {
+    final l10n = AppLocalizations.of(context);
+    final stickerNames = _resolvedStickerNames(message.content);
+    final collection = stickerNames.isEmpty
+        ? null
+        : ref.read(stickerCollectionProvider);
+    final canCollect = collection?.active ?? false;
+    final action = await showGfBottomSheet<String>(
+      context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const GfSymbol('quote', size: 22),
+              title: Text(l10n.messageReply),
+              onTap: () => Navigator.pop(sheetContext, 'reply'),
+            ),
+            ListTile(
+              leading: const GfSymbol('copy', size: 22),
+              title: Text(l10n.messagesCopyAll),
+              onTap: () => Navigator.pop(sheetContext, 'copy'),
+            ),
+            if (canCollect)
+              ListTile(
+                leading: const GfSymbol('bookmark', size: 22),
+                title: Text(StickerStrings(context).collect),
+                onTap: () => Navigator.pop(sheetContext, 'collect'),
+              ),
+            if (!message.isSelf)
+              ListTile(
+                leading: const GfSymbol('flag', size: 22),
+                title: Text(l10n.messageReport),
+                onTap: () => Navigator.pop(sheetContext, 'report'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case 'reply':
+        setState(() {
+          _replyTarget = ChatReplyTarget(
+            messageId: message.id,
+            sender: _replySender(message),
+            content: message.content,
+          );
+        });
+      case 'copy':
+        await Clipboard.setData(ClipboardData(text: message.content));
+        if (mounted) showGfToast(context, l10n.messageCopied);
+      case 'collect':
+        final strings = StickerStrings(context);
+        try {
+          for (final name in stickerNames) {
+            await ref.read(stickerCollectionProvider).save(stickerName: name);
+          }
+          if (mounted) {
+            showGfToast(context, strings.saved);
+          }
+        } catch (error) {
+          if (mounted) {
+            showGfToast(context, strings.failure(error), error: true);
+          }
+        }
+      case 'report':
+        await showContentReport(
+          context,
+          targetType: 'chat_message',
+          targetId: message.id,
+        );
+    }
   }
 
   Future<void> _sendPending(PendingMessage message) async {
@@ -1077,6 +1182,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
         _loading = false;
         _historyReady = false;
         _unseenNewMessages = false;
+        _replyTarget = null;
       });
     });
     if (!_drafts.current) return const SizedBox.shrink();
@@ -1280,19 +1386,10 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                       message: message,
                                       peerAvatar: widget.conv.peerAvatar,
                                       viewerAvatar: widget.viewerAvatar,
-                                    ),
-                                    if (!message.isSelf)
-                                      Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: TextButton(
-                                          onPressed: () => showContentReport(
-                                            context,
-                                            targetType: 'chat_message',
-                                            targetId: message.id,
-                                          ),
-                                          child: Text(l10n.messageReport),
-                                        ),
+                                      onLongPress: () => unawaited(
+                                        _showMessageActions(message),
                                       ),
+                                    ),
                                   ],
                                 );
                               },
@@ -1355,6 +1452,12 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                     ),
                   ),
                 _ChatDraftStatus(drafts: _drafts, peerId: widget.conv.peerId),
+                if (_replyTarget != null)
+                  _ReplyPreview(
+                    target: _replyTarget!,
+                    cancelLabel: l10n.messageReplyCancel,
+                    onCancel: () => setState(() => _replyTarget = null),
+                  ),
                 GfChatInput(
                   controller: _input,
                   previewBuilder: (text) => StickerDraftPreview(content: text),
@@ -1491,6 +1594,83 @@ class _ChatDraftStatus extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       child: Text(
         drafts.isDirty(peerId!) ? l10n.draftLocalSaving : l10n.draftLocalSaved,
+      ),
+    );
+  }
+}
+
+/// 输入框上方的引用预览:发送者 + 有界摘要,可单独取消。
+class _ReplyPreview extends StatelessWidget {
+  const _ReplyPreview({
+    required this.target,
+    required this.cancelLabel,
+    required this.onCancel,
+  });
+
+  final ChatReplyTarget target;
+  final String cancelLabel;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final GfColors colors = GfTheme.colorsOf(context);
+    return Padding(
+      key: const Key('chat-reply-preview'),
+      padding: const EdgeInsets.fromLTRB(12, 4, 4, 0),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 6, 0, 6),
+        decoration: BoxDecoration(
+          color: colors.base200,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 3,
+              height: 34,
+              decoration: BoxDecoration(
+                color: colors.primary,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  if (target.sender.isNotEmpty)
+                    Text(
+                      target.sender,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  Text(
+                    target.excerpt,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.baseContent.withValues(alpha: 0.7),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            GfIconButton(
+              symbol: 'x',
+              tooltip: cancelLabel,
+              size: 44,
+              iconSize: 18,
+              onPressed: onCancel,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1807,6 +1987,7 @@ class _ChatMessageBubble extends ConsumerWidget {
     required this.mine,
     this.time,
     this.maxWidthFactor = 0.88,
+    this.onLongPress,
   });
 
   final GlobalKey? bubbleKey;
@@ -1814,6 +1995,7 @@ class _ChatMessageBubble extends ConsumerWidget {
   final bool mine;
   final String? time;
   final double maxWidthFactor;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1825,6 +2007,7 @@ class _ChatMessageBubble extends ConsumerWidget {
         text: text,
         showBubble: !isStickerOnlyMessage(text, stickers),
         selectable: true,
+        onLongPress: onLongPress,
         copyMessageLabel: AppLocalizations.of(context).messagesCopyAll,
         content: MessageContent(
           text: text,
@@ -1861,12 +2044,14 @@ class _MessageRow extends ConsumerWidget {
     required this.message,
     required this.peerAvatar,
     required this.viewerAvatar,
+    this.onLongPress,
   });
 
   final GlobalKey? bubbleKey;
   final ChatMessagePayload message;
   final String peerAvatar;
   final String viewerAvatar;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1892,6 +2077,7 @@ class _MessageRow extends ConsumerWidget {
                 l10n: AppLocalizations.of(context),
               ),
               maxWidthFactor: 0.74,
+              onLongPress: onLongPress,
             ),
           ),
           if (message.isSelf) ...<Widget>[
