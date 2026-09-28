@@ -11,11 +11,13 @@ class MessageContent extends StatefulWidget {
     required this.text,
     required this.stickers,
     required this.onOpenLink,
+    this.deferStickerLongPress = false,
   });
 
   final String text;
   final Map<String, String> stickers;
   final ValueChanged<String> onOpenLink;
+  final bool deferStickerLongPress;
 
   @override
   State<MessageContent> createState() => _MessageContentState();
@@ -98,14 +100,13 @@ class _MessageContentState extends State<MessageContent> {
   @override
   Widget build(BuildContext context) {
     _disposeRecognizers();
-    // The bubble's action menu owns the long press in chat, so inline stickers
-    // must not consume it for collection or for their failed-image retry; the
-    // menu offers the same collection action.
+    // History bubbles provide an action menu. Outbox bubbles do not, so their
+    // stickers retain their own collection/failed-image retry actions.
     final span =
         buildStickerMessageSpan(
           widget.text,
           widget.stickers,
-          deferLongPress: true,
+          deferLongPress: widget.deferStickerLongPress,
         ) ??
         TextSpan(text: widget.text);
     return Text.rich(_linkSpan(span));

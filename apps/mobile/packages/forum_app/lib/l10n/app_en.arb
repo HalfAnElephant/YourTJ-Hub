@@ -107,6 +107,7 @@
   "authForgotTitle": "Reset password",
   "authContinueAfterLogin": "Sign in to continue where you left off.",
   "authSignInMethods": "Other sign-in options",
+  "authMoreSignInMethods": "More sign-in options",
   "authLoginSubtitle": "Welcome back. Continue your discussions and writing.",
   "authRegisterSubtitle": "Create an account and join the campus conversation.",
   "authForgotSubtitle": "Enter your email and we will send a reset link.",
@@ -116,6 +117,8 @@
   "authPassword": "Password",
   "authNewPassword": "New password",
   "authConfirmPassword": "Confirm password",
+  "authShowPassword": "Show password",
+  "authHidePassword": "Hide password",
   "authCaptcha": "Captcha",
   "authForgotPassword": "Forgot password?",
   "authCreateAccount": "Create account",
@@ -125,6 +128,8 @@
   "authTwoFactorCode": "TOTP code",
   "authVerify": "Verify",
   "authGetCode": "Get code",
+  "authRefreshCaptcha": "Refresh captcha",
+  "authCaptchaRequired": "Please enter the captcha",
   "authOidcLogin": "Sign in with yourtj",
   "authRegisterSuccess": "Registered successfully, please sign in",
   "authResetEmailSent": "Reset email sent, please check your inbox",
@@ -254,6 +259,15 @@
   "messagesEmptyDescription": "Start a conversation with someone from the community.",
   "messagesSearchConversations": "Search conversations",
   "messagesConversation": "Private conversation",
+  "messagesViewProfile": "View the profile of {name}",
+  "@messagesViewProfile": {
+    "description": "Screen-reader label for the peer avatar control that opens a user profile from a private conversation.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "messagesStartChat": "Start a conversation",
   "messagesFirstMessageTo": "Send the first message to {user}.",
   "@messagesFirstMessageTo": {
@@ -493,6 +507,33 @@
     }
   },
   "settingsImageDecodeFailed": "Failed to decode image",
+  "dateToday": "Today",
+  "dateYesterday": "Yesterday",
+  "dateMonthDay": "{month}/{day}",
+  "@dateMonthDay": {
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
+  "dateYearMonthDay": "{year}/{month}/{day}",
+  "@dateYearMonthDay": {
+    "placeholders": {
+      "year": {
+        "type": "int"
+      },
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
   "dateMonthDayTime": "{month}/{day} {time}",
   "@dateMonthDayTime": {
     "placeholders": {
@@ -906,6 +947,9 @@
   "notificationSomeone": "Someone",
   "profileRoleAdmin": "Admin",
   "profileOnline": "Online",
+  "profileAccountClosedBadge": "Deactivated",
+  "profileAccountClosedTitle": "Account deactivated",
+  "profileAccountClosedDescription": "This account has been deactivated. Historical content stays visible, but the profile is no longer accessible.",
   "profileJoinedAt": "Joined {date}",
   "@profileJoinedAt": {
     "placeholders": {

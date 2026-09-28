@@ -202,6 +202,7 @@ func GetChatList(userId uint64) ([]*vo.ChatItemVo, error) {
 
 		if peer != nil {
 			chatItem.PeerUsername = peer.Username
+			chatItem.PeerNickname = peer.Nickname
 			chatItem.PeerAvatar = peer.GetWebAvatarUrl()
 		} else {
 			chatItem.PeerUsername = "Unknown User"

@@ -178,6 +178,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authSignInMethods => '其他登录方式';
 
   @override
+  String get authMoreSignInMethods => '更多登录方式';
+
+  @override
   String get authLoginSubtitle => '欢迎回来，继续你的讨论和创作。';
 
   @override
@@ -205,6 +208,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authConfirmPassword => '确认密码';
 
   @override
+  String get authShowPassword => '显示密码';
+
+  @override
+  String get authHidePassword => '隐藏密码';
+
+  @override
   String get authCaptcha => '验证码';
 
   @override
@@ -230,6 +239,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get authGetCode => '获取验证码';
+
+  @override
+  String get authRefreshCaptcha => '刷新验证码';
+
+  @override
+  String get authCaptchaRequired => '请输入验证码';
 
   @override
   String get authOidcLogin => '使用 yourtj 统一登录';
@@ -484,6 +499,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get messagesConversation => '私信对话';
+
+  @override
+  String messagesViewProfile(String name) {
+    return '查看 $name 的主页';
+  }
 
   @override
   String get messagesStartChat => '开始聊天';
@@ -914,6 +934,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsImageDecodeFailed => '图片解码失败';
+
+  @override
+  String get dateToday => '今天';
+
+  @override
+  String get dateYesterday => '昨天';
+
+  @override
+  String dateMonthDay(int month, int day) {
+    return '$month月$day日';
+  }
+
+  @override
+  String dateYearMonthDay(int year, int month, int day) {
+    return '$year年$month月$day日';
+  }
 
   @override
   String dateMonthDayTime(int month, int day, String time) {
@@ -1703,6 +1739,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get profileOnline => '在线';
+
+  @override
+  String get profileAccountClosedBadge => '已注销';
+
+  @override
+  String get profileAccountClosedTitle => '已注销用户';
+
+  @override
+  String get profileAccountClosedDescription => '该账号已注销，历史内容保留展示，主页不再开放。';
 
   @override
   String profileJoinedAt(String date) {

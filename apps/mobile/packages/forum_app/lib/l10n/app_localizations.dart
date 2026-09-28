@@ -408,6 +408,12 @@ abstract class AppLocalizations {
   /// **'Other sign-in options'**
   String get authSignInMethods;
 
+  /// No description provided for @authMoreSignInMethods.
+  ///
+  /// In en, this message translates to:
+  /// **'More sign-in options'**
+  String get authMoreSignInMethods;
+
   /// No description provided for @authLoginSubtitle.
   ///
   /// In en, this message translates to:
@@ -462,6 +468,18 @@ abstract class AppLocalizations {
   /// **'Confirm password'**
   String get authConfirmPassword;
 
+  /// No description provided for @authShowPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get authShowPassword;
+
+  /// No description provided for @authHidePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get authHidePassword;
+
   /// No description provided for @authCaptcha.
   ///
   /// In en, this message translates to:
@@ -515,6 +533,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Get code'**
   String get authGetCode;
+
+  /// No description provided for @authRefreshCaptcha.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh captcha'**
+  String get authRefreshCaptcha;
+
+  /// No description provided for @authCaptchaRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter the captcha'**
+  String get authCaptchaRequired;
 
   /// No description provided for @authOidcLogin.
   ///
@@ -995,6 +1025,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Private conversation'**
   String get messagesConversation;
+
+  /// Screen-reader label for the peer avatar control that opens a user profile from a private conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'View the profile of {name}'**
+  String messagesViewProfile(String name);
 
   /// No description provided for @messagesStartChat.
   ///
@@ -1781,6 +1817,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to decode image'**
   String get settingsImageDecodeFailed;
+
+  /// No description provided for @dateToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get dateToday;
+
+  /// No description provided for @dateYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get dateYesterday;
+
+  /// No description provided for @dateMonthDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{month}/{day}'**
+  String dateMonthDay(int month, int day);
+
+  /// No description provided for @dateYearMonthDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{year}/{month}/{day}'**
+  String dateYearMonthDay(int year, int month, int day);
 
   /// No description provided for @dateMonthDayTime.
   ///
@@ -3269,6 +3329,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Online'**
   String get profileOnline;
+
+  /// No description provided for @profileAccountClosedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivated'**
+  String get profileAccountClosedBadge;
+
+  /// No description provided for @profileAccountClosedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Account deactivated'**
+  String get profileAccountClosedTitle;
+
+  /// No description provided for @profileAccountClosedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This account has been deactivated. Historical content stays visible, but the profile is no longer accessible.'**
+  String get profileAccountClosedDescription;
 
   /// No description provided for @profileJoinedAt.
   ///

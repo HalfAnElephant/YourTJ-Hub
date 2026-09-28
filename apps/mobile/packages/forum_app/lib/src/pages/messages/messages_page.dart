@@ -11,6 +11,7 @@ import '../../widgets/root_surface.dart';
 import '../../messages/chat_outbox.dart';
 import '../../messages/chat_drafts.dart';
 import '../../messages/chat_reply.dart';
+import '../../messages/chat_timeline.dart';
 import '../../messages/chat_viewport_scroll_physics.dart';
 import '../../messages/visible_chat_reads.dart';
 import '../../messages/message_content.dart';
@@ -24,6 +25,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
 import 'package:dio/dio.dart';
 
@@ -349,9 +351,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage>
       ChatItemPayload(
         id: 0,
         peerId: selected.id,
-        peerUsername: selected.nickname.isEmpty
-            ? selected.username
-            : selected.nickname,
+        peerUsername: selected.username,
+        peerNickname: selected.nickname.isEmpty ? null : selected.nickname,
         peerAvatar: resolveApiAssetUrl(selected.avatarUrl),
         lastMsg: '',
         lastMsgTime: '',
@@ -538,6 +539,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
   bool _adjustingScroll = false;
   double? _messageViewportHeight;
   ChatReplyTarget? _replyTarget;
+  int _replySelection = 0;
 
   bool get _sessionCurrent =>
       mounted && _sessionEpoch == ref.read(offlineCacheEpochProvider);
@@ -1014,6 +1016,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     final reply = _replyTarget;
     final content = reply == null ? text : reply.compose(text);
     final revision = _drafts.forPeer(widget.conv.peerId)?.revision;
+    final submitted = _input.value;
     final failed = outbox.items
         .where(
           (item) =>
@@ -1023,7 +1026,15 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
         )
         .firstOrNull;
     final message =
-        failed ?? outbox.enqueue(content, _latestId, draftRevision: revision);
+        failed ??
+        outbox.enqueue(
+          content,
+          _latestId,
+          draftRevision: revision,
+          // Keep the whole pre-send composer state, not just the string, so a
+          // failure can restore sticker tokens, newlines and the caret.
+          draftValue: submitted,
+        );
     // 引用随本次发送进入 outbox;失败时由 _sendPending 挂回,重试沿用同一条内容。
     if (reply != null) setState(() => _replyTarget = null);
     _scrollToBottom();
@@ -1097,6 +1108,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     switch (action) {
       case 'reply':
         setState(() {
+          _replySelection++;
           _replyTarget = ChatReplyTarget(
             messageId: message.id,
             sender: _replySender(message),
@@ -1137,20 +1149,51 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     final epoch = ref.read(offlineCacheEpochProvider);
     final peerId = widget.conv.peerId;
     final drafts = _drafts;
+    final replySelection = _replySelection;
+    final selectedReply = _replyTarget;
+    var restoredDraft = false;
+    var acknowledgedDraft = false;
     final convId = await ref
         .read(chatOutboxProvider(widget.conv.peerId))
         .send(message);
     if (convId != null) {
+      acknowledgedDraft =
+          message.draftRevision != null &&
+          drafts.forPeer(peerId)?.revision == message.draftRevision;
       drafts.acknowledge(peerId, message.draftRevision, convId);
+    } else if (message.state == DeliveryState.failed &&
+        mounted &&
+        epoch == ref.read(offlineCacheEpochProvider)) {
+      // Only a real failure rehydrates: a null return for an attempt another
+      // callback already claimed (same-frame double tap) must not restore.
+      // The pending bubble stays for retry with the same clientMessageId, and
+      // the submitted draft wins unless the user composed newer text.
+      restoredDraft = drafts.restoreFailed(
+        widget.conv,
+        message.draftRevision,
+        message.draftValue,
+      );
     }
     if (!mounted || epoch != ref.read(offlineCacheEpochProvider)) return;
     if (convId == null) {
-      // 失败:引用挂回输入框(用户刚选了别的引用时不覆盖),再按发送即重试
-      // 同一条 outbox 记录,不会产生一条无引用的重复消息。
-      if (reply != null && _replyTarget == null) {
+      // Restore the quote only with its own draft, and never undo a later
+      // selection/cancellation even when the composer text is unchanged.
+      if (restoredDraft &&
+          reply != null &&
+          _replySelection == replySelection &&
+          _replyTarget == null) {
         setState(() => _replyTarget = reply);
       }
       return;
+    }
+    // Retrying the failed bubble bypasses _send's preview reset. Release only
+    // that acknowledged draft's quote, preserving any newer reply selection.
+    if (acknowledgedDraft &&
+        selectedReply != null &&
+        _replySelection == replySelection &&
+        selectedReply.compose(message.draftValue?.text.trim() ?? '') ==
+            message.content) {
+      setState(() => _replyTarget = null);
     }
     if (_convId <= 0 && convId > 0) _convId = convId;
     await _load(silent: true);
@@ -1184,6 +1227,12 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     });
     final AppLocalizations l10n = AppLocalizations.of(context);
     final GfColors colors = GfTheme.colorsOf(context);
+    final String peerName = privateDisplayName(
+      context,
+      widget.conv.peerId,
+      widget.conv.peerUsername,
+      widget.conv.peerNickname,
+    );
     final outbox = ref.watch(chatOutboxProvider(widget.conv.peerId));
     ref.watch(chatDraftsProvider);
     ref.listen(offlineCacheEpochProvider, (_, epoch) {
@@ -1205,30 +1254,31 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     });
     if (!_drafts.current) return const SizedBox.shrink();
     _visibleReads.changed();
+    final List<ChatTimelineItem> timeline = buildChatTimeline(_messages);
 
     return Scaffold(
       appBar: GfAppBar(
         actions: [UserBlockButton(userId: widget.conv.peerId)],
         title: Row(
           children: <Widget>[
-            GfAvatar(
+            _PeerAvatarButton(
+              key: const Key('chat-peer-avatar-appbar'),
+              peerId: widget.conv.peerId,
+              label: l10n.messagesViewProfile(peerName),
               src: resolveApiAssetUrl(widget.conv.peerAvatar),
               size: 36,
               ring: true,
+              alignment: Alignment.centerLeft,
             ),
-            const SizedBox(width: 10),
+            // 44 命中区右侧的留白即是间距,补 2 保持标题与旧版 10 的视觉间距。
+            const SizedBox(width: 2),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    privateDisplayName(
-                      context,
-                      widget.conv.peerId,
-                      '',
-                      widget.conv.peerUsername,
-                    ),
+                    peerName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1283,8 +1333,8 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                 privateDisplayName(
                                   context,
                                   widget.conv.peerId,
-                                  '',
                                   widget.conv.peerUsername,
+                                  widget.conv.peerNickname,
                                 ),
                               ),
                             )
@@ -1298,7 +1348,7 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                 18,
                               ),
                               itemCount:
-                                  _messages.length +
+                                  timeline.length +
                                   outbox.items.length +
                                   (_loadingOlder ? 1 : 0),
                               itemBuilder: (BuildContext context, int index) {
@@ -1310,9 +1360,9 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                 }
                                 final int messageIndex =
                                     index - (_loadingOlder ? 1 : 0);
-                                if (messageIndex >= _messages.length) {
+                                if (messageIndex >= timeline.length) {
                                   final pending = outbox
-                                      .items[messageIndex - _messages.length];
+                                      .items[messageIndex - timeline.length];
                                   final reason = pending.error is ApiException
                                       ? resolveErrorMessage(
                                           l10n,
@@ -1382,19 +1432,21 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                     ),
                                   );
                                 }
-                                final ChatMessagePayload message =
-                                    _messages[messageIndex];
-                                final bool startsDay =
-                                    messageIndex == 0 ||
-                                    formatDate(
-                                          _messages[messageIndex - 1].createdAt,
-                                        ) !=
-                                        formatDate(message.createdAt);
+                                final ChatTimelineItem item =
+                                    timeline[messageIndex];
+                                final ChatMessagePayload message = item.message;
+                                final DateTime? day = item.day;
                                 return Column(
                                   children: <Widget>[
-                                    if (startsDay)
+                                    if (item.showDaySeparator && day != null)
                                       _DatePill(
-                                        date: formatDate(message.createdAt),
+                                        key: ValueKey<String>(
+                                          'chat-date-separator-${message.id}',
+                                        ),
+                                        label: formatChatDayLabel(
+                                          day,
+                                          l10n: l10n,
+                                        ),
                                       ),
                                     _MessageRow(
                                       bubbleKey: _bubbleKeys.putIfAbsent(
@@ -1402,8 +1454,12 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                         GlobalKey.new,
                                       ),
                                       message: message,
+                                      peerId: widget.conv.peerId,
+                                      peerProfileLabel: l10n
+                                          .messagesViewProfile(peerName),
                                       peerAvatar: widget.conv.peerAvatar,
                                       viewerAvatar: widget.viewerAvatar,
+                                      showTime: item.showTimestamp,
                                       onLongPress: () => unawaited(
                                         _showMessageActions(message),
                                       ),
@@ -1474,7 +1530,10 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                   _ReplyPreview(
                     target: _replyTarget!,
                     cancelLabel: l10n.messageReplyCancel,
-                    onCancel: () => setState(() => _replyTarget = null),
+                    onCancel: () => setState(() {
+                      _replySelection++;
+                      _replyTarget = null;
+                    }),
                   ),
                 GfChatInput(
                   controller: _input,
@@ -1567,8 +1626,8 @@ class _ConversationList extends StatelessWidget {
           name: privateDisplayName(
             context,
             conversation.peerId,
-            '',
             conversation.peerUsername,
+            conversation.peerNickname,
           ),
           lastMessage: draft != null
               ? '${l10n.messagesDraftLabel} · ${stickerPreviewLabel(draft.value.text)}'
@@ -1970,27 +2029,32 @@ class _ChatEmptyState extends StatelessWidget {
 }
 
 class _DatePill extends StatelessWidget {
-  const _DatePill({required this.date});
+  const _DatePill({super.key, required this.label});
 
-  final String date;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     final GfColors colors = GfTheme.colorsOf(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: colors.base300,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          date,
-          style: TextStyle(
-            color: colors.baseContent.withValues(alpha: 0.55),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+    // 日期分隔按标题语义暴露(Web 用 <h2>),读屏不会把它当作一条消息。
+    return Semantics(
+      container: true,
+      header: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: colors.base300,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: colors.baseContent.withValues(alpha: 0.55),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -2030,6 +2094,7 @@ class _ChatMessageBubble extends ConsumerWidget {
         content: MessageContent(
           text: text,
           stickers: stickers,
+          deferStickerLongPress: onLongPress != null,
           onOpenLink: (url) async {
             try {
               await LinkNavigation.open(
@@ -2056,20 +2121,71 @@ class _ChatMessageBubble extends ConsumerWidget {
   }
 }
 
+/// 对方头像的主页入口:44×44 命中区包住视觉头像,头像本身不位移、不缩放,
+/// 命中区只向头像旁的空白扩展,点击进入 `/u/{peerId}`。
+class _PeerAvatarButton extends StatelessWidget {
+  const _PeerAvatarButton({
+    super.key,
+    required this.peerId,
+    required this.label,
+    required this.src,
+    required this.size,
+    this.ring = false,
+    this.alignment = Alignment.center,
+  });
+
+  final int peerId;
+  final String label;
+  final String src;
+  final double size;
+  final bool ring;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      // 独立语义节点:头像标签不会与同行的消息文本/标题合并成一个按钮。
+      container: true,
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: () => context.push('/u/$peerId'),
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Align(
+            alignment: alignment,
+            child: GfAvatar(src: src, size: size, ring: ring),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MessageRow extends ConsumerWidget {
   const _MessageRow({
     this.bubbleKey,
     required this.message,
+    required this.peerId,
+    required this.peerProfileLabel,
     required this.peerAvatar,
     required this.viewerAvatar,
     this.onLongPress,
+    this.showTime = true,
   });
 
   final GlobalKey? bubbleKey;
   final ChatMessagePayload message;
+  final int peerId;
+  final String peerProfileLabel;
   final String peerAvatar;
   final String viewerAvatar;
   final VoidCallback? onLongPress;
+
+  /// 由 [buildChatTimeline] 决定:只有分组首条消息显示时刻。
+  final bool showTime;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2081,19 +2197,23 @@ class _MessageRow extends ConsumerWidget {
             : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          if (!message.isSelf) ...<Widget>[
-            GfAvatar(src: resolveApiAssetUrl(peerAvatar), size: 32),
-            const SizedBox(width: 8),
-          ],
+          // 44 命中区自带与气泡的间距:视觉间距 12,气泡比旧版(32 头像 + 8 间距)
+          // 右移 4,可用宽度相应减少 4。
+          if (!message.isSelf)
+            _PeerAvatarButton(
+              key: Key('chat-peer-avatar-${message.id}'),
+              peerId: peerId,
+              label: peerProfileLabel,
+              src: resolveApiAssetUrl(peerAvatar),
+              size: 32,
+              alignment: Alignment.topLeft,
+            ),
           Flexible(
             child: _ChatMessageBubble(
               bubbleKey: bubbleKey,
               text: message.content,
               mine: message.isSelf,
-              time: formatChatTime(
-                message.createdAt,
-                l10n: AppLocalizations.of(context),
-              ),
+              time: showTime ? formatChatClock(message.createdAt) : null,
               maxWidthFactor: 0.74,
               onLongPress: onLongPress,
             ),

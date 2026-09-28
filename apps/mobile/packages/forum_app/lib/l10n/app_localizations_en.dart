@@ -184,6 +184,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authSignInMethods => 'Other sign-in options';
 
   @override
+  String get authMoreSignInMethods => 'More sign-in options';
+
+  @override
   String get authLoginSubtitle =>
       'Welcome back. Continue your discussions and writing.';
 
@@ -214,6 +217,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authConfirmPassword => 'Confirm password';
 
   @override
+  String get authShowPassword => 'Show password';
+
+  @override
+  String get authHidePassword => 'Hide password';
+
+  @override
   String get authCaptcha => 'Captcha';
 
   @override
@@ -239,6 +248,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authGetCode => 'Get code';
+
+  @override
+  String get authRefreshCaptcha => 'Refresh captcha';
+
+  @override
+  String get authCaptchaRequired => 'Please enter the captcha';
 
   @override
   String get authOidcLogin => 'Sign in with yourtj';
@@ -497,6 +512,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get messagesConversation => 'Private conversation';
+
+  @override
+  String messagesViewProfile(String name) {
+    return 'View the profile of $name';
+  }
 
   @override
   String get messagesStartChat => 'Start a conversation';
@@ -928,6 +948,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsImageDecodeFailed => 'Failed to decode image';
+
+  @override
+  String get dateToday => 'Today';
+
+  @override
+  String get dateYesterday => 'Yesterday';
+
+  @override
+  String dateMonthDay(int month, int day) {
+    return '$month/$day';
+  }
+
+  @override
+  String dateYearMonthDay(int year, int month, int day) {
+    return '$year/$month/$day';
+  }
 
   @override
   String dateMonthDayTime(int month, int day, String time) {
@@ -1739,6 +1775,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileOnline => 'Online';
+
+  @override
+  String get profileAccountClosedBadge => 'Deactivated';
+
+  @override
+  String get profileAccountClosedTitle => 'Account deactivated';
+
+  @override
+  String get profileAccountClosedDescription =>
+      'This account has been deactivated. Historical content stays visible, but the profile is no longer accessible.';
 
   @override
   String profileJoinedAt(String date) {

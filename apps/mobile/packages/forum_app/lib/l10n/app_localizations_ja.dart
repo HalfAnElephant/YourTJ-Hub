@@ -180,6 +180,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get authSignInMethods => 'その他のログイン方法';
 
   @override
+  String get authMoreSignInMethods => 'ログイン方法をさらに表示';
+
+  @override
   String get authLoginSubtitle => 'おかえりなさい。議論と投稿を続けましょう。';
 
   @override
@@ -207,6 +210,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get authConfirmPassword => 'パスワード確認';
 
   @override
+  String get authShowPassword => 'パスワードを表示';
+
+  @override
+  String get authHidePassword => 'パスワードを隠す';
+
+  @override
   String get authCaptcha => '認証コード';
 
   @override
@@ -232,6 +241,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get authGetCode => 'コードを取得';
+
+  @override
+  String get authRefreshCaptcha => '認証コードを更新';
+
+  @override
+  String get authCaptchaRequired => '認証コードを入力してください';
 
   @override
   String get authOidcLogin => 'YourTJでログイン';
@@ -486,6 +501,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get messagesConversation => 'プライベート会話';
+
+  @override
+  String messagesViewProfile(String name) {
+    return '$name さんのプロフィールを見る';
+  }
 
   @override
   String get messagesStartChat => 'チャットを開始';
@@ -916,6 +936,22 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get settingsImageDecodeFailed => '画像を読み込めませんでした';
+
+  @override
+  String get dateToday => '今日';
+
+  @override
+  String get dateYesterday => '昨日';
+
+  @override
+  String dateMonthDay(int month, int day) {
+    return '$month月$day日';
+  }
+
+  @override
+  String dateYearMonthDay(int year, int month, int day) {
+    return '$year年$month月$day日';
+  }
 
   @override
   String dateMonthDayTime(int month, int day, String time) {
@@ -1706,6 +1742,16 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get profileOnline => 'オンライン';
+
+  @override
+  String get profileAccountClosedBadge => '退会済み';
+
+  @override
+  String get profileAccountClosedTitle => '退会済みアカウント';
+
+  @override
+  String get profileAccountClosedDescription =>
+      'このアカウントは退会済みです。過去の投稿は表示されますが、プロフィールは利用できません。';
 
   @override
   String profileJoinedAt(String date) {

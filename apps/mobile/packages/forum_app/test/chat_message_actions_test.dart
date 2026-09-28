@@ -72,6 +72,21 @@ class RecordingSendsChatRepository extends VisibleChatRepository {
   }
 }
 
+class _DelayedReplyRepository extends RecordingSendsChatRepository {
+  _DelayedReplyRepository(super.client)
+    : super(messages: [makeChatMessage(1), makeChatMessage(2)]);
+
+  final result = Completer<int>();
+
+  @override
+  Future<int> sendMessage({
+    required int peerId,
+    required String content,
+    int msgType = 1,
+    String? clientMessageId,
+  }) => result.future;
+}
+
 /// 1x1 transparent PNG served to `Image.network` so sticker widgets reach their
 /// loaded state instead of the failed-image retry surface.
 const List<int> _transparentPng = <int>[
@@ -193,7 +208,7 @@ Future<RecordingSendsChatRepository> pumpActions(
   late final RecordingSendsChatRepository repository;
   await pumpChat(
     tester,
-    buildRepository: (client) => repository =
+    repository: (client) => repository =
         repositoryBuilder?.call(client) ??
         RecordingSendsChatRepository(
           client,
@@ -468,6 +483,109 @@ void main() {
     await dispose(tester);
   });
 
+  for (final replaceQuote in [false, true]) {
+    testWidgets(
+      replaceQuote
+          ? 'late failed reply preserves a newer cancelled quote selection'
+          : 'late failed reply cannot attach its quote to a newer draft',
+      (tester) async {
+        late _DelayedReplyRepository repository;
+        await pumpActions(
+          tester,
+          repositoryBuilder: (client) =>
+              repository = _DelayedReplyRepository(client),
+        );
+        await openActions(tester, find.text('消息 1'));
+        await tester.tap(find.text('Reply'));
+        await tester.pumpAndSettle();
+        final input = find.descendant(
+          of: find.byType(GfChatInput),
+          matching: find.byType(TextField),
+        );
+        await tester.enterText(input, 'first reply');
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('chat-send')));
+        await tester.pump();
+        if (replaceQuote) {
+          await openActions(tester, find.text('消息 2'));
+          await tester.tap(find.text('Reply'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byTooltip('Cancel reply'));
+        } else {
+          await tester.enterText(input, 'new unrelated draft');
+        }
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(_preview, findsNothing);
+        repository.result.completeError(StateError('offline'));
+        await tester.pumpAndSettle();
+        final quoteCount = _preview.evaluate().length;
+        final text = tester.widget<TextField>(input).controller!.text;
+        await dispose(tester);
+        expect(text, replaceQuote ? 'first reply' : 'new unrelated draft');
+        expect(
+          quoteCount,
+          0,
+          reason: 'old failure cannot restore a stale quote',
+        );
+      },
+    );
+  }
+
+  for (final chooseNewerQuote in [false, true]) {
+    testWidgets(
+      chooseNewerQuote
+          ? 'successful bubble retry preserves a newer quote'
+          : 'successful bubble retry clears its restored quote',
+      (tester) async {
+        final repository = await pumpActions(
+          tester,
+          repositoryBuilder: (client) => RecordingSendsChatRepository(
+            client,
+            messages: [makeChatMessage(1), makeChatMessage(2)],
+          )..failures = 1,
+        );
+        await openActions(tester, find.text('消息 1'));
+        await tester.tap(find.text('Reply'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.descendant(
+            of: find.byType(GfChatInput),
+            matching: find.byType(TextField),
+          ),
+          'reply body',
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('chat-send')));
+        await tester.pumpAndSettle();
+        expect(_preview, findsOneWidget);
+        if (chooseNewerQuote) {
+          await openActions(tester, find.text('消息 2'));
+          await tester.tap(find.text('Reply'));
+          await tester.pumpAndSettle();
+        }
+        await tester.tap(find.text('Retry sending'));
+        await tester.pumpAndSettle();
+        expect(repository.sent, [
+          (2, '> @bob: 消息 1\n\nreply body'),
+          (2, '> @bob: 消息 1\n\nreply body'),
+        ]);
+        final quoteCount = _preview.evaluate().length;
+        if (chooseNewerQuote) {
+          expect(
+            find.descendant(of: _preview, matching: find.text('消息 2')),
+            findsOneWidget,
+          );
+        }
+        await dispose(tester);
+        expect(
+          quoteCount,
+          chooseNewerQuote ? 1 : 0,
+          reason: 'an acknowledged retry must release only its own quote',
+        );
+      },
+    );
+  }
+
   testWidgets('barrier and system back dismiss the menu without a reply', (
     tester,
   ) async {
@@ -570,6 +688,42 @@ void main() {
       await openActions(tester, find.byType(StickerImage));
       expect(find.text('Reply'), findsOneWidget);
       expect(find.text('Report message'), findsOneWidget);
+      expect(find.text('Save to my stickers'), findsOneWidget);
+      await tester.tap(find.text('Save to my stickers'));
+      await tester.pumpAndSettle();
+      expect(repository.saved, ['smile']);
+    } finally {
+      debugNetworkImageHttpClientProvider = null;
+    }
+    await dispose(tester);
+  });
+
+  testWidgets('outbox stickers retain their collection action', (tester) async {
+    debugNetworkImageHttpClientProvider = () => _ImageHttpClient();
+    final repository = _StickerRepository();
+    final library = StickerLibrary(repository);
+    addTearDown(library.dispose);
+    final collection = StickerCollection(repository, library);
+    try {
+      await pumpActions(
+        tester,
+        stickers: library,
+        stickerCollection: collection,
+      );
+      await tester.enterText(find.byType(TextField), '[:sticker:smile:]');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chat-send')));
+      await tester.pumpAndSettle();
+      final pending = find.byWidgetPredicate(
+        (widget) =>
+            widget.key is ValueKey<String> &&
+            (widget.key! as ValueKey<String>).value.startsWith('pending-'),
+      );
+      expect(pending, findsOneWidget);
+      await openActions(
+        tester,
+        find.descendant(of: pending, matching: find.byType(StickerImage)),
+      );
       expect(find.text('Save to my stickers'), findsOneWidget);
       await tester.tap(find.text('Save to my stickers'));
       await tester.pumpAndSettle();

@@ -101,8 +101,9 @@ pumpChat(
   List<ChatMessagePayload>? older,
   StickerLibrary? stickers,
   StickerCollection? stickerCollection,
-  VisibleChatRepository Function(GfApiClient client)? buildRepository,
   List<Override> overrides = const <Override>[],
+  int? targetUserId = 2,
+  VisibleChatRepository Function(GfApiClient client)? repository,
 }) async {
   await tester.binding.setSurfaceSize(const Size(390, 700));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -113,7 +114,7 @@ pumpChat(
     baseUrl: 'http://fake.local',
   );
   final repo =
-      buildRepository?.call(client) ??
+      repository?.call(client) ??
       VisibleChatRepository(
         client,
         hasMoreBefore: older != null,
@@ -121,7 +122,7 @@ pumpChat(
             messages ??
             List.generate(40, (index) => makeChatMessage(index + 1)),
       );
-  if (buildRepository == null) repo.olderMessages = older ?? [];
+  if (repository == null) repo.olderMessages = older ?? [];
   final container = ProviderContainer(
     overrides: [
       tokenStorageProvider.overrideWithValue(storage),
@@ -144,8 +145,10 @@ pumpChat(
   addTearDown(active.dispose);
   Widget page() => ValueListenableBuilder<bool>(
     valueListenable: active,
-    builder: (_, value, _) =>
-        TickerMode(enabled: value, child: const MessagesPage(targetUserId: 2)),
+    builder: (_, value, _) => TickerMode(
+      enabled: value,
+      child: MessagesPage(targetUserId: targetUserId),
+    ),
   );
   await tester.pumpWidget(
     UncontrolledProviderScope(
