@@ -178,6 +178,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authSignInMethods => '其他登录方式';
 
   @override
+  String get authMoreSignInMethods => '更多登录方式';
+
+  @override
   String get authLoginSubtitle => '欢迎回来，继续你的讨论和创作。';
 
   @override

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -15,7 +14,6 @@ import 'package:core/core.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../app_config.dart';
 import '../../apple/apple_sign_in.dart';
-import '../../apple/apple_sign_in_button.dart';
 import '../../navigation/auth_navigation.dart';
 import '../../providers.dart';
 import '../../server_messages.dart';
@@ -26,6 +24,7 @@ import 'auth_ime_stabilizer.dart';
 import 'android_oidc_callback_source.dart';
 import 'android_oidc_coordinator.dart';
 import 'login_captcha_handoff.dart';
+import 'sign_in_methods_sheet.dart';
 
 /// 登录页模式。
 enum _AuthMode { login, register, forgotPassword }
@@ -100,6 +99,9 @@ class _LoginPageState extends ConsumerState<LoginPage>
   bool _agreed = false;
   _AuthMode _mode = _AuthMode.login;
   bool _oidcBusy = false;
+  // Restores focus to the "more sign-in methods" control after its sheet
+  // closes without a choice.
+  final FocusNode _moreMethodsFocusNode = FocusNode();
   bool _finishingAuthentication = false;
   bool _passwordInteractionStarted = false;
   // 明文显示是逐字段的显式用户选择,默认保持遮蔽。
@@ -268,6 +270,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     _passwordFocusNode.dispose();
     _confirmPasswordFocusNode.dispose();
     _captchaFocusNode.dispose();
+    _moreMethodsFocusNode.dispose();
     _confirmPassword.dispose();
     _username.dispose();
     _password.dispose();
@@ -892,7 +895,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               // Keep navigation outside the form's scroll/hit-test area, even
               // when an error, large text or the keyboard makes the form tall.
               SizedBox(
-                height: 52,
+                height: 48,
                 child: Stack(
                   children: <Widget>[
                     Positioned(
@@ -931,23 +934,37 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 ),
               ),
               Expanded(
-                child: Center(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: GfCard(
-                        showDivider: false,
-                        padding: const EdgeInsets.fromLTRB(4, 16, 4, 24),
-                        child: ListenableBuilder(
-                          listenable: _authController,
-                          builder: (BuildContext context, Widget? child) {
-                            return _buildCardContent(context, l10n, colors);
-                          },
+                child: LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints constraints) {
+                    // A short form area - a small phone, or the keyboard
+                    // covering it - drops the decorative header so the form
+                    // and its sign-in methods stay reachable (issue #888).
+                    final bool compactHeader =
+                        constraints.maxHeight < _compactHeaderHeight;
+                    return Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: GfCard(
+                            showDivider: false,
+                            padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),
+                            child: ListenableBuilder(
+                              listenable: _authController,
+                              builder: (BuildContext context, Widget? child) {
+                                return _buildCardContent(
+                                  context,
+                                  l10n,
+                                  colors,
+                                  compactHeader: compactHeader,
+                                );
+                              },
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -957,11 +974,15 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
+  /// Form areas shorter than this drop the brand lockup and subtitle.
+  static const double _compactHeaderHeight = 700;
+
   Widget _buildCardContent(
     BuildContext context,
     AppLocalizations l10n,
-    GfColors colors,
-  ) {
+    GfColors colors, {
+    required bool compactHeader,
+  }) {
     final bool showCaptcha =
         _authController.phase == LoginPhase.needsCaptcha ||
         (_mode == _AuthMode.login && _loginCaptchaRevealed);
@@ -982,33 +1003,41 @@ class _LoginPageState extends ConsumerState<LoginPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Image.asset(
-              Theme.of(context).brightness == Brightness.dark
-                  ? 'assets/images/brand-default-dark.webp'
-                  : 'assets/images/brand-default.webp',
-              width: 176,
-              height: 40,
-              fit: BoxFit.contain,
-              semanticLabel: 'YourTJ',
+          // A short form area drops the decorative brand lockup and subtitle
+          // so the form and every sign-in method stay visible without scrolling.
+          if (!compactHeader) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Image.asset(
+                Theme.of(context).brightness == Brightness.dark
+                    ? 'assets/images/brand-default-dark.webp'
+                    : 'assets/images/brand-default.webp',
+                width: 176,
+                height: 32,
+                fit: BoxFit.contain,
+                semanticLabel: 'YourTJ',
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 12),
+          ],
           Text(
             _title(l10n),
-            style: GfTheme.typographyOf(context).display.copyWith(fontSize: 27),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            _mode == _AuthMode.login && _returnTo != null && _returnTo != '/'
-                ? l10n.authContinueAfterLogin
-                : _subtitle(l10n),
             style: GfTheme.typographyOf(
               context,
-            ).small.copyWith(color: colors.baseContent.withValues(alpha: 0.55)),
+            ).display.copyWith(fontSize: 27, height: 1.15),
           ),
-          const SizedBox(height: 22),
+          if (!compactHeader) ...[
+            const SizedBox(height: 4),
+            Text(
+              _mode == _AuthMode.login && _returnTo != null && _returnTo != '/'
+                  ? l10n.authContinueAfterLogin
+                  : _subtitle(l10n),
+              style: GfTheme.typographyOf(context).small.copyWith(
+                color: colors.baseContent.withValues(alpha: 0.55),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
           if (_mode != _AuthMode.forgotPassword) ...<Widget>[
             GfSegmented<_AuthMode>(
               segments: <(String, _AuthMode)>[
@@ -1018,7 +1047,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               selected: _mode,
               onSelected: _switchMode,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
           ],
           if (_mode != _AuthMode.forgotPassword) ...<Widget>[
             _withAuthFocusIntent(
@@ -1049,7 +1078,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 prefixIcon: const GfSymbol('user-round', size: 20),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
           ],
           if (_mode != _AuthMode.login) ...<Widget>[
             _withAuthInputRegion(
@@ -1284,7 +1313,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                   : _authController.error,
             ),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           GfButton(
             label: _submitLabel(l10n),
             variant: GfButtonVariant.primary,
@@ -1305,7 +1334,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 ? null
                 : _submit,
           ),
-          if (_mode != _AuthMode.forgotPassword) _buildSsoOptions(l10n),
+          if (_mode != _AuthMode.forgotPassword) _buildSignInMethods(l10n),
           if (_mode == _AuthMode.login && _registrationError != null)
             TextButton(
               onPressed: _loadRegistration,
@@ -1325,94 +1354,69 @@ class _LoginPageState extends ConsumerState<LoginPage>
     );
   }
 
-  Widget _buildSsoOptions(AppLocalizations l10n) {
-    final options = _registration;
+  /// The secondary providers stay folded so the common phone viewport shows
+  /// the whole form without scrolling (issue #888).
+  Widget _buildSignInMethods(AppLocalizations l10n) {
+    final LoginPageProps? options = _registration;
     if (options == null) return const SizedBox.shrink();
-    final providers = [
-      if (options.tongjiReady) 'tongji',
-      if (_mode == _AuthMode.login && options.googleReady) 'google',
-      if (_mode == _AuthMode.login && options.githubUrl.isNotEmpty) 'github',
-    ];
-    final showApple =
-        _mode == _AuthMode.login &&
-        options.appleReady &&
-        supportsNativeAppleSignIn;
-    if (providers.isEmpty && !showApple) return const SizedBox.shrink();
+    final List<SignInMethod> methods = availableSignInMethods(
+      options,
+      loginMode: _mode == _AuthMode.login,
+    );
+    if (methods.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 20),
-        Text(
-          l10n.authSignInMethods,
-          style: Theme.of(context).textTheme.labelLarge,
+      children: <Widget>[
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          key: const Key('login-more-methods'),
+          focusNode: _moreMethodsFocusNode,
+          icon: const GfSymbol('chevron-down', size: 22),
+          label: Text(l10n.authMoreSignInMethods, textAlign: TextAlign.center),
+          onPressed:
+              _authController.busy || _oidcBusy || _finishingAuthentication
+              ? null
+              : () => _showSignInMethods(methods, options),
         ),
-        const SizedBox(height: 8),
-        if (showApple) ...[
-          AppleSignInButton(
-            onPressed:
-                _authController.busy || _oidcBusy || _finishingAuthentication
-                ? null
-                : _loginApple,
-          ),
-          const SizedBox(height: 8),
-        ],
-        for (final provider in providers) ...[
-          OutlinedButton.icon(
-            icon: provider == 'tongji'
-                ? SvgPicture.asset(
-                    'assets/images/tongji-university.svg',
-                    width: 32,
-                    height: 32,
-                    excludeFromSemantics: true,
-                    colorFilter: Theme.of(context).brightness == Brightness.dark
-                        ? ColorFilter.mode(
-                            GfTheme.colorsOf(context).info,
-                            BlendMode.srcIn,
-                          )
-                        : null,
-                  )
-                : GfSymbol(provider, size: 22),
-            label: Text(switch (provider) {
-              'tongji' => l10n.loginTongji,
-              'google' => l10n.loginGoogle,
-              _ => l10n.loginGithub,
-            }, textAlign: TextAlign.center),
-            onPressed:
-                _authController.busy || _oidcBusy || _finishingAuthentication
-                ? null
-                : () => _loginOidc(provider),
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (options.tongjiReady) ...[
-          Text(
-            l10n.loginTongjiHint,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          if (options.termsOfServiceEnabled ||
-              options.privacyPolicyEnabled) ...[
-            const SizedBox(height: 8),
-            Text(
-              l10n.loginTongjiPolicies,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            Wrap(
-              children: [
-                if (options.termsOfServiceEnabled)
-                  TextButton(
-                    onPressed: () => context.push('/terms'),
-                    child: Text(l10n.siteInfoTerms),
-                  ),
-                if (options.privacyPolicyEnabled)
-                  TextButton(
-                    onPressed: () => context.push('/privacy'),
-                    child: Text(l10n.siteInfoPrivacy),
-                  ),
-              ],
-            ),
-          ],
-        ],
       ],
+    );
+  }
+
+  /// Dismisses the form keyboard, then owns the chosen flow here so busy state
+  /// and provider errors stay on the page rather than in a closed sheet.
+  Future<void> _showSignInMethods(
+    List<SignInMethod> methods,
+    LoginPageProps options,
+  ) async {
+    _authIme.cancel();
+    _captchaHandoff.cancel();
+    FocusScope.of(context).unfocus();
+    final SignInMethod? method = await showGfBottomSheet<SignInMethod>(
+      context,
+      builder: (_) => SignInMethodsSheet(
+        methods: methods,
+        termsOfServiceEnabled: options.termsOfServiceEnabled,
+        privacyPolicyEnabled: options.privacyPolicyEnabled,
+      ),
+    );
+    if (!mounted) return;
+    if (method == null) {
+      _restoreMoreMethodsFocus();
+    } else if (method == SignInMethod.apple) {
+      await _loginApple();
+    } else {
+      await _loginOidc(method.name);
+    }
+  }
+
+  /// A dismissed sheet hands focus back to its control. A chosen provider
+  /// starts its own flow instead, so the control must not take focus back.
+  void _restoreMoreMethodsFocus() {
+    final Duration exit = GfMotion.duration(context, GfMotion.layout);
+    unawaited(
+      Future<void>.delayed(exit, () {
+        if (mounted) _moreMethodsFocusNode.requestFocus();
+      }),
     );
   }
 

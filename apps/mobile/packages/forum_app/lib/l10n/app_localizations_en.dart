@@ -184,6 +184,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authSignInMethods => 'Other sign-in options';
 
   @override
+  String get authMoreSignInMethods => 'More sign-in options';
+
+  @override
   String get authLoginSubtitle =>
       'Welcome back. Continue your discussions and writing.';
 

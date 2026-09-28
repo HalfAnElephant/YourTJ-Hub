@@ -180,6 +180,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get authSignInMethods => 'その他のログイン方法';
 
   @override
+  String get authMoreSignInMethods => 'ログイン方法をさらに表示';
+
+  @override
   String get authLoginSubtitle => 'おかえりなさい。議論と投稿を続けましょう。';
 
   @override
