@@ -232,6 +232,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authGetCode => '获取验证码';
 
   @override
+  String get authRefreshCaptcha => '刷新验证码';
+
+  @override
   String get authOidcLogin => '使用 yourtj 统一登录';
 
   @override

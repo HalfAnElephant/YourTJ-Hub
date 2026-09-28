@@ -241,6 +241,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authGetCode => 'Get code';
 
   @override
+  String get authRefreshCaptcha => 'Refresh captcha';
+
+  @override
   String get authOidcLogin => 'Sign in with yourtj';
 
   @override

@@ -76,6 +76,7 @@
   "authTwoFactorCode": "TOTP-Code",
   "authVerify": "Überprüfen",
   "authGetCode": "Code anfordern",
+  "authRefreshCaptcha": "Captcha erneuern",
   "authOidcLogin": "Mit YourTJ anmelden",
   "authRegisterSuccess": "Registrierung erfolgreich. Bitte anmelden.",
   "authResetEmailSent": "E-Mail zum Zurücksetzen gesendet. Bitte prüfe deinen Posteingang.",

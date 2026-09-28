@@ -234,6 +234,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get authGetCode => 'コードを取得';
 
   @override
+  String get authRefreshCaptcha => '認証コードを更新';
+
+  @override
   String get authOidcLogin => 'YourTJでログイン';
 
   @override

@@ -105,6 +105,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
   bool _captchaRevealFrameScheduled = false;
   bool _captchaFocusEligible = false;
   bool _suppressPasswordTapOutside = false;
+  bool _captchaRefreshing = false;
   Future<void>? _captchaLoadFuture;
   final Stopwatch _authImeClock = Stopwatch()..start();
   late final AuthImeStabilizer<FocusNode> _authIme;
@@ -448,6 +449,69 @@ class _LoginPageState extends ConsumerState<LoginPage>
         silentOnError: false,
         force: true,
       ).then((_) => _captchaHandoff.captchaEligibilityChanged()),
+    );
+  }
+
+  /// 手动刷新验证码:清空已输入的旧验证码并请求新的一张。
+  ///
+  /// 请求在途时忽略重复点击(与预取共享同一次请求);刷新失败时保留旧图,
+  /// 由错误条提示,用户可再次点击重试。
+  void _refreshCaptcha() {
+    if (_captchaRefreshing) return;
+    _captcha.clear();
+    setState(() => _captchaRefreshing = true);
+    unawaited(
+      _loadCaptchaIfNeeded(
+        preservePhaseOnError: true,
+        silentOnError: false,
+        force: true,
+      ).then((_) => _captchaHandoff.captchaEligibilityChanged()).whenComplete(
+        () {
+          if (mounted) setState(() => _captchaRefreshing = false);
+        },
+      ),
+    );
+  }
+
+  /// 可点击刷新的验证码图。
+  ///
+  /// 点击请求新一张并清空旧输入;在途时显示进度并忽略再次点击。图片属于
+  /// 输入组,点刷新不会触发 TapRegion 的 onTapOutside 收起键盘。
+  Widget _buildCaptchaChallenge(CaptchaPayload captcha, AppLocalizations l10n) {
+    final GfColors colors = GfTheme.colorsOf(context);
+    final Widget image = ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: GfCaptchaImage(imageData: captcha.captchaImg),
+    );
+    return TapRegion(
+      groupId: _authInputGroup,
+      child: MergeSemantics(
+        child: Semantics(
+          label: l10n.authRefreshCaptcha,
+          button: true,
+          enabled: !_captchaRefreshing,
+          child: InkWell(
+            key: const Key('login-captcha-refresh'),
+            onTap: _captchaRefreshing ? null : _refreshCaptcha,
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(
+              alignment: Alignment.center,
+              children: <Widget>[
+                image,
+                if (_captchaRefreshing)
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: colors.base100.withValues(alpha: 0.55),
+                      child: const Center(
+                        child: GfProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1079,10 +1143,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
               child: captcha != null
                   ? LayoutBuilder(
                       builder: (context, constraints) {
-                        final image = ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: GfCaptchaImage(imageData: captcha.captchaImg),
-                        );
+                        final image = _buildCaptchaChallenge(captcha, l10n);
                         // Leave room for a complete code at the user's text size.
                         final inputWidth = MediaQuery.textScalerOf(
                           context,

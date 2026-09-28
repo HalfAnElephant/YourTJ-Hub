@@ -76,6 +76,7 @@
   "authTwoFactorCode": "TOTPコード",
   "authVerify": "確認",
   "authGetCode": "コードを取得",
+  "authRefreshCaptcha": "認証コードを更新",
   "authOidcLogin": "YourTJでログイン",
   "authRegisterSuccess": "登録しました。ログインしてください",
   "authResetEmailSent": "再設定メールを送信しました。受信箱をご確認ください",

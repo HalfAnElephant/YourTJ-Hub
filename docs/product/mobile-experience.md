@@ -650,7 +650,11 @@ identity survive this layout change. The header keeps a small outer margin for i
   the first password focus/input warms the challenge. Blank taps and keyboard dismissal reveal it
   without reopening the keyboard. Only the password keyboard Next action moves focus automatically
   into the captcha; explicit field taps keep their target. Registration Next advances one field at a time. That reveal is latched through transient Android
-  focus rebounds, and a prefetch failure stays silent until the visible retry path is used. On
+  focus rebounds, and a prefetch failure stays silent until the visible retry path is used.
+  The captcha image itself is the Web-equivalent refresh control: a tap requests a fresh challenge,
+  clears the previously typed code, keeps an already-focused captcha field and its keyboard, and
+  covers the image with a progress state; repeated taps during the request are ignored. A failed
+  refresh keeps the old image and reports a retryable error instead of a blank frame. On
   Android, auth-field pointer-down or keyboard Next creates a short-lived target token; if the secure keyboard
   reclaims the password focus during that token's settling window, the app makes at most two
   bounded attempts to return focus to the explicitly tapped field and then stops. A focused field
