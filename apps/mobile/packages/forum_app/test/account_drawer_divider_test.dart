@@ -80,6 +80,11 @@ void _expectSectionDivider(
     lessThan(settingsRect.top),
     reason: 'divider ends above the ${l10n.settingsTitle} entry',
   );
+  expect(
+    rect.height,
+    1,
+    reason: 'the hairline is actually visible; zero height would hide it',
+  );
   final widget = tester.widget<GfDivider>(divider);
   expect(widget.inset, 24);
   expect(
