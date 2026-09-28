@@ -114,6 +114,8 @@ class _LoginPageState extends ConsumerState<LoginPage>
   String _cacheError = '';
   // 缓存清理失败后禁止返回旧 shell(其内存态可能含上一账号数据)。
   bool _authBlocked = false;
+  // 本次登录流程是否已推进会话世代(入口存在旧会话,或认证成功)。
+  bool _sessionBoundaryAdvanced = false;
 
   late final AuthController _authController;
   late final GfApiClient _authClient;
@@ -177,21 +179,37 @@ class _LoginPageState extends ConsumerState<LoginPage>
     _passwordFocusNode.addListener(_onPasswordFocusChanged);
     _captchaFocusNode.addListener(_onCaptchaFocusChanged);
 
-    // 进入登录页即进入新会话边界:先使旧会话在途写入失效,再清空缓存。
-    // 两者都延迟到首帧后执行(避免在 widget 构建期修改 provider),且
-    // 世代失效必须先于清库,保证不变量:
+    // 进入登录页时,若仍持有旧会话(登出/401 竞态),先使旧会话在途写入
+    // 失效,再清空缓存。两者都延迟到首帧后执行(避免在 widget 构建期修改
+    // provider),且世代失效必须先于清库,保证不变量:
     //   - 失效前提交的旧会话写入会被随后的清库清掉;
     //   - 失效后提交的写入会被世代守卫拦截。
+    // 游客打开登录页不是账号切换:取消后必须回到原页面继续浏览,因此不能
+    // 推进世代——下方仍存活的页面(如话题详情)会因世代失配而永久置空。
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(offlineCacheEpochProvider.notifier).invalidate();
-      // 进入登录页即会话边界:使缓存的当前用户身份失效(旧账号 id 不再
-      // 被后续新 shell 读取)。
+      // 使缓存的当前用户身份失效(旧账号 id 不再被后续新 shell 读取)。
       ref.invalidate(currentUserProvider);
-      _cacheClearFuture = _clearOfflineCacheOnce();
+      unawaited(_beginLoginSessionBoundary());
       _loadRegistration();
       _authIme.metricsChanged();
     });
+  }
+
+  /// 进入登录页的会话边界:只在旧会话仍存在时推进世代(生成新的账号边界)。
+  /// 游客入口不推进;若之后认证成功,[_finishAuthentication] 会补上这次账号
+  /// 切换的边界。缓存清理仍按原语义在入口执行,且晚于世代推进。
+  Future<void> _beginLoginSessionBoundary() async {
+    final bool hasSession = await hasSessionToken(
+      ref.read(tokenStorageProvider),
+    );
+    if (!mounted) return;
+    if (hasSession && !_sessionBoundaryAdvanced) {
+      _sessionBoundaryAdvanced = true;
+      ref.read(offlineCacheEpochProvider.notifier).invalidate();
+    }
+    // 认证提交若已抢先启动清库,复用它而不是替换。
+    _cacheClearFuture ??= _clearOfflineCacheOnce();
   }
 
   /// 执行一次离线缓存清理;成功返回 true,失败返回 false(不抛出)。
@@ -606,6 +624,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
     if (!mounted || _finishingAuthentication) return;
     setState(() => _finishingAuthentication = true);
     try {
+      // 游客进入登录页没有推进会话世代,认证成功才是账号切换:先补上
+      // 边界,再确保缓存已清空,最后才提交新令牌。游客会话只写公开数据,
+      // 入口清库之后没有再落盘账号私有数据,因此这里无需重复清库。
+      if (!_sessionBoundaryAdvanced) {
+        _sessionBoundaryAdvanced = true;
+        ref.read(offlineCacheEpochProvider.notifier).invalidate();
+      }
       if (!await _ensureCacheCleared()) {
         await _authTokenStorage.clear();
         if (!mounted) return;
