@@ -408,6 +408,12 @@ abstract class AppLocalizations {
   /// **'Other sign-in options'**
   String get authSignInMethods;
 
+  /// No description provided for @authMoreSignInMethods.
+  ///
+  /// In en, this message translates to:
+  /// **'More sign-in options'**
+  String get authMoreSignInMethods;
+
   /// No description provided for @authLoginSubtitle.
   ///
   /// In en, this message translates to:
@@ -462,6 +468,18 @@ abstract class AppLocalizations {
   /// **'Confirm password'**
   String get authConfirmPassword;
 
+  /// No description provided for @authShowPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get authShowPassword;
+
+  /// No description provided for @authHidePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get authHidePassword;
+
   /// No description provided for @authCaptcha.
   ///
   /// In en, this message translates to:
@@ -515,6 +533,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Get code'**
   String get authGetCode;
+
+  /// No description provided for @authRefreshCaptcha.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh captcha'**
+  String get authRefreshCaptcha;
+
+  /// No description provided for @authCaptchaRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter the captcha'**
+  String get authCaptchaRequired;
 
   /// No description provided for @authOidcLogin.
   ///

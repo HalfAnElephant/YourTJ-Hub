@@ -184,6 +184,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authSignInMethods => 'Other sign-in options';
 
   @override
+  String get authMoreSignInMethods => 'More sign-in options';
+
+  @override
   String get authLoginSubtitle =>
       'Welcome back. Continue your discussions and writing.';
 
@@ -214,6 +217,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authConfirmPassword => 'Confirm password';
 
   @override
+  String get authShowPassword => 'Show password';
+
+  @override
+  String get authHidePassword => 'Hide password';
+
+  @override
   String get authCaptcha => 'Captcha';
 
   @override
@@ -239,6 +248,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get authGetCode => 'Get code';
+
+  @override
+  String get authRefreshCaptcha => 'Refresh captcha';
+
+  @override
+  String get authCaptchaRequired => 'Please enter the captcha';
 
   @override
   String get authOidcLogin => 'Sign in with yourtj';

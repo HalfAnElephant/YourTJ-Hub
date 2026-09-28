@@ -6,7 +6,7 @@
 >
 > Owner: Platform maintainers
 >
-> Last verified: 2026-09-26
+> Last verified: 2026-09-28
 
 The Flutter app combines the forum, course catalog, scheduler and Wiki. Ordinary browsing and
 writing use native pages. Management uses the same first-party workspaces and permission checks as
@@ -27,8 +27,11 @@ animation yields to the interactive app within 1.2 seconds and is skipped for re
 Session and Home requests run beneath the launch surface. Home mounts its base sort tabs before
 server navigation arrives, then fills the existing skeleton. Initial cached/network rows prefetch
 at most four author avatars with a 240-millisecond ceiling using the same image keys as the visible
-avatars. Request and account guards still apply after prefetching. Startup system-bar styling is
-local to the launch surface; the normal route-aware fallback resumes when the launch surface leaves.
+avatars. Avatar decode sizes snap to a ladder (24/40/48/64/96 logical pixels; larger avatars round up
+to the next 16-pixel step), so the same author rendered at nearby sizes — feed card, detail header,
+reply row — reuses one in-memory image entry per URL instead of downloading and decoding it again on
+each page switch. Request and account guards still apply after prefetching. Startup system-bar styling is local to the launch surface; the normal
+route-aware fallback resumes when the launch surface leaves.
 
 ## Navigation and reading
 
@@ -124,9 +127,20 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   focus; selecting a thumbnail changes the image and resets zoom and actual-size mode. Distant
   selections jump directly; adjacent selections use the shared media cadence. Tapping
   toggles the viewer controls and rail together; a vertical drag dismisses at minimum scale, moving
-  and scaling the image while the background fades. Paging and dismiss gestures stay out of the way
-  while an image is zoomed. Changing reduced motion while viewing keeps the current image and
-  settles active zoom or return animations. Home feed previews use the same viewer and image actions.
+  and scaling the image while the background fades. At minimum scale, horizontal paging uses the
+  image page view's horizontal drag recognizer and cumulative pointer displacement after device
+  touch slop; velocity is reserved for release physics, so a quick new swipe can interrupt the
+  previous page settle immediately. Vertical dismissal starts only after at least 1.5 touch-slops
+  of travel with 1.5:1 vertical-to-horizontal dominance. A later, clearly horizontal movement can
+  hand a provisional dismiss drag back to paging. A new touch can interrupt a slide-return animation; clear
+  horizontal intent returns any partial vertical offset to rest and pages immediately. Dismissal
+  accepts a light drag (one tenth of the viewport height) or a quick vertical flick (420 logical
+  pixels per second) on release. A cancelled drag or a second finger joining the gesture returns
+  the image to rest without dismissing the viewer, even beyond that distance threshold. Zoomed
+  images keep gestures for image navigation and panning.
+  Paging and dismiss gestures stay out of the way while an image is zoomed. Changing reduced motion
+  while viewing keeps the current image and settles active zoom or return animations. Home feed
+  previews use the same viewer and image actions.
 - `Current`: Home topic cards expose compact authenticated like and bookmark shortcuts beside the
   reply/view metrics. A single heart action includes the topic's total like count; both actions
   retain a minimum 44-by-44 logical-pixel touch target while their icons animate. Actions switch
@@ -146,6 +160,11 @@ ordered after the active route in the accessibility tree so iOS does not hide it
 - `Current`: Home displays categories in a horizontal row below the feed sorts. Category pills
   filter the existing stream in place, with a highlighted selection and an All categories action.
   The display menu contains list/card preferences; unavailable categories take no space.
+- `Current`: Home sort, Campus section and notification filter rails share a scrollable tab bar.
+  The page-swipe recognizer feeds the shared tab controller's live drag offset, so the selected
+  underline follows a held slow swipe and stretches evenly toward the adjacent tab. After release,
+  the extended segment contracts with a logarithmic ease-out curve. Profile stream tabs use the same
+  drag progress; the bar reveals selected tabs outside its viewport and honors reduced-motion settings.
 - `Current`: root headers, filter rails and bottom navigation overlay the reading viewport. They
   hide after 48 logical pixels downward and return after 12 pixels upward, with 220 ms transitions.
   Hidden headers are clipped at the system safe-area edge; the reading viewport stays stable.
@@ -167,6 +186,15 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   shortcuts, reply links, and earlier/later pagination navigate the actual reply stream. Returning
   to the first post from a middle window reloads that window before offering refresh; stale
   pagination responses are discarded after a floor or session change.
+- `Current`: a submitted reply is acknowledged with a full window around its new floor, and the
+  created reply itself is scrolled into view. When that window adjoins the loaded floors the reply
+  is merged by server ID: loaded replies stay, the earlier cursor keeps the loaded window's top
+  while the later one extends to the new window's tail, and no floor is duplicated. A distant new
+  floor replaces the window (web `revealCreatedPost` merges more permissively; a linear cursor pair
+  cannot represent the gap) and still reveals the reply. A reply held for review is filtered out of
+  every window for non-moderators, so the app keeps the loaded floors and cursors instead of
+  clearing them; the reply appears once approved. Deep-link windows — such as a notification
+  pointing at one reply — keep both continuation controls on the anchored floors.
 - `Current`: replies offer a compact sort capsule beside the reply count — oldest first, newest
   first, author only. Oldest and newest flip the loaded window locally without refetching; in
   newest-first order the list footer loads earlier floors and the top control loads newer ones.
@@ -234,8 +262,12 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   Unresolved new-peer rows remain visible but cannot open until the server conversation list succeeds;
   a resolved existing conversation still waits for its initial history before enabling send.
   Input remains editable during sending. A successful acknowledgement clears only the submitted
-  revision, while newer input and failed sends remain available. Retrying the unchanged failed draft
-  reuses its outbox bubble. Saving debounces for 500 ms and flushes on leaving or app inactivity;
+  revision, while newer input and failed sends remain available. A failed send rehydrates the
+  submitted composer snapshot (text, sticker tokens, newlines and caret) under its submitted revision
+  unless the user kept typing (whitespace included) while the request was in flight, or a newer
+  message was already acknowledged; the restored draft therefore still clears on acknowledgement and
+  a re-send reuses its outbox bubble and client message ID instead of delivering the content twice.
+  Saving debounces for 500 ms and flushes on leaving or app inactivity;
   failures keep the current text in session memory with visible retry. No message is sent by autosave.
   Signing out hides drafts and invalidates pending saves; the same account/site can restore them on
   its next session; accepting a same-site login recreates the draft registry for the new identity.
@@ -270,8 +302,11 @@ ordered after the active route in the accessibility tree so iOS does not hide it
   selection and leaves the caret after insertion. Replacing the draft with text that has no valid
   selection resets insertion to the end. Opening it dismisses the software keyboard and keeps focus
   inside the composer for hardware shortcuts; the keyboard control restores
-  focus. Its bounded scrollable grid has touch-sized controls, localized labels and system-back/Escape
-  dismissal. Mobile return inserts a newline; hardware Ctrl/Cmd+Enter sends. Disabling the composer
+  focus. The accessory only moves focus and bounds the input's rendered height; the field stays
+  multiline, so mobile return keeps inserting newlines with the panel open, after a sticker is
+  inserted and after one is deleted, without leaving the page. Its bounded scrollable grid has
+  touch-sized controls, localized labels and system-back/Escape
+  dismissal. Hardware Ctrl/Cmd+Enter sends. Disabling the composer
   also disables emoji edits. Platform IME transitions still require physical-device verification.
 - `Current`: the private-conversation header avatar and each incoming message avatar open the peer's
   profile (`/u/{peerId}`). Both keep their 36/32-pixel artwork and its top-left anchor and reserve a
@@ -393,8 +428,12 @@ validation; simulator/debug execution does not establish production frame-rate g
   share one bottom dock. The AppBar shows a generic topic label until the body title scrolls out of
   view, then shows that title. Actions use Web's semantic tints and localized accessible labels;
   the like action includes its count. The reply heading has no decorative discussion icon.
-  Topic subscriptions use topic-specific labels; reply commands have no toggle semantics. The dock switches to an accessible icon-only reply action when
-  its label cannot fit, including long translations and enlarged text. SVG icons inherit their enclosing button foreground
+  Topic subscriptions use topic-specific labels; reply commands have no toggle semantics. The dock
+  keeps the floor number at its natural width and switches to an accessible icon-only reply action
+  when that action's label cannot fit, including long translations and enlarged text, reserving no
+  room for that action when a locked topic or restricted category omits it; the number itself only
+  ellipsizes when it no longer fits beside the dock's remaining controls. SVG icons inherit their
+  enclosing button foreground
   unless a semantic or provider color is explicitly set. Comment timestamps occupy a separate line;
   their action strip uses the full body width and starts at its leading edge. Actions retain 44-pixel
   targets, 20-pixel glyphs and aligned counts, wrapping together when enlarged text needs space.
@@ -652,9 +691,22 @@ identity survive this layout change. The header keeps a small outer margin for i
   reading page and shows a localized error. Encoded page/file paths, query strings and fragments are
   preserved, while page-local anchors continue scrolling inside the document.
 - `Current`: sign-in offers account/password, Google, GitHub and Tongji when the published options
-  allow it, grouped below the password form. Unconfigured providers are hidden. Native credential
+  allow it. The provider buttons stay folded behind one labeled control below the password form; it
+  opens a short draggable bottom sheet that lists every published provider with the same icon, label
+  and native flow as before. The login tab shows the complete card without scrolling on a 390-by-844
+  phone with safe-area insets in all four languages, including the password captcha once it is
+  revealed. A short form area, such as a small phone or the space left by the keyboard, drops the
+  brand lockup and subtitle so the form and its sign-in methods fit instead. The register tab still
+  scrolls: before any captcha challenge its control row sits just below the fold (measured at 390 by
+  844: 39 px in English, 54 px in German, 5 px in Chinese and Japanese). The Tongji notice and its
+  policy links live with the Tongji entry, and unconfigured providers stay hidden. Opening moves
+  focus into the sheet; dismissing it by barrier, drag, back or Escape returns focus to the control,
+  while choosing a provider closes the sheet and starts that flow on the page. Native credential
   fields expose username/password/new-password autofill, email and one-time-code hints and explicit
   keyboard actions; password-manager saving is requested only after accepting the native session.
+  Password fields stay obscured by default and each carries a state-labelled reveal toggle that
+  keyboard traversal can reach; showing or hiding leaves the text, caret and focus untouched, and
+  screen readers announce it as one labelled button.
   Back, language and appearance controls stay outside the scrollable form, so long errors,
   enlarged text and the keyboard cannot cover their touch targets.
   Narrow layouts and larger text stack the captcha image above its input. Password captcha and TOTP remain
@@ -662,7 +714,14 @@ identity survive this layout change. The header keeps a small outer margin for i
   the first password focus/input warms the challenge. Blank taps and keyboard dismissal reveal it
   without reopening the keyboard. Only the password keyboard Next action moves focus automatically
   into the captcha; explicit field taps keep their target. Registration Next advances one field at a time. That reveal is latched through transient Android
-  focus rebounds, and a prefetch failure stays silent until the visible retry path is used. On
+  focus rebounds, and a prefetch failure stays silent until the visible retry path is used.
+  The captcha image itself is the Web-equivalent refresh control: a tap requests a fresh challenge,
+  keeps an already-focused captcha field and its keyboard, and covers the image with a progress
+  state; the image is inert and submission is refused while the request is in flight, and the
+  previously typed code is cleared only once the new challenge arrives. A failed refresh keeps the
+  old image, the still-valid typed code and the retry target, reporting a retryable error instead of
+  a blank frame. Once the server requires a captcha, an empty code is rejected locally with a
+  localized message instead of spending a login attempt. On
   Android, auth-field pointer-down or keyboard Next creates a short-lived target token; if the secure keyboard
   reclaims the password focus during that token's settling window, the app makes at most two
   bounded attempts to return focus to the explicitly tapped field and then stops. A focused field
@@ -748,7 +807,9 @@ identity survive this layout change. The header keeps a small outer margin for i
   tabs below it; a status-area scrim protects white system indicators during collapse. The application supplies a theme-aware status-bar fallback, so returning from
   an immersive cover to a plain feed restores legible system indicators. Cover, avatar and profile actions share one header layer so the avatar stays
   fully visible. The compact action band keeps the display name eight pixels below the avatar
-  ring; account ID, bio and statistics use tighter related-content spacing. The band grows for
+  ring. Other users' profiles show the same top-right overflow control; its menu offers block or
+  unblock for that profile, while the own profile keeps its existing account actions. Account ID,
+  bio and statistics use tighter related-content spacing. The band grows for
   wrapped actions and larger text. Pull-to-refresh starts below the safe area and toolbar. The editor crop preview
   uses the same available width and system inset as the public cover.
 
@@ -763,12 +824,18 @@ identity survive this layout change. The header keeps a small outer margin for i
 - `Current`: the root avatar opens an account drawer with aligned 24-pixel outline icons, compact
   56-pixel minimum rows and a clear nickname/account-handle hierarchy. The full-height, square-edged
   panel slides over the leading side at 84% of the viewport width, capped at 400 pixels. Its contents
-  scroll within the safe area. A rightward drag beginning in the leading
-  55% of the viewport can open it; vertical scrolling and interactive horizontal child controls keep
-  their gestures. Following/follower counts open the matching native connection lists. Unavailable
+  scroll within the safe area. On tabbed root pages, opening drags track the finger across the leading
+  55% only while the first tab is selected. On later tabs, horizontal drags stay with tab navigation
+  and never open the drawer. Pages without swipe tabs retain the leading-side drawer gesture. Once
+  open, a drag toward the leading edge closes it. An accepted drawer drag keeps following the finger
+  when it reverses past its starting point. The outside shade exposes a localized close action to
+  screen readers. Vertical scrolling and nested horizontal controls keep their gestures.
+  Following/follower counts open the matching native connection lists. Unavailable
   counts show a placeholder with retry instead of zero. Opening the drawer refreshes the card, and
   account changes discard previous identity data. Profile, bookmarks, drafts, my content, recycle bin,
   course reviews, settings, community information and permission-gated workspaces remain available.
+  A hairline separator aligned with the entry icons groups the account entries above the settings,
+  community information and appearance entries, in both guest and signed-in states.
   The appearance shortcut opens System/Light/Dark choices; the open sheet follows theme changes
   immediately. The profile overflow retains its infrequent entries.
   Account controls are outside the public profile.
@@ -815,8 +882,10 @@ identity survive this layout change. The header keeps a small outer margin for i
   including administrators. It displays the followed state and toggles to unfollow, prevents duplicate
   in-flight requests and restores the previous state when a request fails.
 - `Current`: profile content tabs form a continuous pinned rail. The selected item expands its icon
-  and localized label; inactive items show icons with accessible names. The underline animates with
-  the tab widths, respecting reduced motion. Activity, content, likes, own bookmarks and badges fetch
+  and localized label; during a held horizontal swipe, the old and incoming icons move with their
+  labels as the segment widths interpolate, using a subtle scale and fade. Inactive items show icons
+  with accessible names. The underline animates with the tab widths, respecting reduced motion.
+  Activity, content, likes, own bookmarks and badges fetch
   their corresponding streams. The header and tabs stay visible while an unloaded stream displays
   skeleton rows. Each stream retains loaded pages and scroll position; leaving a stream cancels
   unfinished reads, which restart if needed on return. Inactive reads cannot replace the selected
@@ -910,9 +979,10 @@ local widget tests do not imply those gates passed.
 
 ## Tongji sign-in
 
-`Current`: native login and registration show “Tongji SSO” when the public login options declare
-campus configuration ready. The entry explains automatic activated registration and links published
-policies. The backend handles the school callback and resumes the same manual PKCE/nonce exchange
+`Current`: native login and registration show “Tongji SSO” in the more-methods sheet when the public
+login options declare campus configuration ready. The entry explains automatic activated registration
+and links published policies. The backend handles the school callback and resumes the same manual
+PKCE/nonce exchange
 used by the Android external-browser path; the App stores only its forum session, never a school
 access/refresh token. Existing bindings sign in to the same forum account; new users receive a
 private student-ID@tongji.edu.cn email without a separate activation step. All four UI languages are
@@ -1004,7 +1074,8 @@ topic card, with the current category omitted from repeated card labels. Topic h
 name, timestamp and categories on one row: long display names ellipsize before metadata can wrap.
 Very narrow or enlarged-text layouts let the category group scroll horizontally; author and category
 touch targets remain separate and at least 44 pixels. Full names remain available to accessibility
-and through the author profile.
+and through the author profile. Feed card previews use the topic gallery's blurred image fill and
+theme-tinted veil behind the uncropped image.
 Unread notifications have a filter-specific empty state and no unrelated publishing action.
 Wiki recent items prioritize titles and update times; repository editing stays in the detail header.
 
@@ -1037,7 +1108,12 @@ moderation workspace; global/category moderators cannot obtain it. The
 retention, account cleanup and concurrency behavior.
 
 `Current`: each session-local outbox entry has a random client message ID that remains stable on
-retry. The server deduplicates the same sender/key and rejects a changed peer/body/type. Keys are
+retry, and binds the composer snapshot captured at submission to its draft revision. A failure
+reinstalls that snapshot under the same revision only while the draft is unchanged or was emptied by
+an unrelated user action; text typed in flight (including whitespace) and drafts a newer send already
+acknowledged are never replaced, and the reinstalled draft still matches its pending entry. An
+attempt a second callback already claimed is not treated as a failure. The server deduplicates the
+same sender/key and rejects a changed peer/body/type. Keys are
 retained with messages. Older clients without a key keep legacy send behavior. Restarting the app
 does not restore an outbox entry's key; a newly composed message is a new send intent.
 
@@ -1053,9 +1129,10 @@ show a localized message without disclosing database errors.
 
 ### Apple login on iOS
 
-`Current`: configured iOS builds offer Apple's system sign-in button alongside existing login options.
-An existing forum user connects Apple from account settings before using it to log in. Cancellation
-leaves the login form available. Account switching retains the cache-clearing boundary before committing
+`Current`: configured iOS builds list Apple's system sign-in button in the more-methods sheet next to
+the other providers, and only for login. An existing forum user connects Apple from account settings
+before using it to log in. Cancellation leaves the login form available. Account switching retains
+the cache-clearing boundary before committing
 the new session. Apple authorization revocation expires only the matching Apple-authenticated session.
 Unlink and account deletion revoke the server grant. See [identity semantics](identity-and-access.md#native-apple-sign-in).
 `Partial`: a candidate still requires physical iPhone authorization/return, revocation and account-deletion

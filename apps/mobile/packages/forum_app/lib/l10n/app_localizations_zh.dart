@@ -178,6 +178,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authSignInMethods => '其他登录方式';
 
   @override
+  String get authMoreSignInMethods => '更多登录方式';
+
+  @override
   String get authLoginSubtitle => '欢迎回来，继续你的讨论和创作。';
 
   @override
@@ -205,6 +208,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get authConfirmPassword => '确认密码';
 
   @override
+  String get authShowPassword => '显示密码';
+
+  @override
+  String get authHidePassword => '隐藏密码';
+
+  @override
   String get authCaptcha => '验证码';
 
   @override
@@ -230,6 +239,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get authGetCode => '获取验证码';
+
+  @override
+  String get authRefreshCaptcha => '刷新验证码';
+
+  @override
+  String get authCaptchaRequired => '请输入验证码';
 
   @override
   String get authOidcLogin => '使用 yourtj 统一登录';
