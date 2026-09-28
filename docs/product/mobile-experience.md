@@ -6,7 +6,7 @@
 >
 > Owner: Platform maintainers
 >
-> Last verified: 2026-09-26
+> Last verified: 2026-09-28
 
 The Flutter app combines the forum, course catalog, scheduler and Wiki. Ordinary browsing and
 writing use native pages. Management uses the same first-party workspaces and permission checks as
@@ -27,8 +27,11 @@ animation yields to the interactive app within 1.2 seconds and is skipped for re
 Session and Home requests run beneath the launch surface. Home mounts its base sort tabs before
 server navigation arrives, then fills the existing skeleton. Initial cached/network rows prefetch
 at most four author avatars with a 240-millisecond ceiling using the same image keys as the visible
-avatars. Request and account guards still apply after prefetching. Startup system-bar styling is
-local to the launch surface; the normal route-aware fallback resumes when the launch surface leaves.
+avatars. Avatar decode sizes snap to a ladder (24/40/48/64/96 logical pixels; larger avatars round up
+to the next 16-pixel step), so the same author rendered at nearby sizes — feed card, detail header,
+reply row — reuses one in-memory image entry per URL instead of downloading and decoding it again on
+each page switch. Request and account guards still apply after prefetching. Startup system-bar styling is local to the launch surface; the normal
+route-aware fallback resumes when the launch surface leaves.
 
 ## Navigation and reading
 
