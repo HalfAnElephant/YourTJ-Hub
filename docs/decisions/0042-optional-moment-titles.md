@@ -29,8 +29,8 @@ Questions and articles still require titles, and the topic write endpoint enforc
 
 ## Decision Outcome
 
-`WriteTopicRequest.title` stays a required property but accepts an empty string only for
-`contentType=2`; the write core normalizes whitespace-only moment titles to `""` and stores that.
+`WriteTopicRequest.title` may be omitted or empty only for `contentType=2`; the write core
+normalizes absent and whitespace-only moment titles to `""` and stores that.
 Questions and articles with an empty title keep the previous `common.request.invalidParams` response,
 and non-empty titles keep the configurable minimum/maximum length checks. Agent writes keep their own
 non-empty title requirement. A moment with an explicitly typed title keeps it.

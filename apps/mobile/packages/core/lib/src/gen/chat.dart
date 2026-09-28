@@ -11,6 +11,7 @@ abstract class ChatItemPayload with _$ChatItemPayload {
     required int id,
     required int peerId,
     required String peerUsername,
+    String? peerNickname,
     required String peerAvatar,
     required String lastMsg,
     required String lastMsgTime,

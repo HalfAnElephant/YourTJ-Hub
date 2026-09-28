@@ -464,7 +464,7 @@ WriteTopicRequest:
     content:
       type: string
       minLength: 1
-      description: Markdown content; configurable minimum and maximum lengths count Unicode code points.
+      description: Markdown content; configurable minimum and maximum lengths count rendered visible text in Unicode code points, excluding Markdown marks, link destinations, bare/auto-linked URLs and e-mail addresses (their rendered text included), image syntax, sticker tokens and zero-width format characters. The raw Markdown source is additionally capped at four times maxPostLength (never below 4096 code points) to bound storage; request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`.
     title:
       type: string
       minLength: 0
@@ -2630,7 +2630,7 @@ CreatePostRequest:
     content:
       type: string
       minLength: 1
-      description: Markdown reply content. The server trims whitespace and enforces configurable length bounds in Unicode code points (`comment.content.tooShort` / `comment.content.tooLong`, params minLength/maxLength).
+      description: Markdown reply content. The server trims whitespace and enforces configurable length bounds on rendered visible text in Unicode code points (`comment.content.tooShort` / `comment.content.tooLong`, params minLength/maxLength); Markdown marks, link destinations, bare/auto-linked URLs and e-mail addresses (their rendered text included), image syntax, sticker tokens and zero-width format characters do not count. The raw Markdown source is additionally capped at four times maxPostLength (never below 4096 code points) to bound storage; request bodies over 2 MiB are rejected with HTTP 400 `common.request.parseFailed`.
     replyToPostId:
       type: integer
       format: uint64
@@ -2701,7 +2701,7 @@ UpdatePostRequest:
     content:
       type: string
       minLength: 1
-      description: Replacement markdown content; trimmed and length-checked in Unicode code points like posts/create.
+      description: Replacement markdown content; trimmed and length-checked on rendered visible text in Unicode code points like posts/create, with the same raw-source cap and 2 MiB body limit.
   additionalProperties: false
 
 UpdatePostResult:
@@ -5948,6 +5948,9 @@ AdminTopicListItem:
         username:
           type: string
           description: Author username; empty when the author account is gone.
+        nickname:
+          type: string
+          description: Author's current nickname; omitted when the user has none.
         userAvatarUrl:
           type: string
         viewCount:
@@ -6599,6 +6602,9 @@ AdminUserItem:
       minimum: 1
     username:
       type: string
+    nickname:
+      type: string
+      description: Current nickname; omitted when the user has none.
     avatarUrl:
       type: string
       description: Web avatar URL; the banned avatar when the account is frozen, the default avatar when none is set.
@@ -6984,6 +6990,9 @@ AdminCategoryModeratorItem:
     username:
       type: string
       description: Empty when the user account is gone.
+    nickname:
+      type: string
+      description: Current nickname; omitted when the user has none (including gone accounts).
     avatarUrl:
       type: string
       description: Empty when the user account is gone.
@@ -8822,6 +8831,9 @@ AdminReviewQueueItem:
     username:
       type: string
       description: Author username; empty when the user row is missing.
+    nickname:
+      type: string
+      description: Author's current nickname; omitted when the user has none.
     processStatus:
       type: integer
       description: "Always 2 (pending review) in this queue."

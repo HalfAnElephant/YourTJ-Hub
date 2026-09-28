@@ -8,6 +8,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1993,7 +1994,10 @@ void main() {
     addTearDown(container.dispose);
     await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('参与讨论'));
+    // On a 320dp dock the join label collapses into the reply icon, so the
+    // control is reached through its tooltip (same as the sticker composer
+    // integration test).
+    await tester.tap(find.byTooltip('参与讨论'));
     await tester.pumpAndSettle();
     tester.view.viewInsets = const FakeViewPadding(bottom: 280);
     await tester.enterText(
@@ -2184,6 +2188,46 @@ void main() {
       }
     },
   );
+
+  testWidgets('narrow topic dock renders the floor number in full', (
+    tester,
+  ) async {
+    // Issue #886: on phone widths the dock showed "1 …" because the floor
+    // number was squeezed into a flex share the reply control never used.
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final client = GfApiClient(
+      dio: Dio(),
+      tokenStorage: MemTokenStorage(),
+      baseUrl: 'http://fake.local',
+    );
+    final container = await makeContainer(
+      pageRepo: RedesignPageRepository(
+        client,
+        topicPayload: redesignedTopicPayloadJson(),
+      ),
+    );
+    await tester.pumpWidget(app(container, const TopicPage(topicId: 100)));
+    await tester.pumpAndSettle();
+    final RenderParagraph floor = tester.renderObject<RenderParagraph>(
+      find.text('1 / 14'),
+    );
+    final TextPainter natural = TextPainter(
+      text: floor.text,
+      textDirection: floor.textDirection,
+      textScaler: floor.textScaler,
+    )..layout();
+    expect(
+      floor.size.width,
+      moreOrLessEquals(natural.width, epsilon: .5),
+      reason: '楼层号必须完整渲染,不能被省略号截断',
+    );
+    natural.dispose();
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 600));
+  });
 
   testWidgets('profile activity types have distinct semantic icons', (
     tester,

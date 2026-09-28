@@ -356,7 +356,7 @@ export interface TopicDetailPayload {
     avatarUrl: string
     wornBadge?: UserBadgePayload | null
   }
-  participants: Array<{ id: number; username: string; avatarUrl: string; wornBadge?: UserBadgePayload | null }>
+  participants: Array<{ id: number; username: string; nickname?: string; avatarUrl: string; wornBadge?: UserBadgePayload | null }>
   categories: Array<{ id: number; name: string; url: string; color: string }>
   replyCount: number
   maxPostNo: number
@@ -464,7 +464,7 @@ export interface TopicPayload {
     avatarUrl: string
     wornBadge?: UserBadgePayload | null
   }
-  participants: Array<{ id: number; username: string; avatarUrl: string; wornBadge?: UserBadgePayload | null }>
+  participants: Array<{ id: number; username: string; nickname?: string; avatarUrl: string; wornBadge?: UserBadgePayload | null }>
   categories: Array<{ id: number; name: string; url: string; color: string }>
   replyCount: number
   viewCount: number
@@ -505,6 +505,8 @@ export interface ModerationLogItem {
   actor: {
     id: number
     username: string
+    /** Current nickname; absent when the actor has none. */
+    nickname?: string
     avatarUrl: string
   }
   subject: ModerationLogSubject
@@ -534,11 +536,15 @@ export interface ModerationReportItem {
   reporter: {
     id: number
     username: string
+    /** Current nickname; absent when the reporter has none. */
+    nickname?: string
     avatarUrl: string
   }
   handler: {
     id: number
     username: string
+    /** Current nickname; absent when the handler has none. */
+    nickname?: string
     avatarUrl: string
   }
   categories: Array<{ id: number; name: string; url: string; color: string }>
@@ -846,6 +852,8 @@ export interface NotificationPayload {
   actor: {
     id: number
     username: string
+    /** Current nickname; absent when the actor has none. */
+    nickname?: string
     avatarUrl?: string
   }
   topic?: {
@@ -888,6 +896,8 @@ export interface ChatItemPayload {
   id: number
   peerId: number
   peerUsername: string
+  /** Current nickname; absent when the peer has none. */
+  peerNickname?: string
   peerAvatar: string
   lastMsg: string
   lastMsgTime: string
