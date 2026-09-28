@@ -307,9 +307,10 @@ describe('TopicCardActions 卡片快捷互动（issue #380）', () => {
 
     await toggle().trigger('click')
     expect(visiblePinned()).toHaveLength(4)
-    expect(view.findAll('section li .text-primary')).toHaveLength(3)
+    // 每一行（含汇总首行）都有置顶徽标；svg 仅剩汇总行的展开箭头
+    expect(view.findAll('section li .text-primary')).toHaveLength(4)
     expect(view.find('section').text()).not.toContain('YourTJHub')
-    expect(view.find('section li svg').exists()).toBe(false)
+    expect(view.findAll('section li svg')).toHaveLength(1)
     await view.setProps({ feedMode: feedMode === 'table' ? 'card' : 'table' })
     expect(toggle().attributes('aria-expanded')).toBe('true')
     expect(visiblePinned()).toHaveLength(4)
