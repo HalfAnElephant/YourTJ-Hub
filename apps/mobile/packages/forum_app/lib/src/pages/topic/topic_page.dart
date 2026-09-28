@@ -6,6 +6,7 @@ import '../../private_notes.dart';
 import '../../local/writing_store.dart';
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +53,10 @@ class _TopicPageState extends ConsumerState<TopicPage>
     with WidgetsBindingObserver {
   /// 回复完成后按新回复锚点取得的窗口大小(对齐 web revealCreatedPost)。
   static const int _createdReplyWindowLimit = 20;
+
+  /// 揭示新回复时最多推进的帧数:新回复之后最多有 afterLimit(≤14)个
+  /// 楼层,逐屏检索足以覆盖;步数有界,不依赖定时器。
+  static const int _revealAttempts = 14;
 
   final GlobalKey _titleKey = GlobalKey();
   bool _showHeaderTitle = false;
@@ -1072,9 +1077,12 @@ class _TopicPageState extends ConsumerState<TopicPage>
     setState(() => _loadingMore = false);
     final topicId = widget.topicId;
     try {
-      // A full anchored window keeps the acknowledgement in context (web
-      // revealCreatedPost parity); the window is merged into the loaded list
-      // below instead of replacing it.
+      // A full anchored window keeps the acknowledgement in context. Web's
+      // revealCreatedPost merges whenever the new floor is within 20 floors of
+      // the loaded end; this list's single before/after cursor pair cannot
+      // represent the resulting hole, so it merges only when the window
+      // adjoins the loaded floors and replaces the list otherwise (see
+      // _canMergeCreatedWindow).
       final window = await ref
           .read(topicRepositoryProvider)
           .getPostWindow(
@@ -1192,36 +1200,42 @@ class _TopicPageState extends ConsumerState<TopicPage>
   }
 
   /// 把新回复本身滚入视野(合并与替换窗口共用,对齐 web revealCreatedPost):
-  /// 等新窗口布局后目标已构建就直接对齐;目标位于列表末尾尚未构建时,
-  /// 先滚到列表末尾再在下一帧对齐,不依赖「新回复正好是最后一条」。
+  /// 目标已构建就直接对齐;尚未构建时逐帧推进——懒构建列表的末尾长度会
+  /// 随布局增长,先追当前末尾直到估算稳定,再逐屏向上检索(新回复之后
+  /// 最多 afterLimit 个楼层),目标一旦构建即精确对齐。步数有界。
   Future<void> _revealCreatedReply(int generation) async {
     await WidgetsBinding.instance.endOfFrame;
-    if (!mounted || !_writingCurrent || generation != _windowGeneration) {
-      return;
-    }
     final ScrollController? controller = _listScrollController;
     if (controller == null || !controller.hasClients) return;
-    if (_revealPostKey.currentContext == null) {
-      await GfMotion.scrollTo(
-        context,
-        controller,
-        controller.position.maxScrollExtent,
-      );
+    double? settledExtent;
+    for (int attempt = 0; attempt < _revealAttempts; attempt++) {
       if (!mounted || !_writingCurrent || generation != _windowGeneration) {
         return;
       }
+      final BuildContext? target = _revealPostKey.currentContext;
+      if (target != null && target.mounted) {
+        await Scrollable.ensureVisible(
+          target,
+          duration: GfMotion.duration(context, GfMotion.layout),
+          curve: GfMotion.enterCurve,
+        );
+        return;
+      }
+      final ScrollPosition position = controller.position;
+      final bool chaseEnd =
+          settledExtent == null ||
+          (position.maxScrollExtent - settledExtent).abs() > 1;
+      settledExtent = position.maxScrollExtent;
+      controller.jumpTo(
+        chaseEnd
+            ? position.maxScrollExtent
+            : math.max(
+                position.minScrollExtent,
+                position.pixels - position.viewportDimension,
+              ),
+      );
       await WidgetsBinding.instance.endOfFrame;
     }
-    final BuildContext? target = _revealPostKey.currentContext;
-    if (target == null || !target.mounted) return;
-    if (!mounted || !_writingCurrent || generation != _windowGeneration) {
-      return;
-    }
-    await Scrollable.ensureVisible(
-      target,
-      duration: GfMotion.duration(context, GfMotion.layout),
-      curve: GfMotion.enterCurve,
-    );
   }
 
   Future<void> _reportPost(PostPayload post) async {

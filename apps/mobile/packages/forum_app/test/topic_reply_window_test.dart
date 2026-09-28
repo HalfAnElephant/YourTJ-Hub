@@ -106,6 +106,10 @@ class TopicWindowServer extends TopicRepository {
 
   /// 非版主视角下被服务端过滤的楼层(如待审回复,payload.go 的 pending 过滤)。
   final Set<int> hiddenPostIds = <int>{};
+
+  /// before 窗口是否包含游标楼层本身(真实服务端严格早于游标,这里用于
+  /// 构造重叠窗口,验证客户端仍按 id 去重)。
+  bool overlapBeforeCursor = false;
   final List<String> calls = <String>[];
 
   PostWindowPayload _payload(
@@ -180,7 +184,10 @@ class TopicWindowServer extends TopicRepository {
     }
     if (beforePostNo != null) {
       final int found = posts.indexWhere((post) => post.postNo >= beforePostNo);
-      final int stop = found < 0 ? posts.length : found;
+      final int cursor = found < 0 ? posts.length : found;
+      final int stop = overlapBeforeCursor
+          ? math.min(posts.length, cursor + 1)
+          : cursor;
       final int begin = math.max(0, stop - size - 1);
       final bool hasBefore = stop - begin > size;
       return _payload(
@@ -204,12 +211,16 @@ class TopicWindowServer extends TopicRepository {
 }
 
 class _CreatedReplyPostRepository extends PostRepository {
-  _CreatedReplyPostRepository(super.client, {required this.onCreated});
+  _CreatedReplyPostRepository(
+    super.client, {
+    required this.onCreated,
+    this.postNo = 16,
+  });
 
   final void Function(String content) onCreated;
+  final int postNo;
 
-  static const int postNo = 16;
-  static const int postId = 9000 + postNo;
+  int get postId => 9000 + postNo;
 
   @override
   Future<CreatePostResult> createPost({
@@ -220,11 +231,7 @@ class _CreatedReplyPostRepository extends PostRepository {
     String? captchaCode,
   }) async {
     onCreated(content);
-    return const CreatePostResult(
-      id: postId,
-      postNo: postNo,
-      renderedContent: '',
-    );
+    return CreatePostResult(id: postId, postNo: postNo, renderedContent: '');
   }
 }
 
@@ -240,6 +247,8 @@ void main() {
     int floors = 15,
     int? postNo,
     bool pendingReply = false,
+    bool trailingReplies = false,
+    int createdPostNo = 16,
   }) async {
     final GfApiClient client = GfApiClient(
       dio: Dio(),
@@ -260,13 +269,22 @@ void main() {
         postRepositoryProvider.overrideWithValue(
           _CreatedReplyPostRepository(
             client,
+            postNo: createdPostNo,
             onCreated: (String content) {
-              server.posts.add(
-                floorPost(_CreatedReplyPostRepository.postNo, content: content),
-              );
+              server.posts.add(floorPost(createdPostNo, content: content));
               // 待审回复对非版主不可见:服务端窗口会过滤掉它。
               if (pendingReply) {
-                server.hiddenPostIds.add(_CreatedReplyPostRepository.postId);
+                server.hiddenPostIds.add(9000 + createdPostNo);
+              }
+              // 提交成功到取回锚点窗口之间,其他人又发了更晚的楼层。
+              if (trailingReplies) {
+                for (
+                  int floor = createdPostNo + 1;
+                  floor <= createdPostNo + 9;
+                  floor++
+                ) {
+                  server.posts.add(floorPost(floor));
+                }
               }
             },
           ),
@@ -472,6 +490,32 @@ void main() {
     await disposePage(tester);
   });
 
+  testWidgets('新回复之后仍有他人楼层时也把它滚入视野', (tester) async {
+    // 已加载窗口 24..35;回复第 24 楼后新回复落在 41 楼,取回的锚点窗口
+    // 是 36..50(其后还有他人 42..50 楼),新回复不在列表末尾。
+    final Map<String, dynamic> page = anchoredPageJson(
+      posts: <PostPayload>[
+        for (int floor = 24; floor <= 35; floor++) floorPost(floor),
+      ],
+      hasBefore: true,
+      hasAfter: true,
+    );
+    await pumpTopic(
+      tester,
+      page: page,
+      floors: 40,
+      postNo: 24,
+      createdPostNo: 41,
+      trailingReplies: true,
+    );
+    expect(find.text('24楼内容'), findsOneWidget);
+    await replyToFloor(tester, 24, '刚发出的回复');
+
+    expect(server.calls.last, 'anchor=9041 before=0 after=0 limit=20');
+    expect(find.text('刚发出的回复').hitTestable(), findsOneWidget);
+    await disposePage(tester);
+  });
+
   testWidgets('回复合并后前后游标仍指向已加载窗口边界', (tester) async {
     final Map<String, dynamic> page = anchoredPageJson(
       posts: <PostPayload>[
@@ -490,7 +534,9 @@ void main() {
     await expandViewport(tester);
     expect(find.text(l10n.commonLoadMore), findsNothing);
 
-    // 向前续载使用已加载窗口上界(第 8 楼),而不是新回复楼层。
+    // 向前续载使用已加载窗口上界(第 8 楼),而不是新回复楼层;
+    // 服务端即使返回与已加载窗口重叠的楼层(游标漂移),也不得重复渲染。
+    server.overlapBeforeCursor = true;
     await tester.tap(find.text(l10n.topicEarlierReplies));
     await tester.pumpAndSettle();
     expect(server.calls.last, 'anchor=0 before=8 after=0 limit=0');
