@@ -234,6 +234,19 @@ class _UserProfilePreviewState extends ConsumerState<UserProfilePreview> {
     await widget.rootContext.push('/u/$userId');
   }
 
+  Future<void> _openMessage(UserCardPayload user, String avatarUrl) async {
+    final location = Uri(
+      path: '/chat',
+      queryParameters: {
+        'userId': '${user.userId}',
+        'username': user.username,
+        if (avatarUrl.isNotEmpty) 'avatar': avatarUrl,
+      },
+    ).toString();
+    Navigator.of(context, rootNavigator: true).pop();
+    await widget.rootContext.push(location);
+  }
+
   void _close() {
     if (_closing) return;
     setState(() => _closing = true);
@@ -434,165 +447,207 @@ class _UserProfilePreviewState extends ConsumerState<UserProfilePreview> {
                                       16,
                                       8,
                                     ),
-                                    child: Wrap(
-                                      alignment: WrapAlignment.end,
-                                      crossAxisAlignment:
-                                          WrapCrossAlignment.center,
-                                      spacing: 6,
-                                      runSpacing: 4,
-                                      children: [
-                                        if (!user.isSelf)
-                                          GfFollowButton(
-                                            following:
-                                                follow.following ??
-                                                user.isFollowing,
-                                            label:
-                                                (follow.following ??
-                                                    user.isFollowing)
-                                                ? l10n.profileFollowing
-                                                : l10n.profileFollow,
-                                            busy: follow.busy,
-                                            onPressed: () =>
-                                                _toggleFollow(user),
-                                          ),
-                                        OutlinedButton.icon(
-                                          onPressed: () =>
-                                              _openProfile(user.userId),
-                                          icon: const GfSymbol(
-                                            'external-link',
-                                            size: 16,
-                                          ),
-                                          label: Text(l10n.profileTitle),
-                                          style: OutlinedButton.styleFrom(
-                                            minimumSize: const Size(44, 44),
-                                            foregroundColor: colors.baseContent,
-                                            backgroundColor: actionSurface,
-                                            side: BorderSide(
-                                              color: actionBorder,
-                                            ),
-                                          ),
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) => GfHorizontalScrollView(
+                                        scrollViewKey: const ValueKey(
+                                          'profile-preview-actions',
                                         ),
-                                        if (viewer != null &&
-                                            viewer.id != user.userId)
-                                          PopupMenuButton<String>(
-                                            tooltip: l10n.profileMore,
-                                            useRootNavigator: true,
-                                            icon: const GfSymbol(
-                                              'ellipsis',
-                                              size: 20,
-                                            ),
-                                            style: ButtonStyle(
-                                              minimumSize:
-                                                  const WidgetStatePropertyAll(
-                                                    Size(44, 44),
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            minWidth: constraints.maxWidth,
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.end,
+                                            children: [
+                                              if (!user.isSelf) ...[
+                                                GfFollowButton(
+                                                  following:
+                                                      follow.following ??
+                                                      user.isFollowing,
+                                                  label:
+                                                      (follow.following ??
+                                                          user.isFollowing)
+                                                      ? l10n.profileFollowing
+                                                      : l10n.profileFollow,
+                                                  busy: follow.busy,
+                                                  onPressed: () =>
+                                                      _toggleFollow(user),
+                                                ),
+                                                const SizedBox(width: 6),
+                                              ],
+                                              OutlinedButton.icon(
+                                                onPressed: () =>
+                                                    _openProfile(user.userId),
+                                                icon: const GfSymbol(
+                                                  'external-link',
+                                                  size: 16,
+                                                ),
+                                                label: Text(l10n.profileTitle),
+                                                style: OutlinedButton.styleFrom(
+                                                  minimumSize: const Size(
+                                                    44,
+                                                    44,
                                                   ),
-                                              maximumSize:
-                                                  const WidgetStatePropertyAll(
-                                                    Size(44, 44),
-                                                  ),
-                                              padding:
-                                                  const WidgetStatePropertyAll(
-                                                    EdgeInsets.zero,
-                                                  ),
-                                              tapTargetSize:
-                                                  MaterialTapTargetSize
-                                                      .shrinkWrap,
-                                              foregroundColor:
-                                                  WidgetStatePropertyAll(
-                                                    colors.baseContent,
-                                                  ),
-                                              backgroundColor:
-                                                  WidgetStatePropertyAll(
-                                                    actionSurface,
-                                                  ),
-                                              side: WidgetStatePropertyAll(
-                                                BorderSide(color: actionBorder),
-                                              ),
-                                              shape:
-                                                  const WidgetStatePropertyAll(
-                                                    CircleBorder(),
-                                                  ),
-                                            ),
-                                            itemBuilder: (_) {
-                                              if (userBlocks?.hasError ==
-                                                  true) {
-                                                return [
-                                                  PopupMenuItem(
-                                                    value: 'retry',
-                                                    child: Row(
-                                                      mainAxisSize:
-                                                          MainAxisSize.min,
-                                                      children: [
-                                                        const GfSymbol(
-                                                          'refresh-cw',
-                                                          size: 18,
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 10,
-                                                        ),
-                                                        Text(l10n.commonRetry),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ];
-                                              }
-                                              final blockPayload =
-                                                  userBlocks?.valueOrNull;
-                                              if (blockPayload == null) {
-                                                return [
-                                                  PopupMenuItem(
-                                                    enabled: false,
-                                                    child: Text(
-                                                      l10n.commonLoading,
-                                                    ),
-                                                  ),
-                                                ];
-                                              }
-                                              final isBlocked = blockPayload
-                                                  .blocks
-                                                  .any(
-                                                    (item) =>
-                                                        item.targetUserId ==
-                                                        user.userId,
-                                                  );
-                                              return [
-                                                PopupMenuItem(
-                                                  value: isBlocked
-                                                      ? 'unblock'
-                                                      : 'block',
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      const GfSymbol(
-                                                        'user-round',
-                                                        size: 18,
-                                                      ),
-                                                      const SizedBox(width: 10),
-                                                      Text(
-                                                        isBlocked
-                                                            ? l10n.userUnblock
-                                                            : l10n.userBlock,
-                                                      ),
-                                                    ],
+                                                  foregroundColor:
+                                                      colors.baseContent,
+                                                  backgroundColor:
+                                                      actionSurface,
+                                                  side: BorderSide(
+                                                    color: actionBorder,
                                                   ),
                                                 ),
-                                              ];
-                                            },
-                                            onSelected: (action) {
-                                              if (action == 'retry') {
-                                                ref.invalidate(
-                                                  userBlocksProvider,
-                                                );
-                                                return;
-                                              }
-                                              _changeBlock(
-                                                user.userId,
-                                                action == 'block',
-                                              );
-                                            },
+                                              ),
+                                              if (!user.isSelf) ...[
+                                                const SizedBox(width: 6),
+                                                IconButton.outlined(
+                                                  tooltip: l10n.messagesNew,
+                                                  constraints:
+                                                      const BoxConstraints.tightFor(
+                                                        width: 44,
+                                                        height: 44,
+                                                      ),
+                                                  style: IconButton.styleFrom(
+                                                    foregroundColor:
+                                                        colors.baseContent,
+                                                    backgroundColor:
+                                                        actionSurface,
+                                                    side: BorderSide(
+                                                      color: actionBorder,
+                                                    ),
+                                                    shape: const CircleBorder(),
+                                                  ),
+                                                  onPressed: () => _openMessage(
+                                                    user,
+                                                    avatarUrl,
+                                                  ),
+                                                  icon: const GfSymbol(
+                                                    'mail',
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                              ],
+                                              if (viewer != null &&
+                                                  viewer.id != user.userId) ...[
+                                                const SizedBox(width: 6),
+                                                PopupMenuButton<String>(
+                                                  tooltip: l10n.profileMore,
+                                                  useRootNavigator: true,
+                                                  icon: const GfSymbol(
+                                                    'ellipsis',
+                                                    size: 20,
+                                                  ),
+                                                  style: ButtonStyle(
+                                                    minimumSize:
+                                                        const WidgetStatePropertyAll(
+                                                          Size(44, 44),
+                                                        ),
+                                                    maximumSize:
+                                                        const WidgetStatePropertyAll(
+                                                          Size(44, 44),
+                                                        ),
+                                                    padding:
+                                                        const WidgetStatePropertyAll(
+                                                          EdgeInsets.zero,
+                                                        ),
+                                                    tapTargetSize:
+                                                        MaterialTapTargetSize
+                                                            .shrinkWrap,
+                                                    foregroundColor:
+                                                        WidgetStatePropertyAll(
+                                                          colors.baseContent,
+                                                        ),
+                                                    backgroundColor:
+                                                        WidgetStatePropertyAll(
+                                                          actionSurface,
+                                                        ),
+                                                    side:
+                                                        WidgetStatePropertyAll(
+                                                          BorderSide(
+                                                            color: actionBorder,
+                                                          ),
+                                                        ),
+                                                    shape:
+                                                        const WidgetStatePropertyAll(
+                                                          CircleBorder(),
+                                                        ),
+                                                  ),
+                                                  itemBuilder: (_) {
+                                                    if (userBlocks?.hasError ==
+                                                        true) {
+                                                      return [
+                                                        PopupMenuItem(
+                                                          value: 'retry',
+                                                          child: Row(
+                                                            mainAxisSize:
+                                                                MainAxisSize
+                                                                    .min,
+                                                            children: [
+                                                              const GfSymbol(
+                                                                'refresh-cw',
+                                                                size: 18,
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 10,
+                                                              ),
+                                                              Text(
+                                                                l10n.commonRetry,
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ];
+                                                    }
+                                                    final blockPayload =
+                                                        userBlocks?.valueOrNull;
+                                                    if (blockPayload == null) {
+                                                      return [
+                                                        PopupMenuItem(
+                                                          enabled: false,
+                                                          child: Text(
+                                                            l10n.commonLoading,
+                                                          ),
+                                                        ),
+                                                      ];
+                                                    }
+                                                    final isBlocked =
+                                                        blockPayload.blocks.any(
+                                                          (item) =>
+                                                              item.targetUserId ==
+                                                              user.userId,
+                                                        );
+                                                    return [
+                                                      PopupMenuItem(
+                                                        value: isBlocked
+                                                            ? 'unblock'
+                                                            : 'block',
+                                                        child: Text(
+                                                          isBlocked
+                                                              ? l10n.userUnblock
+                                                              : l10n.userBlock,
+                                                        ),
+                                                      ),
+                                                    ];
+                                                  },
+                                                  onSelected: (action) {
+                                                    if (action == 'retry') {
+                                                      ref.invalidate(
+                                                        userBlocksProvider,
+                                                      );
+                                                      return;
+                                                    }
+                                                    _changeBlock(
+                                                      user.userId,
+                                                      action == 'block',
+                                                    );
+                                                  },
+                                                ),
+                                              ],
+                                            ],
                                           ),
-                                      ],
+                                        ),
+                                      ),
                                     ),
                                   ),
                               ],
@@ -836,36 +891,44 @@ class _UserProfilePreviewState extends ConsumerState<UserProfilePreview> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (lastActive != null || joinedAt != null)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 2,
-                      children: [
-                        if (lastActive != null)
-                          _metadata(context, 'clock', lastActive),
-                        if (joinedAt != null)
-                          _metadata(context, 'calendar-days', joinedAt),
-                      ],
+                    GfHorizontalScrollView(
+                      scrollViewKey: const ValueKey('profile-preview-date-row'),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (lastActive != null)
+                            _metadata(context, 'clock', lastActive),
+                          if (lastActive != null && joinedAt != null)
+                            const SizedBox(width: 8),
+                          if (joinedAt != null)
+                            _metadata(context, 'calendar-days', joinedAt),
+                        ],
+                      ),
                     ),
                   if (links.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Wrap(
-                        spacing: 0,
-                        runSpacing: 0,
-                        children: [
-                          for (final link in links)
-                            IconButton(
-                              constraints: const BoxConstraints.tightFor(
-                                width: 44,
-                                height: 44,
+                      child: GfHorizontalScrollView(
+                        scrollViewKey: const ValueKey(
+                          'profile-preview-links-row',
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final link in links)
+                              IconButton(
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 44,
+                                  height: 44,
+                                ),
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                                tooltip: link.$1,
+                                onPressed: () => _openLink(link.$2),
+                                icon: GfSocialIcon(link.$3, size: 18),
                               ),
-                              padding: EdgeInsets.zero,
-                              visualDensity: VisualDensity.compact,
-                              tooltip: link.$1,
-                              onPressed: () => _openLink(link.$2),
-                              icon: GfSocialIcon(link.$3, size: 18),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                 ],

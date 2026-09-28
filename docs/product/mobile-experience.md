@@ -195,9 +195,12 @@ ordered after the active route in the accessibility tree so iOS does not hide it
 - `Current`: tapping a topic-author or non-anonymous reply avatar opens a top-docked profile
   preview; tapping the name still opens the public profile directly. The preview matches Web's
   identity, status, bio, signature, up to five badges, four statistics, up to eight public links,
-  join date and follow/profile actions. The compact card stays near the previous full-height layout,
-  slightly inset from the available safe area; overflowing content scrolls internally with a visible,
-  draggable scrollbar. The nickname sits directly below the overlapping avatar. Signature stays
+  join date and follow/profile/message actions. The message action opens that user's conversation;
+  block/unblock stays synchronized with the shared block list. The compact card stays near the
+  previous full-height layout, slightly inset from the available safe area; overflowing content
+  scrolls internally with a visible scrollbar. The action controls, badge, statistics, date and
+  social-link rows stay single-line on narrow screens, with a horizontal scroll cue when needed.
+  The nickname sits directly below the overlapping avatar. Signature stays
   directly below the bio with the profile's feather and wave treatment; social links use compact
   44-pixel targets. The private-note edit action sits beside the handle, clear of status badges;
   the trailing more menu switches between block and unblock from the shared block list, and a
