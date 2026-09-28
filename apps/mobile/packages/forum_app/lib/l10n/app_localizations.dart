@@ -996,6 +996,12 @@ abstract class AppLocalizations {
   /// **'Private conversation'**
   String get messagesConversation;
 
+  /// Screen-reader label for the peer avatar control that opens a user profile from a private conversation.
+  ///
+  /// In en, this message translates to:
+  /// **'View the profile of {name}'**
+  String messagesViewProfile(String name);
+
   /// No description provided for @messagesStartChat.
   ///
   /// In en, this message translates to:

@@ -488,6 +488,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get messagesConversation => 'プライベート会話';
 
   @override
+  String messagesViewProfile(String name) {
+    return '$name さんのプロフィールを見る';
+  }
+
+  @override
   String get messagesStartChat => 'チャットを開始';
 
   @override

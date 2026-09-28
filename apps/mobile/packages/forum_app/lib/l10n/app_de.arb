@@ -156,6 +156,7 @@
   "messagesEmptyDescription": "Beginne eine Unterhaltung mit jemandem aus der Community.",
   "messagesSearchConversations": "Unterhaltungen suchen",
   "messagesConversation": "Private Unterhaltung",
+  "messagesViewProfile": "Profil von {name} ansehen",
   "messagesStartChat": "Chat starten",
   "messagesFirstMessageTo": "Sende {user} die erste Nachricht.",
   "messagesNoMessagesYet": "Noch keine Nachrichten",

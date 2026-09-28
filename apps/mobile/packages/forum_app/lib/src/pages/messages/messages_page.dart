@@ -21,6 +21,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ui_kit/ui_kit.dart';
 import 'package:dio/dio.dart';
 
@@ -1061,6 +1062,12 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
     });
     final AppLocalizations l10n = AppLocalizations.of(context);
     final GfColors colors = GfTheme.colorsOf(context);
+    final String peerName = privateDisplayName(
+      context,
+      widget.conv.peerId,
+      '',
+      widget.conv.peerUsername,
+    );
     final outbox = ref.watch(chatOutboxProvider(widget.conv.peerId));
     ref.watch(chatDraftsProvider);
     ref.listen(offlineCacheEpochProvider, (_, epoch) {
@@ -1087,24 +1094,24 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
         actions: [UserBlockButton(userId: widget.conv.peerId)],
         title: Row(
           children: <Widget>[
-            GfAvatar(
+            _PeerAvatarButton(
+              key: const Key('chat-peer-avatar-appbar'),
+              peerId: widget.conv.peerId,
+              label: l10n.messagesViewProfile(peerName),
               src: resolveApiAssetUrl(widget.conv.peerAvatar),
               size: 36,
               ring: true,
+              alignment: Alignment.centerLeft,
             ),
-            const SizedBox(width: 10),
+            // 44 命中区已含头像两侧留白,补 2 保持标题与旧版 10 的视觉间距。
+            const SizedBox(width: 2),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    privateDisplayName(
-                      context,
-                      widget.conv.peerId,
-                      '',
-                      widget.conv.peerUsername,
-                    ),
+                    peerName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1278,6 +1285,9 @@ class _ConversationPageState extends ConsumerState<_ConversationPage>
                                         GlobalKey.new,
                                       ),
                                       message: message,
+                                      peerId: widget.conv.peerId,
+                                      peerProfileLabel: l10n
+                                          .messagesViewProfile(peerName),
                                       peerAvatar: widget.conv.peerAvatar,
                                       viewerAvatar: widget.viewerAvatar,
                                     ),
@@ -1855,16 +1865,63 @@ class _ChatMessageBubble extends ConsumerWidget {
   }
 }
 
+/// 对方头像的主页入口:44×44 命中区包住视觉头像,头像本身不位移、不缩放,
+/// 命中区只向头像旁的空白扩展,点击进入 `/u/{peerId}`。
+class _PeerAvatarButton extends StatelessWidget {
+  const _PeerAvatarButton({
+    super.key,
+    required this.peerId,
+    required this.label,
+    required this.src,
+    required this.size,
+    this.ring = false,
+    this.alignment = Alignment.center,
+  });
+
+  final int peerId;
+  final String label;
+  final String src;
+  final double size;
+  final bool ring;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      // 独立语义节点:头像标签不会与同行的消息文本/标题合并成一个按钮。
+      container: true,
+      button: true,
+      label: label,
+      child: InkWell(
+        onTap: () => context.push('/u/$peerId'),
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Align(
+            alignment: alignment,
+            child: GfAvatar(src: src, size: size, ring: ring),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MessageRow extends ConsumerWidget {
   const _MessageRow({
     this.bubbleKey,
     required this.message,
+    required this.peerId,
+    required this.peerProfileLabel,
     required this.peerAvatar,
     required this.viewerAvatar,
   });
 
   final GlobalKey? bubbleKey;
   final ChatMessagePayload message;
+  final int peerId;
+  final String peerProfileLabel;
   final String peerAvatar;
   final String viewerAvatar;
 
@@ -1878,10 +1935,16 @@ class _MessageRow extends ConsumerWidget {
             : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          if (!message.isSelf) ...<Widget>[
-            GfAvatar(src: resolveApiAssetUrl(peerAvatar), size: 32),
-            const SizedBox(width: 8),
-          ],
+          // 命中区自带与气泡的间距,不再单列 SizedBox。
+          if (!message.isSelf)
+            _PeerAvatarButton(
+              key: Key('chat-peer-avatar-${message.id}'),
+              peerId: peerId,
+              label: peerProfileLabel,
+              src: resolveApiAssetUrl(peerAvatar),
+              size: 32,
+              alignment: Alignment.topLeft,
+            ),
           Flexible(
             child: _ChatMessageBubble(
               bubbleKey: bubbleKey,

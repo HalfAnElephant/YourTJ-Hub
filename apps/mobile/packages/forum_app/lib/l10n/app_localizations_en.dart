@@ -499,6 +499,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messagesConversation => 'Private conversation';
 
   @override
+  String messagesViewProfile(String name) {
+    return 'View the profile of $name';
+  }
+
+  @override
   String get messagesStartChat => 'Start a conversation';
 
   @override

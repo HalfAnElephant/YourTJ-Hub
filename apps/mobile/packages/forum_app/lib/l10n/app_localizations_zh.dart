@@ -486,6 +486,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messagesConversation => '私信对话';
 
   @override
+  String messagesViewProfile(String name) {
+    return '查看 $name 的主页';
+  }
+
+  @override
   String get messagesStartChat => '开始聊天';
 
   @override
