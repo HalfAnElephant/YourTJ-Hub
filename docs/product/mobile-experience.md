@@ -1042,6 +1042,12 @@ show a localized message without disclosing database errors.
 ### Apple login on iOS
 
 `Current`: configured iOS builds offer Apple's system sign-in button alongside existing login options.
+The entry keeps Apple's official `ASAuthorizationAppleIDButton`, whose frame and corner radius are the
+only adjustable properties, so it renders as the same pill-shaped row as the browser-based providers.
+Apple localizes that control and its authorization sheet from the languages the iOS bundle declares
+(`CFBundleLocalizations`: English, Simplified Chinese, Japanese, German), so they follow the device or
+per-app language rather than Flutter's in-app language switch — Apple exposes no locale override for
+the system control.
 An existing forum user connects Apple from account settings before using it to log in. Cancellation
 leaves the login form available. Account switching retains the cache-clearing boundary before committing
 the new session. Apple authorization revocation expires only the matching Apple-authenticated session.

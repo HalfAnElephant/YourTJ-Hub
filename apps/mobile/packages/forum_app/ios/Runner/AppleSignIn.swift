@@ -93,18 +93,23 @@ private final class AppleButtonFactory: NSObject, FlutterPlatformViewFactory {
   init(messenger: FlutterBinaryMessenger) { self.messenger = messenger }
   func createArgsCodec() -> FlutterMessageCodec & NSObjectProtocol { FlutterStandardMessageCodec.sharedInstance() }
   func create(withFrame frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?) -> FlutterPlatformView {
-    AppleButtonView(frame: frame, id: viewId, dark: (args as? [String: Any])?["dark"] as? Bool ?? false, messenger: messenger)
+    let params = args as? [String: Any]
+    return AppleButtonView(frame: frame, id: viewId, dark: params?["dark"] as? Bool ?? false, radius: params?["radius"] as? Double, messenger: messenger)
   }
 }
 private final class AppleButtonView: NSObject, FlutterPlatformView {
   let button: ASAuthorizationAppleIDButton
   let channel: FlutterMethodChannel
-  init(frame: CGRect, id: Int64, dark: Bool, messenger: FlutterBinaryMessenger) {
+  init(frame: CGRect, id: Int64, dark: Bool, radius: Double?, messenger: FlutterBinaryMessenger) {
     button = ASAuthorizationAppleIDButton(type: .signIn, style: dark ? .white : .black)
     channel = FlutterMethodChannel(name: "yourtj/apple-button/\(id)", binaryMessenger: messenger)
     super.init()
     button.frame = frame
-    button.cornerRadius = 8
+    // The frame and the corner radius are the only adjustable properties of the
+    // official control; the Flutter side supplies its design system's pill
+    // radius, capped here at half the height so it can never overshoot.
+    let requested = CGFloat(radius ?? 6)
+    button.cornerRadius = max(0, min(requested, frame.height / 2))
     button.addTarget(self, action: #selector(pressed), for: .touchUpInside)
   }
   func view() -> UIView { button }
