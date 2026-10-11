@@ -1,7 +1,7 @@
 # Owner-scoped blocks and administrator-only private-message evidence
 
 ## Status
-Accepted
+Superseded by [0079](0079-feed-block-exclusion.md)
 Class: feature
 
 ## Context and Problem Statement
