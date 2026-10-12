@@ -14,6 +14,10 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
     await database.customSelect('SELECT 1').get();
     UserWorkDatabase.setInstanceForTesting(database);
   });
+  // Test teardowns run last-registered-first, so this close runs after every
+  // file's teardown — including one that deletes a temporary directory. A file
+  // that swaps in a file-backed instance must close it in its own teardown
+  // before deleting that directory: Windows cannot delete open files (#1138).
   tearDown(() async {
     await UserWorkDatabase.instance.close();
     UserWorkDatabase.setInstanceForTesting(null);

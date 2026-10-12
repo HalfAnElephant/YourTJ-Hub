@@ -25,6 +25,8 @@ import 'package:forum_app/src/storage/storage_providers.dart';
 import 'package:forum_app/src/storage/user_work_database.dart';
 import 'package:forum_app/src/theme_mode.dart';
 
+import 'temp_directory_helpers.dart';
+
 class _Paths extends PathProviderPlatform {
   _Paths(this.root);
   final String root;
@@ -245,8 +247,13 @@ void main() {
   tearDown(() async {
     fixture.dispose();
     await database.close();
+    // The shared test config closes the process-wide work database only after
+    // every file teardown has run, but Windows cannot delete a file that is
+    // still open. Release the singleton while this directory is still ours
+    // (issue #1138); the config's later close of the same instance is a no-op.
+    await UserWorkDatabase.instance.close();
     PathProviderPlatform.instance = oldPaths;
-    await directory.delete(recursive: true);
+    await deleteTempDirectory(directory);
   });
 
   test(
