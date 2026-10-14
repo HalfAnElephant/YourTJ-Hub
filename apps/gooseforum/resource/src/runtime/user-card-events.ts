@@ -1,10 +1,11 @@
-import type { UserBadgePayload } from '@gooseforum/client'
+import type { UserDecoration, UserBadgePayload } from '@gooseforum/client'
 import { useAvatarClickBehavior } from './avatar-click-behavior'
 
 export interface UserCardTarget {
  publicUid?: string
   id: number
   username: string
+  decoration?: UserDecoration
   avatarUrl: string
   wornBadge?: UserBadgePayload | null
   isFollowing?: boolean
