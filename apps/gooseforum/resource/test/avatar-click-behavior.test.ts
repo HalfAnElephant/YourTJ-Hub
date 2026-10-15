@@ -212,4 +212,42 @@ describe('头像点击行为偏好（issue #1134）', () => {
     const { cardListener } = clickTargetAnchor(showUserCard, alice)
     expect(cardListener).toHaveBeenCalledTimes(1)
   })
+
+  test('跨标签页同步：其他标签页改写偏好后本标签页经 storage 事件即时跟随', async () => {
+    const { showUserCard, prefs } = await loadModules()
+    expect(prefs.avatarClickBehavior.value).toBe('card')
+
+    // storage 事件只在其他文档触发，这里直接派发以模拟另一标签页写入。
+    window.localStorage.setItem(storageKey, 'profile')
+    window.dispatchEvent(new StorageEvent('storage', { key: storageKey, newValue: 'profile' }))
+
+    expect(prefs.avatarClickBehavior.value).toBe('profile')
+    const { cardListener, event } = clickTargetAnchor(showUserCard, alice)
+    expect(cardListener).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  test('跨标签页恢复默认：removeItem 与 clear（key 为 null）都回到卡片模式', async () => {
+    const { prefs } = await loadModules()
+    prefs.setAvatarClickBehavior('profile')
+
+    window.localStorage.removeItem(storageKey)
+    window.dispatchEvent(new StorageEvent('storage', { key: storageKey, newValue: null }))
+    expect(prefs.avatarClickBehavior.value).toBe('card')
+
+    prefs.setAvatarClickBehavior('profile')
+    window.localStorage.clear()
+    window.dispatchEvent(new StorageEvent('storage', { key: null }))
+    expect(prefs.avatarClickBehavior.value).toBe('card')
+  })
+
+  test('无关 key 的 storage 事件不改动本标签页偏好', async () => {
+    const { prefs } = await loadModules()
+    expect(prefs.avatarClickBehavior.value).toBe('card')
+
+    window.localStorage.setItem(storageKey, 'profile')
+    window.dispatchEvent(new StorageEvent('storage', { key: 'goose:shell-sidebar-collapsed', newValue: '1' }))
+
+    expect(prefs.avatarClickBehavior.value).toBe('card')
+  })
 })

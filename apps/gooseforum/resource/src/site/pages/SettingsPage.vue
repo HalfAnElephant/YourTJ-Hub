@@ -1208,7 +1208,9 @@ function clearCustomCss() {
   saveAppearance()
 }
 
-function confirmResetAppearance() {
+// 恢复默认覆盖「通用设置」卡片内的全部设置（外观 + 点击头像偏好）：
+// 按钮位于该卡片末尾，两处文案（resetDescription / resetConfirm）都写「通用设置」。
+function confirmResetGeneralSettings() {
   if (!window.confirm(t('settings.general.resetConfirm'))) return
   resetAppearanceSettings()
   restoreAvatarClickBehavior()
@@ -2798,7 +2800,7 @@ async function toggleBinding(provider: string) {
 
               <div class="flex items-center justify-between gap-4 py-4">
                 <span class="text-sm text-base-content/55">{{ t('settings.general.resetDescription') }}</span>
-                <button type="button" class="gf-button gf-button-md gf-button-muted shrink-0" @click="confirmResetAppearance">
+                <button type="button" class="gf-button gf-button-md gf-button-muted shrink-0" @click="confirmResetGeneralSettings">
                   {{ t('settings.general.reset') }}
                 </button>
               </div>

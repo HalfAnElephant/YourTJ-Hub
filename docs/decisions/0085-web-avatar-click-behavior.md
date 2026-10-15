@@ -31,12 +31,20 @@ a decision, not an implementation detail.
   combined anchors in templates (TopicPage author bars, PostStream mobile author bar, ModerationPage
   report rows).
 - Account-level preference synced across devices through the settings payload.
+- A per-tab preference read once at startup, leaving other open tabs on the previous behavior until a
+  reload.
 
 ## Decision Outcome
 
 The preference is `goose:avatar-click-behavior` with values `card` (default) and `profile`, stored in
 device `localStorage` through `runtime/avatar-click-behavior.ts` and surfaced in the settings page
-"General" tab next to the theme selector; that tab's "restore defaults" also clears it.
+"General" tab next to the theme selector. "Restore defaults" is the last row of that same General card
+and its description/confirm copy name general settings in all four locales, so clearing this preference
+is inside the scope the button declares; the preference is not reset from any appearance-only entry.
+
+Because the preference is device-level, the module also listens for `storage` events and re-reads the
+key, so a change made in one tab reaches tabs that are already open (including `storage.clear()`, whose
+event key is `null`).
 
 `showUserCard()` reads the preference at click time and, in `profile` mode, returns without
 `preventDefault()`/`stopPropagation()` so the anchor's own `/u/{id}` link runs; the document-level click
@@ -58,6 +66,8 @@ anonymous public identities (`/a/{uid}`) keep browser-default navigation in both
   user-visible benefit.
 - Account-level sync: consistent across devices, but needs settings payload and contract changes for a
   presentation preference, and the Web settings page has no server-side storage for such preferences.
+- Per-tab preference: no cross-tab machinery, but the same browser would show two behaviors at once and a
+  device-level preference could only be corrected by reloading every open tab.
 
 ## Links
 

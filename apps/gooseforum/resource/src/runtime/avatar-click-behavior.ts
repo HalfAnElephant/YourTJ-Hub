@@ -23,6 +23,15 @@ function readAvatarClickBehavior(): AvatarClickBehavior {
 // （与 shell-sidebar / home-feed-mode 同一模式）。
 const sharedAvatarClickBehavior = ref<AvatarClickBehavior>(readAvatarClickBehavior())
 
+// 偏好是设备级的：同一浏览器的其他标签页改动后经 storage 事件同步到本标签页，
+// 避免旧标签页在刷新前一直沿用切换前的点击行为（key 为 null 表示 storage.clear()）。
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key !== null && event.key !== avatarClickBehaviorStorageKey) return
+    sharedAvatarClickBehavior.value = readAvatarClickBehavior()
+  })
+}
+
 function setAvatarClickBehavior(behavior: AvatarClickBehavior) {
   sharedAvatarClickBehavior.value = behavior
   if (typeof window === 'undefined') return
@@ -34,7 +43,11 @@ function setAvatarClickBehavior(behavior: AvatarClickBehavior) {
   }
 }
 
-/** 设置页「恢复默认」：回到弹出用户卡片并清除持久化。 */
+/**
+ * 设置页「通用设置 → 恢复默认」：回到弹出用户卡片并清除持久化。
+ * 该按钮位于通用设置卡片末尾，确认文案在四种语言中都写明「通用设置」，
+ * 因此清除本偏好属于按钮声明的范围（决策 0085）。
+ */
 function restoreAvatarClickBehavior() {
   sharedAvatarClickBehavior.value = 'card'
   if (typeof window === 'undefined') return
