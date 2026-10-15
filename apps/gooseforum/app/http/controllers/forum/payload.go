@@ -41,6 +41,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userStatistics"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/users"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/hotdataserve"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/agentservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/appleauthservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/badgeservice"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/service/campusservice"
@@ -204,6 +205,7 @@ type ViewerPayload struct {
 	AvatarURL                 string                     `json:"avatarUrl"`
 	IsAuthenticated           bool                       `json:"isAuthenticated"`
 	CanAccessAdmin            bool                       `json:"canAccessAdmin"`
+	CanManageAgents           bool                       `json:"canManageAgents"`
 	IsModerator               bool                       `json:"isModerator"`
 	RequiresEmailVerification bool                       `json:"requiresEmailVerification"`
 	AdminPermissions          []uint64                   `json:"adminPermissions"`
@@ -446,24 +448,25 @@ type TopicPermissions struct {
 }
 
 type UserProfileProps struct {
-	User         *vo.UserCard             `json:"user"`
-	Section      string                   `json:"section"`
-	ActivityTab  string                   `json:"activityTab"`
-	Tabs         []TabPayload             `json:"tabs"`
-	ActivityTabs []TabPayload             `json:"activityTabs"`
-	Pagination   PaginationPayload        `json:"pagination"`
-	Badges       []badgeservice.UserBadge `json:"badges"`
-	Topics       []TopicPayload           `json:"topics"`
-	Activities   []UserActivityPayload    `json:"activities"`
-	Likes        []UserLikePayload        `json:"likes"`
-	Bookmarks    []UserBookmarkPayload    `json:"bookmarks"`
-	Following    []UserConnectionPayload  `json:"following"`
-	Followers    []UserConnectionPayload  `json:"followers"`
-	IsOwnProfile bool                     `json:"isOwnProfile"`
-	CanMessage   bool                     `json:"canMessage"`
-	CanFollow    bool                     `json:"canFollow"`
-	MessageURL   string                   `json:"messageUrl"`
-	SettingsURL  string                   `json:"settingsUrl"`
+	User           *vo.UserCard             `json:"user"`
+	Section        string                   `json:"section"`
+	ActivityTab    string                   `json:"activityTab"`
+	Tabs           []TabPayload             `json:"tabs"`
+	ActivityTabs   []TabPayload             `json:"activityTabs"`
+	Pagination     PaginationPayload        `json:"pagination"`
+	Badges         []badgeservice.UserBadge `json:"badges"`
+	Topics         []TopicPayload           `json:"topics"`
+	Activities     []UserActivityPayload    `json:"activities"`
+	Likes          []UserLikePayload        `json:"likes"`
+	Bookmarks      []UserBookmarkPayload    `json:"bookmarks"`
+	Following      []UserConnectionPayload  `json:"following"`
+	Followers      []UserConnectionPayload  `json:"followers"`
+	IsOwnProfile   bool                     `json:"isOwnProfile"`
+	CanManageAgent bool                     `json:"canManageAgent"`
+	CanMessage     bool                     `json:"canMessage"`
+	CanFollow      bool                     `json:"canFollow"`
+	MessageURL     string                   `json:"messageUrl"`
+	SettingsURL    string                   `json:"settingsUrl"`
 }
 
 type UserActivityPayload struct {
@@ -583,6 +586,8 @@ type SponsorsContactPayload = pageConfig.SponsorsContact
 type SponsorsRulePayload = pageConfig.SponsorsRule
 
 type NotificationsPageProps struct {
+	Category      string                `json:"category"`
+	Filter        string                `json:"filter"`
 	Total         int64                 `json:"total"`
 	UnreadCount   int64                 `json:"unreadCount"`
 	Notifications []NotificationPayload `json:"notifications"`
@@ -752,6 +757,7 @@ func buildLayout(c *gin.Context, activeKey string) LayoutPayload {
 			Decoration:                currentUser.Decoration,
 			IsAuthenticated:           currentUser.UserId > 0,
 			CanAccessAdmin:            currentUser.CanAccessAdmin,
+			CanManageAgents:           agentservice.CanAccessManagement(currentUser.UserId),
 			IsModerator:               moderationservice.CanAccessModeration(currentUser.UserId),
 			RequiresEmailVerification: currentUser.UserId > 0 && securityConfig.EnableEmailVerification && currentUser.IsActivated == users.ActivationPending,
 			AdminPermissions:          buildAdminPermissions(currentUser.UserId),
@@ -2138,24 +2144,25 @@ func buildUserProfileProps(c *gin.Context, user users.EntityComplete, section st
 	}
 
 	return UserProfileProps{
-		User:         userCard,
-		Section:      section,
-		ActivityTab:  activityTab,
-		Tabs:         buildUserProfileTabs(user.Id, section, currentUserID == user.Id),
-		ActivityTabs: buildUserProfileActivityTabs(user.Id, section, activityTab),
-		Pagination:   pagination,
-		Badges:       badges,
-		Topics:       topicPayloads,
-		Activities:   activities,
-		Likes:        likes,
-		Bookmarks:    bookmarks,
-		Following:    following,
-		Followers:    followers,
-		IsOwnProfile: currentUserID == user.Id,
-		CanMessage:   currentUserID > 0 && currentUserID != user.Id,
-		CanFollow:    currentUserID > 0 && currentUserID != user.Id,
-		MessageURL:   "/messages?userId=" + strconv.FormatUint(user.Id, 10) + "&username=" + url.QueryEscape(userCard.Nickname) + "&avatar=" + url.QueryEscape(userCard.AvatarUrl),
-		SettingsURL:  "/settings",
+		User:           userCard,
+		Section:        section,
+		ActivityTab:    activityTab,
+		Tabs:           buildUserProfileTabs(user.Id, section, currentUserID == user.Id),
+		ActivityTabs:   buildUserProfileActivityTabs(user.Id, section, activityTab),
+		Pagination:     pagination,
+		Badges:         badges,
+		Topics:         topicPayloads,
+		Activities:     activities,
+		Likes:          likes,
+		Bookmarks:      bookmarks,
+		Following:      following,
+		Followers:      followers,
+		IsOwnProfile:   currentUserID == user.Id,
+		CanManageAgent: user.IsBot() && agentservice.CanManage(currentUserID, user.Id),
+		CanMessage:     currentUserID > 0 && currentUserID != user.Id,
+		CanFollow:      currentUserID > 0 && currentUserID != user.Id,
+		MessageURL:     "/messages?userId=" + strconv.FormatUint(user.Id, 10) + "&username=" + url.QueryEscape(userCard.Nickname) + "&avatar=" + url.QueryEscape(userCard.AvatarUrl),
+		SettingsURL:    "/settings",
 	}
 }
 
@@ -2993,7 +3000,15 @@ func buildSponsorsMeta(c *gin.Context) PageMeta {
 
 func buildNotificationsPageProps(c *gin.Context) NotificationsPageProps {
 	userID := component.LoginUserId(c)
-	notifications, nextCursor, hasNext, _ := notificationservice.GetNotificationCursorList(userID, notificationservice.DefaultNotificationPageSize, 0, false)
+	category := c.Query("category")
+	if !eventNotification.ValidCategory(category) || category == "" {
+		category = "all"
+	}
+	filter := "all"
+	if c.Query("filter") == "unread" {
+		filter = "unread"
+	}
+	notifications, nextCursor, hasNext, _ := notificationservice.GetNotificationCursorList(userID, notificationservice.DefaultNotificationPageSize, 0, filter == "unread", category)
 	unreadCount, _ := eventNotification.GetUnreadCount(userID)
 	items := BuildNotificationPayloads(notifications)
 	nextPage := 0
@@ -3001,6 +3016,7 @@ func buildNotificationsPageProps(c *gin.Context) NotificationsPageProps {
 		nextPage = 2
 	}
 	return NotificationsPageProps{
+		Category: category, Filter: filter,
 		Total:         int64(len(items)),
 		UnreadCount:   unreadCount,
 		Notifications: items,
@@ -3008,7 +3024,7 @@ func buildNotificationsPageProps(c *gin.Context) NotificationsPageProps {
 			Page:     1,
 			NextPage: nextPage,
 			HasNext:  hasNext,
-			NextURL:  fmt.Sprintf("/api/forum/notifications?filter=all&cursor=%d&limit=%d", nextCursor, notificationservice.DefaultNotificationPageSize),
+			NextURL:  fmt.Sprintf("/api/forum/notifications?category=%s&filter=%s&cursor=%d&limit=%d", category, filter, nextCursor, notificationservice.DefaultNotificationPageSize),
 		},
 	}
 }

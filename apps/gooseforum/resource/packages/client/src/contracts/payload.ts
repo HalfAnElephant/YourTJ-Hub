@@ -252,6 +252,7 @@ export interface ViewerPayload {
   isModerator: boolean
   requiresEmailVerification: boolean
   adminPermissions: number[]
+  canManageAgents?: boolean
 }
 
 export interface CategoryNavPayload {
@@ -709,6 +710,7 @@ export interface UserProfileProps {
   following: UserConnectionPayload[]
   followers: UserConnectionPayload[]
   isOwnProfile: boolean
+  canManageAgent?: boolean
   canMessage: boolean
   canFollow: boolean
   messageUrl: string
@@ -878,6 +880,8 @@ export interface SponsorsRulePayload {
 }
 
 export interface NotificationsPageProps {
+  category?: NotificationCategory
+  filter?: NotificationFilter
   total: number
   unreadCount: number
   notifications: NotificationPayload[]
@@ -890,6 +894,7 @@ export interface NotificationsPageProps {
 }
 
 export type NotificationFilter = 'all' | 'unread'
+export type NotificationCategory = 'all' | 'mentions' | 'replies' | 'likes' | 'following' | 'system'
 
 export interface NotificationListResponse {
   items: NotificationPayload[]
@@ -963,6 +968,7 @@ export interface NotificationPayload {
   payload: {
     title?: string
     content?: string
+    hasDirectMention?: boolean
     templateKey?: NotificationTemplateKey
     templateParams?: NotificationTemplateParams
     actorId: number

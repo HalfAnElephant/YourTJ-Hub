@@ -313,6 +313,10 @@
   },
   {
     "method": "GET",
+    "path": "/api/forum/push/preferences"
+  },
+  {
+    "method": "GET",
     "path": "/api/forum/search"
   },
   {
@@ -710,6 +714,18 @@
   {
     "method": "POST",
     "path": "/api/admin/agent-webhook-test"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/agents/content-source"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/agents/edit-post"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/agents/edit-topic"
   },
   {
     "method": "POST",
@@ -1582,6 +1598,10 @@
   {
     "method": "PUT",
     "path": "/api/forum/course-reviews/:reviewId/helpful"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/forum/push/preferences"
   },
   {
     "method": "PUT",
