@@ -22,6 +22,7 @@ import '../../widgets/campus_shortcuts.dart';
 import 'campus_connection.dart';
 import 'campus_data_views.dart';
 import 'campus_helpers.dart';
+import 'campus_lifecycle.dart';
 import 'campus_message_page.dart';
 import 'campus_state.dart';
 
@@ -118,12 +119,12 @@ class _CampusAccount extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
+                        GfText(
                           l.campusOfficialSubtitle,
                           style: GfTheme.typographyOf(context).title2,
                         ),
                         const SizedBox(height: 16),
-                        Text(l.campusPrivacy),
+                        GfText(l.campusPrivacy),
                         const SizedBox(height: 24),
                         GfButton(
                           label: l.authLoginTitle,
@@ -179,7 +180,7 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
   void initState() {
     super.initState();
     final lifecycle = WidgetsBinding.instance.lifecycleState;
-    _foreground = lifecycle == null || lifecycle == AppLifecycleState.resumed;
+    _foreground = isCampusForeground(lifecycle);
     WidgetsBinding.instance.addObserver(this);
     _searchFor(_tab);
     // A notice may have kept the controller alive while this page was hidden.
@@ -201,11 +202,14 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed && _visible == true) {
+    // 仅 paused/hidden/detached 视为被覆盖（suspend + 丢弃隐私子树）；
+    // inactive（通知栏/弹窗瞬时遮挡）保持现状，不再整页重载。
+    final foreground = isCampusForeground(state);
+    if (!foreground && _visible == true) {
       _restoreScroll = true;
       ref.read(campusControllerProvider.notifier).suspend();
     }
-    _foreground = state == AppLifecycleState.resumed;
+    _foreground = foreground;
     _syncVisibility();
     if (mounted) setState(() {});
   }
@@ -290,7 +294,7 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 8,
           children: [
-            Text(title, style: GfTheme.typographyOf(context).title2),
+            GfText(title, style: GfTheme.typographyOf(context).title2),
             ?action,
           ],
         ),
@@ -313,13 +317,13 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
     Widget refreshPrompt() => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l.campusDataNeedsRefresh),
+        GfText(l.campusDataNeedsRefresh),
         TextButton.icon(
           onPressed: loading
               ? null
               : () => ref.read(campusControllerProvider.notifier).refresh(),
           icon: const GfSymbol('refresh-cw', size: 18),
-          label: Text(l.commonRefresh),
+          label: GfText(l.commonRefresh),
         ),
       ],
     );
@@ -337,9 +341,9 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
                 )
               : refreshPrompt())
         : !usable
-        ? Text(l.campusUnavailable)
+        ? GfText(l.campusUnavailable)
         : data.status == 'empty' && key != 'today'
-        ? Text(l.campusNoData)
+        ? GfText(l.campusNoData)
         : ready(data);
     if (error == null) return content;
     return Column(
@@ -380,7 +384,7 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
               Expanded(
                 child: snapshot == null
                     ? const SizedBox.shrink()
-                    : Text(
+                    : GfText(
                         l.campusSnapshotUpdated(
                           DateFormat.yMd(
                             l.localeName,
@@ -409,11 +413,11 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
             ],
           ),
           if (state.errors.containsKey('status') && snapshot != null)
-            Text(l.campusSnapshotOffline)
+            GfText(l.campusSnapshotOffline)
           else if (state.error != null || state.errors.isNotEmpty)
-            Text(l.campusSnapshotRefreshFailed)
+            GfText(l.campusSnapshotRefreshFailed)
           else if (stale)
-            Text(l.campusSnapshotStale),
+            GfText(l.campusSnapshotStale),
         ],
       ),
     );
@@ -435,7 +439,7 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
               query.toLowerCase(),
             ),
           );
-    if (messages.isEmpty) return Text(l.campusNoNotices);
+    if (messages.isEmpty) return GfText(l.campusNoNotices);
     return Column(
       children: [
         for (final m in messages)
@@ -447,14 +451,14 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
+                GfText(
                   m.title,
                   style: GfTheme.typographyOf(context).heading,
                   maxLines: recent ? 2 : null,
                   overflow: recent ? TextOverflow.ellipsis : null,
                 ),
                 const SizedBox(height: 8),
-                Text(
+                GfText(
                   [
                     m.publisher,
                     m.publishedAt,
@@ -478,19 +482,19 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
+        GfText(
           '${week == null ? l.campusWeekUnknown : l.scheduleWeekN(week)} · ${DateFormat.MMMEd(l.localeName).format(clock)}',
           style: GfTheme.typographyOf(
             context,
           ).small.copyWith(color: GfTheme.colorsOf(context).iconMuted),
         ),
         const SizedBox(height: 12),
-        Text(
+        GfText(
           '${campusGreeting(l, now)}${name.isEmpty ? '' : '，$name'}',
           style: GfTheme.typographyOf(context).title1,
         ),
         const SizedBox(height: 12),
-        Text(wishes[_wish], style: GfTheme.typographyOf(context).body),
+        GfText(wishes[_wish], style: GfTheme.typographyOf(context).body),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
@@ -498,7 +502,7 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
               () => _wish = (_wish + 1 + math.Random().nextInt(3)) % 4,
             ),
             icon: const GfSymbol('refresh-cw', size: 16),
-            label: Text(l.campusAnotherWish),
+            label: GfText(l.campusAnotherWish),
           ),
         ),
         const SizedBox(height: 20),
@@ -518,7 +522,7 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
           _dataset(state, 'today', (data) {
             final day = data.teachingDay;
             if (day == null || day.date != campusDateKey(now)) {
-              return Text(l.campusDataNeedsRefresh);
+              return GfText(l.campusDataNeedsRefresh);
             }
             final today = data.events;
             final notice = switch (day.kind) {
@@ -537,26 +541,26 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
                 if (notice.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(notice),
+                    child: GfText(notice),
                   ),
-                if (today.isEmpty) Text(l.campusNoClasses),
+                if (today.isEmpty) GfText(l.campusNoClasses),
                 for (final e in today)
                   GfCard(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
+                        GfText(
                           '${times[e.start - 1].start}–${times[e.end - 1].end} · ${l.schedulePeriodRange('${e.start}–${e.end}')}',
                           style: GfTheme.typographyOf(context).caption,
                         ),
                         const SizedBox(height: 8),
-                        Text(
+                        GfText(
                           e.name,
                           style: GfTheme.typographyOf(context).heading,
                         ),
                         const SizedBox(height: 6),
-                        Text(
+                        GfText(
                           [
                             e.room,
                             e.campus,
@@ -575,7 +579,7 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
           _dataset(state, 'messages', (data) => _messages(data, recent: true)),
           action: TextButton(
             onPressed: () => _select('messages'),
-            child: Text(l.campusAllNotices),
+            child: GfText(l.campusAllNotices),
           ),
         ),
       ],
@@ -603,7 +607,7 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
                     required.isFinite &&
                     required > 0) ...[
                   const SizedBox(height: 20),
-                  Text(l.campusCreditProgress),
+                  GfText(l.campusCreditProgress),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: (done / required).clamp(0, 1),
@@ -621,7 +625,7 @@ class _CampusWorkspaceState extends ConsumerState<_CampusWorkspace>
             state,
             'grades',
             (data) => data.series.isEmpty
-                ? Text(l.campusNoData)
+                ? GfText(l.campusNoData)
                 : CampusChart(points: data.series, maximum: 5),
           ),
         ),
@@ -1070,7 +1074,7 @@ class _CampusRefreshSkeletonState extends State<_CampusRefreshSkeleton>
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 8,
           children: [
-            Text(title, style: GfTheme.typographyOf(context).title2),
+            GfText(title, style: GfTheme.typographyOf(context).title2),
             ?action,
           ],
         ),
@@ -1228,12 +1232,12 @@ class _CampusRefreshSkeletonState extends State<_CampusRefreshSkeleton>
         spacing: 8,
         children: [
           _bone(width: 40, height: 40, radius: 20),
-          Text(
+          GfText(
             l.scheduleWeekN(widget.week),
             style: GfTheme.typographyOf(context).heading,
           ),
           _bone(width: 40, height: 40, radius: 20),
-          TextButton(onPressed: null, child: Text(l.scheduleCurrentWeek)),
+          TextButton(onPressed: null, child: GfText(l.scheduleCurrentWeek)),
         ],
       ),
       const SizedBox(height: 12),
@@ -1276,7 +1280,7 @@ class _CampusRefreshSkeletonState extends State<_CampusRefreshSkeleton>
             bottom: BorderSide(color: colors.line),
           ),
         ),
-        child: Text(
+        child: GfText(
           label,
           style: TextStyle(
             // Text applies the ambient scaler; only grid geometry scales here.
@@ -1299,7 +1303,7 @@ class _CampusRefreshSkeletonState extends State<_CampusRefreshSkeleton>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
+            GfText(
               '$row',
               style: TextStyle(
                 fontSize: 12,
@@ -1408,7 +1412,7 @@ class _CampusRefreshSkeletonState extends State<_CampusRefreshSkeleton>
           if (scrolls)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(
+              child: GfText(
                 l.scheduleGridScrollHint,
                 style: GfTheme.typographyOf(context).caption,
               ),
@@ -1434,7 +1438,7 @@ class _CampusRefreshSkeletonState extends State<_CampusRefreshSkeleton>
           ),
           action: TextButton(
             onPressed: widget.onSelectMessages,
-            child: Text(l.campusAllNotices),
+            child: GfText(l.campusAllNotices),
           ),
         ),
       ],
@@ -1465,9 +1469,9 @@ class _CampusRefreshSkeletonState extends State<_CampusRefreshSkeleton>
     _ => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(l.campusConnection, style: GfTheme.typographyOf(context).title2),
+        GfText(l.campusConnection, style: GfTheme.typographyOf(context).title2),
         const SizedBox(height: 12),
-        Text(l.campusPrivacy),
+        GfText(l.campusPrivacy),
         const SizedBox(height: 16),
         _shine(_bone(width: 176, height: 24, radius: 5)),
         const SizedBox(height: 20),

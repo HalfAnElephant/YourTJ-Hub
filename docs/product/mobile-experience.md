@@ -6,7 +6,7 @@
 >
 > Owner: Platform maintainers
 >
-> Last verified: 2026-10-12
+> Last verified: 2026-10-13
 
 The Flutter app combines the forum, course catalog, scheduler and Wiki. Ordinary browsing and
 writing use native pages. Management uses the same first-party workspaces and permission checks as
@@ -1033,6 +1033,13 @@ identity survive this layout change. The header keeps a small outer margin for i
   intentionally bypasses flutter_appauth/AppAuth/CustomTabs. No OAuth provider uses a WebView for
   Android login. Non-Android platforms retain AppAuth. `Partial`: the new Android path awaits a
   physical-device APK test; the exact native crash stack remains unproven without logcat.
+- `Partial`: when the server enables passkeys, a separate native sign-in action uses discoverable
+  credentials and platform user verification, then completes through the ordinary staged token and
+  offline-cache cleanup path. Account security can add, rename and revoke passkeys after a fresh
+  password check and TOTP when enabled. The flow depends on matching iOS Associated Domains and
+  Android Digital Asset Links. The Flutter Android authenticator requires Android API 28 or later
+  at runtime; older versions retain password and OAuth login. Physical-device acceptance, including
+  Android OEM providers, remains outstanding. The authentication decision is recorded in [MADR 0091](../decisions/0091-forum-owned-cross-platform-passkeys.md).
 - `Current`: native routes that require a session lead guests to sign-in before constructing the
   private page. Login retains the original native location, including topic reply position, composer
   context and chat recipient, using an explicit route/query allowlist. External, recursive and
@@ -1104,6 +1111,20 @@ or production push delivery behavior. The shared business and privacy rules are 
 [anonymous identity](anonymous-identity.md).
 
 ## Profile and privacy
+
+- `Current`: account settings (Account, security & privacy, also on the Settings index) →
+  Privacy → Profile visibility lists the five profile sections with
+  their saved audience, then a fixed, non-tappable bookmarks row reading "only you" with a lock
+  in the chevron slot. Tapping a row opens a bottom-sheet picker limited to that section's
+  audiences; a row changes only after the server confirms, failures keep the saved value with an
+  error toast, and widening asks for confirmation. Loading uses the settings skeleton, load errors
+  offer retry and signed-out visits offer sign-in. Profile streams follow the server-resolved
+  visibility: other members and guests see a "not public" state naming the owner and reason, with
+  sign-in only when it could help. Profile tabs mark such sections, and for the owner every
+  section narrower than everyone, with a lock badge on the tab icon that leaves tab widths and
+  labels unchanged; long press and screen readers name who can see the section. Servers
+  without profile privacy keep every stream public. See
+  [profile visibility](identity-and-access.md#profile-visibility).
 
 - `Current`: visit statistics run automatically for guests and signed-in users in official Android/iOS
   release builds against `https://f.yourtj.de`, with no settings switch or consent preference. Fresh

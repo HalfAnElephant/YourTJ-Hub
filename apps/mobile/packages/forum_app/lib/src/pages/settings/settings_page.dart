@@ -41,6 +41,7 @@ import '../../widgets/stickers/sticker_library_page.dart';
 import '../../widgets/stickers/sticker_strings.dart';
 import 'text_size_settings_page.dart';
 import 'username_edit_dialog.dart';
+import 'passkey_settings_page.dart';
 import 'badge_display_dialog.dart';
 import 'profile_image_editor.dart';
 import 'oauth_bindings_sheet.dart';
@@ -224,7 +225,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
-              child: Text(
+              child: GfText(
                 l10n.settingsBadgePick,
                 style: GfTheme.typographyOf(
                   context,
@@ -239,7 +240,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   size: 40,
                 ),
                 title: b.name,
-                subtitleWidget: Text(
+                subtitleWidget: GfText(
                   b.description,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -496,12 +497,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         children: [
           ListTile(
             leading: const GfSymbol('image'),
-            title: Text(l10n.settingsAvatarUpload),
+            title: GfText(l10n.settingsAvatarUpload),
             onTap: () => Navigator.pop(context, false),
           ),
           ListTile(
             leading: const GfSymbol('user-round'),
-            title: Text(l10n.settingsPresetAvatar),
+            title: GfText(l10n.settingsPresetAvatar),
             onTap: () => Navigator.pop(context, true),
           ),
         ],
@@ -527,7 +528,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
+                GfText(
                   l10n.settingsPresetAvatar,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
@@ -729,7 +730,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           title: l10n.settingsTotpScanSecret,
           submitLabel: l10n.settingsTotpEnable,
           isCurrent: isCurrent,
-          introduction: SelectableText(setup.secret),
+          introduction: GfSelectableText(setup.secret),
           fields: [codeField],
           onSubmit: (values) =>
               repository.enableTotp(code: values.single.trim()),
@@ -742,15 +743,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         builder: (ctx) => _SettingsAccountDialog(
           epoch: epoch,
           child: GfAlertDialog(
-            title: Text(l10n.settingsTotpEnabled),
+            title: GfText(l10n.settingsTotpEnabled),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(l10n.settingsTotpRecoveryCodes),
+                GfText(l10n.settingsTotpRecoveryCodes),
                 const SizedBox(height: 8),
                 for (final code in enabled.recoveryCodes)
-                  SelectableText(
+                  GfSelectableText(
                     code,
                     style: const TextStyle(fontFamily: 'monospace'),
                   ),
@@ -933,16 +934,16 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       context: context,
       animationStyle: GfMotion.dialogStyle(context),
       builder: (context) => AlertDialog(
-        title: Text(l10n.settingsCoverRemove),
-        content: Text(l10n.settingsCoverRemoveConfirm),
+        title: GfText(l10n.settingsCoverRemove),
+        content: GfText(l10n.settingsCoverRemoveConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.commonCancel),
+            child: GfText(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(l10n.commonConfirm),
+            child: GfText(l10n.commonConfirm),
           ),
         ],
       ),
@@ -993,7 +994,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         );
       }
       return Scaffold(
-        appBar: GfAppBar(title: Text(l10n.settingsEditProfile)),
+        appBar: GfAppBar(title: GfText(l10n.settingsEditProfile)),
         body: _user.hasError
             ? GfErrorRetry(
                 message: resolveErrorMessage(l10n, _user.error!),
@@ -1012,7 +1013,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           tooltip: l10n.commonBack,
           onPressed: _leaveSettings,
         ),
-        title: Text(title),
+        title: GfText(title),
       ),
       body: SafeArea(
         top: false,
@@ -1043,143 +1044,139 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     controller: _scrollToTopController,
     semanticLabel: l10n.commonBackToTop,
     showButton: false,
-    builder: (_, ScrollController controller) => _buildIndexList(
-      l10n,
-      controller,
-    ),
+    builder: (_, ScrollController controller) =>
+        _buildIndexList(l10n, controller),
   );
 
-  Widget _buildIndexList(
-    AppLocalizations l10n,
-    ScrollController controller,
-  ) => ListView(
-    controller: controller,
-    padding: const EdgeInsets.all(16),
-    children: [
-      _settingsSection(
-        context,
-        title: l10n.settingsDevice,
-        child: Column(
-          children: [
-            _categoryRow(
-              key: const ValueKey('settings-category-appearance'),
-              symbol: 'palette',
-              title: l10n.settingsAppearance,
-              description: switch (ref.watch(themeModeProvider)) {
-                ThemeMode.system => l10n.settingsLanguageSystem,
-                ThemeMode.light => l10n.settingsThemeLight,
-                ThemeMode.dark => l10n.settingsThemeDark,
-              },
-              onTap: () => _openSection(_SettingsTab.appearance),
-            ),
-            const GfDivider(),
-            _categoryRow(
-              key: const ValueKey('settings-category-language'),
-              symbol: 'languages',
-              title: l10n.settingsAppLanguage,
-              description:
-                  appLanguageNames[ref
-                      .watch(appLocaleProvider)
-                      ?.languageCode] ??
-                  l10n.settingsLanguageSystem,
-              onTap: () => showAppLanguagePicker(context),
-            ),
-            const GfDivider(),
-            _categoryRow(
-              key: const ValueKey('settings-category-privacy'),
-              symbol: 'archive',
-              title: l10n.settingsDataStorage,
-              onTap: () => _openSection(_SettingsTab.privacy),
-            ),
-            const GfDivider(),
-            _categoryRow(
-              symbol: 'info',
-              title: l10n.settingsAbout,
-              onTap: () => context.push('/about'),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 24),
-      _settingsSection(
-        context,
-        title: l10n.settingsYourAccount,
-        child: Column(
-          children: [
-            if (_signedIn == true)
-              for (final section in const [
-                _SettingsTab.profile,
-                _SettingsTab.account,
-                _SettingsTab.binding,
-                _SettingsTab.notifications,
-                _SettingsTab.security,
-              ]) ...[
-                if (section != _SettingsTab.profile) const GfDivider(),
+  Widget _buildIndexList(AppLocalizations l10n, ScrollController controller) =>
+      ListView(
+        controller: controller,
+        padding: const EdgeInsets.all(16),
+        children: [
+          _settingsSection(
+            context,
+            title: l10n.settingsDevice,
+            child: Column(
+              children: [
                 _categoryRow(
-                  key: ValueKey('settings-category-${section.name}'),
-                  symbol: switch (section) {
-                    _SettingsTab.profile => 'user-round',
-                    _SettingsTab.account => 'at-sign',
-                    _SettingsTab.privacy => 'folder',
-                    _SettingsTab.binding => 'link',
-                    _SettingsTab.notifications => 'bell',
-                    _ => 'shield-check',
+                  key: const ValueKey('settings-category-appearance'),
+                  symbol: 'palette',
+                  title: l10n.settingsAppearance,
+                  description: switch (ref.watch(themeModeProvider)) {
+                    ThemeMode.system => l10n.settingsLanguageSystem,
+                    ThemeMode.light => l10n.settingsThemeLight,
+                    ThemeMode.dark => l10n.settingsThemeDark,
                   },
-                  title: section.label(l10n),
-                  onTap: () => _openSection(section),
+                  onTap: () => _openSection(_SettingsTab.appearance),
                 ),
-                if (section == _SettingsTab.account) ...[
-                  const GfDivider(),
-                  GfSettingRow(
-                    symbol: 'eye-off',
-                    title: l10n.userBlocks,
-                    onTap: () => showBlockedUsers(context),
-                  ),
-                ],
-                if (section == _SettingsTab.profile) ...[
-                  const GfDivider(),
-                  GfSettingRow(
-                    symbol: 'smile',
-                    title: StickerStrings(context).title,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const StickerLibraryPage(),
+                const GfDivider(),
+                _categoryRow(
+                  key: const ValueKey('settings-category-language'),
+                  symbol: 'languages',
+                  title: l10n.settingsAppLanguage,
+                  description:
+                      appLanguageNames[ref
+                          .watch(appLocaleProvider)
+                          ?.languageCode] ??
+                      l10n.settingsLanguageSystem,
+                  onTap: () => showAppLanguagePicker(context),
+                ),
+                const GfDivider(),
+                _categoryRow(
+                  key: const ValueKey('settings-category-privacy'),
+                  symbol: 'archive',
+                  title: l10n.settingsDataStorage,
+                  onTap: () => _openSection(_SettingsTab.privacy),
+                ),
+                const GfDivider(),
+                _categoryRow(
+                  symbol: 'info',
+                  title: l10n.settingsAbout,
+                  onTap: () => context.push('/about'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          _settingsSection(
+            context,
+            title: l10n.settingsYourAccount,
+            child: Column(
+              children: [
+                if (_signedIn == true)
+                  for (final section in const [
+                    _SettingsTab.profile,
+                    _SettingsTab.account,
+                    _SettingsTab.binding,
+                    _SettingsTab.notifications,
+                    _SettingsTab.security,
+                  ]) ...[
+                    if (section != _SettingsTab.profile) const GfDivider(),
+                    _categoryRow(
+                      key: ValueKey('settings-category-${section.name}'),
+                      symbol: switch (section) {
+                        _SettingsTab.profile => 'user-round',
+                        _SettingsTab.account => 'at-sign',
+                        _SettingsTab.privacy => 'folder',
+                        _SettingsTab.binding => 'link',
+                        _SettingsTab.notifications => 'bell',
+                        _ => 'shield-check',
+                      },
+                      title: section.label(l10n),
+                      onTap: () => _openSection(section),
+                    ),
+                    if (section == _SettingsTab.account) ...[
+                      const GfDivider(),
+                      GfSettingRow(
+                        symbol: 'eye-off',
+                        title: l10n.userBlocks,
+                        onTap: () => showBlockedUsers(context),
+                      ),
+                    ],
+                    if (section == _SettingsTab.profile) ...[
+                      const GfDivider(),
+                      GfSettingRow(
+                        symbol: 'smile',
+                        title: StickerStrings(context).title,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const StickerLibraryPage(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ]
+                else if (_signedIn == false)
+                  _categoryRow(
+                    symbol: 'login4',
+                    title: l10n.authLoginTitle,
+                    onTap: () => context.push(
+                      authLoginLocation(
+                        returnTo: _tab == null
+                            ? '/settings'
+                            : '/settings/${_tab!.name}',
                       ),
                     ),
+                  )
+                else
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: LinearProgressIndicator(),
                   ),
-                ],
-              ]
-            else if (_signedIn == false)
-              _categoryRow(
-                symbol: 'login4',
-                title: l10n.authLoginTitle,
-                onTap: () => context.push(
-                  authLoginLocation(
-                    returnTo: _tab == null
-                        ? '/settings'
-                        : '/settings/${_tab!.name}',
-                  ),
-                ),
-              )
-            else
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: LinearProgressIndicator(),
-              ),
+              ],
+            ),
+          ),
+          if (_signedIn == true) ...[
+            const SizedBox(height: 24),
+            GfButton(
+              label: l10n.settingsLogout,
+              variant: GfButtonVariant.danger,
+              expanded: true,
+              onPressed: _logout,
+            ),
           ],
-        ),
-      ),
-      if (_signedIn == true) ...[
-        const SizedBox(height: 24),
-        GfButton(
-          label: l10n.settingsLogout,
-          variant: GfButtonVariant.danger,
-          expanded: true,
-          onPressed: _logout,
-        ),
-      ],
-    ],
-  );
+        ],
+      );
 
   Widget _categoryRow({
     Key? key,
@@ -1255,7 +1252,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 for (final choice in ThemeMode.values)
                   RadioListTile<ThemeMode>(
                     key: ValueKey('settings-theme-${choice.name}'),
-                    title: Text(switch (choice) {
+                    title: GfText(switch (choice) {
                       ThemeMode.system => l10n.settingsLanguageSystem,
                       ThemeMode.light => l10n.settingsThemeLight,
                       ThemeMode.dark => l10n.settingsThemeDark,
@@ -1296,8 +1293,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             context,
             title: l10n.settingsFollowSiteTheme,
             child: SwitchListTile(
-              title: Text(l10n.settingsFollowSiteTheme),
-              subtitle: Text(l10n.settingsFollowSiteThemeDesc),
+              title: GfText(l10n.settingsFollowSiteTheme),
+              subtitle: GfText(l10n.settingsFollowSiteThemeDesc),
               value: siteTheme.following,
               onChanged: (value) =>
                   ref.read(siteThemeProvider.notifier).setFollowing(value),
@@ -1452,7 +1449,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 // 两阶段换绑（issue #678）：暂存期内展示待确认的新邮箱与当前邮箱，
                 // 否则展示常规的「修改绑定邮箱」入口描述。
                 subtitleWidget: _user.when(
-                  data: (u) => Text(
+                  data: (u) => GfText(
                     u.pendingEmail.isNotEmpty
                         ? '${u.email}\n${l10n.settingsEmailPending(u.pendingEmail)}'
                         : u.email.isNotEmpty
@@ -1461,8 +1458,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  loading: () => Text(l10n.commonLoading),
-                  error: (_, _) => Text(l10n.settingsEmailEdit),
+                  loading: () => GfText(l10n.commonLoading),
+                  error: (_, _) => GfText(l10n.settingsEmailEdit),
                 ),
                 trailing: const GfSymbol('chevron-right', size: 18),
                 onTap: _changeEmail,
@@ -1479,9 +1476,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           ),
         ),
         const SizedBox(height: 24),
+        _settingsSection(
+          context,
+          title: l10n.settingsTabPrivacy,
+          child: GfSettingRow(
+            key: const ValueKey('settings-account-profile-privacy'),
+            symbol: 'eye',
+            title: l10n.profilePrivacyTitle,
+            description: l10n.profilePrivacyDescription,
+            trailing: const GfSymbol('chevron-right', size: 18),
+            onTap: () => context.push('/settings/profile-privacy'),
+          ),
+        ),
+        const SizedBox(height: 24),
         TextButton(
           onPressed: _accountClosing ? null : _closeAccount,
-          child: Text(l10n.settingsCloseAccount),
+          child: GfText(l10n.settingsCloseAccount),
         ),
       ],
     );
@@ -1622,6 +1632,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         const SizedBox(height: 12),
         _settingsSection(
           context,
+          title: l10n.settingsPasskeyTitle,
+          child: GfSettingRow(
+            symbol: 'key-round',
+            title: l10n.settingsPasskeyManage,
+            description: l10n.settingsPasskeyDescription,
+            trailing: const GfSymbol('chevron-right', size: 18),
+            onTap: () => Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(
+                builder: (_) => const PasskeySettingsPage(),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _settingsSection(
+          context,
           title: l10n.settingsSessions,
           child: _sessions.when(
             loading: () => const _SettingsSessionsSkeleton(),
@@ -1646,12 +1672,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         l10n,
                         isCurrent: s.isCurrent,
                       ),
-                      subtitleWidget: Text(
+                      subtitleWidget: GfText(
                         '${s.ipMasked} · ${_formatTs(s.createdAt)}',
                         style: GfTheme.typographyOf(context).caption,
                       ),
                       trailing: s.isCurrent
-                          ? Text(
+                          ? GfText(
                               l10n.commonCurrent,
                               style: GfTheme.typographyOf(context).caption
                                   .copyWith(
@@ -1742,7 +1768,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final bool? ok = await showGfAlertDialog<bool>(
       context,
       builder: (ctx) => GfAlertDialog(
-        title: Text(l10n.settingsLogoutConfirm),
+        title: GfText(l10n.settingsLogoutConfirm),
         actions: [
           GfButton(
             label: l10n.commonCancel,
@@ -1873,7 +1899,7 @@ Widget _settingsSection(
       if (title != null)
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
+          child: GfText(
             title,
             style: GfTheme.typographyOf(context).small.copyWith(
               color: colors.iconMuted,
@@ -2016,7 +2042,7 @@ class _SettingsCredentialDialogState<T>
     return PopScope(
       canPop: !_saving,
       child: GfAlertDialog(
-        title: Text(widget.title),
+        title: GfText(widget.title),
         content: AutofillGroup(
           onDisposeAction: AutofillContextAction.cancel,
           child: Column(

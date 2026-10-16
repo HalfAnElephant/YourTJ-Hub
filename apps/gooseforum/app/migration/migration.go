@@ -60,6 +60,7 @@ import (
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userBadges"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userFollow"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userOAuth"
+	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userPasskeys"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userPoints"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userSessions"
 	"github.com/YourTongji/YourTJ-Hub/apps/gooseforum/app/models/forum/userStatistics"
@@ -763,12 +764,15 @@ func SchemaModels() []any {
 		&userFollow.Entity{},
 		&users.PrivateNoteEntity{},
 		&users.BlockEntity{},
+		&users.PrivacySettingsEntity{},
 		&userBadges.Entity{},
 		&oidcAuthRequests.Entity{},
 		&oidcAccessTokens.Entity{},
 		&userOAuth.Entity{},
 		&userPoints.Entity{},
 		&userSessions.Entity{},
+		&userPasskeys.CredentialEntity{},
+		&userPasskeys.ChallengeEntity{},
 		&userTotp.Entity{},
 		&userTotpRecoveryCodes.Entity{},
 		&userTotpChallenges.Entity{},
