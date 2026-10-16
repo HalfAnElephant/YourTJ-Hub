@@ -151,7 +151,7 @@ Web 确认弹窗约束键盘焦点。规则覆盖主题、回复、Wiki 和课�
 失败先回退通用卡片、再回退原链接；元数据不可用时不出平台卡片。B 站短链经合法公网跳转后按落地
 地址识别，卡片始终指向作者分享的原始链接，分 P 与起始时间参数保持。封面只取自平台自有 CDN。
 首批之外（Spotify、YouTube、SoundCloud、Vimeo 等）仍是候选，未接入。规则见
-[决策 0093](../decisions/0093-platform-specific-link-preview-adapters.md)。
+[决策 0094](../decisions/0094-platform-specific-link-preview-adapters.md)。
 
 `Partial`：平台卡片的 Flutter 端已接入同一契约并以 widget 测试覆盖，真机验收未完成。
 

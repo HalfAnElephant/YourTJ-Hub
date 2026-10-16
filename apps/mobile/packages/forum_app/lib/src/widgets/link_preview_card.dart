@@ -12,7 +12,7 @@ import '../providers.dart';
 /// 外部链接预览卡片（服务端 `/api/link-previews/resolve` 的渲染端）。
 ///
 /// 服务端只给标识与原文：平台名、资源类型徽标与作者称呼都由客户端按语言渲染
-/// （issue #1201，见 MADR 0093）。卡片与正文渲染分开，便于单独测试与复用。
+/// （issue #1201，见 MADR 0094）。卡片与正文渲染分开，便于单独测试与复用。
 class GfLinkPreviewCard extends ConsumerStatefulWidget {
   const GfLinkPreviewCard({super.key, required this.preview});
 
