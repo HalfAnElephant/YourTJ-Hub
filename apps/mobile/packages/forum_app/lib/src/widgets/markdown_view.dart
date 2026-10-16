@@ -87,6 +87,11 @@ class _GfMarkdownViewState extends ConsumerState<GfMarkdownView> {
 
   Map<String, String> _stickerUrls = const {};
 
+  /// 标签与目标不符的链接目标（issue #1200 review）：按源文本记忆，避免每次
+  /// 重建都重新解析 Markdown AST。
+  String _mislabeledSource = '';
+  Set<String> _mislabeledTargets = const <String>{};
+
   /// Reader preference the cached body was built with; the persisted setting
   /// must reach every renderer branch, including this cached one.
   double _contentScale = 1;
@@ -113,6 +118,8 @@ class _GfMarkdownViewState extends ConsumerState<GfMarkdownView> {
         _linkPreviews = null;
         _linkPreviewSelectionSource = '';
         _linkPreviewGeneration++;
+        _mislabeledSource = '';
+        _mislabeledTargets = const <String>{};
       }
       _contentScale = ref.read(contentFontScaleProvider);
       _markdownBody = _buildMarkdownBody(_contentScale);
@@ -265,11 +272,20 @@ class _GfMarkdownViewState extends ConsumerState<GfMarkdownView> {
             decoration: TextDecoration.underline,
           ),
           onTap: (String url) {
+            // 标签与目标不符的链接按 suspicious 处理（对齐 Web linkRisk）：
+            // 白名单与会话信任都不豁免，始终弹确认层（issue #1200）。
+            if (_mislabeledSource != data) {
+              _mislabeledSource = data;
+              _mislabeledTargets = mislabeledLinkTargets(data);
+            }
             unawaited(
               LinkNavigation.open(
                 context,
                 url,
                 baseUrl: ref.read(apiClientProvider).baseUrl,
+                risk: _mislabeledTargets.contains(url)
+                    ? LinkRisk.suspicious
+                    : LinkRisk.normalExternal,
               ),
             );
           },
