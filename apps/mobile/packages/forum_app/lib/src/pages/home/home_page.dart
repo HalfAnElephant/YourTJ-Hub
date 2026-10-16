@@ -954,7 +954,14 @@ class _HomePageState extends ConsumerState<HomePage> {
       swipeTabCount: sortKeys.length,
       onSwipeTabChanged: (index) =>
           _switchSort(sortKeys[index], fromSwipe: true),
-      titleWidget: const GfLogo(size: 32),
+      titleWidget: IconButton(
+        key: const ValueKey<String>('home-logo-scroll-to-top'),
+        onPressed: () => unawaited(_scrollToTopController.scrollToTop()),
+        tooltip: l10n.commonBackToTop,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+        icon: const GfLogo(size: 32),
+      ),
       actions: [
         IconButton(
           tooltip: l10n.commonSearch,
@@ -976,6 +983,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         onSelected: _switchSort,
         onFeedModeSelected: _setFeedMode,
       ),
+      statusBarScrollToTopController: _activeFeed.scrollToTop,
       body: (top, bottom) => GfScrollToTop(
         key: _activeFeed.scrollKey,
         semanticLabel: l10n.commonBackToTop,
@@ -1181,7 +1189,7 @@ class _HomeToolbar extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
-              child: Text(
+              child: GfText(
                 l10n.homeFeedOptions,
                 style: GfTheme.typographyOf(context).title2,
               ),
@@ -1191,7 +1199,7 @@ class _HomeToolbar extends ConsumerWidget {
                 leading: GfSymbol(
                   mode == GfTopicFeedMode.card ? 'layout-grid' : 'list-square',
                 ),
-                title: Text(
+                title: GfText(
                   mode == GfTopicFeedMode.card
                       ? l10n.topicFeedModeCard
                       : l10n.topicFeedModeList,
@@ -1395,7 +1403,7 @@ class _CategoryPill extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(width: 8),
-                  Text(
+                  GfText(
                     label,
                     softWrap: false,
                     style: TextStyle(

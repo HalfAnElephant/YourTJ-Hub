@@ -252,6 +252,7 @@ export interface ViewerPayload {
   isModerator: boolean
   requiresEmailVerification: boolean
   adminPermissions: number[]
+  canManageAgents?: boolean
 }
 
 export interface CategoryNavPayload {
@@ -709,10 +710,31 @@ export interface UserProfileProps {
   following: UserConnectionPayload[]
   followers: UserConnectionPayload[]
   isOwnProfile: boolean
+  canManageAgent?: boolean
   canMessage: boolean
   canFollow: boolean
   messageUrl: string
   settingsUrl: string
+  /** Profile sections as resolved for the current viewer (issue #1124). */
+  visibility: UserProfileVisibility
+}
+
+export type ProfileVisibilityReason = 'signin' | 'followers' | 'mutual' | 'private'
+
+export interface ProfileSectionVisibility {
+  visible: boolean
+  /** Present only when the section is hidden from this viewer. */
+  reason?: ProfileVisibilityReason
+  /** Present only on the owner's own profile. */
+  audience?: 'everyone' | 'members' | 'followers' | 'mutual' | 'self'
+}
+
+export interface UserProfileVisibility {
+  profileTopics: ProfileSectionVisibility
+  profileActivity: ProfileSectionVisibility
+  profileLikes: ProfileSectionVisibility
+  followingList: ProfileSectionVisibility
+  followersList: ProfileSectionVisibility
 }
 
 export interface BadgePayload {
@@ -878,6 +900,8 @@ export interface SponsorsRulePayload {
 }
 
 export interface NotificationsPageProps {
+  category?: NotificationCategory
+  filter?: NotificationFilter
   total: number
   unreadCount: number
   notifications: NotificationPayload[]
@@ -890,6 +914,7 @@ export interface NotificationsPageProps {
 }
 
 export type NotificationFilter = 'all' | 'unread'
+export type NotificationCategory = 'all' | 'mentions' | 'replies' | 'likes' | 'following' | 'system'
 
 export interface NotificationListResponse {
   items: NotificationPayload[]
@@ -963,6 +988,7 @@ export interface NotificationPayload {
   payload: {
     title?: string
     content?: string
+    hasDirectMention?: boolean
     templateKey?: NotificationTemplateKey
     templateParams?: NotificationTemplateParams
     actorId: number
