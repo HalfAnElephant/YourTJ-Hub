@@ -1,11 +1,12 @@
 // issue #1164：首页「列表 / 卡片」视图切换的 INP 基线夹具。
 // 渲染真实 HomePage（latest 排序，20 条话题，含图文卡片），供 feed-switch.browser.mjs
 // 量测切换时的处理耗时与 DOM 复用情况。
-import { createApp, defineComponent, h, KeepAlive, shallowRef } from 'vue'
+import { defineComponent, h, KeepAlive, shallowRef } from 'vue'
 import HomePage from '../../../src/site/pages/HomePage.vue'
 import { installNavigation, type PreparedPage } from '../../../src/runtime/router'
 import { i18n, setLocale } from '../../../src/runtime/i18n'
 import type { HomeProps, LayoutPayload, TopicPayload } from '@gooseforum/client'
+import { createBrowserApp } from './create-app'
 import '../../../src/styles/resource.css'
 
 await setLocale('zh')
@@ -49,7 +50,7 @@ const root = defineComponent({ setup: () => () => h('main', [
     ? h(HomePage, { key: 'home.index', props: current.value.payload.props as HomeProps, layout, pageUrl: current.value.payload.url }) : null),
 ]) })
 const router = installNavigation(initial, root, (page) => { current.value = page })
-const app = createApp(root).use(i18n).use(router)
+const app = createBrowserApp(root).use(i18n).use(router)
 await router.isReady()
 performance.mark('feed-mount-start')
 app.mount('#app')
