@@ -410,6 +410,7 @@ describe('static sw.js (pure push worker)', () => {
       openWindow: ReturnType<typeof vi.fn>
     }
     showNotification: ReturnType<typeof vi.fn>
+    fetch: ReturnType<typeof vi.fn>
   }
 
   function loadWorker(options: {
@@ -465,7 +466,7 @@ describe('static sw.js (pure push worker)', () => {
     }
     sandbox.self = sandbox
     vm.runInNewContext(SW_SOURCE, sandbox)
-    return { handlers, clients, showNotification }
+    return { handlers, clients, showNotification, fetch: sandbox.fetch as ReturnType<typeof vi.fn> }
   }
 
   function pushEvent(harness: WorkerHarness, data: unknown): Promise<void> {
@@ -556,7 +557,7 @@ describe('static sw.js (pure push worker)', () => {
     const focus = vi.fn(async () => undefined)
     const navigate = vi.fn(async () => undefined)
     const harness = loadWorker()
-    // query/hash 与目标不同不算「不在目标页」：只比较 origin + pathname
+    // 完整目标比较：origin + pathname + search + hash（本用例两侧都无 query/hash）
     harness.clients.matchAll.mockResolvedValueOnce([{ url: 'https://yourtj.example/p/post/9', focus, navigate }])
     await notificationClick(harness, { url: '/p/post/9' })
     expect(focus).toHaveBeenCalledOnce()
@@ -777,6 +778,14 @@ describe('static sw.js (pure push worker)', () => {
       const harness = loadWorker({ fetch: vi.fn(async () => { throw new Error('offline') }) })
       await notificationClick(harness,{sourceKind:'notification',recipientId:7,url:'/p/post/42'})
       expect(harness.clients.openWindow).toHaveBeenCalledWith('/notifications')
+    })
+
+    test('the recipient check reads the lightweight config endpoint, not the messages page', async () => {
+      const harness = loadWorker()
+      await pushEvent(harness, pushedPayload(24))
+      expect(harness.fetch).toHaveBeenCalled()
+      expect(harness.fetch.mock.calls.map(call => call[0])).not.toContain('/messages')
+      expect(harness.fetch.mock.calls[0][0]).toBe('/api/forum/push/config')
     })
 
     test('a confirmed different account still suppresses and redirects', async () => {

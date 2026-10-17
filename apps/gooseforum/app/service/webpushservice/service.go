@@ -32,8 +32,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// TaskTypePush 是 webpush outbox 任务类型前缀。任务 Type 为
-// "webpush.{notificationId}"，RunWorker 按前缀隔离领取。
+// TaskTypePush 是 webpush outbox 任务族常量。任务行的行级身份由 task_json /
+// dedup_key 承载，Type 只用于按族隔离领取与清理。
 const TaskTypePush = "webpush."
 
 // pushHTTPClient 是发送用 HTTP 客户端：推送服务为第三方外部 I/O，必须带
