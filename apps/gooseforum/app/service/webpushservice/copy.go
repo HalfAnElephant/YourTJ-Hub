@@ -67,7 +67,7 @@ var bodyByLangType = map[string]map[string]string{
 }
 
 // genericTitleByLang 无话题标题/无 actor 时的推送标题兜底
-// （对齐 locales notifications.newNotification）。
+// （对齐 locales notifications.fallback）。
 var genericTitleByLang = map[string]string{
 	"zh": "你收到一条系统通知",
 	"en": "You received a system notification",

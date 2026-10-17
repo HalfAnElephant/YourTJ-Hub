@@ -412,7 +412,7 @@ describe('static sw.js (pure push worker)', () => {
     showNotification: ReturnType<typeof vi.fn>
   }
 
-  function loadWorker(options: { withBroadcastChannel?: boolean } = {}): WorkerHarness {
+  function loadWorker(options: { withBroadcastChannel?: boolean; fetch?: unknown; abortSignal?: unknown } = {}): WorkerHarness {
     const handlers: Record<string, (event: any) => void> = {}
     const showNotification = vi.fn(async () => undefined)
     const openWindow = vi.fn(async () => undefined)
@@ -427,7 +427,7 @@ describe('static sw.js (pure push worker)', () => {
       location: {origin:'https://yourtj.example'},
       Response,
       AbortSignal,
-      fetch: vi.fn(async () => ({ok:true,json:async()=>({layout:{viewer:{id:7,isAuthenticated:true}}})})),
+      fetch: vi.fn(async () => ({ok:true,json:async()=>({code:0,result:{viewerId:7}})})),
       addEventListener(type: string, handler: (event: any) => void) {
         handlers[type] = handler
       },
@@ -439,6 +439,12 @@ describe('static sw.js (pure push worker)', () => {
         },
       },
       URL, // vm 沙箱不提供全局 URL，注入 Node 实现供 sw.js 使用
+    }
+    if (options.fetch) {
+      sandbox.fetch = options.fetch
+    }
+    if ('abortSignal' in options) {
+      sandbox.AbortSignal = options.abortSignal
     }
     if (options.withBroadcastChannel) {
       resetBroadcastChannelFake()
@@ -660,6 +666,43 @@ describe('static sw.js (pure push worker)', () => {
     expect(harness.showNotification).not.toHaveBeenCalled()
     await notificationClick(harness,{sourceKind:'notification',recipientId:8,url:'/p/post/42'})
     expect(harness.clients.openWindow).toHaveBeenCalledWith('/notifications')
+  })
+
+  // 收件人复核只在服务端「明确确认当前是另一个账号」时抑制推送；无法判定
+  // （传输失败/超时/非 2xx/非 JSON/会话过期/缺少 AbortSignal.timeout）一律按
+  // 未知处理并展示，否则页面关闭时用户会静默收不到任何通知。
+  describe('recipient check falls back to showing when it cannot decide', () => {
+    const cases: Array<[string, unknown]> = [
+      ['the fetch rejects', vi.fn(async () => { throw new Error('offline') })],
+      ['the response is not ok', vi.fn(async () => ({ok:false,status:500,json:async()=>({})}))],
+      ['the body is not JSON', vi.fn(async () => ({ok:true,json:async()=>{throw new Error('not json')}}))],
+      ['the response carries no viewer id', vi.fn(async () => ({ok:true,json:async()=>({code:0,result:{}})}) )],
+    ]
+    for (const [name, fetchImpl] of cases) {
+      test(`${name}: the notification is still shown`, async () => {
+        const harness = loadWorker({ fetch: fetchImpl })
+        await pushEvent(harness,{id:19,sourceKind:'chat_message',recipientId:7,title:'Message',url:'/messages?userId=9'})
+        expect(harness.showNotification).toHaveBeenCalledOnce()
+      })
+    }
+
+    test('a browser without AbortSignal.timeout still shows the notification', async () => {
+      const harness = loadWorker({ abortSignal: undefined })
+      await pushEvent(harness,{id:20,sourceKind:'chat_message',recipientId:7,title:'Message',url:'/messages?userId=9'})
+      expect(harness.showNotification).toHaveBeenCalledOnce()
+    })
+
+    test('an undecidable check keeps the deep link on click', async () => {
+      const harness = loadWorker({ fetch: vi.fn(async () => { throw new Error('offline') }) })
+      await notificationClick(harness,{sourceKind:'chat_message',recipientId:7,url:'/messages?userId=9'})
+      expect(harness.clients.openWindow).toHaveBeenCalledWith('/messages?userId=9')
+    })
+
+    test('a confirmed different account still suppresses and redirects', async () => {
+      const harness = loadWorker()
+      await pushEvent(harness,{id:21,sourceKind:'notification',recipientId:8,title:'Old account activity',url:'/p/post/42'})
+      expect(harness.showNotification).not.toHaveBeenCalled()
+    })
   })
 
 })

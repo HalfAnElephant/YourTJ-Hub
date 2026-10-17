@@ -20,16 +20,49 @@ self.addEventListener('message', event => {
     activeChats.set(event.source.id, Number(event.data.peerId) || 0);
   }
 });
-async function currentRecipientMatches(recipientId) {
-  if (!Number.isSafeInteger(recipientId) || recipientId <= 0) return false;
+// Recipient verification is tri-state: the worker suppresses a push only when
+// the server positively confirms that a *different* account is active in this
+// browser. Anything it cannot determine — transport failure, timeout, non-2xx,
+// unparseable body, an anonymous/expired session, or a browser without
+// AbortSignal.timeout — counts as 'unknown' and the push is shown, so a closed
+// page or a lapsed session still receives its notification. See
+// docs/product/forum.md.
+const RECIPIENT_CHECK_TIMEOUT_MS = 5000;
+function recipientCheckSignal() {
   try {
-    const response = await fetch('/messages', {headers: {'X-Goose-Page': 'true', 'X-Goose-Prefetch': '1', Accept: 'application/json'}, credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(5000)});
-    if (!response.ok) return false;
-    const page = await response.json();
-    return page.layout && page.layout.viewer && page.layout.viewer.isAuthenticated && page.layout.viewer.id === recipientId;
-  } catch { return false; }
+    if (self.AbortSignal && typeof self.AbortSignal.timeout === 'function') {
+      return { signal: self.AbortSignal.timeout(RECIPIENT_CHECK_TIMEOUT_MS), cancel() {} };
+    }
+    // AbortSignal.timeout is not universally available; an AbortController keeps
+    // the same bound so an unreachable server cannot delay the notification.
+    if (typeof self.AbortController === 'function' && typeof setTimeout === 'function') {
+      const controller = new self.AbortController();
+      const timer = setTimeout(() => controller.abort(), RECIPIENT_CHECK_TIMEOUT_MS);
+      return { signal: controller.signal, cancel: () => clearTimeout(timer) };
+    }
+  } catch {
+    // A bound we cannot build must not cost the reader the notification: the
+    // request below simply runs unbounded, which the check already treats as
+    // 'unknown' if it never answers.
+  }
+  return { signal: undefined, cancel() {} };
 }
-
+// The check reads GET /api/forum/push/config (viewerId) rather than the
+// /messages page: the page payload would render the whole chat list, following
+// list and layout for every delivered push (issue #1183, item 8).
+async function recipientState(recipientId) {
+  if (!Number.isSafeInteger(recipientId) || recipientId <= 0) return 'unknown';
+  const { signal, cancel } = recipientCheckSignal();
+  try {
+    const response = await fetch('/api/forum/push/config', {headers: {Accept: 'application/json'}, credentials: 'same-origin', cache: 'no-store', signal});
+    if (!response.ok) return 'unknown';
+    const body = await response.json();
+    const result = body && (body.result || body.data);
+    const viewerId = result && result.viewerId;
+    if (!Number.isSafeInteger(viewerId) || viewerId <= 0) return 'unknown';
+    return viewerId === recipientId ? 'match' : 'mismatch';
+  } catch { return 'unknown'; } finally { cancel(); }
+}
 
 // Show a push notification unless the user is currently looking at a focused
 // window of this site. Whether to push while a page is visible is the
@@ -47,7 +80,7 @@ self.addEventListener('push', (event) => {
   if (!payload || !payload.title) return;
 
   event.waitUntil((async () => {
-    if ((payload.recipientId != null || payload.sourceKind === 'chat_message') && !await currentRecipientMatches(payload.recipientId)) return;
+    if ((payload.recipientId != null || payload.sourceKind === 'chat_message') && await recipientState(payload.recipientId) === 'mismatch') return;
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (windows.some(client => {
       if (!client.focused) return false;
@@ -121,7 +154,7 @@ self.addEventListener('notificationclick', (event) => {
       const parsed = new URL(payloadUrl || FALLBACK_URL, self.location.origin);
       if (parsed.origin === self.location.origin) target = parsed.pathname + parsed.search + parsed.hash;
     } catch {}
-    if (event.notification.data && (event.notification.data.recipientId != null || event.notification.data.sourceKind === 'chat_message') && !await currentRecipientMatches(event.notification.data.recipientId)) target = event.notification.data.sourceKind === 'chat_message' ? '/messages' : FALLBACK_URL;
+    if (event.notification.data && (event.notification.data.recipientId != null || event.notification.data.sourceKind === 'chat_message') && await recipientState(event.notification.data.recipientId) === 'mismatch') target = event.notification.data.sourceKind === 'chat_message' ? '/messages' : FALLBACK_URL;
     const windows = await self.clients.matchAll({ type: 'window' });
     // Only focus an existing window when its full target, including the conversation/floor, matches.
     for (const client of windows) {

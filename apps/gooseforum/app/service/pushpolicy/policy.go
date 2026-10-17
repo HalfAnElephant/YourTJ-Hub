@@ -132,8 +132,8 @@ func Enqueue(tx *gorm.DB, channel string, userID, id uint64, kind string) error 
 		return err
 	}
 	key := fmt.Sprintf("%s:%s:%d:%d", channel, kind, id, userID)
-	err = taskQueue.CreateDeduplicatedTx(tx, &taskQueue.Entity{Type: channel + fmt.Sprint(id), TaskJson: string(raw), DedupKey: &key})
-	if err == nil {
+	staged, err := taskQueue.CreateDeduplicatedTx(tx, &taskQueue.Entity{Type: channel + fmt.Sprint(id), TaskJson: string(raw), DedupKey: &key})
+	if err == nil && staged {
 		Trace(channel, "outbox_staged", data)
 	}
 	return err
@@ -240,7 +240,7 @@ func Throttle(task *taskQueue.Entity, t Task, n eventNotification.Entity, channe
 		target = n.Payload.PostId
 	}
 	key := fmt.Sprintf("%s:%d:%s:%d", channel, t.UserId, n.EventType, target)
-	blocked, err := taskQueue.ThrottlePush(task.Id, key, time.Now().Add(-30*time.Second))
+	blocked, err := taskQueue.ThrottlePush(task.Id, taskQueue.TypePrefix(task.Type), key, time.Now().Add(-30*time.Second))
 	if blocked {
 		Trace(channel, "throttled", t)
 	}

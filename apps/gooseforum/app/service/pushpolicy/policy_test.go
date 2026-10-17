@@ -149,6 +149,31 @@ func TestLowValueThrottlePreservesHighValue(t *testing.T) {
 	}
 }
 
+// 节流计数必须限定在被节流行自己的任务族内：未来的任务族若复用同一
+// schedule_group 字符串，不得静默抑制推送。
+func TestLowValueThrottleIgnoresOtherTaskFamilies(t *testing.T) {
+	setup(t)
+	conn := db.Connect()
+	for _, typ := range []string{"agent-webhook.9", "webpush.98001"} {
+		conn.Where("type = ?", typ).Delete(&taskQueue.Entity{})
+	}
+	now := time.Now()
+	other := taskQueue.Entity{Type: "agent-webhook.9", Status: taskQueue.StatusSuccess, ProcessedAt: now, ScheduleGroup: "web:98001:like:123"}
+	if err := conn.Create(&other).Error; err != nil {
+		t.Fatal(err)
+	}
+	second := taskQueue.Entity{Type: "webpush.98001", Status: taskQueue.StatusRunning, ProcessedAt: now}
+	if err := conn.Create(&second).Error; err != nil {
+		t.Fatal(err)
+	}
+	payload := Task{UserId: 98001}
+	n := eventNotification.Entity{EventType: "like", Payload: eventNotification.NotificationPayload{TopicId: 123}}
+	blocked, err := Throttle(&second, payload, n, "web")
+	if err != nil || blocked {
+		t.Fatalf("another task family suppressed this push: blocked=%v err=%v", blocked, err)
+	}
+}
+
 func TestCompleteEventPolicyGroups(t *testing.T) {
 	for typ, want := range map[string]string{"mention": "mentionsAndReplies", "post_reply": "mentionsAndReplies", "comment": "mentionsAndReplies", "like": "activity", "follow": "following", "topic_post": "following", "wiki_updated": "following", "badge": "system", "system": "system", "review_pending": "system", "review_approved": "system", "review_rejected": "system", "chat_message": "chat", "inboxmail.delivery": "inboxmail", "unregistered_future": "unknown"} {
 		if got := Group(typ); got != want {

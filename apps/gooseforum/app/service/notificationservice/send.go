@@ -163,6 +163,9 @@ func SendMentionNotifications(userIds []uint64, topicId uint64, postId uint64, p
 	created, err := persistInteractions(db.Connect(), notifications)
 	if err == nil {
 		for _, notification := range created {
+			if notification == nil {
+				continue
+			}
 			notificationCommitted(notification.UserId)
 			webpushservice.EnqueueNotification(notification.UserId, notification.Id)
 			nativepushservice.EnqueueNotification(notification.UserId, notification.Id)
