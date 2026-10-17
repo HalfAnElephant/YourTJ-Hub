@@ -38,8 +38,9 @@ normal_external；suspicious/blocked 始终确认或拦截。保存期由 `bundl
 任何域名」，避免一次无关保存静默停用白名单。Web 由 SSR payload（`layout.site.trustedExternalDomains`）
 下发，Flutter 启动时读取公开端点 `GET /api/external-link-policy`，两端共用同一份清单与同一豁免边界；
 两端都在 punycode 形式上比较（Flutter 需把 `Uri.host` 的百分号编码还原后再编码非 ASCII 标签），
-保证 IDN 条目在两端一致命中。标签与目标不符的链接在 Flutter 侧由 Markdown AST 预先判为
-suspicious（富文本渲染器只把 href 交给点击回调），与 Web 的渲染后文本判定等价，因此同样不被白名单豁免。
+保证 IDN 条目在两端一致命中。标签与目标不符的链接在 Flutter 侧按源文本预先判为 suspicious
+（Markdown AST 与渲染后 HTML 两条链路：帖子/评论、Wiki 与课评正文；富文本渲染器只把 href 交给点击
+回调，聊天是纯文本、可点文本即 URL），与 Web 的渲染后文本判定等价，因此同样不被白名单豁免。
 
 不选内置静态名单：站点集合变化必须发版，无法按站点定制，与「运营可维护」矛盾。
 不选用户自选持久化：引入长期信任语义、撤销入口与跨设备一致性问题，交互与安全面最重，且无法表达

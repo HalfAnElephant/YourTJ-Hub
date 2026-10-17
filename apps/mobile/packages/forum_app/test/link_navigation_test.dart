@@ -63,6 +63,57 @@ void main() {
     );
   });
 
+  test('mislabeledLinkTargetsInHtml flags mislabeled HTML anchors', () {
+    // Wiki 与课评正文是服务端 HTML(GfHtmlContent),判定与 Markdown 链路等价:
+    // 标签是站外 URL 且 registrable domain 与目标不同(issue #1200 review)。
+    expect(
+      mislabeledLinkTargetsInHtml(
+        '<p><a href="https://github.com/x">https://bank.example/account</a></p>',
+        base: Uri.parse('http://fake.local'),
+      ),
+      <String>{'https://github.com/x'},
+    );
+    // 同注册域的标签(含子域)不是误导性标签。
+    expect(
+      mislabeledLinkTargetsInHtml(
+        '<p><a href="https://example.com/y">https://docs.example.com</a></p>',
+        base: Uri.parse('http://fake.local'),
+      ),
+      isEmpty,
+    );
+    // 普通文字标签、相对目标、非 http(s) 标签都不成卡。
+    expect(
+      mislabeledLinkTargetsInHtml(
+        '<a href="https://github.com/x">文档</a>'
+        '<a href="/relative">https://bank.example</a>'
+        '<a href="https://github.com/y">mailto:me@example.com</a>',
+        base: Uri.parse('http://fake.local'),
+      ),
+      isEmpty,
+    );
+  });
+
+  test('mislabeledLinkTargetsInHtml resolves scheme-less targets like fwfh', () {
+    // fwfh 先把无 scheme 的 href 按 HtmlWidget 的 baseUrl 解析成绝对 URL 才交给
+    // 点击回调,集合键必须用同一形式,否则协议相对目标查不到表(issue #1200)。
+    // 集合同时收 href 原样与按 base 解析后的形式:绝对 href 由 fwfh 原样交给
+    // 点击回调,而 Wiki 侧会经 Uri.toString() 归一化(issue #1200 review)。
+    expect(
+      mislabeledLinkTargetsInHtml(
+        '<a href="//github.com/x">https://bank.example</a>',
+        base: Uri.parse('http://fake.local'),
+      ),
+      <String>{'//github.com/x', 'http://github.com/x'},
+    );
+    expect(
+      mislabeledLinkTargetsInHtml(
+        '<a href="https://GitHub.com/x">https://bank.example</a>',
+        base: Uri.parse('http://fake.local'),
+      ),
+      <String>{'https://GitHub.com/x', 'https://github.com/x'},
+    );
+  });
+
   test('IDN policy entries match the percent-encoded host Dart parses', () {
     // 服务端把 IDN 条目存成 punycode（idna.Lookup.ToASCII），而 Dart 的
     // Uri.host 给的是百分号编码形式（issue #1200 review）。

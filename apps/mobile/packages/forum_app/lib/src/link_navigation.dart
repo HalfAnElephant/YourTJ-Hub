@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:core/core.dart';
 import 'package:ui_kit/ui_kit.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:html/dom.dart' as html_dom;
+import 'package:html/parser.dart' show parseFragment;
 
 import '../l10n/app_localizations.dart';
 import 'ascii_hostname.dart';
@@ -18,18 +20,60 @@ enum LinkRisk { normalExternal, suspicious, blocked }
 Set<String> mislabeledLinkTargets(String markdown) {
   final Set<String> targets = <String>{};
   for (final UrlLabeledLink link in urlLabeledMarkdownLinks(markdown)) {
-    final Uri? labelUri = Uri.tryParse(link.label);
-    final Uri? targetUri = Uri.tryParse(link.href);
-    if (labelUri == null || targetUri == null || targetUri.host.isEmpty) {
-      continue;
-    }
-    final String labelDomain = registrableDomain(asciiHostname(labelUri.host));
-    final String targetDomain = registrableDomain(
-      asciiHostname(targetUri.host),
-    );
-    if (labelDomain != targetDomain) targets.add(link.href);
+    if (_isMislabeledLink(link)) targets.add(link.href);
   }
   return targets;
+}
+
+/// 渲染后 HTML 片段的等价判定（Wiki、课评正文等 `GfHtmlContent` 链路，
+/// issue #1200 review）：服务端 HTML 也不把标签交给点击回调，同样需要在
+/// 点击前从源文本算出目标集合。
+///
+/// [base] 传与 `HtmlWidget.baseUrl` 相同的基准。集合同时收 href 原样与按
+/// [base] 解析后的绝对形式：绝对 href 由 fwfh 原样交给回调，而 Wiki 侧还会经
+/// `Uri.toString()` 归一化（主机小写、路径折叠、百分号解码），两种形式都要能
+/// 命中；无 scheme 的 href（如协议相对 `//host/x`）两端的值都由 [base] 解析。
+Set<String> mislabeledLinkTargetsInHtml(String html, {required Uri base}) {
+  final Set<String> targets = <String>{};
+  for (final UrlLabeledLink link in _urlLabeledHtmlLinks(html)) {
+    if (_isMislabeledLink(link)) {
+      targets.add(link.href);
+      targets.add(base.resolveUri(Uri.parse(link.href)).toString());
+    }
+  }
+  return targets;
+}
+
+/// 提取渲染后 HTML 里「可见文本本身是绝对 http(s) URL」的 `<a href>`。
+List<UrlLabeledLink> _urlLabeledHtmlLinks(String html) {
+  // 链接必须来自 `<a href>`；其余正文不必再解析一遍。
+  if (!html.contains('<')) return const <UrlLabeledLink>[];
+  final List<UrlLabeledLink> links = <UrlLabeledLink>[];
+  for (final html_dom.Element anchor in parseFragment(
+    html,
+  ).querySelectorAll('a[href]')) {
+    final String? href = anchor.attributes['href'];
+    final String label = anchor.text.trim();
+    if (href != null &&
+        href.isNotEmpty &&
+        label.isNotEmpty &&
+        isAbsoluteHttpUrl(label)) {
+      links.add(UrlLabeledLink(href: href, label: label));
+    }
+  }
+  return links;
+}
+
+/// 链接的可见文本与目标跨 registrable domain（Web linkRisk 的核心判定，
+/// Markdown 与 HTML 链路共用同一份 PSL 逻辑）。
+bool _isMislabeledLink(UrlLabeledLink link) {
+  final Uri? labelUri = Uri.tryParse(link.label);
+  final Uri? targetUri = Uri.tryParse(link.href);
+  if (labelUri == null || targetUri == null || targetUri.host.isEmpty) {
+    return false;
+  }
+  return registrableDomain(asciiHostname(labelUri.host)) !=
+      registrableDomain(asciiHostname(targetUri.host));
 }
 
 /// 归一化服务端下发的免确认白名单（issue #1200）：按 [asciiHostname] 统一为

@@ -48,7 +48,7 @@ List<UrlLabeledLink> urlLabeledMarkdownLinks(String markdown) {
       if (href != null &&
           href.isNotEmpty &&
           label.isNotEmpty &&
-          _isAbsoluteHttpUrl(label)) {
+          isAbsoluteHttpUrl(label)) {
         links.add(UrlLabeledLink(href: href, label: label));
       }
     }
@@ -63,7 +63,9 @@ List<UrlLabeledLink> urlLabeledMarkdownLinks(String markdown) {
   return links;
 }
 
-bool _isAbsoluteHttpUrl(String value) {
+/// [value] 本身是绝对 http(s) URL（标签判定的唯一实现，Markdown 与 HTML
+/// 链路共用；见 [UrlLabeledLink]）。
+bool isAbsoluteHttpUrl(String value) {
   final Uri? uri = Uri.tryParse(value);
   if (uri == null || !uri.hasScheme || uri.host.isEmpty) return false;
   final String scheme = uri.scheme.toLowerCase();
