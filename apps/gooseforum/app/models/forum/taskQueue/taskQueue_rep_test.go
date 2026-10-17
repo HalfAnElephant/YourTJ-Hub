@@ -20,7 +20,8 @@ func TestTypeFamilyQueryMatchesConstantAndSuffixedTypes(t *testing.T) {
 	legacy := &Entity{Type: "testfamily.7", TaskJson: "{}"}
 	current := &Entity{Type: "testfamily.", TaskJson: "{}"}
 	other := &Entity{Type: "otherfamily.1", TaskJson: "{}"}
-	for _, task := range []*Entity{legacy, current, other} {
+	sibling := &Entity{Type: "testfamily2.3", TaskJson: "{}"}
+	for _, task := range []*Entity{legacy, current, other, sibling} {
 		if err := conn.Create(task).Error; err != nil {
 			t.Fatalf("create %q: %v", task.Type, err)
 		}
@@ -36,13 +37,16 @@ func TestTypeFamilyQueryMatchesConstantAndSuffixedTypes(t *testing.T) {
 	if claimed[other.Id] {
 		t.Fatal("family query claimed another family")
 	}
+	// 族标识必须以尾点为边界："testfamily2.3" 是兄弟族，不能被 "testfamily." 领取。
+	if claimed[sibling.Id] {
+		t.Fatal("family query claimed a sibling family")
+	}
 
 	// 终态清理走同一谓词：只删本族终态行。
-	if err := conn.Model(legacy).Update("status", StatusSuccess).Error; err != nil {
-		t.Fatal(err)
-	}
-	if err := conn.Model(current).Update("status", StatusSuccess).Error; err != nil {
-		t.Fatal(err)
+	for _, task := range []*Entity{legacy, current, sibling} {
+		if err := conn.Model(task).Update("status", StatusSuccess).Error; err != nil {
+			t.Fatal(err)
+		}
 	}
 	deleted, err := DeleteTerminalByTypePrefix("testfamily.", []int{StatusSuccess}, time.Now().Add(time.Minute), 10)
 	if err != nil {
@@ -51,6 +55,12 @@ func TestTypeFamilyQueryMatchesConstantAndSuffixedTypes(t *testing.T) {
 	if deleted != 2 {
 		t.Fatalf("deleted %d terminal rows, want 2", deleted)
 	}
+	var siblingRemaining int64
+	conn.Model(&Entity{}).Where("id = ?", sibling.Id).Count(&siblingRemaining)
+	if siblingRemaining != 1 {
+		t.Fatal("sibling family row was deleted by another family's terminal cleanup")
+	}
+	conn.Where("id = ?", sibling.Id).Delete(&Entity{})
 	var remaining int64
 	conn.Model(&Entity{}).Where("type LIKE ?", "testfamily%").Count(&remaining)
 	if remaining != 0 {

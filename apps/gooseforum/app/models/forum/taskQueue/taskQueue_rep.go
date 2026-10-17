@@ -42,11 +42,12 @@ func GetPendingTasks(limit int) (tasks []*Entity) {
 	return
 }
 
-// typeFamilyQuery 返回 type 列的族匹配谓词（"type LIKE ?", prefix）。族标识
+// typeFamilyQuery 返回 type 列的族匹配谓词（"type LIKE ?", prefix+"%"）。族标识
 // 既可能是任务族常量（"webpush."），也可能是历史行上的「族 + id」
-// （"webpush.123"）；两者都要被同一谓词选中，因此匹配时去掉尾点。
+// （"webpush.123"）；族常量自带尾点，补上 "%" 后两者都命中，且不会溢出到
+// "webpush2." 之类的兄弟族（因此不能去掉尾点）。
 func typeFamilyQuery(typePrefix string) (string, string) {
-	return "type LIKE ?", strings.TrimSuffix(typePrefix, ".") + "%"
+	return "type LIKE ?", typePrefix + "%"
 }
 
 // GetPendingTasksByType 获取指定类型前缀的待处理任务（按 type 前缀隔离 worker）。
