@@ -18,6 +18,15 @@ void main() {
     expect(LinkNavigation.isTrusted('example.com'), isFalse);
   });
 
+  test('session trust normalizes IDN hosts written from raw Uri.host', () {
+    // 生产写入路径传 Uri.host（IDN 的百分号编码形式），读取路径传 asciiHostname
+    // 归一后的 punycode；两端必须落在同一个键上，否则「不再询问」对 IDN 失效。
+    LinkNavigation.trustForSession(Uri.parse('https://中国.com/x').host);
+    expect(LinkNavigation.isTrusted('xn--fiqs8s.com'), isTrue);
+    expect(LinkNavigation.isTrusted('apps.xn--fiqs8s.com'), isTrue);
+    expect(LinkNavigation.isTrusted('xn--fiqs8s.org'), isFalse);
+  });
+
   test('private suffix tenants do not share trust', () {
     LinkNavigation.trustForSession('alice.github.io');
     expect(LinkNavigation.isTrusted('alice.github.io'), isTrue);

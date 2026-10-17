@@ -280,9 +280,11 @@ class _GfMarkdownViewState extends ConsumerState<GfMarkdownView> {
           onTap: (String url) {
             // 标签与目标不符的链接按 suspicious 处理（对齐 Web linkRisk）：
             // 白名单与会话信任都不豁免，始终弹确认层（issue #1200）。
-            if (_mislabeledSource != data) {
-              _mislabeledSource = data;
-              _mislabeledTargets = mislabeledLinkTargets(data);
+            // 按 widget.data 而非展开后的 data 记忆：贴纸 token 展开会插入每次
+            // 重建都变的随机 source，用它做键会让缓存永远失效。
+            if (_mislabeledSource != widget.data) {
+              _mislabeledSource = widget.data;
+              _mislabeledTargets = mislabeledLinkTargets(widget.data);
             }
             unawaited(
               LinkNavigation.open(

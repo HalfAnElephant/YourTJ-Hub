@@ -103,7 +103,10 @@ abstract final class LinkNavigation {
   static void trustForSession(String domain) =>
       _trustedDomains.add(trustDomainFor(domain));
 
-  static String trustDomainFor(String hostname) => registrableDomain(hostname);
+  // 归一化放在这里：写入方传 `Uri.host`（IDN 是百分号编码形式），读取方传
+  // `asciiHostname` 后的 punycode，两者必须落到同一个键（issue #1200）。
+  static String trustDomainFor(String hostname) =>
+      registrableDomain(asciiHostname(hostname));
 
   /// 应用服务端下发的白名单（由 [ExternalLinkPolicyController] 启动时调用）。
   static void applyTrustedDomains(Iterable<String> domains) {
