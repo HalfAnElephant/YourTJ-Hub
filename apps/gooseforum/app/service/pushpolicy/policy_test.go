@@ -96,7 +96,7 @@ func TestChatSourceChecksAndRollback(t *testing.T) {
 		t.Fatal("expected rollback")
 	}
 	var count int64
-	conn.Model(&taskQueue.Entity{}).Where("type = ?", "testpush.98003").Count(&count)
+	conn.Model(&taskQueue.Entity{}).Where("dedup_key = ?", "testpush.:chat_message:98003:98001").Count(&count)
 	if count != 0 {
 		t.Fatal("rolled back chat queued")
 	}
@@ -105,12 +105,15 @@ func TestChatSourceChecksAndRollback(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	conn.Model(&taskQueue.Entity{}).Where("type = ?", "testpush.98003").Count(&count)
+	conn.Model(&taskQueue.Entity{}).Where("dedup_key = ?", "testpush.:chat_message:98003:98001").Count(&count)
 	if count != 1 {
 		t.Fatal("duplicate outbox task")
 	}
 	var stored taskQueue.Entity
-	conn.Where("type = ?", "testpush.98003").First(&stored)
+	conn.Where("dedup_key = ?", "testpush.:chat_message:98003:98001").First(&stored)
+	if stored.Type != "testpush." {
+		t.Fatalf("task type = %q, want the channel family constant", stored.Type)
+	}
 	var payload map[string]any
 	if json.Unmarshal([]byte(stored.TaskJson), &payload) != nil || payload["sourceKind"] != ChatMessage {
 		t.Fatal("wrong source envelope")

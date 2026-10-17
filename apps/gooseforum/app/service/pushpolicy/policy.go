@@ -132,7 +132,9 @@ func Enqueue(tx *gorm.DB, channel string, userID, id uint64, kind string) error 
 		return err
 	}
 	key := fmt.Sprintf("%s:%s:%d:%d", channel, kind, id, userID)
-	staged, err := taskQueue.CreateDeduplicatedTx(tx, &taskQueue.Entity{Type: channel + fmt.Sprint(id), TaskJson: string(raw), DedupKey: &key})
+	// type 用任务族常量即可：行级身份由 dedup_key/task_json 承载，查询侧
+	// 通过 taskQueue 的族谓词兼容历史「族 + id」行。
+	staged, err := taskQueue.CreateDeduplicatedTx(tx, &taskQueue.Entity{Type: channel, TaskJson: string(raw), DedupKey: &key})
 	if err == nil && staged {
 		Trace(channel, "outbox_staged", data)
 	}

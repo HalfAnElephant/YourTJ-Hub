@@ -42,11 +42,18 @@ func GetPendingTasks(limit int) (tasks []*Entity) {
 	return
 }
 
+// typeFamilyQuery 返回 type 列的族匹配谓词（"type LIKE ?", prefix）。族标识
+// 既可能是任务族常量（"webpush."），也可能是历史行上的「族 + id」
+// （"webpush.123"）；两者都要被同一谓词选中，因此匹配时去掉尾点。
+func typeFamilyQuery(typePrefix string) (string, string) {
+	return "type LIKE ?", strings.TrimSuffix(typePrefix, ".") + "%"
+}
+
 // GetPendingTasksByType 获取指定类型前缀的待处理任务（按 type 前缀隔离 worker）。
 func GetPendingTasksByType(typePrefix string, limit int) (tasks []*Entity) {
 	query := builder()
 	if typePrefix != "" {
-		query = query.Where("type LIKE ?", typePrefix+"%")
+		query = query.Where(typeFamilyQuery(typePrefix))
 	}
 	query.Where(queryopt.In("status", []int{StatusPending, StatusRetrying})).
 		Where("next_run_at IS NULL OR next_run_at <= ?", time.Now()).
@@ -62,7 +69,8 @@ func PendingManagedGroups(typePrefix string, limit int) (tasks []*Entity) {
 	if typePrefix != "agent-webhook." {
 		return GetPendingTasksByType(typePrefix, limit)
 	}
-	sub := builder().Select("MIN(id)").Where("type LIKE ? AND status IN (?, ?)", typePrefix+"%", StatusPending, StatusRetrying).Where("next_run_at IS NULL OR next_run_at <= ?", time.Now()).Group("schedule_group")
+	clause, like := typeFamilyQuery(typePrefix)
+	sub := builder().Select("MIN(id)").Where(clause+" AND status IN (?, ?)", like, StatusPending, StatusRetrying).Where("next_run_at IS NULL OR next_run_at <= ?", time.Now()).Group("schedule_group")
 	builder().Where("id IN (?)", sub).Order("id asc").Limit(limit).Find(&tasks)
 	return tasks
 }
@@ -180,7 +188,7 @@ func IncrementRetryCountOwned(id uint64, token string) error {
 // QueryByTypeDesc returns tasks of the given type prefix, newest first.
 func QueryByTypeDesc(typePrefix string, limit int) *gorm.DB {
 	return builder().
-		Where("type LIKE ?", typePrefix+"%").
+		Where(typeFamilyQuery(typePrefix)).
 		Order("id desc").
 		Limit(limit)
 }
@@ -210,7 +218,7 @@ func GetByID(id any) (entity Entity, err error) {
 func RecoverStaleRunning(typePrefix string, staleAfter time.Duration) error {
 	cutoff := time.Now().Add(-staleAfter)
 	return builder().
-		Where("type LIKE ?", typePrefix+"%").
+		Where(typeFamilyQuery(typePrefix)).
 		Where("status = ?", StatusRunning).
 		Where("processed_at < ?", cutoff).
 		Updates(map[string]any{
@@ -252,7 +260,7 @@ func DeleteTerminalByTypePrefix(typePrefix string, statuses []int, before time.T
 	for {
 		var ids []uint64
 		if err := builder().
-			Where("type LIKE ?", typePrefix+"%").
+			Where(typeFamilyQuery(typePrefix)).
 			Where("status IN ?", statuses).
 			Where("processed_at < ?", before).
 			Order("id asc").
@@ -361,7 +369,7 @@ func ThrottlePush(id uint64, typePrefix, group string, before time.Time) (bool, 
 		query := tx.Model(&Entity{}).
 			Where("schedule_group = ? AND id <> ? AND status IN (?, ?) AND processed_at > ?", group, id, StatusRunning, StatusSuccess, before)
 		if typePrefix != "" {
-			query = query.Where("type LIKE ?", typePrefix+"%")
+			query = query.Where(typeFamilyQuery(typePrefix))
 		}
 		var count int64
 		if err := query.Count(&count).Error; err != nil {
@@ -377,7 +385,8 @@ func ThrottlePush(id uint64, typePrefix, group string, before time.Time) (bool, 
 }
 
 // TypePrefix 返回任务类型所属的任务族前缀（"webpush.123" → "webpush."）；
-// 类型不含分隔符时返回空串，表示无法归属到某个族。
+// 类型不含分隔符时返回空串，表示无法归属到某个族。任务族的常量类型
+// （"webpush."）本身即该族标识，尾点保留。
 func TypePrefix(taskType string) string {
 	if index := strings.LastIndex(taskType, "."); index >= 0 {
 		return taskType[:index+1]
