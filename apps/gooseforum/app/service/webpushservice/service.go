@@ -278,10 +278,11 @@ func RunPushTask(ctx context.Context, task *taskQueue.Entity) error {
 			continue
 		}
 		// 语言是订阅级属性（同一用户的不同浏览器可能用不同界面语言）。
-		content := buildPushContent(notification, normalizeLang(sub.Lang))
+		lang := normalizeLang(sub.Lang)
+		content := buildPushContent(notification, lang)
 		if chat != nil {
-			copy := BuildChatCopy(chat.SenderId, normalizeLang(sub.Lang))
-			content = &pushContent{Title: copy.Title, Body: copy.Body, URL: copy.URL, Icon: pushIconPath}
+			copy := BuildChatCopy(chat.SenderId, lang)
+			content = &pushContent{Title: copy.Title, Body: copy.Body, URL: copy.URL, Icon: pushIconPath, GenericTitle: genericTitle(lang)}
 		}
 		if content != nil {
 			kind, id := payload.Source()
@@ -389,6 +390,10 @@ type pushContent struct {
 	Body  string `json:"body"`
 	URL   string `json:"url"`
 	Icon  string `json:"icon"`
+	// GenericTitle 是 SW 复核为 unknown（无法确认当前账号）时替换原始标题的通用
+	// 文案：正文一并丢弃，身份不明的浏览器不会展示推送内容。文案仍按订阅语言由
+	// 服务端维护，SW 不重复四语种文案（见 resource/static/sw.js）。
+	GenericTitle string `json:"genericTitle"`
 	// Id 通知行 id：SW 用它生成唯一 notification tag，使多条未读通知在系统
 	// 托盘各自呈现而不互相覆盖（review P2）。
 	Id          uint64 `json:"id,omitempty"`
@@ -481,7 +486,7 @@ func buildPushContent(notification eventNotification.Entity, lang string) *pushC
 		title = body
 	}
 
-	return &pushContent{Title: truncateTitle(title), Body: body, URL: url, Icon: pushIconPath, Id: notification.Id}
+	return &pushContent{Title: truncateTitle(title), Body: body, URL: url, Icon: pushIconPath, Id: notification.Id, GenericTitle: genericTitle(lang)}
 }
 
 // topicURL 构造帖子详情深链（与通知列表 BuildNotificationPayload 同规则）：

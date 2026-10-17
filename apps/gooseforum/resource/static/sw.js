@@ -23,10 +23,10 @@ self.addEventListener('message', event => {
 // Recipient verification is tri-state: the worker suppresses a push only when
 // the server positively confirms that a *different* account is active in this
 // browser. Anything it cannot determine — transport failure, timeout, non-2xx,
-// unparseable body, an anonymous/expired session, or a browser without
-// AbortSignal.timeout — counts as 'unknown' and the push is shown, so a closed
-// page or a lapsed session still receives its notification. See
-// docs/product/forum.md.
+// unparseable body, or an anonymous/expired session — counts as 'unknown': the
+// notification is still shown, but with the pushed title and body replaced by
+// the server-rendered generic title, so an unverified browser never displays
+// the push copy. See docs/product/forum.md.
 const RECIPIENT_CHECK_TIMEOUT_MS = 5000;
 function recipientCheckSignal() {
   try {
@@ -71,7 +71,8 @@ self.addEventListener('push', (event) => {
   let payload = null;
   if (event.data) {
     try {
-      // Payload shape: {title, body, url, icon, id (numeric, optional)}
+      // Payload shape: {title, body, genericTitle, url, icon, id (numeric,
+      // optional), sourceKind, sourceId, recipientId}
       payload = event.data.json();
     } catch {
       payload = null; // malformed payload: treat as absent
@@ -80,7 +81,21 @@ self.addEventListener('push', (event) => {
   if (!payload || !payload.title) return;
 
   event.waitUntil((async () => {
-    if ((payload.recipientId != null || payload.sourceKind === 'chat_message') && await recipientState(payload.recipientId) === 'mismatch') return;
+    let title = payload.title;
+    let body = payload.body;
+    if (payload.recipientId != null || payload.sourceKind === 'chat_message') {
+      const recipient = await recipientState(payload.recipientId);
+      if (recipient === 'mismatch') return;
+      if (recipient === 'unknown') {
+        // Undecided identity: neither the pushed title nor the body is safe to
+        // display, so use the server's generic copy. A payload from a server
+        // that predates genericTitle carries no safe copy — it is still shown,
+        // with an empty title (browsers render the site name) and no body,
+        // rather than leaking the push or inventing copy in the worker.
+        title = payload.genericTitle || '';
+        body = undefined;
+      }
+    }
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     if (windows.some(client => {
       if (!client.focused) return false;
@@ -93,7 +108,7 @@ self.addEventListener('push', (event) => {
     })) return;
     const source = payload.id != null ? `${payload.sourceKind || 'notification'}:${payload.id}` : '';
     const notificationOptions = {
-      body: payload.body,
+      body,
       icon: payload.icon,
       data: { url: payload.url, recipientId: payload.recipientId, sourceKind: payload.sourceKind },
     };
@@ -109,7 +124,7 @@ self.addEventListener('push', (event) => {
           if (await cache.match(key)) return false;
         }
       } catch { cache = undefined; }
-      await self.registration.showNotification(payload.title, notificationOptions);
+      await self.registration.showNotification(title, notificationOptions);
       try { if (cache) {
         await cache.put(key, new Response('1'));
         // The ledger only needs to cover the replay window; 256 newest entries
@@ -144,7 +159,9 @@ self.addEventListener('push', (event) => {
 // navigated to the deep link before focusing (focusing without navigating
 // would leave the user on an unrelated page), and with no usable window the
 // payload URL is opened — falling back to the notifications page when the
-// payload or its URL is missing.
+// payload or its URL is missing. When the server cannot confirm the recipient
+// as the current account (unknown or explicitly another account), the pushed
+// deep link is not used: the click goes to the generic destination instead.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil((async () => {
@@ -154,7 +171,7 @@ self.addEventListener('notificationclick', (event) => {
       const parsed = new URL(payloadUrl || FALLBACK_URL, self.location.origin);
       if (parsed.origin === self.location.origin) target = parsed.pathname + parsed.search + parsed.hash;
     } catch {}
-    if (event.notification.data && (event.notification.data.recipientId != null || event.notification.data.sourceKind === 'chat_message') && await recipientState(event.notification.data.recipientId) === 'mismatch') target = event.notification.data.sourceKind === 'chat_message' ? '/messages' : FALLBACK_URL;
+    if (event.notification.data && (event.notification.data.recipientId != null || event.notification.data.sourceKind === 'chat_message') && await recipientState(event.notification.data.recipientId) !== 'match') target = event.notification.data.sourceKind === 'chat_message' ? '/messages' : FALLBACK_URL;
     const windows = await self.clients.matchAll({ type: 'window' });
     // Only focus an existing window when its full target, including the conversation/floor, matches.
     for (const client of windows) {
